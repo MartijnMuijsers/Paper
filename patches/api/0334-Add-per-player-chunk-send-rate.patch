@@ -5,13 +5,13 @@ Subject: [PATCH] Add per-player chunk send rate
 
 
 diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
-index afa245018192a63e5db8bc568ddea2790bf5b8a2..05d05b6b6eda5a8976a95c59b1481666e1306c2f 100644
+index 2a7f562549639dc9f37af5c017a6730f5f40a203..27cc92e989a55bfc72b3743f5479731f9067bf62 100644
 --- a/src/main/java/org/bukkit/entity/Player.java
 +++ b/src/main/java/org/bukkit/entity/Player.java
-@@ -1938,6 +1938,28 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
-      * @param viewDistance view distance in [2, 32] or -1
+@@ -1976,6 +1976,28 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
       */
-     public void setSendViewDistance(int viewDistance);
+     public void setAllowEntityTrackingBeyondNoTickViewDistance(@Nullable Boolean allow);
+     // Martijn in Paper end - entity tracking view distance
 +
 +    // Martijn in Paper start - per-player chunk send rate
 +    /**

@@ -5,10 +5,10 @@ Subject: [PATCH] Add per-player chunk send rate
 
 
 diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
-index b3da5ec6701448a4b273c86aff9c64e3d75e5885..efa87b87b97b980bfea7a05a258c7c598acb2f3e 100644
+index 2407af793f667f68da102bed131d1a1dac090f2d..ade1fb45f277add58a21d9ffb99b34c6c1ff8429 100644
 --- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
 +++ b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
-@@ -304,9 +304,13 @@ public final class PlayerChunkLoader {
+@@ -351,9 +351,13 @@ public final class PlayerChunkLoader {
          return (int)Math.ceil(Math.min(config * MinecraftServer.getServer().getPlayerCount(), max <= 1.0 ? Double.MAX_VALUE : max));
      }
  
@@ -24,7 +24,7 @@ index b3da5ec6701448a4b273c86aff9c64e3d75e5885..efa87b87b97b980bfea7a05a258c7c59
  
      protected long getMaxSendAddend() {
          return PaperConfig.globalMaxChunkSendRate <= 1.0 ? 0L : (long)Math.round(1.0e9 / PaperConfig.globalMaxChunkSendRate);
-@@ -456,7 +460,6 @@ public final class PlayerChunkLoader {
+@@ -503,7 +507,6 @@ public final class PlayerChunkLoader {
          }
  
          final int maxSends = this.getMaxConcurrentChunkSends();
@@ -32,7 +32,7 @@ index b3da5ec6701448a4b273c86aff9c64e3d75e5885..efa87b87b97b980bfea7a05a258c7c59
          for (;;) {
              if (this.chunkSendQueue.isEmpty()) {
                  break;
-@@ -489,6 +492,7 @@ public final class PlayerChunkLoader {
+@@ -536,6 +539,7 @@ public final class PlayerChunkLoader {
                  throw new IllegalStateException();
              }
  
@@ -56,7 +56,7 @@ index 6d2d2ba4a83d887f4d52188305a4a28c2ee2f014..9d38866a11416ad69ddbde8f9ef2a576
      // CraftBukkit start
      public String displayName;
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 1ccbdd2554073a41ca2f37deca3f1ec3e6a0665f..828b8bdec9b67922309efbda8e711ea505effedb 100644
+index a3008aaef611e3ed8e9b2637ccca7c9c50eef288..0990142c93d3a60cd736b8fc80e6f5a17e35ae6d 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -1,5 +1,6 @@
@@ -66,7 +66,7 @@ index 1ccbdd2554073a41ca2f37deca3f1ec3e6a0665f..828b8bdec9b67922309efbda8e711ea5
  import com.destroystokyo.paper.Title;
  import com.google.common.base.Preconditions;
  import com.google.common.collect.ImmutableSet;
-@@ -580,6 +581,21 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -624,6 +625,21 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
  
          data.setTargetTickViewDistance(viewDistance);
      }
