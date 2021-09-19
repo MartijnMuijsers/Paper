@@ -1,0 +1,430 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 17 Sep 2021 17:17:37 +0200
+Subject: [PATCH] Add per-source enchantability
+
+
+diff --git a/src/main/java/net/minecraft/server/commands/EnchantCommand.java b/src/main/java/net/minecraft/server/commands/EnchantCommand.java
+index 514cc0e8805045549eacde6c280859aa2dc4a91d..3c5d7c19986edb873dc9e2573f0144240a3a76fc 100644
+--- a/src/main/java/net/minecraft/server/commands/EnchantCommand.java
++++ b/src/main/java/net/minecraft/server/commands/EnchantCommand.java
+@@ -17,6 +17,7 @@ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.enchantment.Enchantment;
+ import net.minecraft.world.item.enchantment.EnchantmentHelper;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ 
+ public class EnchantCommand {
+     private static final DynamicCommandExceptionType ERROR_NOT_LIVING_ENTITY = new DynamicCommandExceptionType((entityName) -> {
+@@ -54,7 +55,7 @@ public class EnchantCommand {
+                     LivingEntity livingEntity = (LivingEntity)entity;
+                     ItemStack itemStack = livingEntity.getMainHandItem();
+                     if (!itemStack.isEmpty()) {
+-                        if (enchantment.canEnchant(itemStack) && EnchantmentHelper.isEnchantmentCompatible(EnchantmentHelper.getEnchantments(itemStack).keySet(), enchantment)) {
++                        if (enchantment.canEnchant(itemStack, EnchantmentSource.ENCHANT_COMMAND) && EnchantmentHelper.isEnchantmentCompatible(EnchantmentHelper.getEnchantments(itemStack).keySet(), enchantment)) { // Martijn in Minecraft - per-source enchantability
+                             itemStack.enchant(enchantment, level);
+                             ++i;
+                         } else if (targets.size() == 1) {
+diff --git a/src/main/java/net/minecraft/world/entity/Mob.java b/src/main/java/net/minecraft/world/entity/Mob.java
+index 8a864238e154e2131834d013652746b7e7a78c97..573af39a7f392b3b530877cc9ea69cebc518d00e 100644
+--- a/src/main/java/net/minecraft/world/entity/Mob.java
++++ b/src/main/java/net/minecraft/world/entity/Mob.java
+@@ -72,6 +72,7 @@ import net.minecraft.world.level.ServerLevelAccessor;
+ import net.minecraft.world.level.material.Fluid;
+ import net.minecraft.world.level.pathfinder.BlockPathTypes;
+ import net.minecraft.world.level.storage.loot.LootContext;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+ import org.bukkit.event.entity.CreatureSpawnEvent;
+@@ -1148,7 +1149,7 @@ public abstract class Mob extends LivingEntity {
+ 
+     protected void enchantSpawnedWeapon(float power) {
+         if (!this.getMainHandItem().isEmpty() && this.random.nextFloat() < 0.25F * power) {
+-            this.setItemSlot(EquipmentSlot.MAINHAND, EnchantmentHelper.enchantItem(this.random, this.getMainHandItem(), (int) (5.0F + power * (float) this.random.nextInt(18)), false));
++            this.setItemSlot(EquipmentSlot.MAINHAND, EnchantmentHelper.enchantItem(this.random, this.getMainHandItem(), (int) (5.0F + power * (float) this.random.nextInt(18)), false, EnchantmentSource.SPAWNED_MOB_MAIN_HAND)); // Martijn in Minecraft - per-source enchantability
+         }
+ 
+     }
+@@ -1157,7 +1158,7 @@ public abstract class Mob extends LivingEntity {
+         ItemStack itemstack = this.getItemBySlot(slot);
+ 
+         if (!itemstack.isEmpty() && this.random.nextFloat() < 0.5F * power) {
+-            this.setItemSlot(slot, EnchantmentHelper.enchantItem(this.random, itemstack, (int) (5.0F + power * (float) this.random.nextInt(18)), false));
++            this.setItemSlot(slot, EnchantmentHelper.enchantItem(this.random, itemstack, (int) (5.0F + power * (float) this.random.nextInt(18)), false, EnchantmentSource.SPAWNED_MOB_ARMOR)); // Martijn in Minecraft - per-source enchantability
+         }
+ 
+     }
+diff --git a/src/main/java/net/minecraft/world/entity/animal/horse/SkeletonTrapGoal.java b/src/main/java/net/minecraft/world/entity/animal/horse/SkeletonTrapGoal.java
+index 1b874f8a72f5b1ac64dd66621b039295f5dc1f18..65527f2e7e0f443e455a656e605fc9f72cff3eb9 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/horse/SkeletonTrapGoal.java
++++ b/src/main/java/net/minecraft/world/entity/animal/horse/SkeletonTrapGoal.java
+@@ -14,6 +14,7 @@ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.item.enchantment.EnchantmentHelper;
+ import net.minecraft.world.level.Level;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ 
+ public class SkeletonTrapGoal extends Goal {
+ 
+@@ -83,8 +84,8 @@ public class SkeletonTrapGoal extends Goal {
+             entityskeleton.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
+         }
+ 
+-        entityskeleton.setItemSlot(EquipmentSlot.MAINHAND, EnchantmentHelper.enchantItem(entityskeleton.getRandom(), this.disenchant(entityskeleton.getMainHandItem()), (int) (5.0F + localDifficulty.getSpecialMultiplier() * (float) entityskeleton.getRandom().nextInt(18)), false));
+-        entityskeleton.setItemSlot(EquipmentSlot.HEAD, EnchantmentHelper.enchantItem(entityskeleton.getRandom(), this.disenchant(entityskeleton.getItemBySlot(EquipmentSlot.HEAD)), (int) (5.0F + localDifficulty.getSpecialMultiplier() * (float) entityskeleton.getRandom().nextInt(18)), false));
++        entityskeleton.setItemSlot(EquipmentSlot.MAINHAND, EnchantmentHelper.enchantItem(entityskeleton.getRandom(), this.disenchant(entityskeleton.getMainHandItem()), (int) (5.0F + localDifficulty.getSpecialMultiplier() * (float) entityskeleton.getRandom().nextInt(18)), false, EnchantmentSource.SPAWNED_SKELETON_TRAP_MAIN_HAND)); // Martijn in Minecraft - per-source enchantability
++        entityskeleton.setItemSlot(EquipmentSlot.HEAD, EnchantmentHelper.enchantItem(entityskeleton.getRandom(), this.disenchant(entityskeleton.getItemBySlot(EquipmentSlot.HEAD)), (int) (5.0F + localDifficulty.getSpecialMultiplier() * (float) entityskeleton.getRandom().nextInt(18)), false, EnchantmentSource.SPAWNED_SKELETON_TRAP_HELMET)); // Martijn in Minecraft - per-source enchantability
+         return entityskeleton;
+     }
+ 
+diff --git a/src/main/java/net/minecraft/world/entity/npc/VillagerTrades.java b/src/main/java/net/minecraft/world/entity/npc/VillagerTrades.java
+index 314617cb0d2df92cc394f7a80011f5b6d075419b..a1f16429fceccb9a65e5429f2deae83af29f1b39 100644
+--- a/src/main/java/net/minecraft/world/entity/npc/VillagerTrades.java
++++ b/src/main/java/net/minecraft/world/entity/npc/VillagerTrades.java
+@@ -43,6 +43,7 @@ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.levelgen.feature.StructureFeature;
+ import net.minecraft.world.level.saveddata.maps.MapDecoration;
+ import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ 
+ public class VillagerTrades {
+     private static final int DEFAULT_SUPPLY = 12;
+@@ -223,7 +224,7 @@ public class VillagerTrades {
+         @Override
+         public MerchantOffer getOffer(Entity entity, Random random) {
+             int i = 5 + random.nextInt(15);
+-            ItemStack itemStack = EnchantmentHelper.enchantItem(random, new ItemStack(this.itemStack.getItem()), i, false);
++            ItemStack itemStack = EnchantmentHelper.enchantItem(random, new ItemStack(this.itemStack.getItem()), i, false, EnchantmentSource.VILLAGER_TRADE); // Martijn in Minecraft - per-source enchantability
+             int j = Math.min(this.baseEmeraldCost + i, 64);
+             ItemStack itemStack2 = new ItemStack(Items.EMERALD, j);
+             return new MerchantOffer(itemStack2, itemStack, this.maxUses, this.villagerXp, this.priceMultiplier);
+diff --git a/src/main/java/net/minecraft/world/inventory/AnvilMenu.java b/src/main/java/net/minecraft/world/inventory/AnvilMenu.java
+index 593e23c10f2b1616db7256158dfe564b2d289df1..91fd1bbf004f8af64b1f62024676b60579f54b84 100644
+--- a/src/main/java/net/minecraft/world/inventory/AnvilMenu.java
++++ b/src/main/java/net/minecraft/world/inventory/AnvilMenu.java
+@@ -15,6 +15,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
+ import net.minecraft.world.item.enchantment.EnchantmentHelper;
+ import net.minecraft.world.level.block.AnvilBlock;
+ import net.minecraft.world.level.block.state.BlockState;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ import org.apache.commons.lang3.StringUtils;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+@@ -192,7 +193,7 @@ public class AnvilMenu extends ItemCombinerMenu {
+                             int i2 = (Integer) map1.get(enchantment);
+ 
+                             i2 = l1 == i2 ? i2 + 1 : Math.max(i2, l1);
+-                            boolean flag3 = enchantment.canEnchant(itemstack);
++                            boolean flag3 = enchantment.canEnchant(itemstack, EnchantmentSource.ANVIL); // Martijn in Minecraft - per-source enchantability
+ 
+                             if (this.player.getAbilities().instabuild || itemstack.is(Items.ENCHANTED_BOOK)) {
+                                 flag3 = true;
+diff --git a/src/main/java/net/minecraft/world/inventory/EnchantmentMenu.java b/src/main/java/net/minecraft/world/inventory/EnchantmentMenu.java
+index 717b101bd2492037a9ca1d65d8cb3cebb7d6d4fe..9d9afae84b4b217507c2d320cda7be1c90277aa9 100644
+--- a/src/main/java/net/minecraft/world/inventory/EnchantmentMenu.java
++++ b/src/main/java/net/minecraft/world/inventory/EnchantmentMenu.java
+@@ -22,6 +22,7 @@ import java.util.Map;
+ import net.minecraft.world.item.enchantment.Enchantment;
+ import net.minecraft.world.item.enchantment.EnchantmentHelper;
+ import net.minecraft.world.item.enchantment.EnchantmentInstance;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Bukkit - per-source enchantability
+ import org.bukkit.Location;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.craftbukkit.inventory.CraftInventoryEnchanting;
+@@ -327,7 +328,7 @@ public class EnchantmentMenu extends AbstractContainerMenu {
+ 
+     private List<EnchantmentInstance> getEnchantmentList(ItemStack stack, int slot, int level) {
+         this.random.setSeed((long) (this.enchantmentSeed.get() + slot));
+-        List<EnchantmentInstance> list = EnchantmentHelper.selectEnchantment(this.random, stack, level, false);
++        List<EnchantmentInstance> list = EnchantmentHelper.selectEnchantment(this.random, stack, level, false, EnchantmentSource.ENCHANTING_TABLE); // Martijn in Minecraft - per-source enchantability
+ 
+         if (stack.is(Items.BOOK) && list.size() > 1) {
+             list.remove(this.random.nextInt(list.size()));
+diff --git a/src/main/java/net/minecraft/world/item/enchantment/DamageEnchantment.java b/src/main/java/net/minecraft/world/item/enchantment/DamageEnchantment.java
+index d6c354856c71d9629828e2ddbe316306bfaf6ea6..1fc99fd25586441f11c1b1138c8f39dd410d54d0 100644
+--- a/src/main/java/net/minecraft/world/item/enchantment/DamageEnchantment.java
++++ b/src/main/java/net/minecraft/world/item/enchantment/DamageEnchantment.java
+@@ -50,10 +50,12 @@ public class DamageEnchantment extends Enchantment {
+         return !(other instanceof DamageEnchantment);
+     }
+ 
++    // Martijn in Minecraft start - per-source enchantability
+     @Override
+-    public boolean canEnchant(ItemStack stack) {
+-        return stack.getItem() instanceof AxeItem ? true : super.canEnchant(stack);
++    public boolean canEnchantInVanilla(ItemStack stack) {
++        return stack.getItem() instanceof AxeItem ? true : super.canEnchantInVanilla(stack);
+     }
++    // Martijn in Minecraft end - per-source enchantability
+ 
+     @Override
+     public void doPostAttack(LivingEntity user, Entity target, int level) {
+diff --git a/src/main/java/net/minecraft/world/item/enchantment/DigDurabilityEnchantment.java b/src/main/java/net/minecraft/world/item/enchantment/DigDurabilityEnchantment.java
+index f8ccc90054fd29beeafbc92598dc16e733a63333..58f50e970d590ce1ed4dbdc777b410480bd36c54 100644
+--- a/src/main/java/net/minecraft/world/item/enchantment/DigDurabilityEnchantment.java
++++ b/src/main/java/net/minecraft/world/item/enchantment/DigDurabilityEnchantment.java
+@@ -25,10 +25,12 @@ public class DigDurabilityEnchantment extends Enchantment {
+         return 3;
+     }
+ 
++    // Martijn in Minecraft start - per-source enchantability
+     @Override
+-    public boolean canEnchant(ItemStack stack) {
+-        return stack.isDamageableItem() ? true : super.canEnchant(stack);
++    public boolean canEnchantInVanilla(ItemStack stack) {
++        return stack.isDamageableItem() ? true : super.canEnchantInVanilla(stack);
+     }
++    // Martijn in Minecraft end - per-source enchantability
+ 
+     public static boolean shouldIgnoreDurabilityDrop(ItemStack item, int level, Random random) {
+         if (item.getItem() instanceof ArmorItem && random.nextFloat() < 0.6F) {
+diff --git a/src/main/java/net/minecraft/world/item/enchantment/DiggingEnchantment.java b/src/main/java/net/minecraft/world/item/enchantment/DiggingEnchantment.java
+index c55b492e9bcf5a9eef1bf86d9a0ada7231c459e9..2b7d8ca53df1ae9a1c0189f74f538362752ebd6b 100644
+--- a/src/main/java/net/minecraft/world/item/enchantment/DiggingEnchantment.java
++++ b/src/main/java/net/minecraft/world/item/enchantment/DiggingEnchantment.java
+@@ -24,8 +24,10 @@ public class DiggingEnchantment extends Enchantment {
+         return 5;
+     }
+ 
++    // Martijn in Minecraft start - per-source enchantability
+     @Override
+-    public boolean canEnchant(ItemStack stack) {
+-        return stack.is(Items.SHEARS) ? true : super.canEnchant(stack);
++    public boolean canEnchantInVanilla(ItemStack stack) {
++        return stack.is(Items.SHEARS) ? true : super.canEnchantInVanilla(stack);
+     }
++    // Martijn in Minecraft end - per-source enchantability
+ }
+diff --git a/src/main/java/net/minecraft/world/item/enchantment/Enchantment.java b/src/main/java/net/minecraft/world/item/enchantment/Enchantment.java
+index 5a662dd8a05be01cbb232c3dee65d660c9b19a98..06f8d82b097cf02f12ff67a09ef0782618b6794d 100644
+--- a/src/main/java/net/minecraft/world/item/enchantment/Enchantment.java
++++ b/src/main/java/net/minecraft/world/item/enchantment/Enchantment.java
+@@ -2,6 +2,7 @@ package net.minecraft.world.item.enchantment;
+ 
+ import com.google.common.collect.Maps;
+ import java.util.Map;
++import java.util.function.BiPredicate; // Martijn in Minecraft - per-source enchantability
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.Util;
+@@ -15,6 +16,7 @@ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.MobType;
+ import net.minecraft.world.item.ItemStack;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ 
+ public abstract class Enchantment {
+     public final EquipmentSlot[] slots;
+@@ -22,6 +24,7 @@ public abstract class Enchantment {
+     public final EnchantmentCategory category;
+     @Nullable
+     protected String descriptionId;
++    public BiPredicate<ItemStack, EnchantmentSource> canEnchantPredicate = (item, source) -> this.canEnchantInVanilla(item); // Martijn in Minecraft - per-source enchantability
+ 
+     @Nullable
+     public static Enchantment byId(int id) {
+@@ -110,9 +113,20 @@ public abstract class Enchantment {
+         return mutableComponent;
+     }
+ 
++    // Martijn in Minecraft start - per-source enchantability
++    @Deprecated
+     public boolean canEnchant(ItemStack stack) {
++        return this.canEnchantInVanilla(stack);
++    }
++
++    public boolean canEnchant(ItemStack stack, EnchantmentSource source) {
++        return this.canEnchantPredicate.test(stack, source);
++    }
++
++    public boolean canEnchantInVanilla(ItemStack stack) {
+         return this.category.canEnchant(stack.getItem());
+     }
++    // Martijn in Minecraft end - per-source enchantability
+ 
+     public void doPostAttack(LivingEntity user, Entity target, int level) {
+     }
+diff --git a/src/main/java/net/minecraft/world/item/enchantment/EnchantmentHelper.java b/src/main/java/net/minecraft/world/item/enchantment/EnchantmentHelper.java
+index d439e8ce87bf7da03683a336941c7673b8b166e4..8c339d39bb57efc4c2f61da8f51162d290b3c417 100644
+--- a/src/main/java/net/minecraft/world/item/enchantment/EnchantmentHelper.java
++++ b/src/main/java/net/minecraft/world/item/enchantment/EnchantmentHelper.java
+@@ -27,6 +27,7 @@ import net.minecraft.world.item.EnchantedBookItem;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ import org.apache.commons.lang3.mutable.MutableFloat;
+ import org.apache.commons.lang3.mutable.MutableInt;
+ 
+@@ -318,8 +319,8 @@ public class EnchantmentHelper {
+         }
+     }
+ 
+-    public static ItemStack enchantItem(Random random, ItemStack target, int level, boolean treasureAllowed) {
+-        List<EnchantmentInstance> list = selectEnchantment(random, target, level, treasureAllowed);
++    public static ItemStack enchantItem(Random random, ItemStack target, int level, boolean treasureAllowed, EnchantmentSource source) { // Martijn in Minecraft - per-source enchantability
++        List<EnchantmentInstance> list = selectEnchantment(random, target, level, treasureAllowed, source); // Martijn in Minecraft - per-source enchantability
+         boolean bl = target.is(Items.BOOK);
+         if (bl) {
+             target = new ItemStack(Items.ENCHANTED_BOOK);
+@@ -336,7 +337,7 @@ public class EnchantmentHelper {
+         return target;
+     }
+ 
+-    public static List<EnchantmentInstance> selectEnchantment(Random random, ItemStack stack, int level, boolean treasureAllowed) {
++    public static List<EnchantmentInstance> selectEnchantment(Random random, ItemStack stack, int level, boolean treasureAllowed, EnchantmentSource source) { // Martijn in Minecraft - per-source enchantability
+         List<EnchantmentInstance> list = Lists.newArrayList();
+         Item item = stack.getItem();
+         int i = item.getEnchantmentValue();
+@@ -346,7 +347,7 @@ public class EnchantmentHelper {
+             level = level + 1 + random.nextInt(i / 4 + 1) + random.nextInt(i / 4 + 1);
+             float f = (random.nextFloat() + random.nextFloat() - 1.0F) * 0.15F;
+             level = Mth.clamp(Math.round((float)level + (float)level * f), 1, Integer.MAX_VALUE);
+-            List<EnchantmentInstance> list2 = getAvailableEnchantmentResults(level, stack, treasureAllowed);
++            List<EnchantmentInstance> list2 = getAvailableEnchantmentResults(level, stack, treasureAllowed, source); // Martijn in Minecraft - per-source enchantability
+             if (!list2.isEmpty()) {
+                 WeightedRandom.getRandomItem(random, list2).ifPresent(list::add);
+ 
+@@ -389,13 +390,13 @@ public class EnchantmentHelper {
+         return true;
+     }
+ 
+-    public static List<EnchantmentInstance> getAvailableEnchantmentResults(int power, ItemStack stack, boolean treasureAllowed) {
++    public static List<EnchantmentInstance> getAvailableEnchantmentResults(int power, ItemStack stack, boolean treasureAllowed, EnchantmentSource source) { // Martijn in Minecraft - per-source enchantability
+         List<EnchantmentInstance> list = Lists.newArrayList();
+         Item item = stack.getItem();
+         boolean bl = stack.is(Items.BOOK);
+ 
+         for(Enchantment enchantment : Registry.ENCHANTMENT) {
+-            if ((!enchantment.isTreasureOnly() || treasureAllowed) && enchantment.isDiscoverable() && (enchantment.category.canEnchant(item) || bl)) {
++            if ((!enchantment.isTreasureOnly() || treasureAllowed) && enchantment.isDiscoverable() && (enchantment.canEnchant(new ItemStack(item), source) || bl)) { // Martijn in Minecraft - per-source enchantability
+                 for(int i = enchantment.getMaxLevel(); i > enchantment.getMinLevel() - 1; --i) {
+                     if (power >= enchantment.getMinCost(i) && power <= enchantment.getMaxCost(i)) {
+                         list.add(new EnchantmentInstance(enchantment, i));
+diff --git a/src/main/java/net/minecraft/world/item/enchantment/ThornsEnchantment.java b/src/main/java/net/minecraft/world/item/enchantment/ThornsEnchantment.java
+index 78323de4fc68f1f70b235e9421cf8f9cec7abebc..a665fb9f0133e42ab0e4c5a69db5a0fa4723e3b7 100644
+--- a/src/main/java/net/minecraft/world/item/enchantment/ThornsEnchantment.java
++++ b/src/main/java/net/minecraft/world/item/enchantment/ThornsEnchantment.java
+@@ -31,10 +31,12 @@ public class ThornsEnchantment extends Enchantment {
+         return 3;
+     }
+ 
++    // Martijn in Minecraft start - per-source enchantability
+     @Override
+-    public boolean canEnchant(ItemStack stack) {
+-        return stack.getItem() instanceof ArmorItem ? true : super.canEnchant(stack);
++    public boolean canEnchantInVanilla(ItemStack stack) {
++        return stack.getItem() instanceof ArmorItem ? true : super.canEnchantInVanilla(stack);
+     }
++    // Martijn in Minecraft end - per-source enchantability
+ 
+     @Override
+     public void doPostHurt(LivingEntity user, Entity attacker, int level) {
+diff --git a/src/main/java/net/minecraft/world/level/storage/loot/functions/EnchantRandomlyFunction.java b/src/main/java/net/minecraft/world/level/storage/loot/functions/EnchantRandomlyFunction.java
+index 936ec85cb0590ae7cdf026e670a791697325ea9b..119e24e299ab7dac03a187c4a1844a3f43f40c9a 100644
+--- a/src/main/java/net/minecraft/world/level/storage/loot/functions/EnchantRandomlyFunction.java
++++ b/src/main/java/net/minecraft/world/level/storage/loot/functions/EnchantRandomlyFunction.java
+@@ -26,6 +26,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
+ import net.minecraft.world.item.enchantment.EnchantmentInstance;
+ import net.minecraft.world.level.storage.loot.LootContext;
+ import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
+@@ -49,9 +50,11 @@ public class EnchantRandomlyFunction extends LootItemConditionalFunction {
+         Enchantment enchantment;
+         if (this.enchantments.isEmpty()) {
+             boolean bl = stack.is(Items.BOOK);
+-            List<Enchantment> list = Registry.ENCHANTMENT.stream().filter(Enchantment::isDiscoverable).filter((enchantment) -> {
+-                return bl || enchantment.canEnchant(stack);
++            // Martijn in Minecraft start - per-source enchantability
++            List<Enchantment> list = Registry.ENCHANTMENT.stream().filter(Enchantment::isDiscoverable).filter((consideredEnchantment) -> {
++                return bl || consideredEnchantment.canEnchant(stack, EnchantmentSource.GENERATED_LOOT);
+             }).collect(Collectors.toList());
++            // Martijn in Minecraft end - per-source enchantability
+             if (list.isEmpty()) {
+                 LOGGER.warn("Couldn't find a compatible enchantment for {}", (Object)stack);
+                 return stack;
+diff --git a/src/main/java/net/minecraft/world/level/storage/loot/functions/EnchantWithLevelsFunction.java b/src/main/java/net/minecraft/world/level/storage/loot/functions/EnchantWithLevelsFunction.java
+index dbb15c22b2599314b9adbc6138b73d418eb21d44..10e1f5b6f266b0991fe392192c2af5d2b4a13fa8 100644
+--- a/src/main/java/net/minecraft/world/level/storage/loot/functions/EnchantWithLevelsFunction.java
++++ b/src/main/java/net/minecraft/world/level/storage/loot/functions/EnchantWithLevelsFunction.java
+@@ -12,6 +12,7 @@ import net.minecraft.world.level.storage.loot.LootContext;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParam;
+ import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
+ import net.minecraft.world.level.storage.loot.providers.number.NumberProvider;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Minecraft - per-source enchantability
+ 
+ public class EnchantWithLevelsFunction extends LootItemConditionalFunction {
+     final NumberProvider levels;
+@@ -36,7 +37,7 @@ public class EnchantWithLevelsFunction extends LootItemConditionalFunction {
+     @Override
+     public ItemStack run(ItemStack stack, LootContext context) {
+         Random random = context.getRandom();
+-        return EnchantmentHelper.enchantItem(random, stack, this.levels.getInt(context), this.treasure);
++        return EnchantmentHelper.enchantItem(random, stack, this.levels.getInt(context), this.treasure, EnchantmentSource.GENERATED_LOOT); // Martijn in Minecraft - per-source enchantability
+     }
+ 
+     public static EnchantWithLevelsFunction.Builder enchantWithLevels(NumberProvider range) {
+diff --git a/src/main/java/org/bukkit/craftbukkit/enchantments/CraftEnchantment.java b/src/main/java/org/bukkit/craftbukkit/enchantments/CraftEnchantment.java
+index 11c1eb0e0bc326b28dc0cab16f67c413cc52e98c..962b4e1cd69010937430c5609e2cc1ea9f880e11 100644
+--- a/src/main/java/org/bukkit/craftbukkit/enchantments/CraftEnchantment.java
++++ b/src/main/java/org/bukkit/craftbukkit/enchantments/CraftEnchantment.java
+@@ -1,8 +1,10 @@
+ package org.bukkit.craftbukkit.enchantments;
+ 
++import net.kyori.adventure.text.Component;
+ import net.minecraft.core.Registry;
+ import net.minecraft.world.item.enchantment.BindingCurseEnchantment;
+ import net.minecraft.world.item.enchantment.VanishingCurseEnchantment;
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Bukkit - per-source enchantability
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.craftbukkit.util.CraftNamespacedKey;
+ import org.bukkit.enchantments.Enchantment;
+@@ -10,6 +12,8 @@ import org.bukkit.enchantments.EnchantmentTarget;
+ import org.bukkit.enchantments.EnchantmentWrapper;
+ import org.bukkit.inventory.ItemStack;
+ 
++import java.util.function.BiPredicate; // Martijn in Bukkit - per-source enchantability
++
+ public class CraftEnchantment extends Enchantment {
+     private final net.minecraft.world.item.enchantment.Enchantment target;
+ 
+@@ -74,11 +78,35 @@ public class CraftEnchantment extends Enchantment {
+         return this.target.isCurse(); // Paper
+     }
+ 
++    // Martijn in Bukkit start - per-source enchantability
+     @Override
++    @Deprecated
+     public boolean canEnchantItem(ItemStack item) {
+         return this.target.canEnchant(CraftItemStack.asNMSCopy(item));
+     }
+ 
++    @Override
++    public boolean canEnchantItem(ItemStack item, EnchantmentSource source) {
++        return this.target.canEnchant(CraftItemStack.asNMSCopy(item), source);
++    }
++
++    @Override
++    public boolean canEnchantItemInVanilla(ItemStack item) {
++        return this.target.canEnchantInVanilla(CraftItemStack.asNMSCopy(item));
++    }
++
++    @Override
++    public BiPredicate<ItemStack, EnchantmentSource> getCanEnchantItemPredicate() {
++        final BiPredicate<net.minecraft.world.item.ItemStack, EnchantmentSource> predicate = this.target.canEnchantPredicate;
++        return (item, source) -> predicate.test(CraftItemStack.asNMSCopy(item), source);
++    }
++
++    @Override
++    public void setCanEnchantItemPredicate(BiPredicate<ItemStack, EnchantmentSource> predicate) {
++        this.target.canEnchantPredicate = (stack, source) -> predicate.test(CraftItemStack.asBukkitCopy(stack), source);
++    }
++    // Martijn in Bukkit end - per-source enchantability
++
+     @Override
+     public String getName() {
+         // PAIL: migration paths
