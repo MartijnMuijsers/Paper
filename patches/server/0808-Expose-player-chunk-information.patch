@@ -1,0 +1,178 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 22 Sep 2021 22:05:28 +0200
+Subject: [PATCH] Expose player chunk information
+
+
+diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+index b3da5ec6701448a4b273c86aff9c64e3d75e5885..34626e8ff2d796cbfb599e3764eaed9df4a05850 100644
+--- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
++++ b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+@@ -22,11 +22,15 @@ import net.minecraft.server.level.TicketType;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.chunk.LevelChunk;
++
+ import java.util.ArrayDeque;
+ import java.util.ArrayList;
++import java.util.HashSet; // Martijn in Paper - expose player chunk information
+ import java.util.List;
++import java.util.Set; // Martijn in Paper - expose player chunk information
+ import java.util.TreeSet;
+ import java.util.concurrent.atomic.AtomicInteger;
++import java.util.stream.Collectors; // Martijn in Paper - expose player chunk information
+ 
+ public final class PlayerChunkLoader {
+ 
+@@ -149,6 +153,12 @@ public final class PlayerChunkLoader {
+         this.setSendDistance(distance);
+     }
+ 
++    // Martijn in Paper start - expose player chunk information
++    public int getConcurrentChunksBeingSent() {
++        return this.concurrentChunkSends.get();
++    }
++    // Martijn in Paper end - expose player chunk information
++
+     // internal methods
+ 
+     public int getSendDistance() {
+@@ -750,6 +760,28 @@ public final class PlayerChunkLoader {
+             return Math.max(tickViewDistance + 1, this.loadViewDistance == -1 ? this.loader.getLoadDistance() : this.loadViewDistance);
+         }
+ 
++        // Martijn in Paper start - expose player chunk information
++        public Set<Long> getUnorderedChunksQueuedToBeLoaded() {
++            return this.loadQueue.stream().map(chunkPriorityHolder -> CoordinateUtils.getChunkKey(chunkPriorityHolder.chunkX, chunkPriorityHolder.chunkZ)).collect(Collectors.toUnmodifiableSet());
++        }
++
++        public Set<Long> getUnorderedChunksQueuedToBeSent() {
++            return this.sendQueue.stream().map(chunkPriorityHolder -> CoordinateUtils.getChunkKey(chunkPriorityHolder.chunkX, chunkPriorityHolder.chunkZ)).collect(Collectors.toUnmodifiableSet());
++        }
++
++        public List<Long> getOrderedChunksQueuedToBeLoaded() {
++            return this.loadQueue.stream().map(chunkPriorityHolder -> CoordinateUtils.getChunkKey(chunkPriorityHolder.chunkX, chunkPriorityHolder.chunkZ)).toList();
++        }
++
++        public List<Long> getOrderedChunksQueuedToBeSent() {
++            return this.sendQueue.stream().map(chunkPriorityHolder -> CoordinateUtils.getChunkKey(chunkPriorityHolder.chunkX, chunkPriorityHolder.chunkZ)).toList();
++        }
++
++        public Set<Long> getSentChunks() {
++            return new HashSet<>(this.sentChunks);
++        }
++        // Martijn in Paper end - expose player chunk information
++
+         public boolean hasSentChunk(final int chunkX, final int chunkZ) {
+             return this.sentChunks.contains(CoordinateUtils.getChunkKey(chunkX, chunkZ));
+         }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index f9df6e9d3d74e25a72abee8b43df21bbc0372409..c1182d467da7bd20d7af281cf78d5fb1a2346eb2 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -2071,6 +2071,13 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+     public void setSendViewDistance(int viewDistance) {
+         getHandle().getChunkSource().chunkMap.playerChunkManager.setTargetSendDistance(viewDistance);
+     }
++
++    // Martijn in Paper start - expose player chunk information
++    @Override
++    public int getConcurrentChunksBeingSent() {
++        return getHandle().getChunkSource().chunkMap.playerChunkManager.getConcurrentChunksBeingSent();
++    }
++    // Martijn in Paper end - expose player chunk information
+     // Paper end - add view distances
+ 
+     // Spigot start
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 1ccbdd2554073a41ca2f37deca3f1ec3e6a0665f..111359d7d532a781374e6f35d5dcec80cc889d0e 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -13,6 +13,7 @@ import java.net.InetSocketAddress;
+ import java.net.SocketAddress;
+ import java.util.ArrayList;
+ import java.util.Collection;
++import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.HashSet;
+ import java.util.LinkedHashMap;
+@@ -24,7 +25,10 @@ import java.util.UUID;
+ import java.util.WeakHashMap;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
++import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.util.CoordinateUtils;
+ import net.minecraft.Util;
+ import net.minecraft.advancements.AdvancementProgress;
+ import net.minecraft.core.BlockPos;
+@@ -580,6 +584,68 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+ 
+         data.setTargetTickViewDistance(viewDistance);
+     }
++
++    // Martijn in Paper start - expose player chunk information
++    @Override
++    public Set<Long> getUnorderedChunksQueuedToBeLoaded() {
++        net.minecraft.server.level.ChunkMap chunkMap = this.getHandle().getLevel().getChunkSource().chunkMap;
++        io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this.getHandle());
++        if (data == null) {
++            return Collections.emptySet();
++        }
++        return data.getUnorderedChunksQueuedToBeLoaded();
++    }
++
++    @Override
++    public Set<Long> getUnorderedChunksQueuedToBeSent() {
++        net.minecraft.server.level.ChunkMap chunkMap = this.getHandle().getLevel().getChunkSource().chunkMap;
++        io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this.getHandle());
++        if (data == null) {
++            return Collections.emptySet();
++        }
++        return data.getUnorderedChunksQueuedToBeSent();
++    }
++
++    @Override
++    public List<Long> getOrderedChunksQueuedToBeLoaded() {
++        net.minecraft.server.level.ChunkMap chunkMap = this.getHandle().getLevel().getChunkSource().chunkMap;
++        io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this.getHandle());
++        if (data == null) {
++            return Collections.emptyList();
++        }
++        return data.getOrderedChunksQueuedToBeLoaded();
++    }
++
++    @Override
++    public List<Long> getOrderedChunksQueuedToBeSent() {
++        net.minecraft.server.level.ChunkMap chunkMap = this.getHandle().getLevel().getChunkSource().chunkMap;
++        io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this.getHandle());
++        if (data == null) {
++            return Collections.emptyList();
++        }
++        return data.getOrderedChunksQueuedToBeSent();
++    }
++
++    @Override
++    public Set<Long> getSentChunks() {
++        net.minecraft.server.level.ChunkMap chunkMap = this.getHandle().getLevel().getChunkSource().chunkMap;
++        io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this.getHandle());
++        if (data == null) {
++            return Collections.emptySet();
++        }
++        return data.getSentChunks();
++    }
++
++    @Override
++    public boolean hasSentChunk(int chunkX, int chunkZ) {
++        net.minecraft.server.level.ChunkMap chunkMap = this.getHandle().getLevel().getChunkSource().chunkMap;
++        io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this.getHandle());
++        if (data == null) {
++            return false;
++        }
++        return data.hasSentChunk(chunkX, chunkZ);
++    }
++    // Martijn in Paper end - expose player chunk information
+     // Paper end - implement view distances
+ 
+     @Override

@@ -1,0 +1,92 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 22 Sep 2021 22:04:47 +0200
+Subject: [PATCH] Expose player chunk information
+
+
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index dc497606ebf9903c2d32276ecddda3231457346a..6cc4916f4278ed30531cf4536730691c624f84a2 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -3603,6 +3603,17 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
+      * @param viewDistance view distance in [2, 32] or -1
+      */
+     public void setSendViewDistance(int viewDistance);
++
++    // Martijn in Paper start - expose player chunk information
++    /**
++     * Gets the number of chunks being currently sent to players in this world.
++     * <p>
++     * The number of chunks being currently sent includes only the chunks currently being written to the network socket by Netty: chunks no longer count as being currently sent as soon as this is finished. This number says nothing about whether chunks have been received, or how many chunks are in transit.
++     * </p>
++     * @return The number of chunks being currently sent to players in this world.
++     */
++    public int getConcurrentChunksBeingSent();
++    // Martijn in Paper end - expose player chunk information
+     // Paper end - view distance api
+     // Spigot start
+     public class Spigot {
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index afa245018192a63e5db8bc568ddea2790bf5b8a2..8573b7442aae7c6a7f24a54b552d0226b40d0119 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -1,6 +1,7 @@
+ package org.bukkit.entity;
+ 
+ import java.net.InetSocketAddress;
++import java.util.List; // Martijn in Paper - expose player chunk information
+ import java.util.Set; // Paper
+ import java.util.UUID;
+ import com.destroystokyo.paper.ClientOption; // Paper
+@@ -1938,6 +1939,51 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      * @param viewDistance view distance in [2, 32] or -1
+      */
+     public void setSendViewDistance(int viewDistance);
++
++    // Martijn in Paper start - expose player chunk information
++    /**
++     * Gets which chunks (in the world the player is in) are queued to be loaded for the player.
++     *
++     * @return A set of chunk keys, one for each chunk (in the world the player is in) that is queued to be loaded for the player.
++     */
++    public @NotNull Set<@NotNull Long> getUnorderedChunksQueuedToBeLoaded();
++    /**
++     * Gets which chunks (in the world the player is in) are queued to be sent to the player.
++     *
++     * @return A set of chunk keys, one for each chunk (in the world the player is in) that is queued to be sent to the player.
++     */
++    public @NotNull Set<@NotNull Long> getUnorderedChunksQueuedToBeSent();
++
++    /**
++     * Gets which chunks (in the world the player is in) are queued to be loaded for the player.
++     *
++     * @return A list of chunk keys, one for each chunk (in the world the player is in) that is queued to be loaded for the player, in the order they are queued to be loaded.
++     */
++    public @NotNull List<@NotNull Long> getOrderedChunksQueuedToBeLoaded();
++
++    /**
++     * Gets which chunks (in the world the player is in) are queued to be sent to the player.
++     *
++     * @return A list of chunk keys, one for each chunk (in the world the player is in) that is queued to be sent to the player, in the order they are queued to be sent.
++     */
++    public @NotNull List<@NotNull Long> getOrderedChunksQueuedToBeSent();
++
++    /**
++     * Gets which chunks (in the world the player is in) have been sent to this player.
++     *
++     * @return A set of chunk keys, one for each chunk (in the world the player is in) that has been sent to this player.
++     */
++    public @NotNull Set<@NotNull Long> getSentChunks();
++
++    /**
++     * Gets whether the given chunk (in the world the player is in) has been sent to this player.
++     *
++     * @param chunkX The x-coordinate of the chunk
++     * @param chunkZ The z-coordinate of the chunk
++     * @return Whether the given chunk has been sent to this player.
++     */
++    public boolean hasSentChunk(int chunkX, int chunkZ);
++    // Martijn in Paper end - expose player chunk information
+     // Paper end
+ 
+     /**
