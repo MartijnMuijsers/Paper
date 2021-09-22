@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 22 Sep 2021 15:51:58 +0200
+Subject: [PATCH] Also allow low server chunk send rate
+
+
+diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+index ade1fb45f277add58a21d9ffb99b34c6c1ff8429..3d0bdad12278d14c5f8084f3bc874ea2aaf99618 100644
+--- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
++++ b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+@@ -360,7 +360,9 @@ public final class PlayerChunkLoader {
+     // Martijn in Paper end - per-player chunk send rate
+ 
+     protected long getMaxSendAddend() {
+-        return PaperConfig.globalMaxChunkSendRate <= 1.0 ? 0L : (long)Math.round(1.0e9 / PaperConfig.globalMaxChunkSendRate);
++        // Martijn in Paper start - allow low chunk send rates
++        return PaperConfig.globalMaxChunkSendRate < 0 ? 0L : (long)Math.round(1.0e9 / Math.max(PaperConfig.globalMaxChunkSendRate, 1e-6));
++        // Martijn in Paper end - allow low chunk send rates
+     }
+ 
+     public void onChunkPlayerTickReady(final int chunkX, final int chunkZ) {

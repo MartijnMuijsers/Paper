@@ -5,10 +5,10 @@ Subject: [PATCH] Support lower chunk send rates
 
 
 diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
-index ade1fb45f277add58a21d9ffb99b34c6c1ff8429..2e937224e66c6f3edb37857cd7d567e337102177 100644
+index 3d0bdad12278d14c5f8084f3bc874ea2aaf99618..5047b010fc35fff6fa1c95e4929b239502f41a92 100644
 --- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
 +++ b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
-@@ -354,13 +354,15 @@ public final class PlayerChunkLoader {
+@@ -354,7 +354,7 @@ public final class PlayerChunkLoader {
      // Martijn in Paper start - per-player chunk send rate
      protected long getTargetSendPerPlayerAddend(ServerPlayer player) {
          final double chunkSendRate = player.getBukkitEntity().getTargetChunkSendRate();
@@ -17,15 +17,6 @@ index ade1fb45f277add58a21d9ffb99b34c6c1ff8429..2e937224e66c6f3edb37857cd7d567e3
          return chunkSendRate < 0 ? 0L : (long) Math.round(1.0e9 / chunkSendRate);
      }
      // Martijn in Paper end - per-player chunk send rate
- 
-     protected long getMaxSendAddend() {
--        return PaperConfig.globalMaxChunkSendRate <= 1.0 ? 0L : (long)Math.round(1.0e9 / PaperConfig.globalMaxChunkSendRate);
-+        // Martijn in Paper start - allow low chunk send rates
-+        return PaperConfig.globalMaxChunkSendRate < 0 ? 0L : (long)Math.round(1.0e9 / PaperConfig.globalMaxChunkSendRate);
-+        // Martijn in Paper end - allow low chunk send rates
-     }
- 
-     public void onChunkPlayerTickReady(final int chunkX, final int chunkZ) {
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 index 0990142c93d3a60cd736b8fc80e6f5a17e35ae6d..9139e8bbe65423c78c517f7c6535b00726f42f95 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
