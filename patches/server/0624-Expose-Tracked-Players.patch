@@ -5,10 +5,10 @@ Subject: [PATCH] Expose Tracked Players
 
 
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 2ec9cfbd665bc2dd7c731ab5603073d21b1a2977..b3305deb28c99e2f1cc08e04da7be18bfe891f02 100644
+index 6de58d9231da1935124440284fb7a77dbd32c713..719358b5b8dea1cdcbb79f2d21873f5a0fef2242 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-@@ -2361,6 +2361,21 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -2396,6 +2396,21 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
      }
      // Paper end
  

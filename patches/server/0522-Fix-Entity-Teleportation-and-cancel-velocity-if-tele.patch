@@ -9,7 +9,7 @@ as this is how Vanilla teleports entities.
 Cancel any pending motion when teleported.
 
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index c05ced79e5bf6d2900f0479db3150e76e3874ba0..c791013aac43061453d13ce50f4864b3be1251e3 100644
+index a80781a0525ef5b46a7c9af3011dab6662f06016..be682e8459bb7293256c3552d90f5cdb8d97a29d 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -681,7 +681,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
@@ -69,10 +69,10 @@ index b9e738542692aba7b78fc514ae8e3248df9998ea..c601b8b12756682a4cb300be8ebed431
                          if (entity instanceof Mob) {
                              Mob entityinsentient = (Mob) entity;
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-index 2ae9392961383cbce07835234b95f415094c11fc..1f41d39fe3378bccc6c005d20e41d98f903762cc 100644
+index f28f857d6218db1634348e8a57e7b275b9115bfc..a0a24a46624b3d174d08c806c8ad45d8a9028a09 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftEntity.java
-@@ -576,7 +576,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
+@@ -577,7 +577,7 @@ public abstract class CraftEntity implements org.bukkit.entity.Entity {
          }
  
          // entity.setLocation() throws no event, and so cannot be cancelled
