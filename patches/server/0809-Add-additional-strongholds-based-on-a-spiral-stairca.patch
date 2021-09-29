@@ -1,0 +1,208 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 29 Sep 2021 22:58:11 +0200
+Subject: [PATCH] Add additional strongholds based on a spiral staircase
+
+
+diff --git a/src/main/java/net/minecraft/world/level/chunk/ChunkGenerator.java b/src/main/java/net/minecraft/world/level/chunk/ChunkGenerator.java
+index fde436065aeeb47cd177656a7c9fe8dc34178e87..0f568b040dae9e3fff579c7e237cd973d0c72bcb 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/ChunkGenerator.java
++++ b/src/main/java/net/minecraft/world/level/chunk/ChunkGenerator.java
+@@ -4,11 +4,13 @@ import com.google.common.collect.Lists;
+ import com.mojang.serialization.Codec;
+ import io.papermc.paper.event.world.StructureLocateEvent; // Paper - Add import due to naming conflict.
+ import java.util.BitSet;
++import java.util.HashSet; // Martijn in Minecraft - more strongholds
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.ListIterator;
+ import java.util.Objects;
+ import java.util.Random;
++import java.util.Set; // Martijn in Minecraft - more strongholds
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.Executor;
+ import java.util.function.Function;
+@@ -57,6 +59,7 @@ import net.minecraft.world.level.levelgen.feature.configurations.StrongholdConfi
+ import net.minecraft.world.level.levelgen.feature.configurations.StructureFeatureConfiguration;
+ import net.minecraft.world.level.levelgen.structure.StructureStart;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
++import org.bukkit.Bukkit;
+ 
+ public abstract class ChunkGenerator {
+ 
+@@ -66,6 +69,7 @@ public abstract class ChunkGenerator {
+     private final StructureSettings settings;
+     public final long strongholdSeed; // PAIL private -> public
+     private final List<ChunkPos> strongholdPositions;
++    private final Set<ChunkPos> strongholdPositionsSet; // Martijn in Minecraft - more strongholds
+     private final BaseStoneSource defaultBaseStoneSource;
+ 
+     public ChunkGenerator(BiomeSource biomeSource, StructureSettings structuresConfig) {
+@@ -74,6 +78,7 @@ public abstract class ChunkGenerator {
+ 
+     public ChunkGenerator(BiomeSource populationSource, BiomeSource biomeSource, StructureSettings structuresConfig, long worldSeed) {
+         this.strongholdPositions = Lists.newArrayList();
++        this.strongholdPositionsSet = new HashSet<>();
+         this.biomeSource = populationSource;
+         this.runtimeBiomeSource = biomeSource;
+         this.settings = structuresConfig;
+@@ -97,9 +102,13 @@ public abstract class ChunkGenerator {
+                     }
+                 }
+ 
+-                int i = structuresettingsstronghold.distance();
+-                int j = structuresettingsstronghold.count();
+-                int k = structuresettingsstronghold.spread();
++                // Martijn in Minecraft start - more strongholds
++                // The default for the settings below is:
++                // DEFAULT_STRONGHOLD = new StrongholdConfiguration(distance: 32, spread: 3, count: 128);
++                // (taken from net.minecraft.world.level.levelgen.StructureSettings)
++                int strongholdDistance = structuresettingsstronghold.distance();
++                int strongholdCount = structuresettingsstronghold.count();
++                int strongholdSpread = structuresettingsstronghold.spread();
+                 Random random = new Random();
+ 
+                 random.setSeed(this.strongholdSeed);
+@@ -107,33 +116,118 @@ public abstract class ChunkGenerator {
+                 int l = 0;
+                 int i1 = 0;
+ 
+-                for (int j1 = 0; j1 < j; ++j1) {
+-                    double d1 = (double) (4 * i + i * i1 * 6) + (random.nextDouble() - 0.5D) * (double) i * 2.5D;
+-                    int k1 = (int) Math.round(Math.cos(d0) * d1);
+-                    int l1 = (int) Math.round(Math.sin(d0) * d1);
++                for (int j1 = 0; j1 < strongholdCount; ++j1) {
++                    double d1 = (double) (4 * strongholdDistance + strongholdDistance * i1 * 6) + (random.nextDouble() - 0.5D) * (double) strongholdDistance * 2.5D;
++                    int chunkX = (int) Math.round(Math.cos(d0) * d1);
++                    int chunkZ = (int) Math.round(Math.sin(d0) * d1);
+                     BiomeSource worldchunkmanager = this.biomeSource;
+-                    int i2 = SectionPos.sectionToBlockCoord(k1, 8);
+-                    int j2 = SectionPos.sectionToBlockCoord(l1, 8);
++                    int chunkMiddleBlockX = SectionPos.sectionToBlockCoord(chunkX, 8);
++                    int chunkMiddleBlockZ = SectionPos.sectionToBlockCoord(chunkZ, 8);
+ 
+                     Objects.requireNonNull(list);
+-                    BlockPos blockposition = worldchunkmanager.findBiomeHorizontal(i2, 0, j2, 112, list::contains, random);
++                    BlockPos closebyBlockPositionInValidBiome = worldchunkmanager.findBiomeHorizontal(chunkMiddleBlockX, 0, chunkMiddleBlockZ, 112, list::contains, random);
+ 
+-                    if (blockposition != null) {
+-                        k1 = SectionPos.blockToSectionCoord(blockposition.getX());
+-                        l1 = SectionPos.blockToSectionCoord(blockposition.getZ());
++                    if (closebyBlockPositionInValidBiome != null) {
++                        chunkX = SectionPos.blockToSectionCoord(closebyBlockPositionInValidBiome.getX());
++                        chunkZ = SectionPos.blockToSectionCoord(closebyBlockPositionInValidBiome.getZ());
+                     }
+ 
+-                    this.strongholdPositions.add(new ChunkPos(k1, l1));
+-                    d0 += 6.283185307179586D / (double) k;
++                    this.strongholdPositions.add(new ChunkPos(chunkX, chunkZ));
++                    d0 += 6.283185307179586D / (double) strongholdSpread;
+                     ++l;
+-                    if (l == k) {
++                    if (l == strongholdSpread) {
+                         ++i1;
+                         l = 0;
+-                        k += 2 * k / (i1 + 1);
+-                        k = Math.min(k, j - j1);
++                        strongholdSpread += 2 * strongholdSpread / (i1 + 1);
++                        strongholdSpread = Math.min(strongholdSpread, strongholdCount - j1);
+                         d0 += random.nextDouble() * 3.141592653589793D * 2.0D;
+                     }
+                 }
++                Bukkit.getLogger().info("Default strongholds were generated: " + this.strongholdPositions);
++
++                List<ChunkPos> additionalStrongholdPositions = Lists.newArrayList();
++
++                final int bigRegionSizeInBlocks = 2000;
++                final int bigRegionGapInBlocks = 1000;
++                // The expected max distance from spawn that strongholds will generate to is (sqrt(additionStrongholdAmount) - 1) / 2 * (bigRegionSizeInBlocks + bigRegionGapInBlocks)
++                final int additionStrongholdAmount = 10000;
++
++                class AdditionalStrongholdGenerationStatus {
++
++                    Random random = new Random(ChunkGenerator.this.strongholdSeed * 717 + 1371);
++                    int currentBigRegionX = 0;
++                    int currentBigRegionZ = 0;
++
++                    int currentBigRegionDX = 0;
++                    int currentBigRegionDZ = 1;
++
++                    int currentBigRegionXTarget = currentBigRegionX + currentBigRegionDX;
++                    int currentBigRegionZTarget = currentBigRegionZ + currentBigRegionDZ;
++
++                    int getCurrentBigRegionCenterBlockX() {
++                        return currentBigRegionX * (bigRegionSizeInBlocks + bigRegionGapInBlocks);
++                    }
++
++                    int getCurrentBigRegionMinBlockX() {
++                        return getCurrentBigRegionCenterBlockX() - bigRegionSizeInBlocks / 2;
++                    }
++
++                    int getCurrentBigRegionCenterBlockZ() {
++                        return currentBigRegionZ * (bigRegionSizeInBlocks + bigRegionGapInBlocks);
++                    }
++
++                    int getCurrentBigRegionMinBlockZ() {
++                        return getCurrentBigRegionCenterBlockZ() - bigRegionSizeInBlocks / 2;
++                    }
++
++                    void moveToNextBigRegion() {
++
++                        currentBigRegionX += currentBigRegionDX == 0 ? 0 : (currentBigRegionDX < 0 ? -1 : 1);
++                        currentBigRegionZ += currentBigRegionDZ == 0 ? 0 : (currentBigRegionDZ < 0 ? -1 : 1);
++
++                        if (currentBigRegionX == currentBigRegionXTarget && currentBigRegionZ == currentBigRegionZTarget) {
++
++                            if (currentBigRegionDZ > 0) {
++                                currentBigRegionDX = -currentBigRegionDZ;
++                                currentBigRegionDZ = 0;
++                            } else if (currentBigRegionDX < 0) {
++                                currentBigRegionDZ = currentBigRegionDX - 1;
++                                currentBigRegionDX = 0;
++                            } else if (currentBigRegionDZ < 0) {
++                                currentBigRegionDX = -currentBigRegionDZ;;
++                                currentBigRegionDZ = 0;
++                            } else {
++                                currentBigRegionDZ = currentBigRegionDX + 1;
++                                currentBigRegionDX = 0;
++                            }
++
++                            currentBigRegionXTarget = currentBigRegionX + currentBigRegionDX;
++                            currentBigRegionZTarget = currentBigRegionZ + currentBigRegionDZ;
++
++                        }
++
++                    }
++
++                }
++
++                AdditionalStrongholdGenerationStatus status = new AdditionalStrongholdGenerationStatus();
++
++                for (int strongholdI = 0; strongholdI < additionStrongholdAmount; strongholdI++) {
++
++                    int strongholdBlockX = status.getCurrentBigRegionMinBlockX() + random.nextInt(bigRegionSizeInBlocks + 1);
++                    int strongholdBlockZ = status.getCurrentBigRegionMinBlockZ() + random.nextInt(bigRegionSizeInBlocks + 1);
++                    int strongholdChunkX = SectionPos.blockToSectionCoord(strongholdBlockX);
++                    int strongholdChunkZ = SectionPos.blockToSectionCoord(strongholdBlockZ);
++                    additionalStrongholdPositions.add(new ChunkPos(strongholdChunkX, strongholdChunkZ));
++
++                    status.moveToNextBigRegion();
++
++                }
++
++                Bukkit.getLogger().info("Additional strongholds were generated: " + additionalStrongholdPositions);
++                this.strongholdPositions.addAll(additionalStrongholdPositions);
++                this.strongholdPositionsSet.addAll(this.strongholdPositions);
++                // Martijn in Minecraft end - more strongholds
+ 
+             }
+         }
+@@ -496,7 +590,7 @@ public abstract class ChunkGenerator {
+ 
+     public boolean hasStronghold(ChunkPos pos) {
+         this.generateStrongholds();
+-        return this.strongholdPositions.contains(pos);
++        return this.strongholdPositionsSet.contains(pos); // Martijn in Minecraft - more strongholds
+     }
+ 
+     public BaseStoneSource getBaseStoneSource() {
