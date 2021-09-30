@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 30 Sep 2021 20:42:55 +0200
+Subject: [PATCH] Update player chunk sending in queue when next deadline is
+ updated
+
+
+diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+index e1a652a9c18bfacc50cb259f642d70051d4fa433..a1510a1aea5eb7cc85de292030b8a72a96367c1e 100644
+--- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
++++ b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+@@ -504,7 +504,7 @@ public final class PlayerChunkLoader {
+         while (!this.chunkSendWaitQueue.isEmpty()) {
+             final PlayerLoaderData data = this.chunkSendWaitQueue.first();
+ 
+-            if (data.nextChunkSendTarget > time) {
++            if (data.getNextChunkSendTarget() > time) { // Martijn in Paper - controllable chunk sending
+                 break;
+             }
+ 
+@@ -551,7 +551,7 @@ public final class PlayerChunkLoader {
+             }
+ 
+             final long nextPlayerDeadline = getTargetSendPerPlayerAddend(data.player) + time; // Martijn in Paper - per-player chunk send rate
+-            data.nextChunkSendTarget = nextPlayerDeadline;
++            data.updateNextChunkSendTarget(nextPlayerDeadline); // Martijn in Paper - controllable chunk sending
+             this.chunkSendWaitQueue.add(data);
+ 
+             synchronized (this.sendingChunkCounts) {
+@@ -769,7 +769,21 @@ public final class PlayerChunkLoader {
+         protected Boolean allowEntityTrackingBeyondNoTickViewDistance = null;
+         // Martijn in Paper end - entity tracking view distance
+ 
+-        public long nextChunkSendTarget; // Martijn in Paper - update chunk send deadline based on chunk send rate
++        // Martijn in Paper start - controllable chunk sending
++        private long nextChunkSendTarget;
++
++        public long getNextChunkSendTarget() {
++            return this.nextChunkSendTarget;
++        }
++
++        public void updateNextChunkSendTarget(long target) {
++            boolean removedFromChunkSendWaitQueue = this.loader.chunkSendWaitQueue.remove(this);
++            this.nextChunkSendTarget = target;
++            if (removedFromChunkSendWaitQueue) {
++                this.loader.chunkSendWaitQueue.add(this);
++            }
++        }
++        // Martijn in Paper end - controllable chunk sending
+ 
+         public PlayerLoaderData(final ServerPlayer player, final PlayerChunkLoader loader) {
+             this.player = player;
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 82e5f791b77b119d111382dd6d59931aebfef266..b323104e60e31a5d7cefd7a73b629720ddab4154 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -646,11 +646,11 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         net.minecraft.server.level.ChunkMap chunkMap = this.getHandle().getLevel().getChunkSource().chunkMap;
+         io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this.getHandle());
+         if (data != null) {
+-            if (data.nextChunkSendTarget != 0) {
++            if (data.getNextChunkSendTarget() != 0) { // Martijn - controllable chunk sending
+                 long scheduleDelay = data.loader.getTargetSendPerPlayerAddend(this.getHandle());
+                 if (scheduleDelay != 0) {
+                     long newTimeIfCurrentlyScheduled = System.nanoTime() + scheduleDelay;
+-                    data.nextChunkSendTarget = Math.min(data.nextChunkSendTarget, newTimeIfCurrentlyScheduled);
++                    data.updateNextChunkSendTarget(Math.min(data.getNextChunkSendTarget(), newTimeIfCurrentlyScheduled)); // Martijn - controllable chunk sending
+                 }
+             }
+         }
