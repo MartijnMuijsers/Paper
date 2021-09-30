@@ -1,0 +1,99 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 30 Sep 2021 21:58:18 +0200
+Subject: [PATCH] Make chunk sends catchable and stoppable
+
+
+diff --git a/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java b/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7260b41ac1046c0e5eeda911e379ad38785c170a
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java
+@@ -0,0 +1,62 @@
++package nl.martijnmuijsers.paper.event.player;
++
++import org.bukkit.Chunk;
++import org.bukkit.entity.Player;
++import org.bukkit.event.HandlerList;
++import org.bukkit.event.player.PlayerEvent;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * This event is fired when a chunk is sent to the player over the network.
++ */
++public class PlayerChunkSendEvent extends PlayerEvent {
++
++    private static final HandlerList handlers = new HandlerList();
++    private final int chunkX, chunkZ;
++
++    public PlayerChunkSendEvent(@NotNull final Player who, final int chunkX, final int chunkZ) {
++        super(who, true);
++        this.chunkX = chunkX;
++        this.chunkZ = chunkZ;
++    }
++
++    /**
++     * Gets the chunk that was sent
++     *
++     * @return the chunk that was sent
++     */
++    @NotNull
++    public Chunk getChunk() {
++        return this.getPlayer().getWorld().getChunkAt(this.chunkX, this.chunkZ);
++    }
++
++    /**
++     * Gets the chunk x coordinate of the chunk that was sent
++     *
++     * @return the chunk x coordinate of the chunk that was sent
++     */
++    public int getChunkX() {
++        return this.chunkX;
++    }
++
++    /**
++     * Gets the chunk z coordinate of the chunk that was sent
++     *
++     * @return the chunk z coordinate of the chunk that was sent
++     */
++    public int getChunkZ() {
++        return this.chunkZ;
++    }
++
++    @NotNull
++    @Override
++    public HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++}
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 58a103060bfd4f2ec28fd44b94cf98ef7ec72410..f3407eeb47cf7e03d6387652e1e4e30413b54bcc 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -2002,6 +2002,20 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+     public void setTargetChunkSendRate(@Nullable Double chunkSendRate);
+     // Martijn in Paper end - per-player chunk send rate
+ 
++    // Martijn in Paper start - controllable chunk sending
++    /**
++     * Gets whether any chunks can be sent to this player at all.
++     * @return Whether any chunks can be sent to this player at all.
++     */
++    public boolean getCanBeSentChunks();
++
++    /**
++     * Sets whether any chunks can be sent to this player at all.
++     * @param canBeSentChunks Whether any chunks can be sent to this player at all.
++     */
++    public void setCanBeSentChunks(boolean canBeSentChunks);
++    // Martijn in Paper end - controllable chunk sending
++
+     // Martijn in Paper start - expose player chunk information
+     /**
+      * Gets which chunks (in the world the player is in) are queued to be loaded for the player.

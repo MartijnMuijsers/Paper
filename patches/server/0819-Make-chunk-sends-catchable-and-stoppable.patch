@@ -1,0 +1,127 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 30 Sep 2021 21:58:41 +0200
+Subject: [PATCH] Make chunk sends catchable and stoppable
+
+
+diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+index a1510a1aea5eb7cc85de292030b8a72a96367c1e..4a7100c0361e70f9813879feb137bd3f7ca367bc 100644
+--- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
++++ b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+@@ -22,6 +22,8 @@ import net.minecraft.server.level.TicketType;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.chunk.LevelChunk;
++import nl.martijnmuijsers.paper.event.player.PlayerChunkSendEvent; // Martijn in Paper - controllable chunk sending
++import org.bukkit.Bukkit; // Martijn in Paper - controllable chunk sending
+ 
+ import java.util.ArrayDeque;
+ import java.util.ArrayList;
+@@ -73,7 +75,15 @@ public final class PlayerChunkLoader {
+             return 0;
+         }
+ 
+-        final int timeCompare = Long.compare(p1.nextChunkSendTarget, p2.nextChunkSendTarget);
++        // Martijn in Paper start - controllable chunk sending
++        // make sure that players to which no chunks will be sent are behind in the queue
++        final int canSendChunkAtAllCompare = -Boolean.compare(p1.getCanSendChunkAtAll(), p2.getCanSendChunkAtAll());
++        if (canSendChunkAtAllCompare != 0) {
++            return canSendChunkAtAllCompare;
++        }
++
++        final int timeCompare = Long.compare(p1.getNextChunkSendTarget(), p2.getNextChunkSendTarget());
++        // Martijn in Paper end - controllable chunk sending
+         if (timeCompare != 0) {
+             return timeCompare;
+         }
+@@ -504,7 +514,7 @@ public final class PlayerChunkLoader {
+         while (!this.chunkSendWaitQueue.isEmpty()) {
+             final PlayerLoaderData data = this.chunkSendWaitQueue.first();
+ 
+-            if (data.getNextChunkSendTarget() > time) { // Martijn in Paper - controllable chunk sending
++            if (!data.getCanSendChunkAtAll() || data.getNextChunkSendTarget() > time) { // Martijn in Paper - controllable chunk sending
+                 break;
+             }
+ 
+@@ -558,6 +568,9 @@ public final class PlayerChunkLoader {
+                 this.sendingChunkCounts.addTo(data, 1);
+             }
+ 
++            PlayerChunkSendEvent event = new PlayerChunkSendEvent(data.player.getBukkitEntity(), queuedSend.chunkX, queuedSend.chunkZ);
++            Bukkit.getPluginManager().callEvent(event);
++
+             data.sendChunk(queuedSend.chunkX, queuedSend.chunkZ, () -> {
+                 synchronized (this.sendingChunkCounts) {
+                     final int count = this.sendingChunkCounts.getInt(data);
+@@ -777,12 +790,30 @@ public final class PlayerChunkLoader {
+         }
+ 
+         public void updateNextChunkSendTarget(long target) {
++            if (target == this.nextChunkSendTarget) {
++                return;
++            }
+             boolean removedFromChunkSendWaitQueue = this.loader.chunkSendWaitQueue.remove(this);
+             this.nextChunkSendTarget = target;
+             if (removedFromChunkSendWaitQueue) {
+                 this.loader.chunkSendWaitQueue.add(this);
+             }
+         }
++
++        public boolean getCanSendChunkAtAll() {
++            return this.player.canSendChunkAtAll;
++        }
++
++        public void updateCanSendChunkAtAll(boolean can) {
++            if (can == this.player.canSendChunkAtAll) {
++                return;
++            }
++            boolean removedFromChunkSendWaitQueue = this.loader.chunkSendWaitQueue.remove(this);
++            this.player.canSendChunkAtAll = can;
++            if (removedFromChunkSendWaitQueue) {
++                this.loader.chunkSendWaitQueue.add(this);
++            }
++        }
+         // Martijn in Paper end - controllable chunk sending
+ 
+         public PlayerLoaderData(final ServerPlayer player, final PlayerChunkLoader loader) {
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index faa6cb87c2a0caa9fd3032af291ecc51a52f8f2b..651baa34f9c3ec9e77993c330b90534e70fed621 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -244,6 +244,7 @@ public class ServerPlayer extends Player {
+     // the target chunk send rate (in chunks per second) for this player, or null if no specific value for this player is set
+     public Double targetChunkSendRate = null;
+     // Martijn in Minecraft end - per-player chunk send rate
++    public boolean canSendChunkAtAll = true; // Martijn in Minecraft - controllable chunk sending
+ 
+     // CraftBukkit start
+     public String displayName;
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index b323104e60e31a5d7cefd7a73b629720ddab4154..1567d313f170b95c8a494aec07292c6c14de982d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -658,6 +658,24 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     }
+     // Martijn in Paper end - per-player chunk send rate
+ 
++    // Martijn in Paper start - controllable chunk sending
++    @Override
++    public boolean getCanBeSentChunks() {
++        return getHandle().canSendChunkAtAll;
++    }
++
++    @Override
++    public void setCanBeSentChunks(boolean canBeSentChunks) {
++        net.minecraft.server.level.ChunkMap chunkMap = this.getHandle().getLevel().getChunkSource().chunkMap;
++        io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this.getHandle());
++        if (data != null) {
++            data.updateCanSendChunkAtAll(canBeSentChunks);
++        } else {
++            getHandle().canSendChunkAtAll = canBeSentChunks;
++        }
++    }
++    // Martijn in Paper end - controllable chunk sending
++
+     // Martijn in Paper start - expose player chunk information
+     @Override
+     public Set<Long> getUnorderedChunksQueuedToBeLoaded() {
