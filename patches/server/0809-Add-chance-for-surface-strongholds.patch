@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 30 Sep 2021 02:27:26 +0200
+Subject: [PATCH] Add chance for surface strongholds
+
+
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/feature/StrongholdFeature.java b/src/main/java/net/minecraft/world/level/levelgen/feature/StrongholdFeature.java
+index c210efd1af8ec34ee16a5aaebffafdf0dd9abd48..084fc420843ee45ae3d9dfe4c794a5683ff9c47d 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/feature/StrongholdFeature.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/feature/StrongholdFeature.java
+@@ -2,6 +2,8 @@ package net.minecraft.world.level.levelgen.feature;
+ 
+ import com.mojang.serialization.Codec;
+ import java.util.List;
++import java.util.Random; // Martijn in Minecraft - more surface strongholds
++
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.LevelHeightAccessor;
+@@ -14,6 +16,7 @@ import net.minecraft.world.level.levelgen.structure.NoiseAffectingStructureStart
+ import net.minecraft.world.level.levelgen.structure.StrongholdPieces;
+ import net.minecraft.world.level.levelgen.structure.StructurePiece;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
++import org.bukkit.Bukkit; // Martijn in Minecraft - more surface strongholds
+ 
+ public class StrongholdFeature extends StructureFeature<NoneFeatureConfiguration> {
+     public StrongholdFeature(Codec<NoneFeatureConfiguration> codec) {
+@@ -45,7 +48,7 @@ public class StrongholdFeature extends StructureFeature<NoneFeatureConfiguration
+             StrongholdPieces.StartPiece startPiece;
+             do {
+                 this.clearPieces();
+-                this.random.setLargeFeatureSeed(this.seed + (long)(i++), pos.x, pos.z);
++                long largeFeatureSeed = this.random.setLargeFeatureSeed(this.seed + (long)(i++), pos.x, pos.z); // Martijn in Minecraft - more surface strongholds
+                 StrongholdPieces.resetPieces();
+                 startPiece = new StrongholdPieces.StartPiece(this.random, pos.getBlockX(2), pos.getBlockZ(2));
+                 this.addPiece(startPiece);
+@@ -58,7 +61,33 @@ public class StrongholdFeature extends StructureFeature<NoneFeatureConfiguration
+                     structurePiece.addChildren(startPiece, this, this.random);
+                 }
+ 
+-                this.moveBelowSeaLevel(chunkGenerator.getSeaLevel(), chunkGenerator.getMinY(), this.random, 10);
++                // Martijn in Minecraft start - more surface strongholds
++                Integer potentialYIncrease = null;
++                Random surfaceStrongholdRandom = new Random(largeFeatureSeed * 137 + 57131);
++                if (surfaceStrongholdRandom.nextDouble() < 0.2) { // 20 % chance
++                    Biome.BiomeCategory biomeCategory = biome.getBiomeCategory();
++                    if (!(biomeCategory == Biome.BiomeCategory.BEACH || biomeCategory == Biome.BiomeCategory.ICY || biomeCategory == Biome.BiomeCategory.NETHER || biomeCategory == Biome.BiomeCategory.NONE || biomeCategory == Biome.BiomeCategory.OCEAN || biomeCategory == Biome.BiomeCategory.SWAMP || biomeCategory == Biome.BiomeCategory.THEEND || biomeCategory == Biome.BiomeCategory.UNDERGROUND)) {
++                        String biomeString = biome.toString();
++                        biomeString = biomeString.toLowerCase();
++                        if (biomeString.contains("plateau")) {
++                            potentialYIncrease = 16;
++                        } else if (biomeString.contains("extreme") || biomeString.contains("mountain")) {
++                            potentialYIncrease = 10;
++                        } else if (biomeString.contains("hill")) {
++                            potentialYIncrease = 5;
++                        } else {
++                            potentialYIncrease = 0;
++                        }
++                    }
++                }
++                if (potentialYIncrease != null) {
++                    int yIncrease = surfaceStrongholdRandom.nextInt(potentialYIncrease + 1);
++                    Bukkit.getLogger().info("To create more surface strongholds, vertically offsetting stronghold at chunk " + pos + " by " + yIncrease);
++                    this.offsetPiecesVertically(yIncrease);
++                } else {
++                    this.moveBelowSeaLevel(chunkGenerator.getSeaLevel(), chunkGenerator.getMinY(), this.random, 10);
++                }
++                // Martijn in Minecraft end - more surface strongholds
+             } while(this.hasNoPieces() || startPiece.portalRoomPiece == null);
+ 
+         }
