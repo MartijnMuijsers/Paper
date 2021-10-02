@@ -6,7 +6,7 @@ Subject: [PATCH] Make chunk sends catchable and stoppable
 
 diff --git a/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java b/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7260b41ac1046c0e5eeda911e379ad38785c170a
+index 0000000000000000000000000000000000000000..fa647cde06f3bc26dcf01b69ea1c1dc966dc2443
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java
 @@ -0,0 +1,62 @@
@@ -28,7 +28,7 @@ index 0000000000000000000000000000000000000000..7260b41ac1046c0e5eeda911e379ad38
 +    private final int chunkX, chunkZ;
 +
 +    public PlayerChunkSendEvent(@NotNull final Player who, final int chunkX, final int chunkZ) {
-+        super(who, true);
++        super(who);
 +        this.chunkX = chunkX;
 +        this.chunkZ = chunkZ;
 +    }
