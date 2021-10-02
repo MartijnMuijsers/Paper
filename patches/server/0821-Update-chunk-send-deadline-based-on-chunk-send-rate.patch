@@ -36,7 +36,7 @@ index 3d0bdad12278d14c5f8084f3bc874ea2aaf99618..9775d05549bfc6541026dc11e198153b
          public PlayerLoaderData(final ServerPlayer player, final PlayerChunkLoader loader) {
              this.player = player;
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 95aea61ec0a82744a09f58266c356a83c88cf373..1df874283947fa4dd96e831fdc7ec0a7061808e2 100644
+index a15d1879a30634bfa0e5d839a0186e4c2f2118f0..84f7ab28efc032dedbca7f397aac77b1ad3916fc 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -638,6 +638,19 @@ public class CraftPlayer extends CraftHumanEntity implements Player {

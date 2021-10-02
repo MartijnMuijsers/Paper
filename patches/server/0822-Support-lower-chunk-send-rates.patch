@@ -18,7 +18,7 @@ index 9775d05549bfc6541026dc11e198153b08605149..b05a16ff50e3a5c6780c1c84baf8331e
      }
      // Martijn in Paper end - per-player chunk send rate
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 1df874283947fa4dd96e831fdc7ec0a7061808e2..da92ce64af0cbbc1aaaa1689d2956dcd0ff5bfcf 100644
+index 84f7ab28efc032dedbca7f397aac77b1ad3916fc..d20f7234547163caeb3746fe6b70b46b2dd80d08 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -632,7 +632,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {

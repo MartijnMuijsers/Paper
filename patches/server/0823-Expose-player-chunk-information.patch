@@ -82,7 +82,7 @@ index 2850a8f99d70a94d085ddf70170ce26d894f38d3..61cc6add9578f03d37b63eec14a1d4b9
  
      // Spigot start
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index da92ce64af0cbbc1aaaa1689d2956dcd0ff5bfcf..82e5f791b77b119d111382dd6d59931aebfef266 100644
+index d20f7234547163caeb3746fe6b70b46b2dd80d08..773cf742fa22c066edc36dbc19fb876a7321f592 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -14,6 +14,7 @@ import java.net.InetSocketAddress;

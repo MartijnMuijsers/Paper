@@ -167,7 +167,7 @@ index 5f42a9c0c43ced10b754170d7c83793a99fce81b..72438c2093f40b18ffd88de9d5cac17f
      @Override
      public String getName() {
 diff --git a/src/main/java/org/bukkit/inventory/ItemStack.java b/src/main/java/org/bukkit/inventory/ItemStack.java
-index 59a026d80b0a0a4890becf98efdbe5325b2c622a..dd5b607db45935594de33194b6b79a4ffc45a9bb 100644
+index 56072cb4d32ca8a09023be08a5a832c2c108379a..24bc7761cda51cfba35a418a92c7fe6d93f9eef2 100644
 --- a/src/main/java/org/bukkit/inventory/ItemStack.java
 +++ b/src/main/java/org/bukkit/inventory/ItemStack.java
 @@ -5,6 +5,8 @@ import java.util.LinkedHashMap;
