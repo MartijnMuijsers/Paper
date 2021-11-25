@@ -1,0 +1,459 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 25 Nov 2021 12:40:34 +0100
+Subject: [PATCH] Squashed patch from old personal branch: custom
+ enchantability, stronghold generation, player chunk sending and entity view
+ distance
+
+
+diff --git a/src/main/java/nl/martijnmuijsers/paper/enchantments/EnchantmentSource.java b/src/main/java/nl/martijnmuijsers/paper/enchantments/EnchantmentSource.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3cafc670570c336f8763046f8ad7aaec6e2d7164
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/enchantments/EnchantmentSource.java
+@@ -0,0 +1,19 @@
++package nl.martijnmuijsers.paper.enchantments;
++
++/**
++ * The various reasons for which an enchantment can be attempted to be added to an item
++ */
++public enum EnchantmentSource {
++
++    ANVIL,
++    ENCHANTING_TABLE,
++    GENERATED_LOOT,
++    BUKKIT_API,
++    ENCHANT_COMMAND,
++    VILLAGER_TRADE,
++    SPAWNED_SKELETON_TRAP_MAIN_HAND,
++    SPAWNED_SKELETON_TRAP_HELMET,
++    SPAWNED_MOB_MAIN_HAND,
++    SPAWNED_MOB_ARMOR;
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java b/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..fa647cde06f3bc26dcf01b69ea1c1dc966dc2443
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/event/player/PlayerChunkSendEvent.java
+@@ -0,0 +1,62 @@
++package nl.martijnmuijsers.paper.event.player;
++
++import org.bukkit.Chunk;
++import org.bukkit.entity.Player;
++import org.bukkit.event.HandlerList;
++import org.bukkit.event.player.PlayerEvent;
++import org.bukkit.inventory.ItemStack;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * This event is fired when a chunk is sent to the player over the network.
++ */
++public class PlayerChunkSendEvent extends PlayerEvent {
++
++    private static final HandlerList handlers = new HandlerList();
++    private final int chunkX, chunkZ;
++
++    public PlayerChunkSendEvent(@NotNull final Player who, final int chunkX, final int chunkZ) {
++        super(who);
++        this.chunkX = chunkX;
++        this.chunkZ = chunkZ;
++    }
++
++    /**
++     * Gets the chunk that was sent
++     *
++     * @return the chunk that was sent
++     */
++    @NotNull
++    public Chunk getChunk() {
++        return this.getPlayer().getWorld().getChunkAt(this.chunkX, this.chunkZ);
++    }
++
++    /**
++     * Gets the chunk x coordinate of the chunk that was sent
++     *
++     * @return the chunk x coordinate of the chunk that was sent
++     */
++    public int getChunkX() {
++        return this.chunkX;
++    }
++
++    /**
++     * Gets the chunk z coordinate of the chunk that was sent
++     *
++     * @return the chunk z coordinate of the chunk that was sent
++     */
++    public int getChunkZ() {
++        return this.chunkZ;
++    }
++
++    @NotNull
++    @Override
++    public HandlerList getHandlers() {
++        return handlers;
++    }
++
++    @NotNull
++    public static HandlerList getHandlerList() {
++        return handlers;
++    }
++}
+diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
+index 4f673e9123145dc78564dc3eef0edf75795dafc2..d0e419b41ac75319356e0740b95150cd88a275db 100644
+--- a/src/main/java/org/bukkit/World.java
++++ b/src/main/java/org/bukkit/World.java
+@@ -3698,6 +3698,55 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
+      * @param viewDistance view distance in [2, 32] or -1
+      */
+     public void setSendViewDistance(int viewDistance);
++
++    // Martijn in Paper start - entity tracking view distance
++    /**
++     * Gets the entity tracking view distance for this world.
++     * <p>
++     * Entity tracking view distance is the view distance where entities will be tracked (visible) for players in this world.
++     * </p>
++     * @return The entity tracking view distance for this world.
++     */
++    public int getEntityTrackingViewDistance();
++
++    /**
++     * Sets the entity tracking view distance for this world.
++     * <p>
++     * Entity tracking view distance is the view distance where entities will be tracked (visible) for players in this world.
++     * </p>
++     * @param viewDistance view distance >= 2, or -1
++     */
++    public void setEntityTrackingViewDistance(int viewDistance);
++
++    /**
++     * Gets whether to allow entity tracking beyond the no-tick view distance for this world.
++     * <p>
++     * Allowing entity tracking beyond the no-tick view distance can be used to allow players in this world to see entities in chunks that are not knowingly sent to the client by the server implementation, but by plugins in a custom manner.
++     * </p>
++     * @return Whether to allow entity tracking beyond the no-tick view distance for this world.
++     */
++    public boolean getAllowEntityTrackingBeyondNoTickViewDistance();
++
++    /**
++     * Sets whether to allow entity tracking beyond the no-tick view distance for this world.
++     * <p>
++     * Allowing entity tracking beyond the no-tick view distance can be used to allow players in this world to see entities in chunks that are not knowingly sent to the client by the server implementation, but by plugins in a custom manner.
++     * </p>
++     * @param allow Whether to allow entity tracking beyond the no-tick view distance for this world
++     */
++    public void setAllowEntityTrackingBeyondNoTickViewDistance(boolean allow);
++    // Martijn in Paper end - entity tracking view distance
++
++    // Martijn in Paper start - expose player chunk information
++    /**
++     * Gets the number of chunks being currently sent to players in this world.
++     * <p>
++     * The number of chunks being currently sent includes only the chunks currently being written to the network socket by Netty: chunks no longer count as being currently sent as soon as this is finished. This number says nothing about whether chunks have been received, or how many chunks are in transit.
++     * </p>
++     * @return The number of chunks being currently sent to players in this world.
++     */
++    public int getConcurrentChunksBeingSent();
++    // Martijn in Paper end - expose player chunk information
+     // Paper end - view distance api
+     // Spigot start
+     public class Spigot {
+diff --git a/src/main/java/org/bukkit/enchantments/Enchantment.java b/src/main/java/org/bukkit/enchantments/Enchantment.java
+index 1e1c5a9d9a769018c4604e6e44fc5ed2312981e9..fa2fcd7204915a199689bfd5150caa8f8b268349 100644
+--- a/src/main/java/org/bukkit/enchantments/Enchantment.java
++++ b/src/main/java/org/bukkit/enchantments/Enchantment.java
+@@ -2,6 +2,9 @@ package org.bukkit.enchantments;
+ 
+ import java.util.HashMap;
+ import java.util.Map;
++import java.util.function.BiPredicate; // Martijn in Bukkit - per-source enchantability
++
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Bukkit - per-source enchantability
+ import org.bukkit.Keyed;
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.inventory.ItemStack;
+@@ -279,17 +282,69 @@ public abstract class Enchantment implements Keyed, net.kyori.adventure.translat
+      */
+     public abstract boolean conflictsWith(@NotNull Enchantment other);
+ 
++    // Martijn in Bukkit start - per-source enchantability
+     /**
+      * Checks if this Enchantment may be applied to the given {@link
+      * ItemStack}.
+      * <p>
+      * This does not check if it conflicts with any enchantments already
+      * applied to the item.
++     * </p>
+      *
+      * @param item Item to test
+      * @return True if the enchantment may be applied, otherwise False
++     *
++     * @deprecated Due to the preferred specific method {@link Enchantment#canEnchantItem(ItemStack, EnchantmentSource)}. This method will defer to {@link Enchantment#canEnchantItemInVanilla(ItemStack)}.
+      */
++    @Deprecated
+     public abstract boolean canEnchantItem(@NotNull ItemStack item);
++
++    /**
++     * Checks if this Enchantment may be applied to the given {@link
++     * ItemStack} for the given reason.
++     * <p>
++     * This does not check if it conflicts with any enchantments already
++     * applied to the item.
++     * </p>
++     *
++     * @param item Item to test
++     * @param source The reason for enchanting to test
++     * @return True if the enchantment may be applied for the given reason, otherwise False
++     */
++    public abstract boolean canEnchantItem(@NotNull ItemStack item, @NotNull EnchantmentSource source);
++
++    /**
++     * Checks if this Enchantment may be applied to the given {@link
++     * ItemStack} in vanilla.
++     * <p>
++     * This does not check if it conflicts with any enchantments already
++     * applied to the item.
++     * </p>
++     *
++     * @param item Item to test
++     * @return True if the enchantment may be applied in vanilla, otherwise False
++     */
++    public abstract boolean canEnchantItemInVanilla(@NotNull ItemStack item);
++
++    /**
++     * Returns the predicate that determines the output of {@link Enchantment#canEnchantItem(ItemStack, EnchantmentSource)}.
++     * <p>
++     * The returned predicate is a copy, independent of changes in the underlying implementation.
++     * </p>
++     * @return The predicate that determines the output of {@link Enchantment#canEnchantItem(ItemStack, EnchantmentSource)}.
++     */
++    public abstract @NotNull BiPredicate<@NotNull ItemStack, @NotNull EnchantmentSource> getCanEnchantItemPredicate();
++
++    /**
++     * Sets the predicate that determines the output of {@link Enchantment#canEnchantItem(ItemStack, EnchantmentSource)}.
++     * <p>
++     * It is recommended to retrieve the current predicate from {@link Enchantment#getCanEnchantItemPredicate()} first, and include a call to it in the newly given predicate.
++     * </p>
++     * @param predicate The predicate that determines the output of {@link Enchantment#canEnchantItem(ItemStack, EnchantmentSource)}.
++     */
++    public abstract void setCanEnchantItemPredicate(@NotNull BiPredicate<@NotNull ItemStack, @NotNull EnchantmentSource> predicate);
++    // Martijn in Bukkit end - per-source enchantability
++
+     // Paper start
+     /**
+      * Get the name of the enchantment with its applied level.
+diff --git a/src/main/java/org/bukkit/enchantments/EnchantmentWrapper.java b/src/main/java/org/bukkit/enchantments/EnchantmentWrapper.java
+index 5f42a9c0c43ced10b754170d7c83793a99fce81b..72438c2093f40b18ffd88de9d5cac17f89b07090 100644
+--- a/src/main/java/org/bukkit/enchantments/EnchantmentWrapper.java
++++ b/src/main/java/org/bukkit/enchantments/EnchantmentWrapper.java
+@@ -1,9 +1,12 @@
+ package org.bukkit.enchantments;
+ 
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Bukkit - per-source enchantability
+ import org.bukkit.NamespacedKey;
+ import org.bukkit.inventory.ItemStack;
+ import org.jetbrains.annotations.NotNull;
+ 
++import java.util.function.BiPredicate; // Martijn in Bukkit - per-source enchantability
++
+ /**
+  * A simple wrapper for ease of selecting {@link Enchantment}s
+  */
+@@ -38,11 +41,35 @@ public class EnchantmentWrapper extends Enchantment {
+         return getEnchantment().getItemTarget();
+     }
+ 
++    // Martijn in Bukkit start - per-source enchantability
+     @Override
++    @Deprecated
+     public boolean canEnchantItem(@NotNull ItemStack item) {
+         return getEnchantment().canEnchantItem(item);
+     }
+ 
++    @Override
++    public boolean canEnchantItem(@NotNull ItemStack item, @NotNull EnchantmentSource source) {
++        return getEnchantment().canEnchantItem(item, source);
++    }
++
++    @Override
++    public boolean canEnchantItemInVanilla(@NotNull ItemStack item) {
++        return getEnchantment().canEnchantItemInVanilla(item);
++    }
++
++    @NotNull
++    @Override
++    public BiPredicate<@NotNull ItemStack, @NotNull EnchantmentSource> getCanEnchantItemPredicate() {
++        return getEnchantment().getCanEnchantItemPredicate();
++    }
++
++    @Override
++    public void setCanEnchantItemPredicate(@NotNull BiPredicate<@NotNull ItemStack, @NotNull EnchantmentSource> predicate) {
++        getEnchantment().setCanEnchantItemPredicate(predicate);
++    }
++    // Martijn in Bukkit end - per-source enchantability
++
+     @NotNull
+     @Override
+     public String getName() {
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 9a6e410206852029f1fea0c4409352d5743dcf64..a5851ecabfb3f766d012a917d7aad64a4d432f68 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -1,6 +1,8 @@
+ package org.bukkit.entity;
+ 
+ import java.net.InetSocketAddress;
++import java.util.List; // Martijn in Paper - expose player chunk information
++import java.util.Set; // Paper
+ import java.util.UUID;
+ import com.destroystokyo.paper.ClientOption; // Paper
+ import com.destroystokyo.paper.Title; // Paper
+@@ -1944,6 +1946,125 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      * @param viewDistance view distance in [2, 32] or -1
+      */
+     public void setSendViewDistance(int viewDistance);
++
++    // Martijn in Paper start - entity tracking view distance
++    /**
++     * Gets the entity tracking view distance for this player.
++     * <p>
++     * Entity tracking view distance is the view distance where entities will be tracked (visible) for players.
++     * </p>
++     * @return The entity tracking view distance for this player.
++     */
++    public int getEntityTrackingViewDistance();
++
++    /**
++     * Sets the entity tracking view distance for this player.
++     * <p>
++     * Entity tracking view distance is the view distance where entities will be tracked (visible) for players.
++     * </p>
++     * @param viewDistance view distance >= 2, or -1
++     */
++    public void setEntityTrackingViewDistance(int viewDistance);
++
++    /**
++     * Gets whether to allow entity tracking beyond the no-tick view distance for this player.
++     * <p>
++     * Allowing entity tracking beyond the no-tick view distance can be used to allow players to see entities in chunks that are not knowingly sent to the client by the server implementation, but by plugins in a custom manner.
++     * </p>
++     * @return Whether to allow entity tracking beyond the no-tick view distance for this player.
++     */
++    public boolean getAllowEntityTrackingBeyondNoTickViewDistance();
++
++    /**
++     * Sets whether to allow entity tracking beyond the no-tick view distance for this player.
++     * <p>
++     * Allowing entity tracking beyond the no-tick view distance can be used to allow players to see entities in chunks that are not knowingly sent to the client by the server implementation, but by plugins in a custom manner.
++     * </p>
++     * @param allow A boolean indicating whether to allow entity tracking beyond the no-tick view distance for this player, or anull to unset a specific allowance for this player ({@link org.bukkit.World#getAllowEntityTrackingBeyondNoTickViewDistance will be used instead}
++     */
++    public void setAllowEntityTrackingBeyondNoTickViewDistance(@Nullable Boolean allow);
++    // Martijn in Paper end - entity tracking view distance
++
++    // Martijn in Paper start - per-player chunk send rate
++    /**
++     * Gets the target chunk send rate (in chunks per second) for this player.
++     * <p>
++     * The maximum chunk send rate an individual player will ever have. A value of -1 means the limit is disabled.
++     * </p>
++     * @return The target chunk send rate for this player, always either -1 (to indicate an unlimited chunk send rate) or a positive value &gt;= 10<sup>-6</sup>
++     */
++    public double getTargetChunkSendRate();
++
++    /**
++     * Sets the target chunk send rate (in chunks per second) for this player.
++     * <p>
++     * The maximum chunk send rate an individual player will ever have. A value of -1 means the limit is disabled.
++     * <br>
++     * Any negative value given will be treated as -1 (disabling the limit). Any value in the range [0, 10<sup>-6</sup>] will be treated as 10<sup>-6</sup>. If given null, this method acts as unsetting the value for this player: instead, the value in the Paper configuration will be used.
++     * </p>
++     * @param chunkSendRate The target chunk send rate for this player, or null to defer to the value in the Paper configuration.
++     */
++    public void setTargetChunkSendRate(@Nullable Double chunkSendRate);
++    // Martijn in Paper end - per-player chunk send rate
++
++    // Martijn in Paper start - controllable chunk sending
++    /**
++     * Gets whether any chunks can be sent to this player at all.
++     * @return Whether any chunks can be sent to this player at all.
++     */
++    public boolean getCanBeSentChunks();
++
++    /**
++     * Sets whether any chunks can be sent to this player at all.
++     * @param canBeSentChunks Whether any chunks can be sent to this player at all.
++     */
++    public void setCanBeSentChunks(boolean canBeSentChunks);
++    // Martijn in Paper end - controllable chunk sending
++
++    // Martijn in Paper start - expose player chunk information
++    /**
++     * Gets which chunks (in the world the player is in) are queued to be loaded for the player.
++     *
++     * @return A set of chunk keys, one for each chunk (in the world the player is in) that is queued to be loaded for the player.
++     */
++    public @NotNull Set<@NotNull Long> getUnorderedChunksQueuedToBeLoaded();
++    /**
++     * Gets which chunks (in the world the player is in) are queued to be sent to the player.
++     *
++     * @return A set of chunk keys, one for each chunk (in the world the player is in) that is queued to be sent to the player.
++     */
++    public @NotNull Set<@NotNull Long> getUnorderedChunksQueuedToBeSent();
++
++    /**
++     * Gets which chunks (in the world the player is in) are queued to be loaded for the player.
++     *
++     * @return A list of chunk keys, one for each chunk (in the world the player is in) that is queued to be loaded for the player, in the order they are queued to be loaded.
++     */
++    public @NotNull List<@NotNull Long> getOrderedChunksQueuedToBeLoaded();
++
++    /**
++     * Gets which chunks (in the world the player is in) are queued to be sent to the player.
++     *
++     * @return A list of chunk keys, one for each chunk (in the world the player is in) that is queued to be sent to the player, in the order they are queued to be sent.
++     */
++    public @NotNull List<@NotNull Long> getOrderedChunksQueuedToBeSent();
++
++    /**
++     * Gets which chunks (in the world the player is in) have been sent to this player.
++     *
++     * @return A set of chunk keys, one for each chunk (in the world the player is in) that has been sent to this player.
++     */
++    public @NotNull Set<@NotNull Long> getSentChunks();
++
++    /**
++     * Gets whether the given chunk (in the world the player is in) has been sent to this player.
++     *
++     * @param chunkX The x-coordinate of the chunk
++     * @param chunkZ The z-coordinate of the chunk
++     * @return Whether the given chunk has been sent to this player.
++     */
++    public boolean hasSentChunk(int chunkX, int chunkZ);
++    // Martijn in Paper end - expose player chunk information
+     // Paper end
+ 
+     /**
+diff --git a/src/main/java/org/bukkit/inventory/ItemStack.java b/src/main/java/org/bukkit/inventory/ItemStack.java
+index 56072cb4d32ca8a09023be08a5a832c2c108379a..24bc7761cda51cfba35a418a92c7fe6d93f9eef2 100644
+--- a/src/main/java/org/bukkit/inventory/ItemStack.java
++++ b/src/main/java/org/bukkit/inventory/ItemStack.java
+@@ -5,6 +5,8 @@ import java.util.LinkedHashMap;
+ import java.util.List; // Paper
+ import java.util.Map;
+ import java.util.Set; // Paper
++
++import nl.martijnmuijsers.paper.enchantments.EnchantmentSource; // Martijn in Bukkit - per-source enchantability
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Bukkit;
+ import org.bukkit.Material;
+@@ -394,7 +396,7 @@ public class ItemStack implements Cloneable, ConfigurationSerializable, net.kyor
+         Validate.notNull(ench, "Enchantment cannot be null");
+         if ((level < ench.getStartLevel()) || (level > ench.getMaxLevel())) {
+             throw new IllegalArgumentException("Enchantment level is either too low or too high (given " + level + ", bounds are " + ench.getStartLevel() + " to " + ench.getMaxLevel() + ")");
+-        } else if (!ench.canEnchantItem(this)) {
++        } else if (!ench.canEnchantItem(this, EnchantmentSource.BUKKIT_API)) { // Martijn in Bukkit - per-source enchantability
+             throw new IllegalArgumentException("Specified enchantment cannot be applied to this itemstack");
+         }
+ 
