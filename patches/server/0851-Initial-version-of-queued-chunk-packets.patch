@@ -1,0 +1,1845 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 12 Jan 2022 11:55:23 +0100
+Subject: [PATCH] Initial version of queued chunk packets
+
+
+diff --git a/src/main/java/io/papermc/paper/network/ChunkPacket.java b/src/main/java/io/papermc/paper/network/ChunkPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..71ff490d5c8e8c91011fbba35c4c9f9d88aecb91
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/network/ChunkPacket.java
+@@ -0,0 +1,15 @@
++package io.papermc.paper.network;
++
++import net.minecraft.world.level.ChunkPos;
++
++public interface ChunkPacket {
++
++    int getRelatedChunkX();
++
++    int getRelatedChunkZ();
++
++    default long getRelatedChunkLongKey() {
++        return new ChunkPos(getRelatedChunkX(), getRelatedChunkZ()).longKey;
++    }
++
++}
+diff --git a/src/main/java/io/papermc/paper/network/EntityAddPacket.java b/src/main/java/io/papermc/paper/network/EntityAddPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5e98f5c92715b9fcfa487fd421403734267a5a51
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/network/EntityAddPacket.java
+@@ -0,0 +1,3 @@
++package io.papermc.paper.network;
++
++public interface EntityAddPacket extends ChunkPacket, EntityIdPacket {}
+diff --git a/src/main/java/io/papermc/paper/network/EntityIdPacket.java b/src/main/java/io/papermc/paper/network/EntityIdPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a347af18098d48f49a147e23b01f1521a1b7d768
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/network/EntityIdPacket.java
+@@ -0,0 +1,17 @@
++package io.papermc.paper.network;
++
++import it.unimi.dsi.fastutil.ints.IntList;
++import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.protocol.game.ClientGamePacketListener;
++import org.jetbrains.annotations.Nullable;
++
++public interface EntityIdPacket extends EntityIdsPacket {
++
++    int getRelatedEntityId();
++
++    @Override
++    default IntList getRelatedEntityIds() {
++        return IntList.of(getRelatedEntityId());
++    }
++
++}
+diff --git a/src/main/java/io/papermc/paper/network/EntityIdsPacket.java b/src/main/java/io/papermc/paper/network/EntityIdsPacket.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..08725efb0780838d02a22d58ad88a4763abf15d2
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/network/EntityIdsPacket.java
+@@ -0,0 +1,9 @@
++package io.papermc.paper.network;
++
++import it.unimi.dsi.fastutil.ints.IntList;
++
++public interface EntityIdsPacket {
++
++    IntList getRelatedEntityIds();
++
++}
+diff --git a/src/main/java/io/papermc/paper/network/EntityIdsPacketHolder.java b/src/main/java/io/papermc/paper/network/EntityIdsPacketHolder.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1dec38cc330128c77566c75185fc238c1b3389a9
+--- /dev/null
++++ b/src/main/java/io/papermc/paper/network/EntityIdsPacketHolder.java
+@@ -0,0 +1,19 @@
++package io.papermc.paper.network;
++
++import io.netty.util.concurrent.Future;
++import io.netty.util.concurrent.GenericFutureListener;
++import it.unimi.dsi.fastutil.ints.IntList;
++import net.minecraft.network.Connection;
++import net.minecraft.network.protocol.Packet;
++import org.jetbrains.annotations.Nullable;
++
++public class EntityIdsPacketHolder extends Connection.PacketHolder {
++
++    public final IntList entityIds;
++
++    public EntityIdsPacketHolder(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, IntList entityIds) {
++        super(packet, callback);
++        this.entityIds = entityIds;
++    }
++
++}
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 81dde0efc1a06420c0791520b9e40b24dd1f0318..9b1522592411e604a156fb1f1f086a4c95d24438 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -28,21 +28,49 @@ import io.netty.util.concurrent.Future;
+ import io.netty.util.concurrent.GenericFutureListener;
+ import java.net.InetSocketAddress;
+ import java.net.SocketAddress;
++import java.util.ArrayDeque;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.Iterator;
++import java.util.List;
+ import java.util.Queue;
++import java.util.function.Consumer;
++import java.util.function.Function;
++import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import javax.crypto.Cipher;
++
++import io.papermc.paper.network.ChunkPacket;
++import io.papermc.paper.network.EntityAddPacket;
++import io.papermc.paper.network.EntityIdsPacket;
++import io.papermc.paper.network.EntityIdsPacketHolder;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.ints.IntList;
++import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
++import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.longs.LongArrayList;
++import it.unimi.dsi.fastutil.longs.LongList;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.PacketFlow;
++import net.minecraft.network.protocol.game.ClientboundAddPlayerPacket;
+ import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.game.ClientboundKeepAlivePacket;
++import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
++import net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
++import net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket;
++import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
+ import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.RunningOnDifferentThreadException;
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.server.network.ServerGamePacketListenerImpl;
+ import net.minecraft.server.network.ServerLoginPacketListenerImpl;
+ import net.minecraft.util.LazyLoadedValue;
+ import net.minecraft.util.Mth;
++import net.minecraft.world.level.ChunkPos;
+ import org.apache.commons.lang3.Validate;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+@@ -51,8 +79,18 @@ import org.apache.logging.log4j.MarkerManager;
+ 
+ 
+ import io.netty.util.concurrent.AbstractEventExecutor; // Paper
++import org.bukkit.Bukkit;
++
+ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+ 
++    // Martijn start
++    // TODO turn into configuration options
++    public static final int initialMaxNumberOfChunkPacketsInTransit = 1;
++    public static final int minMaxNumberOfChunkPacketsInTransit = 1;
++    public static final int maxMaxNumberOfChunkPacketsInTransit = 7;
++    public static final int sendChunkDistanceMarginFromViewDistance = 2;
++    public static final long millisIntervalToConsiderChunkPacketsPotentiallyOutdated = 3000L;
++    // Martijn end
+     private static final float AVERAGE_PACKETS_SMOOTHING = 0.75F;
+     private static final Logger LOGGER = LogManager.getLogger();
+     public static final Marker ROOT_MARKER = MarkerManager.getMarker("NETWORK");
+@@ -68,7 +106,25 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         return new DefaultEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Local Client IO #%d").setDaemon(true).setUncaughtExceptionHandler(new net.minecraft.DefaultUncaughtExceptionHandlerWithName(LOGGER)).build()); // Paper
+     });
+     private final PacketFlow receiving;
+-    private final Queue<Connection.PacketHolder> queue = Queues.newConcurrentLinkedQueue();
++    private final Queue<PacketHolder> queue = Queues.newConcurrentLinkedQueue();
++
++    // Martijn start
++
++    public int maxNumberOfChunkPacketsInTransit = initialMaxNumberOfChunkPacketsInTransit;
++    // A map of each chunk's key to a nonempty list of packets scheduled for that chunk: the packets for each chunk are in the order that they were originally scheduled
++    private final Long2ObjectMap<List<PacketHolder>> chunkQueue = new Long2ObjectOpenHashMap<>(1);
++    // The chunk keys that exist in chunkQueue - this is kept because it's fast to re-sort almost-sorted lists again on the next process
++    private LongList chunksInQueue = new LongArrayList(1);
++    // A map of entity ids for which no add packet was sent yet, but it is queued to be sent later (to avoid sending other entity packets for this entity before it has been added) to those packets that will be sent straight after
++    private final Int2ObjectMap<List<EntityIdsPacketHolder>> blockedEntityPackets = new Int2ObjectOpenHashMap(1);
++    // A lock to synchronize over when using chunkQueue, chunkPosInQueue or blockedEntityPackets
++    private final Object chunkQueueLock = new Object();
++
++    // Keep track of chunk packets in transit
++    public final ArrayDeque<Long> chunkPacketsInTransitIds = new ArrayDeque<>();
++
++    // Martijn end
++
+     public Channel channel;
+     public SocketAddress address;
+     // Spigot Start
+@@ -330,6 +386,12 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     }
+     // Paper end
+ 
++    // Martijn start
++    private static boolean isExemptFromBeingBlocked(Packet<?> packet) {
++        return packet instanceof ClientboundAddPlayerPacket || packet instanceof ClientboundMapItemDataPacket || packet instanceof ClientboundPlayerInfoPacket;
++    }
++    // Martijn end
++
+     public void send(Packet<?> packet) {
+         this.send(packet, (GenericFutureListener) null);
+     }
+@@ -341,29 +403,127 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             return; // Do nothing
+         }
+         packet.onPacketDispatch(getPlayer());
++        // Martijn start
++        boolean isChunkInitialization = packet instanceof ClientboundLevelChunkWithLightPacket;
++        boolean isPendingChunkDependent;
++        if (!isChunkInitialization && packet instanceof ChunkPacket) {
++            isPendingChunkDependent = chunkQueue.containsKey(((ChunkPacket) packet).getRelatedChunkLongKey());
++        } else {
++            isPendingChunkDependent = false;
++        }
++        boolean isPendingEntityDependent;
++        if (!isChunkInitialization && !isPendingChunkDependent && packet instanceof EntityIdsPacket) {
++            isPendingEntityDependent = ((EntityIdsPacket) packet).getRelatedEntityIds().stream().anyMatch(blockedEntityPackets::containsKey);
++        } else {
++            isPendingEntityDependent = false;
++        }
++        // Martijn end
+         if (connected && (InnerUtil.canSendImmediate(this, packet) || (
+             net.minecraft.server.MCUtil.isMainThread() && packet.isReady() && this.queue.isEmpty() &&
+             (packet.getExtraPackets() == null || packet.getExtraPackets().isEmpty())
+         ))) {
+-            this.writePacket(packet, callback, null); // Paper
+-            return;
++            // Martijn start
++            // Don't write the following packets immediately:
++            // * Packets that initialize a hcunk
++            // * Packets that are reliant on a chunk (instance of ChunkPacket) and their chunk's initialization is yet to be sent
++            // * Packets that are reliant on one or more entities (instance of EntityIdPacket or EntityIdsPacket) and their entities' initialization is yet to be sent
++            if (isExemptFromBeingBlocked(packet) || !(isChunkInitialization || isPendingChunkDependent || isPendingEntityDependent)) {
++                // Don't write entity updates immediately but
++                this.writePacket(packet, callback, null); // Paper
++                return;
++            }
++            // Martijn end
+         }
+         // write the packets to the queue, then flush - antixray hooks there already
+         java.util.List<Packet> extraPackets = InnerUtil.buildExtraPackets(packet);
+         boolean hasExtraPackets = extraPackets != null && !extraPackets.isEmpty();
++
++        // Martijn start
++
++        List<PacketHolder> packetHolders;
+         if (!hasExtraPackets) {
+-            this.queue.add(new Connection.PacketHolder(packet, callback));
++            packetHolders = Collections.singletonList(new PacketHolder(packet, callback));
+         } else {
+-            java.util.List<Connection.PacketHolder> packets = new java.util.ArrayList<>(1 + extraPackets.size());
+-            packets.add(new Connection.PacketHolder(packet, null)); // delay the future listener until the end of the extra packets
++            packetHolders = new java.util.ArrayList<>(1 + extraPackets.size());
++            packetHolders.add(new PacketHolder(packet, null)); // delay the future listener until the end of the extra packets
+ 
+             for (int i = 0, len = extraPackets.size(); i < len;) {
+                 Packet extra = extraPackets.get(i);
+                 boolean end = ++i == len;
+-                packets.add(new Connection.PacketHolder(extra, end ? callback : null)); // append listener to the end
++                packetHolders.add(new PacketHolder(extra, end ? callback : null)); // append listener to the end
++            }
++        }
++
++        @Nullable List<PacketHolder> exemptedPacketHolders = null;
++        if (packetHolders.stream().anyMatch(it -> isExemptFromBeingBlocked(it.packet))) {
++            exemptedPacketHolders = new ArrayList<>(packetHolders.size());
++            List<PacketHolder> newPacketHolders = new ArrayList<>(packetHolders.size());
++            for (PacketHolder packetHolder : packetHolders) {
++                if (isExemptFromBeingBlocked(packetHolder.packet)) {
++                    exemptedPacketHolders.add(packetHolder);
++                } else {
++                    newPacketHolders.add(packetHolder);
++                }
++            }
++            packetHolders = newPacketHolders;
++        }
++
++        // Make sure we block later entity packets by marking this entity add packet as unsent
++        for (PacketHolder packetHolder : packetHolders) {
++            if (packetHolder.packet instanceof EntityAddPacket) {
++                synchronized (this.chunkQueueLock) {
++                    blockedEntityPackets.computeIfAbsent(((EntityAddPacket) packetHolder.packet).getRelatedEntityId(), it -> new ArrayList<>(1));
++                }
+             }
+-            this.queue.addAll(packets); // atomic
+         }
++
++        boolean addedToSomeQueue = false;
++        if (isChunkInitialization || isPendingChunkDependent) {
++            // For chunk packets
++            synchronized (this.chunkQueueLock) {
++                long chunkKey = ((ChunkPacket) packet).getRelatedChunkLongKey();
++                List<PacketHolder> packetsForChunk = this.chunkQueue.computeIfAbsent(chunkKey, it -> new ArrayList<>(1));
++                if (packetsForChunk.isEmpty()) {
++                    this.chunksInQueue.add(chunkKey);
++                }
++                packetsForChunk.addAll(packetHolders);
++            }
++            addedToSomeQueue = true;
++        } else if (isPendingEntityDependent) {
++            // For packets waiting on an entity add packet to be sent
++            synchronized (this.chunkQueueLock) {
++                IntList entityIds = ((EntityIdsPacket) packet).getRelatedEntityIds();
++                List<EntityIdsPacketHolder> entityPacketHolders = packetHolders.stream()
++                    .filter(it -> !(it.packet instanceof ClientboundSoundEntityPacket)) // Just do not send any sounds for entities that are yet to be added, to avoid playing multiple sounds suddenly when they are added
++                    .map(it -> new EntityIdsPacketHolder(it.packet, it.listener, entityIds))
++                    .toList();
++                for (int entityId : entityIds) {
++                    List<EntityIdsPacketHolder> blockedEntityPacketsForId = this.blockedEntityPackets.get(entityId);
++                    if (blockedEntityPacketsForId != null) {
++                        blockedEntityPacketsForId.addAll(entityPacketHolders);
++                        addedToSomeQueue = true;
++                    }
++                }
++            }
++        }
++
++        List<PacketHolder> addToRegularQueue = null;
++        if (exemptedPacketHolders != null) {
++            addToRegularQueue = exemptedPacketHolders;
++        }
++        if (!addedToSomeQueue) {
++            if (addToRegularQueue == null) {
++                addToRegularQueue = packetHolders;
++            } else {
++                addToRegularQueue.addAll(packetHolders);
++            }
++        }
++        if (addToRegularQueue != null && !addToRegularQueue.isEmpty()) {
++            this.queue.addAll(addToRegularQueue);
++        }
++
++        // Martijn end
++
+         this.flushQueue();
+         // Paper end
+     }
+@@ -373,9 +533,47 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         this.writePacket(packet, callback, Boolean.TRUE);
+     }
+     private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
++
++        // Martijn start
++        // Make sure any blocked entity packets are sent straight after
++        if (packet instanceof EntityAddPacket) {
++            int entityId = ((EntityAddPacket) packet).getRelatedEntityId();
++            synchronized (Connection.this.chunkQueueLock) {
++                List<EntityIdsPacketHolder> blockedPackets = Connection.this.blockedEntityPackets.remove(entityId);
++                if (blockedPackets != null) {
++                    blockedPackets = blockedPackets.stream()
++                        .filter(it -> !it.entityIds.stream().anyMatch(Connection.this.blockedEntityPackets::containsKey))
++                        .toList();
++                    this.writePacket(packet, callback, blockedPackets.isEmpty() ? flushConditional : false);
++                    for (int blockedPacketI = 0; blockedPacketI < blockedPackets.size(); blockedPacketI++) {
++                        PacketHolder followingPacketHolder = blockedPackets.get(blockedPacketI);
++                        this.writePacket(followingPacketHolder.packet, followingPacketHolder.listener, blockedPacketI == blockedPackets.size() - 1 ? flushConditional : false);
++                    }
++                    return;
++                }
++            }
++        } else if (packet instanceof EntityIdsPacket) {
++            // Do not send entity packets that are blocked
++            synchronized (Connection.this.chunkQueueLock) {
++                if (((EntityIdsPacket) packet).getRelatedEntityIds().stream().anyMatch(Connection.this.blockedEntityPackets::containsKey)) {
++                    return;
++                }
++            }
++        }
++        // Martijn end
++
+         this.packetWrites.getAndIncrement(); // must be befeore using canFlush
+         boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
+-        final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket; // no delay for certain packets
++        // Martijn start
++        // Flush after more types of packets
++        final boolean flush =
++            effectiveFlush
++                || packet instanceof ClientboundKeepAlivePacket
++                || packet instanceof ClientboundDisconnectPacket
++                || packet instanceof ClientboundLevelChunkWithLightPacket
++                || packet instanceof ClientboundMapItemDataPacket
++                || packet instanceof ClientboundPlayerInfoPacket; // no delay for certain packets
++        // Martijn end
+         // Paper end - add flush parameter
+         ConnectionProtocol enumprotocol = ConnectionProtocol.getProtocolForPacket(packet);
+         ConnectionProtocol enumprotocol1 = this.getCurrentProtocol();
+@@ -465,40 +663,194 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         }
+         return false;
+     }
++
++    // Martijn start
+     private boolean processQueue() {
+-        if (this.queue.isEmpty()) return true;
++
++        // Use a singleton array so value can be set inside Runnable
++        boolean[] hasBeenFullyProcessed = { true };
++
+         // Paper start - make only one flush call per sendPacketQueue() call
+         final boolean needsFlush = this.canFlush;
+-        boolean hasWrotePacket = false;
++        // Use a singleton array so value can be set inside Runnable
++        boolean[] hasWrotePacket = { false };
+         // Paper end - make only one flush call per sendPacketQueue() call
+-        // If we are on main, we are safe here in that nothing else should be processing queue off main anymore
+-        // But if we are not on main due to login/status, the parent is synchronized on packetQueue
+-        java.util.Iterator<PacketHolder> iterator = this.queue.iterator();
+-        while (iterator.hasNext()) {
+-            PacketHolder queued = iterator.next(); // poll -> peek
+-
+-            // Fix NPE (Spigot bug caused by handleDisconnection())
+-            if (false && queued == null) { // Paper - diff on change, this logic is redundant: iterator guarantees ret of an element - on change, hook the flush logic here
+-                return true;
+-            }
+ 
+-            Packet<?> packet = queued.packet;
+-            if (!packet.isReady()) {
+-                // Paper start - make only one flush call per sendPacketQueue() call
+-                if (hasWrotePacket && (needsFlush || this.canFlush)) {
+-                    this.flush();
++        Consumer<PacketHolder> writePacketConsumer = packetHolder -> {
++            boolean thereAreMorePacketsInSomeQueue;
++            synchronized (this.chunkQueueLock) {
++                thereAreMorePacketsInSomeQueue =
++                    !this.queue.isEmpty() || !Connection.this.chunkQueue.isEmpty() || !Connection.this.blockedEntityPackets.isEmpty();
++            }
++            Connection.this.writePacket(
++                packetHolder.packet,
++                packetHolder.listener,
++                (!thereAreMorePacketsInSomeQueue && (needsFlush || Connection.this.canFlush)) ? Boolean.TRUE : Boolean.FALSE
++            );
++            hasWrotePacket[0] = true; // Paper - make only one flush call per sendPacketQueue() call
++        };
++
++        // Process the regular queue
++        ((Runnable) () -> {
++            if (Connection.this.queue.isEmpty()) {
++                return;
++            }
++            // If we are on main, we are safe here in that nothing else should be processing queue off main anymore
++            // But if we are not on main due to login/status, the parent is synchronized on packetQueue
++            while (!this.queue.isEmpty()) {
++                PacketHolder queued = this.queue.peek(); // poll -> peek
++
++                Packet<?> packet = queued.packet;
++                if (!packet.isReady()) {
++                    // Paper start - make only one flush call per sendPacketQueue() call
++                    if (hasWrotePacket[0] && (needsFlush || Connection.this.canFlush)) {
++                        Connection.this.flush();
++                    }
++                    // Paper end - make only one flush call per sendPacketQueue() call
++                    hasBeenFullyProcessed[0] = false;
++                    return;
++                } else {
++                    this.queue.poll();
++                    writePacketConsumer.accept(queued);
+                 }
+-                // Paper end - make only one flush call per sendPacketQueue() call
+-                return false;
+-            } else {
+-                iterator.remove();
+-                this.writePacket(packet, queued.listener, (!iterator.hasNext() && (needsFlush || this.canFlush)) ? Boolean.TRUE : Boolean.FALSE); // Paper - make only one flush call per sendPacketQueue() call
+-                hasWrotePacket = true; // Paper - make only one flush call per sendPacketQueue() call
+             }
++        }).run();
++
++        synchronized (this.chunkQueueLock) {
++
++            // Process the chunk queue (mostly the same logic as the regular queue)
++            ((Runnable) () -> {
++                if (Connection.this.chunkQueue.isEmpty()) {
++                    return;
++                }
++                // Initialize the new chunks in queue
++                LongList newChunksInQueue = new LongArrayList(Connection.this.chunksInQueue.size());
++                ((Runnable) () -> {
++                    long currentTime = System.currentTimeMillis();
++                    ServerPlayer player = Connection.this.getPlayer();
++                    int playerViewDistance = Math.max(
++                        (player == null) ? 0 : player.getLevel().getWorld().getViewDistance(),
++                        Bukkit.getViewDistance()
++                    );
++                    playerViewDistance = Math.max(playerViewDistance, 5);
++                    Function<Long, Integer> getChunkDistance = (packetChunkKey) -> {
++                        if (player == null) {
++                            return 0;
++                        }
++                        ChunkPos packetChunkPos = new ChunkPos(packetChunkKey);
++                        int packetChunkX = packetChunkPos.x;
++                        int packetChunkZ = packetChunkPos.z;
++                        int playerChunkX = player.getBlockX() >> 4;
++                        int playerChunkZ = player.getBlockZ() >> 4;
++                        return Math.max(Math.abs(playerChunkX - packetChunkX), Math.abs(playerChunkZ - packetChunkZ));
++                    };
++                    // Sort by chunk distance: send the remaining chunks in queue in order of current distance to the player
++                    Connection.this.chunksInQueue.sort((chunkKey1, chunkKey2) ->
++                        Integer.compare(
++                            getChunkDistance.apply(chunkKey1),
++                            getChunkDistance.apply(chunkKey2)
++                        )
++                    );
++                    // If we are on main, we are safe here in that nothing else should be processing queue off main anymore
++                    // But if we are not on main due to login/status, the parent is synchronized on packetQueue
++                    for (int queuedIndex = 0; queuedIndex < Connection.this.chunksInQueue.size(); queuedIndex++) {
++
++                        long chunkKey = Connection.this.chunksInQueue.get(queuedIndex);
++                        Integer distance = null;
++                        if (player != null) {
++                            distance = getChunkDistance.apply(chunkKey);
++                        }
++
++                        // TODO turn into configuration options
++                        int maxNumberOfChunkPacketsInTransitByDistance = 10;
++                        if (distance >= 12) {
++                            maxNumberOfChunkPacketsInTransitByDistance = 1;
++                        } else if (distance >= 8) {
++                            maxNumberOfChunkPacketsInTransitByDistance = 2;
++                        } else if (distance >= 5) {
++                            maxNumberOfChunkPacketsInTransitByDistance = 3;
++                        } else if (distance >= 3) {
++                            maxNumberOfChunkPacketsInTransitByDistance = 4;
++                        } else if (distance >= 2) {
++                            maxNumberOfChunkPacketsInTransitByDistance = 5;
++                        } else if (distance >= 1) {
++                            maxNumberOfChunkPacketsInTransitByDistance = 6;
++                        }
++
++                        int maxNumberOfChunkPacketsInTransitToUse = Math.min(
++                            maxNumberOfChunkPacketsInTransit,
++                            maxNumberOfChunkPacketsInTransitByDistance
++                        );
++
++                        // Skip the rest if there are already too many chunk updates in transit
++                        synchronized (chunkPacketsInTransitIds) {
++                            if (chunkPacketsInTransitIds.size() >= maxNumberOfChunkPacketsInTransitToUse) {
++                                newChunksInQueue.addAll(Connection.this.chunksInQueue.subList(queuedIndex, Connection.this.chunksInQueue.size()));
++                                hasBeenFullyProcessed[0] = false;
++                                return;
++                            }
++                        }
++
++                        List<PacketHolder> allQueued = Connection.this.chunkQueue.get(chunkKey);
++                        @Nullable ClientboundLevelChunkWithLightPacket chunkInitializationPacket =
++                            allQueued.stream()
++                                .filter(it -> it.packet instanceof ClientboundLevelChunkWithLightPacket)
++                                .findFirst()
++                                .map(it -> (ClientboundLevelChunkWithLightPacket) it.packet)
++                                .orElse(null);
++
++                        // If this chunk is too far away from the player, ignore it, except if it is also outdated, in which case we remove it from queue
++                        if (distance != null) {
++                            if (distance > playerViewDistance + sendChunkDistanceMarginFromViewDistance) {
++                                if (chunkInitializationPacket == null || chunkInitializationPacket.creationTimestamp < currentTime - millisIntervalToConsiderChunkPacketsPotentiallyOutdated) {
++                                    chunkQueue.remove(chunkKey);
++                                    continue;
++                                }
++                                newChunksInQueue.add(chunkKey);
++                                continue;
++                            }
++                        }
++
++                        if (allQueued.stream().anyMatch(it -> !it.packet.isReady())) {
++//                            // Paper start - make only one flush call per sendPacketQueue() call
++//                            if (hasWrotePacket[0] && (needsFlush || Connection.this.canFlush)) {
++//                                Connection.this.flush();
++//                            }
++//                            // Paper end - make only one flush call per sendPacketQueue() call
++                            // We are probably just waiting for anti-xray for this chunk, so just skip it for now
++                            newChunksInQueue.add(chunkKey);
++                            continue;
++                        } else {
++                            // We will write all packets for this chunk
++                            allQueued.forEach(writePacketConsumer::accept);
++                            chunkQueue.remove(chunkKey);
++                            // Quickly write a keep-alive packet after sending the chunk
++                            // Generate a keep-alive challenge that is not the same as any real one (the real ones use the current system time itself)
++                            long keepAliveChallenge = -System.currentTimeMillis();
++                            Packet<?> followingKeepAlivePacket = new ClientboundKeepAlivePacket(keepAliveChallenge);
++                            synchronized (chunkPacketsInTransitIds) {
++                                chunkPacketsInTransitIds.addLast(keepAliveChallenge);
++                            }
++                            writePacketConsumer.accept(new PacketHolder(followingKeepAlivePacket, null));
++                        }
++                    }
++                }).run();
++                // Update the chunk queue
++                Connection.this.chunksInQueue = newChunksInQueue;
++                if (!Connection.this.chunksInQueue.isEmpty()) {
++                    hasBeenFullyProcessed[0] = false;
++                }
++            }).run();
++
++
++
+         }
+-        return true;
++
++        return hasBeenFullyProcessed[0];
++
+     }
+     // Paper end
++    // Martijn end
+ 
+     private static final int MAX_PER_TICK = com.destroystokyo.paper.PaperConfig.maxJoinsPerTick; // Paper
+     private static int joinAttemptsThisTick; // Paper
+@@ -557,19 +909,24 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     // Paper start
+     public void clearPacketQueue() {
+         net.minecraft.server.level.ServerPlayer player = getPlayer();
+-        queue.forEach(queuedPacket -> {
++        Stream.concat(Stream.concat(queue.stream(), chunkQueue.values().stream().flatMap(List::stream)), blockedEntityPackets.values().stream().flatMap(List::stream).distinct()).forEach(queuedPacket -> { // Martijn
+             Packet<?> packet = queuedPacket.packet;
+             if (packet.hasFinishListener()) {
+                 packet.onPacketDispatchFinish(player, null);
+             }
+         });
+         queue.clear();
++        // Martijn start
++        chunkQueue.clear();
++        blockedEntityPackets.clear();
++        // Martijn end
+     }
+     // Paper end
+     public void disconnect(Component disconnectReason) {
+         // Spigot Start
+         this.preparing = false;
+         clearPacketQueue(); // Paper
++        chunkPacketsInTransitIds.clear(); // Martijn
+         // Spigot End
+         if (this.channel.isOpen()) {
+             this.channel.close(); // We can't wait as this may be called from an event loop.
+@@ -714,6 +1071,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+                     this.getPacketListener().onDisconnect(new TranslatableComponent("multiplayer.disconnect.generic"));
+                 }
+                 clearPacketQueue(); // Paper
++                chunkPacketsInTransitIds.clear(); // Martijn
+                 // Paper start - Add PlayerConnectionCloseEvent
+                 final PacketListener packetListener = this.getPacketListener();
+                 if (packetListener instanceof ServerGamePacketListenerImpl) {
+@@ -747,7 +1105,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         return this.averageSentPackets;
+     }
+ 
+-    private static class PacketHolder {
++    public static class PacketHolder { // Martijn
+ 
+         final Packet<?> packet;
+         @Nullable
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddEntityPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddEntityPacket.java
+index 4abe27f06966fa61370627bc1b37426735dcf971..8ce961fd1e1ac8d81b1bdf864a6cac52751fc962 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddEntityPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddEntityPacket.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.network.protocol.game;
+ 
+ import java.util.UUID;
++
++import io.papermc.paper.network.EntityAddPacket;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Registry;
+ import net.minecraft.network.FriendlyByteBuf;
+@@ -10,7 +12,7 @@ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.phys.Vec3;
+ 
+-public class ClientboundAddEntityPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundAddEntityPacket implements Packet<ClientGamePacketListener>, EntityAddPacket { // Martijn
+     public static final double MAGICAL_QUANTIZATION = 8000.0D;
+     private final int id;
+     private final UUID uuid;
+@@ -68,6 +70,23 @@ public class ClientboundAddEntityPacket implements Packet<ClientGamePacketListen
+         this.za = buf.readShort();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return ((int) Math.floor(x)) >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return ((int) Math.floor(z)) >> 4;
++    }
++
++    @Override
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddExperienceOrbPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddExperienceOrbPacket.java
+index c2fee7533528911204fdc03979de9d2d9b46bc6f..9ab6be3250449b8220743234ea79b4169b11e47e 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddExperienceOrbPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddExperienceOrbPacket.java
+@@ -1,10 +1,11 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityAddPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.ExperienceOrb;
+ 
+-public class ClientboundAddExperienceOrbPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundAddExperienceOrbPacket implements Packet<ClientGamePacketListener>, EntityAddPacket { // Martijn
+     private final int id;
+     private final double x;
+     private final double y;
+@@ -27,6 +28,23 @@ public class ClientboundAddExperienceOrbPacket implements Packet<ClientGamePacke
+         this.value = buf.readShort();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return ((int) Math.floor(x)) >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return ((int) Math.floor(z)) >> 4;
++    }
++
++    @Override
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddMobPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddMobPacket.java
+index 4fb3977a4ebad03da7367e7d2264489573aa9859..7122bd68096dac1dcf911239462935233550278a 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddMobPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddMobPacket.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.network.protocol.game;
+ 
+ import java.util.UUID;
++
++import io.papermc.paper.network.EntityAddPacket;
+ import net.minecraft.core.Registry;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+@@ -8,7 +10,7 @@ import net.minecraft.util.Mth;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.phys.Vec3;
+ 
+-public class ClientboundAddMobPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundAddMobPacket implements Packet<ClientGamePacketListener>, EntityAddPacket { // Martijn
+     private final int id;
+     private final UUID uuid;
+     private final int type;
+@@ -57,6 +59,23 @@ public class ClientboundAddMobPacket implements Packet<ClientGamePacketListener>
+         this.zd = buf.readShort();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return ((int) Math.floor(x)) >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return ((int) Math.floor(z)) >> 4;
++    }
++
++    @Override
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddPaintingPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddPaintingPacket.java
+index a0a9155c6e70c2d4a44370efbe76f7abb203cff7..5614260e3479b2eefee1c5508501ed5873b797db 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddPaintingPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddPaintingPacket.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.network.protocol.game;
+ 
+ import java.util.UUID;
++
++import io.papermc.paper.network.EntityAddPacket;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.Registry;
+@@ -9,7 +11,7 @@ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.decoration.Motive;
+ import net.minecraft.world.entity.decoration.Painting;
+ 
+-public class ClientboundAddPaintingPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundAddPaintingPacket implements Packet<ClientGamePacketListener>, EntityAddPacket { // Martijn
+     private final int id;
+     private final UUID uuid;
+     private final BlockPos pos;
+@@ -32,6 +34,23 @@ public class ClientboundAddPaintingPacket implements Packet<ClientGamePacketList
+         this.direction = Direction.from2DDataValue(buf.readUnsignedByte());
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return pos.getX() >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return pos.getZ() >> 4;
++    }
++
++    @Override
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddPlayerPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddPlayerPacket.java
+index ab823de3fe0eb4870cd7fec543730d6d17060940..d5bf680137eb25996a923a8cc2e941daa94a7333 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddPlayerPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddPlayerPacket.java
+@@ -1,11 +1,13 @@
+ package net.minecraft.network.protocol.game;
+ 
+ import java.util.UUID;
++
++import io.papermc.paper.network.EntityAddPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.player.Player;
+ 
+-public class ClientboundAddPlayerPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundAddPlayerPacket implements Packet<ClientGamePacketListener>, EntityAddPacket { // Martijn
+     private final int entityId;
+     private final UUID playerId;
+     private final double x;
+@@ -34,6 +36,23 @@ public class ClientboundAddPlayerPacket implements Packet<ClientGamePacketListen
+         this.xRot = buf.readByte();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return ((int) Math.floor(x)) >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return ((int) Math.floor(z)) >> 4;
++    }
++
++    @Override
++    public int getRelatedEntityId() {
++        return entityId;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.entityId);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddVibrationSignalPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddVibrationSignalPacket.java
+index c7d1b4ba15c0f9539c914a1ac256be1dd11ded1f..1664d0f9c86218a89e42345bec6b8bfe8704275f 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundAddVibrationSignalPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundAddVibrationSignalPacket.java
+@@ -1,10 +1,11 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.ChunkPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.level.gameevent.vibrations.VibrationPath;
+ 
+-public class ClientboundAddVibrationSignalPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundAddVibrationSignalPacket implements Packet<ClientGamePacketListener>, ChunkPacket {
+     private final VibrationPath vibrationPath;
+ 
+     public ClientboundAddVibrationSignalPacket(VibrationPath vibration) {
+@@ -15,6 +16,18 @@ public class ClientboundAddVibrationSignalPacket implements Packet<ClientGamePac
+         this.vibrationPath = VibrationPath.read(buf);
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return vibrationPath.getOrigin().getX() >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return vibrationPath.getOrigin().getZ() >> 4;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         VibrationPath.write(buf, this.vibrationPath);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundAnimatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundAnimatePacket.java
+index e94937e58c77a5331d012cb2775ae5f4bc84656e..7d10e168b33d0a4628d4f9c6f0b473b75ad5f0ab 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundAnimatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundAnimatePacket.java
+@@ -1,10 +1,11 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.Entity;
+ 
+-public class ClientboundAnimatePacket implements Packet<ClientGamePacketListener> {
++public class ClientboundAnimatePacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     public static final int SWING_MAIN_HAND = 0;
+     public static final int HURT = 1;
+     public static final int WAKE_UP = 2;
+@@ -24,6 +25,13 @@ public class ClientboundAnimatePacket implements Packet<ClientGamePacketListener
+         this.action = buf.readUnsignedByte();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockDestructionPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockDestructionPacket.java
+index 5c10d258d83e269f2c9570e438fb88ef1155ecaf..5f949ff99b6f98f6b7977ebdb81004d86836328b 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockDestructionPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockDestructionPacket.java
+@@ -1,10 +1,11 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.ChunkPacket;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ 
+-public class ClientboundBlockDestructionPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundBlockDestructionPacket implements Packet<ClientGamePacketListener>, ChunkPacket { // Martijn
+     private final int id;
+     private final BlockPos pos;
+     private final int progress;
+@@ -21,6 +22,18 @@ public class ClientboundBlockDestructionPacket implements Packet<ClientGamePacke
+         this.progress = buf.readUnsignedByte();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return pos.getX() >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return pos.getZ() >> 4;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket.java
+index 43220caaa331eade5b183f68f09d94542b4bc3db..70c75c74523671b9a58fdbea2ba4141a3a95e927 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEntityDataPacket.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.ChunkPacket;
+ import java.util.function.Function;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+@@ -10,7 +11,7 @@ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.entity.BlockEntityType;
+ 
+-public class ClientboundBlockEntityDataPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundBlockEntityDataPacket implements Packet<ClientGamePacketListener>, ChunkPacket { // Martijn
+     private final BlockPos pos;
+     private final BlockEntityType<?> type;
+     @Nullable
+@@ -36,6 +37,18 @@ public class ClientboundBlockEntityDataPacket implements Packet<ClientGamePacket
+         this.tag = buf.readNbt();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return pos.getX() >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return pos.getZ() >> 4;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeBlockPos(this.pos);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEventPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEventPacket.java
+index 45968379a7d04bf3cdb9cac260883fafde94a5cd..587e64c662fef8a339a1a89e455964ac8100c8bb 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEventPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockEventPacket.java
+@@ -1,12 +1,13 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.ChunkPacket;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Registry;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.level.block.Block;
+ 
+-public class ClientboundBlockEventPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundBlockEventPacket implements Packet<ClientGamePacketListener>, ChunkPacket { // Martijn
+     private final BlockPos pos;
+     private final int b0;
+     private final int b1;
+@@ -26,6 +27,18 @@ public class ClientboundBlockEventPacket implements Packet<ClientGamePacketListe
+         this.block = Registry.BLOCK.byId(buf.readVarInt());
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return pos.getX() >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return pos.getZ() >> 4;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeBlockPos(this.pos);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
+index 67b8535f0c180135c9187de5696779de9fc5882f..0680f23f36134d2f52c34ef57565ba604c9f6e28 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.ChunkPacket;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+@@ -7,7 +8,7 @@ import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
+ 
+-public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketListener> {
++public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketListener>, ChunkPacket { // Martijn
+     private final BlockPos pos;
+     public final BlockState blockState;
+ 
+@@ -25,6 +26,18 @@ public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketList
+         this.blockState = Block.BLOCK_STATE_REGISTRY.byId(buf.readVarInt());
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return pos.getX() >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return pos.getZ() >> 4;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeBlockPos(this.pos);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundEntityEventPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundEntityEventPacket.java
+index 31ed553aa4f6c9f5930b44cc3c6f19ffdaf1696f..fdd00454803c38740101d40531fb0c569382bf79 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundEntityEventPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundEntityEventPacket.java
+@@ -1,12 +1,13 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdPacket;
+ import javax.annotation.Nullable;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.level.Level;
+ 
+-public class ClientboundEntityEventPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundEntityEventPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private final int entityId;
+     private final byte eventId;
+ 
+@@ -20,6 +21,13 @@ public class ClientboundEntityEventPacket implements Packet<ClientGamePacketList
+         this.eventId = buf.readByte();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedEntityId() {
++        return entityId;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeInt(this.entityId);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
+index 578600a56f9461fbf3a6c1abf1d5aad614a93eb6..cfd5f10bc26caa4ad209af12f1caa8232b589cb0 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
+@@ -1,9 +1,10 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.ChunkPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ 
+-public class ClientboundForgetLevelChunkPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundForgetLevelChunkPacket implements Packet<ClientGamePacketListener>, ChunkPacket { // Martijn
+     private final int x;
+     private final int z;
+ 
+@@ -17,6 +18,18 @@ public class ClientboundForgetLevelChunkPacket implements Packet<ClientGamePacke
+         this.z = buf.readInt();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return x;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return z;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeInt(this.x);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
+index 2072aa8710f6e285f7c8f76c63b7bcf85cc11030..01f83832900ddcd3797391236c0cb4fc4821ed96 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
+@@ -2,13 +2,16 @@ package net.minecraft.network.protocol.game;
+ 
+ import java.util.BitSet;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.network.ChunkPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.chunk.LevelChunk;
+ import net.minecraft.world.level.lighting.LevelLightEngine;
+ 
+-public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePacketListener>, ChunkPacket { // Martijn
++    public final long creationTimestamp = System.currentTimeMillis();
+     private final int x;
+     private final int z;
+     private final ClientboundLevelChunkPacketData chunkData;
+@@ -46,6 +49,18 @@ public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePa
+         this.lightData = new ClientboundLightUpdatePacketData(buf, this.x, this.z);
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return x;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return z;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeInt(this.x);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundMoveEntityPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundMoveEntityPacket.java
+index ec93f5300cc7d423ec0d292f0f8443f900d72dab..99428cacadbe919dba27009a0331453c2bf2836e 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundMoveEntityPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundMoveEntityPacket.java
+@@ -1,6 +1,8 @@
+ package net.minecraft.network.protocol.game;
+ 
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.util.Mth;
+@@ -8,7 +10,7 @@ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.phys.Vec3;
+ 
+-public abstract class ClientboundMoveEntityPacket implements Packet<ClientGamePacketListener> {
++public abstract class ClientboundMoveEntityPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private static final double TRUNCATION_STEPS = 4096.0D;
+     protected final int entityId;
+     protected final short xa;
+@@ -51,6 +53,12 @@ public abstract class ClientboundMoveEntityPacket implements Packet<ClientGamePa
+         this.hasPos = positionChanged;
+     }
+ 
++    // Martijn start
++    public int getRelatedEntityId() {
++        return entityId;
++    }
++    // Martijn end
++
+     @Override
+     public void handle(ClientGamePacketListener listener) {
+         listener.handleMoveEntity(this);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundOpenSignEditorPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundOpenSignEditorPacket.java
+index 17e58ed1779dcb77b27ad45b9fb8a2f877e9222b..336b55dd985f7b269552c314fc99c0e179685465 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundOpenSignEditorPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundOpenSignEditorPacket.java
+@@ -1,10 +1,11 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.ChunkPacket;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ 
+-public class ClientboundOpenSignEditorPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundOpenSignEditorPacket implements Packet<ClientGamePacketListener>, ChunkPacket {
+     private final BlockPos pos;
+ 
+     public ClientboundOpenSignEditorPacket(BlockPos pos) {
+@@ -15,6 +16,18 @@ public class ClientboundOpenSignEditorPacket implements Packet<ClientGamePacketL
+         this.pos = buf.readBlockPos();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return pos.getX() >> 4;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return pos.getZ() >> 4;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeBlockPos(this.pos);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundRemoveEntitiesPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundRemoveEntitiesPacket.java
+index 1223f195f7b6b8627fad434f3c10f2e9d5a6ad8b..269061edf77fc2203acbf31a9b67ad428dcb52c0 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundRemoveEntitiesPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundRemoveEntitiesPacket.java
+@@ -1,11 +1,12 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdsPacket;
+ import it.unimi.dsi.fastutil.ints.IntArrayList;
+ import it.unimi.dsi.fastutil.ints.IntList;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ 
+-public class ClientboundRemoveEntitiesPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundRemoveEntitiesPacket implements Packet<ClientGamePacketListener>, EntityIdsPacket { // Martijn
+     private final IntList entityIds;
+ 
+     public ClientboundRemoveEntitiesPacket(IntList entityIds) {
+@@ -20,6 +21,13 @@ public class ClientboundRemoveEntitiesPacket implements Packet<ClientGamePacketL
+         this.entityIds = buf.readIntIdList();
+     }
+ 
++    // Martijn start
++    @Override
++    public IntList getRelatedEntityIds() {
++        return getEntityIds();
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeIntIdList(this.entityIds);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundRemoveMobEffectPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundRemoveMobEffectPacket.java
+index d78d94762c138d5ca41a00053f9623d42c628f3b..a539c9fcd43e618192428d78b8b9eecfe85845a3 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundRemoveMobEffectPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundRemoveMobEffectPacket.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdPacket;
+ import javax.annotation.Nullable;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+@@ -7,7 +8,7 @@ import net.minecraft.world.effect.MobEffect;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.level.Level;
+ 
+-public class ClientboundRemoveMobEffectPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundRemoveMobEffectPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private final int entityId;
+     private final MobEffect effect;
+ 
+@@ -21,6 +22,13 @@ public class ClientboundRemoveMobEffectPacket implements Packet<ClientGamePacket
+         this.effect = MobEffect.byId(buf.readUnsignedByte());
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedEntityId() {
++        return entityId;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.entityId);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundRotateHeadPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundRotateHeadPacket.java
+index 15ebf22e9ca11870e5f24ff5ab8bcbee8c571ee3..f0ce5a315d9696d912b9c21eaf0f8b31a5d5fb36 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundRotateHeadPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundRotateHeadPacket.java
+@@ -1,11 +1,12 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.level.Level;
+ 
+-public class ClientboundRotateHeadPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundRotateHeadPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private final int entityId;
+     private final byte yHeadRot;
+ 
+@@ -19,6 +20,12 @@ public class ClientboundRotateHeadPacket implements Packet<ClientGamePacketListe
+         this.yHeadRot = buf.readByte();
+     }
+ 
++    // Martijn start
++    public int getRelatedEntityId() {
++        return entityId;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.entityId);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+index 82ea4fabd5732052a286d50bcff8bbcc2c4aa7d7..d3495c2bc56f273e0504737f3ceb8e7fb612f3c5 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.ChunkPacket;
+ import it.unimi.dsi.fastutil.shorts.ShortIterator;
+ import it.unimi.dsi.fastutil.shorts.ShortSet;
+ import java.util.function.BiConsumer;
+@@ -11,7 +12,7 @@ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.chunk.LevelChunkSection;
+ 
+-public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePacketListener> {
++public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePacketListener>, ChunkPacket { // Martijn
+ 
+     private static final int POS_IN_SECTION_BITS = 12;
+     private final SectionPos sectionPos;
+@@ -54,6 +55,18 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+ 
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedChunkX() {
++        return this.sectionPos.chunk().x;
++    }
++
++    @Override
++    public int getRelatedChunkZ() {
++        return this.sectionPos.chunk().z;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeLong(this.sectionPos.asLong());
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityDataPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityDataPacket.java
+index 3e17f6131bf590d7c4a16b79c1c145cb4f565bc9..81a7adab530c5000cde29fdbe2e9635d1d2a41d7 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityDataPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityDataPacket.java
+@@ -2,11 +2,13 @@ package net.minecraft.network.protocol.game;
+ 
+ import java.util.List;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.syncher.SynchedEntityData;
+ 
+-public class ClientboundSetEntityDataPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundSetEntityDataPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private final int id;
+     @Nullable
+     private final List<SynchedEntityData.DataItem<?>> packedItems;
+@@ -27,6 +29,12 @@ public class ClientboundSetEntityDataPacket implements Packet<ClientGamePacketLi
+         this.packedItems = SynchedEntityData.unpack(buf);
+     }
+ 
++    // Martijn start
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityLinkPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityLinkPacket.java
+index f440ee2ba6776e09523fec54e71c14267a285492..3c4712d30402b1a9a269b8a6913ef8a307a4793f 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityLinkPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityLinkPacket.java
+@@ -1,11 +1,14 @@
+ package net.minecraft.network.protocol.game;
+ 
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.network.EntityIdsPacket;
++import it.unimi.dsi.fastutil.ints.IntList;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.Entity;
+ 
+-public class ClientboundSetEntityLinkPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundSetEntityLinkPacket implements Packet<ClientGamePacketListener>, EntityIdsPacket { // Martijn
+     private final int sourceId;
+     private final int destId;
+ 
+@@ -19,6 +22,12 @@ public class ClientboundSetEntityLinkPacket implements Packet<ClientGamePacketLi
+         this.destId = buf.readInt();
+     }
+ 
++    // Martijn start
++    public IntList getRelatedEntityIds() {
++        return IntList.of(sourceId, destId);
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeInt(this.sourceId);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityMotionPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityMotionPacket.java
+index dcfa31123acacf43b1d35b277ec0c8672f09ab3d..c84bf3e21b7884b4720c27dab1af77f4550a95ca 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityMotionPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEntityMotionPacket.java
+@@ -1,12 +1,13 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.phys.Vec3;
+ 
+-public class ClientboundSetEntityMotionPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundSetEntityMotionPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private final int id;
+     private final int xa;
+     private final int ya;
+@@ -34,6 +35,12 @@ public class ClientboundSetEntityMotionPacket implements Packet<ClientGamePacket
+         this.za = buf.readShort();
+     }
+ 
++    // Martijn start
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEquipmentPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEquipmentPacket.java
+index 5a8f850b447fc3a4bd0eb0c505bbdfc8be7115e8..2b82507e2e8a0085b11a2a2a8ce9833c4b6778e2 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEquipmentPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEquipmentPacket.java
+@@ -3,12 +3,14 @@ package net.minecraft.network.protocol.game;
+ import com.google.common.collect.Lists;
+ import com.mojang.datafixers.util.Pair;
+ import java.util.List;
++
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.item.ItemStack;
+ 
+-public class ClientboundSetEquipmentPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundSetEquipmentPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private static final byte CONTINUE_MASK = -128;
+     private final int entity;
+     private final List<Pair<EquipmentSlot, ItemStack>> slots;
+@@ -33,6 +35,12 @@ public class ClientboundSetEquipmentPacket implements Packet<ClientGamePacketLis
+ 
+     }
+ 
++    // Martijn start
++    public int getRelatedEntityId() {
++        return entity;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.entity);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetPassengersPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetPassengersPacket.java
+index 89b7e43a2938da79b7487db89980ac5ef2d48033..ea2bd2f57e432f6ef5c50308ef1655de28c2b2b5 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetPassengersPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetPassengersPacket.java
+@@ -1,11 +1,14 @@
+ package net.minecraft.network.protocol.game;
+ 
+ import java.util.List;
++
++import io.papermc.paper.network.EntityIdsPacket;
++import it.unimi.dsi.fastutil.ints.IntList;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.Entity;
+ 
+-public class ClientboundSetPassengersPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundSetPassengersPacket implements Packet<ClientGamePacketListener>, EntityIdsPacket { // Martijn
+     private final int vehicle;
+     private final int[] passengers;
+ 
+@@ -25,6 +28,18 @@ public class ClientboundSetPassengersPacket implements Packet<ClientGamePacketLi
+         this.passengers = buf.readVarIntArray();
+     }
+ 
++    // Martijn start
++    public IntList getRelatedEntityIds() {
++        if (passengers == null) {
++            return IntList.of(this.vehicle);
++        }
++        int[] entityIds = new int[this.passengers.length + 1];
++        entityIds[0] = this.vehicle;
++        System.arraycopy(this.passengers, 0, entityIds, 1, this.passengers.length);
++        return IntList.of(entityIds);
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.vehicle);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSoundEntityPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSoundEntityPacket.java
+index e687104e74d4478ccbc9d66e83fad9a4a314430d..cf371cd67ff0e5c7d415029d0e56d6f50c637f46 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSoundEntityPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSoundEntityPacket.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.core.Registry;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+@@ -8,7 +9,7 @@ import net.minecraft.sounds.SoundSource;
+ import net.minecraft.world.entity.Entity;
+ import org.apache.commons.lang3.Validate;
+ 
+-public class ClientboundSoundEntityPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundSoundEntityPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private final SoundEvent sound;
+     private final SoundSource source;
+     private final int id;
+@@ -32,6 +33,13 @@ public class ClientboundSoundEntityPacket implements Packet<ClientGamePacketList
+         this.pitch = buf.readFloat();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(Registry.SOUND_EVENT.getId(this.sound));
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundTakeItemEntityPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundTakeItemEntityPacket.java
+index 80268f14ecb5a09e85fdb7a83057011c3c8e9edb..534dab017dfad03a70577b5704585dce1e61be25 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundTakeItemEntityPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundTakeItemEntityPacket.java
+@@ -1,9 +1,11 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdsPacket;
++import it.unimi.dsi.fastutil.ints.IntList;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ 
+-public class ClientboundTakeItemEntityPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundTakeItemEntityPacket implements Packet<ClientGamePacketListener>, EntityIdsPacket { // Martijn
+     private final int itemId;
+     private final int playerId;
+     private final int amount;
+@@ -20,6 +22,13 @@ public class ClientboundTakeItemEntityPacket implements Packet<ClientGamePacketL
+         this.amount = buf.readVarInt();
+     }
+ 
++    // Martijn start
++    @Override
++    public IntList getRelatedEntityIds() {
++        return IntList.of(itemId, playerId);
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.itemId);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket.java
+index 56e4036a88e570333633bf5fc4dc4a2de4654ab9..dbd49e9339b7126bfff8f7fed25aa3fd82d8273a 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundTeleportEntityPacket.java
+@@ -1,10 +1,11 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.entity.Entity;
+ 
+-public class ClientboundTeleportEntityPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundTeleportEntityPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private final int id;
+     private final double x;
+     private final double y;
+@@ -33,6 +34,13 @@ public class ClientboundTeleportEntityPacket implements Packet<ClientGamePacketL
+         this.onGround = buf.readBoolean();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedEntityId() {
++        return id;
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.id);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateAttributesPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateAttributesPacket.java
+index 1c4cc0db0a27f7f747ce92d6cfbcb957e79c4e95..296d33f13805a0b09339fda6cbf92ffb9677900f 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateAttributesPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateAttributesPacket.java
+@@ -3,6 +3,8 @@ package net.minecraft.network.protocol.game;
+ import com.google.common.collect.Lists;
+ import java.util.Collection;
+ import java.util.List;
++
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.core.Registry;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+@@ -11,7 +13,7 @@ import net.minecraft.world.entity.ai.attributes.Attribute;
+ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+ import net.minecraft.world.entity.ai.attributes.AttributeModifier;
+ 
+-public class ClientboundUpdateAttributesPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundUpdateAttributesPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private final int entityId;
+     private final List<ClientboundUpdateAttributesPacket.AttributeSnapshot> attributes;
+ 
+@@ -38,17 +40,27 @@ public class ClientboundUpdateAttributesPacket implements Packet<ClientGamePacke
+         });
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedEntityId() {
++        return getEntityId();
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.entityId);
+         buf.writeCollection(this.attributes, (bufx, attribute) -> {
+             bufx.writeResourceLocation(Registry.ATTRIBUTE.getKey(attribute.getAttribute()));
+             bufx.writeDouble(attribute.getBase());
+-            bufx.writeCollection(attribute.getModifiers(), (buf, modifier) -> {
+-                buf.writeUUID(modifier.getId());
+-                buf.writeDouble(modifier.getAmount());
+-                buf.writeByte(modifier.getOperation().toValue());
++            // Martijn start
++            // Fix decompile
++            bufx.writeCollection(attribute.getModifiers(), (bufy, modifier) -> {
++                bufy.writeUUID(modifier.getId());
++                bufy.writeDouble(modifier.getAmount());
++                bufy.writeByte(modifier.getOperation().toValue());
+             });
++            // Martijn end
+         });
+     }
+ 
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateMobEffectPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateMobEffectPacket.java
+index 93e97b8c1b165905cc833d77b693a17c76b473de..bc69df2e89783ed36f9b74be66d137bb3f1b59ef 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateMobEffectPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateMobEffectPacket.java
+@@ -1,11 +1,12 @@
+ package net.minecraft.network.protocol.game;
+ 
++import io.papermc.paper.network.EntityIdPacket;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.effect.MobEffect;
+ import net.minecraft.world.effect.MobEffectInstance;
+ 
+-public class ClientboundUpdateMobEffectPacket implements Packet<ClientGamePacketListener> {
++public class ClientboundUpdateMobEffectPacket implements Packet<ClientGamePacketListener>, EntityIdPacket { // Martijn
+     private static final int FLAG_AMBIENT = 1;
+     private static final int FLAG_VISIBLE = 2;
+     private static final int FLAG_SHOW_ICON = 4;
+@@ -49,6 +50,13 @@ public class ClientboundUpdateMobEffectPacket implements Packet<ClientGamePacket
+         this.flags = buf.readByte();
+     }
+ 
++    // Martijn start
++    @Override
++    public int getRelatedEntityId() {
++        return getEntityId();
++    }
++    // Martijn end
++
+     @Override
+     public void write(FriendlyByteBuf buf) {
+         buf.writeVarInt(this.entityId);
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 926d0a80cbb55184955ac6720948d2e86683cc57..646b731486ceea613830215f382c54e5a75a1994 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3099,17 +3099,71 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+ 
+     @Override
+     public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
++        // Martijn start
++        // Catch any keep-alive responses that originate from our fake keep-alive packets after chunk packets
++        synchronized (this.connection.chunkPacketsInTransitIds) {
++            if (this.connection.chunkPacketsInTransitIds.contains(packet.getId())) {
++                // This is a response to one of our fake keep-alive packets
++                // We will remove all chunk packets in transition up to the received one that was apparently successful
++                while (!this.connection.chunkPacketsInTransitIds.isEmpty()) {
++                    if (this.connection.chunkPacketsInTransitIds.peekFirst() == packet.getId()) {
++                        this.connection.chunkPacketsInTransitIds.removeFirst();
++                        break;
++                    }
++                    this.connection.chunkPacketsInTransitIds.removeFirst();
++                }
++                return;
++            }
++        }
++        // Martijn end
+         //PlayerConnectionUtils.ensureMainThread(packetplayinkeepalive, this, this.player.getWorldServer()); // CraftBukkit // Paper - This shouldn't be on the main thread
+         if (this.keepAlivePending && packet.getId() == this.keepAliveChallenge) {
+             int i = (int) (Util.getMillis() - this.keepAliveTime);
+ 
+             this.player.latency = (this.player.latency * 3 + i) / 4;
++            // Martijn start
++            // Player ping was updated: if it is too high we update the
++            //if (this.player.latency != 0) {
++                if (this.player.latency > 500) {
++                    // This ping is unnaceptable
++                    this.connection.maxNumberOfChunkPacketsInTransit = Connection.minMaxNumberOfChunkPacketsInTransit;
++                } else {
++                    // TODO turn into configuration options
++                    int maxNumberOfChunkPacketsInTransitChange = 0;
++                    if (this.player.latency > 400) {
++                        // This ping is very undesired
++                        maxNumberOfChunkPacketsInTransitChange = -2;
++                    } else if (this.player.latency > 300) {
++                        // This ping is quite undesired
++                        maxNumberOfChunkPacketsInTransitChange = -1;
++                    } else if (this.player.latency < 90) {
++                        // This ping is very good
++                        maxNumberOfChunkPacketsInTransitChange = 2;
++                    } else if (this.player.latency < 165) {
++                        // This ping is quite good
++                        maxNumberOfChunkPacketsInTransitChange = 1;
++                    }
++                    if (maxNumberOfChunkPacketsInTransitChange != 0) {
++                        this.connection.maxNumberOfChunkPacketsInTransit = Math.max(
++                            Connection.minMaxNumberOfChunkPacketsInTransit,
++                            Math.min(
++                                Connection.maxMaxNumberOfChunkPacketsInTransit,
++                                this.connection.maxNumberOfChunkPacketsInTransit + maxNumberOfChunkPacketsInTransitChange
++                            )
++                        );
++                    }
++                }
++            //}
++            // Martijn end
+             this.keepAlivePending = false;
+         } else if (!this.isSingleplayerOwner()) {
+             // Paper start - This needs to be handled on the main thread for plugins
+-            server.submit(() -> {
+-            this.disconnect(new TranslatableComponent("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
+-            });
++            // Martijn start
++            // Do not disconnect on late receival of keep-alive, or when keep-alive challenge is wrong
++//            server.submit(() -> {
++//            this.disconnect(new TranslatableComponent("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
++//            });
++            // Martijn end
+             // Paper end
+         }
+ 
