@@ -1,0 +1,173 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 14 Jan 2022 10:40:40 +0100
+Subject: [PATCH] Flush more often
+
+
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 78beb9c8fec098868d1734572263105965edde05..d2fd3b35cf9056980f884c5244f24a42a25aa5e9 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -256,7 +256,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             if (packet.packet instanceof ClientboundForgetLevelChunkPacket) {
+                 atClient.remove(chunkKey);
+                 ChunkBlockedPacketList blockedPacketList = queue.remove(chunkKey);
+-                writePacketWithDefaultFlush(packet);
++                writePacketWithDefaultFlush(packet, true);
+                 if (blockedPacketList != null) {
+                     chunkQueueKeysWereRemovedSinceLastQueueTraversal = true;
+                     for (PacketHolder blockedPacket : blockedPacketList.packets) {
+@@ -272,7 +272,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+ 
+             // If already at client, just write this packet
+             if (atClient.contains(chunkKey)) {
+-                writePacketWithDefaultFlush(packet);
++                scheduleWritePacket(packet);
+                 // If it is an entity add packet, note this so any blocked packets can be sent too
+                 if (packet.packet instanceof EntityAddPacket) {
+                     entityQueue.entityAddPacketWasJustWritten(packet);
+@@ -282,7 +282,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+ 
+             // If exempt from being blocked, just write this packet
+             if (isExemptFromBeingBlocked(packet.packet)) {
+-                writePacketWithDefaultFlush(packet);
++                scheduleWritePacket(packet);
+                 return;
+             }
+ 
+@@ -405,17 +405,19 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             // We will write all packets for this chunk
+             atClient.add(chunkKey);
+             queue.remove(chunkKey);
+-            writePacketWithDefaultFlush(blockedPacketList.initializationPacket);
++            writePacketWithDefaultFlush(blockedPacketList.initializationPacket, true);
+             for (PacketHolder packet : blockedPacketList.packets) {
+                 if (packet.packet instanceof EntityAddPacket) {
+                     entityQueue.entityAddPacketIsNoLongerBlockedByChunk(packet);
+                 } else if (packet instanceof EntityIdsPacket) {
+                     entityQueue.wantToSendImplicitNonAddEntityEntityRelatedPacket(packet, ((EntityIdsPacket) packet).getRelatedEntityIds());
+                 } else {
+-                    writePacketWithDefaultFlush(packet);
++                    scheduleWritePacket(packet);
+                 }
+             }
+ 
++            writeScheduledPackets(true);
++
+             // Quickly write a keep-alive packet after writing the chunk packets
+             // Generate a keep-alive challenge that is not the same as any real one (the real ones use the current system time itself)
+             long keepAliveChallenge = -System.currentTimeMillis();
+@@ -423,7 +425,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             synchronized (inTransit) {
+                 inTransit.addLast(keepAliveChallenge);
+             }
+-            writePacketWithDefaultFlush(new PacketHolder(followingKeepAlivePacket, null));
++            writePacketWithDefaultFlush(new PacketHolder(followingKeepAlivePacket, null), true);
+ 
+         }
+ 
+@@ -468,19 +470,19 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             if (packet.packet instanceof ClientboundRemoveEntitiesPacket) {
+                 entityIds.forEach(it -> atClient.remove(it));
+                 entityIds.forEach(it -> queue.remove(it));
+-                writePacketWithDefaultFlush(packet);
++                writePacketWithDefaultFlush(packet, true);
+                 return;
+             }
+ 
+             // If already at client, just write this packet
+             if (atClient.containsAll(entityIds)) {
+-                writePacketWithDefaultFlush(packet);
++                scheduleWritePacket(packet);
+                 return;
+             }
+ 
+             // If exempt from being blocked, just write this packet
+             if (isExemptFromBeingBlocked(packet.packet)) {
+-                writePacketWithDefaultFlush(packet);
++                writePacketWithDefaultFlush(packet, true);
+                 return;
+             }
+ 
+@@ -522,11 +524,13 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             if (blockedPacketList != null) {
+                 for (PacketHolder blockedPacket : blockedPacketList.packets) {
+                     if (!(blockedPacket instanceof EntityIdsPacket) || !((EntityIdsPacket) blockedPacket.packet).getRelatedEntityIds().intStream().anyMatch(it -> queue.containsKey(it))) {
+-                        writePacketWithDefaultFlush(blockedPacket);
++                        scheduleWritePacket(blockedPacket);
+                     }
+                 }
+             }
+ 
++            writeScheduledPackets(true);
++
+         }
+ 
+         // Input must be a PacketHolder containing an EntityAddPacket
+@@ -544,7 +548,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             if (packet != blockedPacketList.initializationPacket) return;
+ 
+             // Write the add packet itself
+-            writePacketWithDefaultFlush(packet);
++            writePacketWithDefaultFlush(packet, true);
+             // Write the previously blocked packets, this will remove the blocked packet list from the queue
+             entityAddPacketWasJustWritten(packet);
+ 
+@@ -895,6 +899,26 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+ 
+     // Martijn start
+ 
++    private boolean writingScheduledPackets = false;
++    private final List<PacketHolder> packetsScheduledToWrite = new ArrayList<>(0);
++
++    public void scheduleWritePacket(PacketHolder packet) {
++        synchronized (packetsScheduledToWrite) {
++            packetsScheduledToWrite.add(packet);
++        }
++    }
++
++    public void writeScheduledPackets(Boolean finalFlushOverride) {
++        synchronized (packetsScheduledToWrite) {
++            writingScheduledPackets = true;
++            for (int i = 0; i < packetsScheduledToWrite.size(); i++) {
++                writePacketWithDefaultFlush(packetsScheduledToWrite.get(i), i == packetsScheduledToWrite.size() - 1 ? finalFlushOverride : null);
++            }
++            packetsScheduledToWrite.clear();
++            writingScheduledPackets = false;
++        }
++    }
++
+     public void writePacketWithDefaultFlush(PacketHolder packet) {
+         writePacketWithDefaultFlush(packet, null);
+     }
+@@ -924,6 +948,12 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+ 
+     private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
+ 
++        synchronized (packetsScheduledToWrite) {
++            if (!writingScheduledPackets) {
++                writeScheduledPackets(null);
++            }
++        }
++
+         this.packetWrites.getAndIncrement(); // must be befeore using canFlush
+         boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
+         // Martijn start
+@@ -1041,13 +1071,16 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+                 break;
+             } else {
+                 this.queue.poll();
+-                writePacketWithDefaultFlush(queued);
++                writePacketWithDefaultFlush(queued, this.queue.isEmpty());
+             }
+         }
+ 
+         // Process the chunks
+         chunkQueue.goOverChunkQueueAndWriteWhateverIsPossible();
+ 
++        // Write any scheduled packets left
++        writeScheduledPackets(true);
++
+         return queue.isEmpty() && chunkQueue.queue.isEmpty() && entityQueue.queue.isEmpty();
+ 
+     }
