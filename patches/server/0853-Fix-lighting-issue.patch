@@ -1,0 +1,444 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 14 Jan 2022 20:27:44 +0100
+Subject: [PATCH] Fix lighting issue
+
+
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index bbdbfc4529dc3db6f99376500e141c0c3302fdcb..17cf0b41fd99a7345d92506a97da1c2782d0723b 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -29,16 +29,25 @@ import io.netty.util.concurrent.GenericFutureListener;
+ import java.net.InetSocketAddress;
+ import java.net.SocketAddress;
+ import java.util.ArrayDeque;
++import java.util.ArrayList;
+ import java.util.HashMap;
++import java.util.List;
+ import java.util.Map;
+ import java.util.Queue;
+ import javax.annotation.Nullable;
+ import javax.crypto.Cipher;
++
++import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
++import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
++import it.unimi.dsi.fastutil.longs.LongSet;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.TranslatableComponent;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.PacketFlow;
+ import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
++import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+ import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.RunningOnDifferentThreadException;
+@@ -89,7 +98,26 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     // Keep track of chunk packets in transit
+     public final ArrayDeque<Long> chunkPacketsInTransitIds = new ArrayDeque<>();
+ 
+-    public final Map<ChunkPos, ChunkMap.Planned> planned = new HashMap<>();
++    public static class PlannedChunkData {
++
++        public PlannedChunkData(ClientboundLevelChunkWithLightPacket initializationPacket) {
++            this.initializationPacket = initializationPacket;
++        }
++
++        public final ClientboundLevelChunkWithLightPacket initializationPacket;
++        public List<Packet<?>> heldPackets = null;
++
++        public void addHeldPacket(Packet<?> packet) {
++            if (heldPackets == null) {
++                heldPackets = new ArrayList<>(1);
++            }
++            heldPackets.add(packet);
++        }
++
++    }
++
++    public final Long2ObjectMap<PlannedChunkData> planned = new Long2ObjectOpenHashMap<>();
++    public final LongSet informed = new LongOpenHashSet();
+ 
+     // Martijn end
+ 
+@@ -339,6 +367,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         }
+         // Paper start
+         private static boolean canSendImmediate(Connection networkManager, Packet<?> packet) {
++            // Martijn start
+             return networkManager.isPending || networkManager.protocol != ConnectionProtocol.PLAY ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundChatPacket ||
+@@ -348,7 +377,10 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
+-                packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket;
++                packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
++            // Martijn end
+         }
+         // Paper end
+     }
+@@ -399,7 +431,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
+         this.packetWrites.getAndIncrement(); // must be befeore using canFlush
+         boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
+-        final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket; // no delay for certain packets
++        // Martijn start
++        final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
++            ; // no delay for certain packets
++        // Martijn end
+         // Paper end - add flush parameter
+         ConnectionProtocol enumprotocol = ConnectionProtocol.getProtocolForPacket(packet);
+         ConnectionProtocol enumprotocol1 = this.getCurrentProtocol();
+diff --git a/src/main/java/net/minecraft/server/level/ChunkHolder.java b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+index d271871563fa883efb77b35ec3b1dfbba87f0b62..98e1bb5b9d3972e8ae0adf18b06dfb273fcc0df6 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkHolder.java
++++ b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+@@ -342,8 +342,8 @@ public class ChunkHolder {
+     }
+ 
+     public void broadcast(Packet<?> packet, boolean onlyOnWatchDistanceEdge) {
+-        this.playerProvider.getPlayers(this.pos, onlyOnWatchDistanceEdge).forEach((entityplayer) -> {
+-            entityplayer.connection.send(packet);
++        this.playerProvider.getPlayers(this.pos, onlyOnWatchDistanceEdge, false).forEach((entityplayer) -> { // Martijn
++            entityplayer.connection.sendIfInformedElseHold(this.getPos(), packet); // Martijn
+         });
+     }
+ 
+@@ -755,7 +755,7 @@ public class ChunkHolder {
+ 
+     public interface PlayerProvider {
+ 
+-        List<ServerPlayer> getPlayers(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge);
++        List<ServerPlayer> getPlayers(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, boolean onlyInformed); // Martijn
+     }
+ 
+     private static final class ChunkSaveDebug {
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 2d63da3c86b3e33b627565616863a772fdfbdff3..8d66b3ac9666aa5a52835038c8b6cb603138267b 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -48,6 +48,7 @@ import java.util.concurrent.Executor;
+ import java.util.concurrent.atomic.AtomicInteger;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Consumer;
++import java.util.function.Function;
+ import java.util.function.IntFunction;
+ import java.util.function.IntSupplier;
+ import java.util.function.Supplier;
+@@ -64,6 +65,7 @@ import net.minecraft.network.Connection;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundKeepAlivePacket;
+ import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
++import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
+@@ -1400,7 +1402,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 this.tickingGenerated.getAndIncrement();
+                 MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
+ 
+-                this.getPlayers(chunkcoordintpair, false).forEach((entityplayer) -> {
++                this.getPlayers(chunkcoordintpair, false, false).forEach((entityplayer) -> { // Martijn
+                     this.playerLoadedChunk(entityplayer, mutableobject, chunk);
+                 });
+             });
+@@ -1567,7 +1569,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 ChunkPos chunkcoordintpair = playerchunk.getPos();
+                 MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
+ 
+-                this.getPlayers(chunkcoordintpair, false).forEach((entityplayer) -> {
++                this.getPlayers(chunkcoordintpair, false, false).forEach((entityplayer) -> { // Martijn
+                     SectionPos sectionposition = entityplayer.getLastSectionPos();
+                     boolean flag = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), k);
+                     boolean flag1 = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), this.viewDistance);
+@@ -1954,7 +1956,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     @Override
+-    public List<ServerPlayer> getPlayers(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge) {
++    public List<ServerPlayer> getPlayers(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, boolean onlyInformed) { // Martijn
+         Set<ServerPlayer> set = this.playerMap.getPlayers(chunkPos.toLong());
+         Builder<ServerPlayer> builder = ImmutableList.builder();
+         Iterator iterator = set.iterator();
+@@ -1963,6 +1965,12 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             ServerPlayer entityplayer = (ServerPlayer) iterator.next();
+             SectionPos sectionposition = entityplayer.getLastSectionPos();
+ 
++            // Martijn start
++            if (onlyInformed && !entityplayer.connection.connection.informed.contains(chunkPos.longKey)) {
++                continue;
++            }
++            // Martijn end
++
+             if (onlyOnWatchDistanceEdge && ChunkMap.isChunkOnRangeBorder(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), this.viewDistance) || !onlyOnWatchDistanceEdge && ChunkMap.isChunkInRange(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), this.viewDistance)) {
+                 builder.add(entityplayer);
+             }
+@@ -2068,7 +2076,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     protected void tick() {
+         // Martijn start
+         // Attempt to send planned chunks
+-        attemptToTrackPlannedChunksForAllPlayers();
++        attemptToInformOfPlannedChunksForAllPlayers();
+         // Martijn end
+         // Paper start - optimized tracker
+         if (true) {
+@@ -2156,41 +2164,79 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         public ChunkPos chunkPos;
+     }
+ 
+-    public void attemptToTrackPlannedChunksForAllPlayers() {
++    public void attemptToInformOfPlannedChunksForAllPlayers() {
+         for (Player player : Bukkit.getOnlinePlayers()) {
+-            attemptToTrackPlannedChunks(((CraftPlayer) player).getHandle());
++            attemptToInformOfPlannedChunks(((CraftPlayer) player).getHandle());
+         }
+     }
+ 
+-    public void attemptToTrackPlannedChunks(ServerPlayer player) {
++    public void attemptToInformOfPlannedChunks(ServerPlayer player) {
+         while (true) {
+-            Optional<Map.Entry<ChunkPos, Planned>> minPlanned = player.connection.connection.planned.entrySet().stream().min((entry1, entry2) -> {
+-                int distanceToChunk1 = getPlayerDistanceToChunk(player, entry1.getKey().longKey);
+-                int distanceToChunk2 = getPlayerDistanceToChunk(player, entry2.getKey().longKey);
++            Optional<Long> minPlanned = player.connection.connection.planned.keySet().stream().min((entry1, entry2) -> {
++                int distanceToChunk1 = getPlayerDistanceToChunk(player, entry1);
++                int distanceToChunk2 = getPlayerDistanceToChunk(player, entry2);
+                 return Integer.compare(distanceToChunk1, distanceToChunk2);
+             });
+-            if (!minPlanned.isPresent()) {
++            if (minPlanned.isEmpty()) {
+                 break;
+             }
+-            Planned planned = minPlanned.get().getValue();
+-            player.connection.connection.planned.remove(planned.chunkPos);
+-            if (!playerLoadedChunk(player, new MutableObject<>(), player.level.getChunk(planned.chunkPos.x, planned.chunkPos.z), true)) {
++            long planned = minPlanned.get();
++            ChunkPos chunkPos = new ChunkPos(planned);
++            Connection.PlannedChunkData informData;
++            synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++                if (canInformOfChunkRightNow(player, chunkPos)) {
++                    informData = player.connection.connection.planned.remove(planned);
++                    player.connection.connection.informed.add(planned);
++                } else {
++                    informData = null;
++                }
++            }
++            if (informData != null) {
++                informPlayerOfChunk(player, player.level.getChunk(chunkPos.x, chunkPos.z), informData.initializationPacket, informData.heldPackets);
++            } else {
+                 break;
+             }
+         }
+     }
+-    // Martijn end
+ 
+-    // Paper start - Anti-Xray - Bypass
+-    // Martijn start
+-    public boolean playerLoadedChunk(ServerPlayer player, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets, LevelChunk chunk) {
+-        return playerLoadedChunk(player, cachedDataPackets, chunk, false);
++    public ClientboundLevelChunkWithLightPacket getInstantChunkInitializationPacket(ServerPlayer player, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets, LevelChunk chunk) {
++        if (cachedDataPackets.getValue() == null) {
++            cachedDataPackets.setValue(new HashMap<>(2));
++        }
++        Boolean shouldModify = chunk.getLevel().chunkPacketBlockController.shouldModify(player, chunk);
++        Function<Object, ClientboundLevelChunkWithLightPacket> packetFunction = (s) ->
++            new ClientboundLevelChunkWithLightPacket(chunk, this.lightEngine, (BitSet) null, (BitSet) null, true, (Boolean) s);
++        return cachedDataPackets.getValue().computeIfAbsent(shouldModify, packetFunction);
+     }
+ 
+-    public boolean playerLoadedChunk(ServerPlayer player, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets, LevelChunk chunk, boolean isTryPlanned) {
++    public void informPlayerOfChunkInstantly(ServerPlayer player, LevelChunk chunk, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets) {
++        informPlayerOfChunk(player, chunk, getInstantChunkInitializationPacket(player, cachedDataPackets, chunk), null);
++    }
+ 
+-        // Martijn start
+-        long chunkKey = chunk.getPos().longKey;
++    public void informPlayerOfChunk(ServerPlayer player, LevelChunk chunk, ClientboundLevelChunkWithLightPacket initializationPacket, List<Packet<?>> heldPackets) {
++        player.trackChunk(chunk.getPos(), initializationPacket);
++        if (heldPackets != null) {
++            for (Packet<?> heldPacket : heldPackets) {
++                player.connection.send(heldPacket);
++            }
++        }
++//        player.connection.send(new ClientboundLightUpdatePacket(chunk.getPos(), this.lightEngine, (BitSet) null, (BitSet) null, true));
++        sendKeepaliveForChunkInTransit(player);
++    }
++
++    // If returns true, will delete the chunk pos from planned and add it to informed already
++    // If returns false, will add the chunk pos to planned already
++    public boolean canInformOfChunkRightNow(ServerPlayer player, ChunkPos chunkPos) {
++        int playerChunkX = player.getBlockX() >> 4;
++        int playerChunkZ = player.getBlockZ() >> 4;
++        ChunkPos playerChunkPos = new ChunkPos(playerChunkX, playerChunkZ);
++        long playerChunkKey = playerChunkPos.longKey;
++        long chunkKey = chunkPos.longKey;
++        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++            if (!player.connection.connection.informed.contains(playerChunkKey) && chunkKey != playerChunkKey) {
++                return false;
++            }
++        }
+         int distance = getPlayerDistanceToChunk(player, chunkKey);
+         int maxNumberOfChunkPacketsInTransitByDistance = 7;
+         if (distance >= 5) {
+@@ -2210,16 +2256,44 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         );
+         boolean cancelled = false;
+         synchronized (player.connection.connection.chunkPacketsInTransitIds) {
+-            if (player.connection.connection.chunkPacketsInTransitIds.size() >= maxNumberOfChunkPacketsInTransitToUse) {
+-                player.connection.connection.planned.put(chunk.getPos(), new Planned(player.getUUID(), null, chunk.getPos()));
+-                cancelled = true;
+-            }
++            return player.connection.connection.chunkPacketsInTransitIds.size() < maxNumberOfChunkPacketsInTransitToUse;
++        }
++    }
++
++    public ClientboundLevelChunkWithLightPacket getClientboundChunkInitializationPacket(ServerPlayer player, LevelChunk chunk) {
++        Boolean shouldModify = chunk.getLevel().chunkPacketBlockController.shouldModify(player, chunk);
++        return new ClientboundLevelChunkWithLightPacket(chunk, this.lightEngine, (BitSet) null, (BitSet) null, true, (Boolean) shouldModify);
++    }
++
++    public void sendKeepaliveForChunkInTransit(ServerPlayer player) {
++        // Quickly write a keep-alive packet after sending the chunk
++        // Generate a keep-alive challenge that is not the same as any real one (the real ones use the current system time itself)
++        long keepAliveChallenge = -System.currentTimeMillis();
++        Packet<?> followingKeepAlivePacket = new ClientboundKeepAlivePacket(keepAliveChallenge);
++        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++            player.connection.connection.chunkPacketsInTransitIds.addLast(keepAliveChallenge);
+         }
+-        if (cancelled) {
+-            if (!isTryPlanned) {
+-                attemptToTrackPlannedChunks(player);
++        player.connection.send(followingKeepAlivePacket);
++    }
++    // Martijn end
++
++    // Paper start - Anti-Xray - Bypass
++    // Martijn start
++    public void playerLoadedChunk(ServerPlayer player, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets, LevelChunk chunk) {
++
++        // Martijn start
++        ChunkPos chunkPos = chunk.getPos();
++        long chunkKey = chunkPos.longKey;
++        boolean inform;
++        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++            if (canInformOfChunkRightNow(player, chunkPos)) {
++                inform = true;
++                player.connection.connection.planned.remove(chunkKey);
++                player.connection.connection.informed.add(chunkKey);
++            } else {
++                inform = false;
++                player.connection.connection.planned.put(chunkKey, new Connection.PlannedChunkData(getInstantChunkInitializationPacket(player, cachedDataPackets, chunk)));
+             }
+-            return false;
+         }
+         // Martijn end
+ 
+@@ -2227,10 +2301,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             cachedDataPackets.setValue(new java.util.HashMap<>());
+         }
+ 
+-        Boolean shouldModify = chunk.getLevel().chunkPacketBlockController.shouldModify(player, chunk);
+-        player.trackChunk(chunk.getPos(), cachedDataPackets.getValue().computeIfAbsent(shouldModify, (s) -> {
+-            return new ClientboundLevelChunkWithLightPacket(chunk, this.lightEngine, (BitSet) null, (BitSet) null, true, (Boolean) s);
+-        }));
++        if (inform) {
++            informPlayerOfChunkInstantly(player, chunk, cachedDataPackets);
++        }
++
+         // Paper end
+         DebugPackets.sendPoiPacketsForChunk(this.level, chunk.getPos());
+         List<Entity> list = Lists.newArrayList();
+@@ -2282,19 +2356,6 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+         }
+ 
+-        // Martijn start
+-        // Quickly write a keep-alive packet after sending the chunk
+-        // Generate a keep-alive challenge that is not the same as any real one (the real ones use the current system time itself)
+-        long keepAliveChallenge = -System.currentTimeMillis();
+-        Packet<?> followingKeepAlivePacket = new ClientboundKeepAlivePacket(keepAliveChallenge);
+-        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
+-            player.connection.connection.chunkPacketsInTransitIds.addLast(keepAliveChallenge);
+-        }
+-        player.connection.send(followingKeepAlivePacket);
+-
+-        return true;
+-        // Martijn end
+-
+     }
+ 
+     public PoiManager getPoiManager() {
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 569fb58b795659da878fbc23db699efc118496f7..223212ec95cebb9687a867aee9d0375e770e2e50 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -2170,7 +2170,8 @@ public class ServerPlayer extends Player {
+     public void untrackChunk(ChunkPos chunkPos) {
+         // Martijn start
+         synchronized (this.connection.connection.chunkPacketsInTransitIds) {
+-            this.connection.connection.planned.remove(chunkPos);
++            this.connection.connection.planned.remove(chunkPos.longKey);
++            this.connection.connection.informed.remove(chunkPos.longKey);
+         }
+         // Martijn end
+         if (this.isAlive()) {
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 0226348927bb62e58e89eff7316a17d329362352..999a53c92e1e16f3c463a4c90604e71394505c4d 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2004,6 +2004,25 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+ 
+     }
+ 
++    // Martijn start
++    public void sendIfInformedElseHold(ChunkPos chunkPos, Packet<?> packet) {
++        if (!(packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
++            )) {
++            synchronized (connection.chunkPacketsInTransitIds) {
++                if (!connection.informed.contains(chunkPos.longKey)) {
++                    Connection.PlannedChunkData data = connection.planned.get(chunkPos.longKey);
++                    if (data != null) {
++                        data.addHeldPacket(packet);
++                    }
++                    return;
++                }
++            }
++        }
++        send(packet);
++    }
++    // Martijn end
++
+     @Override
+     public void send(Packet<?> packet) {
+         this.send(packet, (GenericFutureListener) null);
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 5fb475b3ccaa98861e2c817b37cd1740e5bfed8d..32d058985a0414621a5e2c43ff4ec9bbe3c3adbd 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -465,14 +465,14 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+         playerChunk.getTickingChunkFuture().thenAccept(either -> {
+             either.left().ifPresent(chunk -> {
+-                List<ServerPlayer> playersInRange = playerChunk.playerProvider.getPlayers(playerChunk.getPos(), false);
++                List<ServerPlayer> playersInRange = playerChunk.playerProvider.getPlayers(playerChunk.getPos(), false, false); // Martijn
+                 if (playersInRange.isEmpty()) return;
+ 
+                 ClientboundLevelChunkWithLightPacket refreshPacket = new ClientboundLevelChunkWithLightPacket(chunk, this.world.getLightEngine(), null, null, true);
+                 for (ServerPlayer player : playersInRange) {
+                     if (player.connection == null) continue;
+ 
+-                    player.connection.send(refreshPacket);
++                    player.connection.sendIfInformedElseHold(chunk.getPos(), refreshPacket); // Martijn
+                 }
+             });
+         });
