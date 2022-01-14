@@ -1,0 +1,303 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 14 Jan 2022 23:54:39 +0100
+Subject: [PATCH] Load closest chunks first
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index ef08e8e3bbdc62e08776305480b0591578746b7c..88c616bcfdf951bd624cde7caf06558320d99268 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -14,8 +14,11 @@ import com.mojang.datafixers.DataFixer;
+ import com.mojang.datafixers.util.Either;
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.JsonOps;
++import it.unimi.dsi.fastutil.Pair;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.ints.IntIntImmutablePair;
++import it.unimi.dsi.fastutil.ints.IntIntPair;
+ import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+ import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+@@ -46,6 +49,7 @@ import java.util.concurrent.CompletionException;
+ import java.util.concurrent.CompletionStage;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.atomic.AtomicInteger;
++import java.util.function.BiConsumer;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Consumer;
+ import java.util.function.Function;
+@@ -53,7 +57,10 @@ import java.util.function.IntFunction;
+ import java.util.function.IntSupplier;
+ import java.util.function.Supplier;
+ import java.util.stream.Collectors;
++import java.util.stream.Stream;
+ import javax.annotation.Nullable;
++
++import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.ReportedException;
+@@ -1566,7 +1573,8 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+             this.viewDistance = j;
+             this.distanceManager.updatePlayerTickets(this.viewDistance + 1);
+-            Iterator objectiterator = this.updatingChunks.getVisibleValuesCopy().iterator(); // Paper
++            Iterator objectiterator = getSortedChunkHolders(this.updatingChunks.getVisibleValuesCopy().stream()).iterator(); // Paper // Martijn
++
+ 
+             while (objectiterator.hasNext()) {
+                 ChunkHolder playerchunk = (ChunkHolder) objectiterator.next();
+@@ -1855,15 +1863,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             this.removePlayerFromDistanceMaps(player); // Paper - distance maps
+         }
+ 
+-        for (int k = i - this.viewDistance - 1; k <= i + this.viewDistance + 1; ++k) {
+-            for (int l = j - this.viewDistance - 1; l <= j + this.viewDistance + 1; ++l) {
+-                if (ChunkMap.isChunkInRange(k, l, i, j, this.viewDistance)) {
+-                    ChunkPos chunkcoordintpair = new ChunkPos(k, l);
+-
+-                    this.updateChunkTracking(player, chunkcoordintpair, new MutableObject(), !added, added);
+-                }
++        // Martijn start
++        // Evaluate in spiral order
++        evaluateSpiral(i, j, this.viewDistance + 1, (k, l) -> {
++            if (ChunkMap.isChunkInRange(k, l, i, j, this.viewDistance)) {
++                ChunkPos chunkcoordintpair = new ChunkPos(k, l);
++                this.updateChunkTracking(player, chunkcoordintpair, new MutableObject(), !added, added);
+             }
+-        }
++        });
++        // Martijn end
+ 
+     }
+ 
+@@ -1917,32 +1925,42 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         int l1;
+ 
+         if (Math.abs(i1 - i) <= this.viewDistance * 2 && Math.abs(j1 - j) <= this.viewDistance * 2) {
++
++            // Martijn start
++
++            // Sort these by distance to the player
++
+             k1 = Math.min(i, i1) - this.viewDistance - 1;
+             l1 = Math.min(j, j1) - this.viewDistance - 1;
+             int i2 = Math.max(i, i1) + this.viewDistance + 1;
+             int j2 = Math.max(j, j1) + this.viewDistance + 1;
+ 
++            List<IntIntPair> coordinates = new ArrayList<>();
+             for (int k2 = k1; k2 <= i2; ++k2) {
+                 for (int l2 = l1; l2 <= j2; ++l2) {
+-                    boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, this.viewDistance);
+-                    boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, this.viewDistance);
+-
+-                    this.updateChunkTracking(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4);
++                    coordinates.add(new IntIntImmutablePair(k2, l2));
+                 }
+             }
++            coordinates = coordinates.stream().map(it -> new ObjectObjectImmutablePair<>(it, Math.max(Math.abs(it.first() - i), Math.abs(it.second() - j)))).sorted((pair1, pair2) -> Integer.compare(pair1.second(), pair2.second())).map(Pair::first).toList();
++
++            for (IntIntPair k2l2 : coordinates) {
++                int k2 = k2l2.first();
++                int l2 = k2l2.second();
++                boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, this.viewDistance);
++                boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, this.viewDistance);
++
++                this.updateChunkTracking(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4);
++            }
++
++            // Martijn end
++
+         } else {
+             boolean flag5;
+             boolean flag6;
+ 
+-            for (k1 = i1 - this.viewDistance - 1; k1 <= i1 + this.viewDistance + 1; ++k1) {
+-                for (l1 = j1 - this.viewDistance - 1; l1 <= j1 + this.viewDistance + 1; ++l1) {
+-                    if (ChunkMap.isChunkInRange(k1, l1, i1, j1, this.viewDistance)) {
+-                        flag5 = true;
+-                        flag6 = false;
+-                        this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), true, false);
+-                    }
+-                }
+-            }
++            // Martijn start
++
++            // Switched these to first track new chunks before untracking old chunks
+ 
+             for (k1 = i - this.viewDistance - 1; k1 <= i + this.viewDistance + 1; ++k1) {
+                 for (l1 = j - this.viewDistance - 1; l1 <= j + this.viewDistance + 1; ++l1) {
+@@ -1953,6 +1971,19 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                     }
+                 }
+             }
++
++            for (k1 = i1 - this.viewDistance - 1; k1 <= i1 + this.viewDistance + 1; ++k1) {
++                for (l1 = j1 - this.viewDistance - 1; l1 <= j1 + this.viewDistance + 1; ++l1) {
++                    if (ChunkMap.isChunkInRange(k1, l1, i1, j1, this.viewDistance)) {
++                        flag5 = true;
++                        flag6 = false;
++                        this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), true, false);
++                    }
++                }
++            }
++
++            // Martijn end
++
+         }
+ 
+         this.updateMaps(player); // Paper - distance maps
+@@ -2150,6 +2181,67 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     // Martijn start
++    public static void evaluateSpiral(int initialX, int initialY, int inclusiveDistance, BiConsumer<Integer, Integer> consumer) {
++        int x = initialX;
++        int y = initialY;
++        // All inclusive
++        int minX = initialX - inclusiveDistance;
++        int minY = initialY - inclusiveDistance;
++        int maxX = initialX + inclusiveDistance;
++        int maxY = initialY + inclusiveDistance;
++        int dx = 0;
++        int dy = 1;
++        int t = 1;
++        int ct = 0;
++        while (true) {
++            if (x < minX || x > maxX || y < minY || y > maxY) {
++                break;
++            }
++            consumer.accept(x, y);
++            x += dx;
++            y += dy;
++            ct++;
++            if (ct == t) {
++                ct = 0;
++                if (dy > 0) {
++                    dx = 1;
++                    dy = 0;
++                } else if (dx > 0) {
++                    dx = 0;
++                    dy = -1;
++                    t++;
++                } else if (dy < 0) {
++                    dx = -1;
++                    dy = 0;
++                } else {
++                    dx = 0;
++                    dy = 1;
++                    t++;
++                }
++            }
++        }
++    }
++
++    public static List<ChunkHolder> getSortedChunkHolders(Stream<ChunkHolder> chunkHolders) {
++        return chunkHolders.map(holder -> new ObjectObjectImmutablePair<>(holder, holder.getWorld().players
++                .stream()
++                .map(closebyPlayer -> ChunkMap.getPlayerDistanceToChunk(closebyPlayer, holder.getPos().longKey)).min(Integer::compare).orElse(null)))
++            .sorted((pair1, pair2) -> {
++                Integer distanceToPlayer1 = pair1.second();
++                Integer distanceToPlayer2 = pair2.second();
++                if (distanceToPlayer1 == null) {
++                    if (distanceToPlayer2 == null) {
++                        return 0;
++                    }
++                    return 1;
++                }
++                if (distanceToPlayer2 == null) {
++                    return -1;
++                }
++                return Integer.compare(distanceToPlayer1, distanceToPlayer2);
++            }).map(Pair::first).toList();
++    }
++
+     public static int getPlayerDistanceToChunk(ServerPlayer player, long chunkKey) {
+         ChunkPos chunk = new ChunkPos(chunkKey);
+         int playerChunkX = player.getBlockX() >> 4;
+@@ -2223,10 +2315,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     public void informPlayerOfChunk(ServerPlayer player, LevelChunk chunk, ClientboundLevelChunkWithLightPacket initializationPacket, List<Packet<?>> heldPackets) {
+-        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
+-            if (player.getBukkitEntity().getName().equals("Martijn"))
+-                player.getBukkitEntity().sendMessage("Informing you of " + chunk.getPos() + " at " + player.connection.connection.informed.size() + " informed and " + player.connection.connection.planned.size() + " planned"); // TODO remove debug
+-        }
++//        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++//            if (player.getBukkitEntity().getName().equals("Martijn"))
++//                player.getBukkitEntity().sendMessage("Informing you of " + chunk.getPos() + " at " + player.connection.connection.informed.size() + " informed and " + player.connection.connection.planned.size() + " planned"); // TODO remove debug
++//        }
+         player.trackChunk(chunk.getPos(), initializationPacket);
+         if (heldPackets != null) {
+             for (Packet<?> heldPacket : heldPackets) {
+@@ -2297,10 +2389,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Martijn start
+     public void playerLoadedChunk(ServerPlayer player, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets, LevelChunk chunk) {
+ 
+-        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
+-            if (player.getBukkitEntity().getName().equals("Martijn") && player.chunkPosition().equals(chunk.getPos()))
+-                player.getBukkitEntity().sendMessage("You have loaded your own chunk: " + chunk.getPos() + " at " + player.connection.connection.informed.size() + " informed and " + player.connection.connection.planned.size() + " planned"); // TODO remove debug
+-        }
++//        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++//            if (player.getBukkitEntity().getName().equals("Martijn") && player.chunkPosition().equals(chunk.getPos()))
++//                player.getBukkitEntity().sendMessage("You have loaded your own chunk: " + chunk.getPos() + " at " + player.connection.connection.informed.size() + " informed and " + player.connection.connection.planned.size() + " planned"); // TODO remove debug
++//        }
+ 
+         // Martijn start
+         ChunkPos chunkPos = chunk.getPos();
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index 1744f4983b24a87f3861ebd5d68120cfce904934..aded4eaadba9cfa27451b35ef7e31b0bf89f25c6 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.Sets;
+ import com.mojang.datafixers.util.Either;
++import it.unimi.dsi.fastutil.Pair;
+ import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+ import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.Long2IntMap;
+@@ -16,13 +17,16 @@ import it.unimi.dsi.fastutil.longs.LongIterator;
+ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+ import it.unimi.dsi.fastutil.longs.LongSet;
+ import it.unimi.dsi.fastutil.objects.ObjectIterator;
++import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
+ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+ import it.unimi.dsi.fastutil.objects.ObjectSet;
+ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.nio.charset.StandardCharsets;
++import java.util.Arrays;
+ import java.util.Iterator;
++import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.concurrent.CompletableFuture;
+@@ -140,11 +144,19 @@ public abstract class DistanceManager {
+         // Paper start
+         if (!this.pendingChunkUpdates.isEmpty()) {
+             this.pollingPendingChunkUpdates = true; try { // Paper - Chunk priority
+-            while(!this.pendingChunkUpdates.isEmpty()) {
+-                ChunkHolder remove = this.pendingChunkUpdates.remove();
+-                remove.isUpdateQueued = false;
+-                remove.updateFutures(chunkStorage, this.mainThreadExecutor);
+-            }
++                // Martijn start
++                // Reorder pending chunk updates so those close to a player are first
++                while(!this.pendingChunkUpdates.isEmpty()) {
++                    List<ChunkHolder> sortedPendingChunkUpdates = ChunkMap.getSortedChunkHolders(this.pendingChunkUpdates.stream());
++                    this.pendingChunkUpdates.clear();
++                    this.pendingChunkUpdates.addAll(sortedPendingChunkUpdates);
++                    while(!this.pendingChunkUpdates.isEmpty()) {
++                        ChunkHolder remove = this.pendingChunkUpdates.remove();
++                        remove.isUpdateQueued = false;
++                        remove.updateFutures(chunkStorage, this.mainThreadExecutor);
++                    }
++                }
++                // Martijn end
+             } finally { this.pollingPendingChunkUpdates = false; } // Paper - Chunk priority
+             // Paper end
+             return true;
