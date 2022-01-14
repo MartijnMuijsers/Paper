@@ -1,0 +1,119 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 14 Jan 2022 21:43:22 +0100
+Subject: [PATCH] Add own chunk exemption and debug messages
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 8d66b3ac9666aa5a52835038c8b6cb603138267b..ef08e8e3bbdc62e08776305480b0591578746b7c 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -118,6 +118,10 @@ import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet; // Paper
+ 
+ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider {
+ 
++    // Martijn start
++    // TODO turn into configuration options
++    public static final int maxChunkPacketsToInformOfPerTick = Connection.maxMaxNumberOfChunkPacketsInTransit;
++    // Martijn end
+     private static final byte CHUNK_TYPE_REPLACEABLE = -1;
+     private static final byte CHUNK_TYPE_UNKNOWN = 0;
+     private static final byte CHUNK_TYPE_FULL = 1;
+@@ -2171,6 +2175,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     public void attemptToInformOfPlannedChunks(ServerPlayer player) {
++        int amountInformed = 0;
+         while (true) {
+             Optional<Long> minPlanned = player.connection.connection.planned.keySet().stream().min((entry1, entry2) -> {
+                 int distanceToChunk1 = getPlayerDistanceToChunk(player, entry1);
+@@ -2193,6 +2198,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+             if (informData != null) {
+                 informPlayerOfChunk(player, player.level.getChunk(chunkPos.x, chunkPos.z), informData.initializationPacket, informData.heldPackets);
++                amountInformed++;
++                if (amountInformed >= maxChunkPacketsToInformOfPerTick) {
++                    break;
++                }
+             } else {
+                 break;
+             }
+@@ -2214,6 +2223,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     public void informPlayerOfChunk(ServerPlayer player, LevelChunk chunk, ClientboundLevelChunkWithLightPacket initializationPacket, List<Packet<?>> heldPackets) {
++        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++            if (player.getBukkitEntity().getName().equals("Martijn"))
++                player.getBukkitEntity().sendMessage("Informing you of " + chunk.getPos() + " at " + player.connection.connection.informed.size() + " informed and " + player.connection.connection.planned.size() + " planned"); // TODO remove debug
++        }
+         player.trackChunk(chunk.getPos(), initializationPacket);
+         if (heldPackets != null) {
+             for (Packet<?> heldPacket : heldPackets) {
+@@ -2232,8 +2245,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         ChunkPos playerChunkPos = new ChunkPos(playerChunkX, playerChunkZ);
+         long playerChunkKey = playerChunkPos.longKey;
+         long chunkKey = chunkPos.longKey;
++        if (playerChunkKey == chunkKey) {
++            return true;
++        }
+         synchronized (player.connection.connection.chunkPacketsInTransitIds) {
+-            if (!player.connection.connection.informed.contains(playerChunkKey) && chunkKey != playerChunkKey) {
++            if (!player.connection.connection.informed.contains(playerChunkKey)) {
+                 return false;
+             }
+         }
+@@ -2281,6 +2297,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Martijn start
+     public void playerLoadedChunk(ServerPlayer player, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets, LevelChunk chunk) {
+ 
++        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++            if (player.getBukkitEntity().getName().equals("Martijn") && player.chunkPosition().equals(chunk.getPos()))
++                player.getBukkitEntity().sendMessage("You have loaded your own chunk: " + chunk.getPos() + " at " + player.connection.connection.informed.size() + " informed and " + player.connection.connection.planned.size() + " planned"); // TODO remove debug
++        }
++
+         // Martijn start
+         ChunkPos chunkPos = chunk.getPos();
+         long chunkKey = chunkPos.longKey;
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 999a53c92e1e16f3c463a4c90604e71394505c4d..6e1667fbb55c173627c93cce1f3e5f9b753280f3 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3124,18 +3124,27 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+         // Martijn start
+         // Catch any keep-alive responses that originate from our fake keep-alive packets after chunk packets
+         synchronized (this.connection.chunkPacketsInTransitIds) {
+-            if (this.connection.chunkPacketsInTransitIds.contains(packet.getId())) {
+-                // This is a response to one of our fake keep-alive packets
+-                // We will remove all chunk packets in transition up to the received one that was apparently successful
+-                while (!this.connection.chunkPacketsInTransitIds.isEmpty()) {
+-                    if (this.connection.chunkPacketsInTransitIds.peekFirst() == packet.getId()) {
+-                        this.connection.chunkPacketsInTransitIds.removeFirst();
+-                        break;
++//            new Thread(() -> {
++//                try {
++//                    Thread.sleep(1000);
++//                } catch (InterruptedException e) {
++//                    e.printStackTrace();
++//                }
++//                synchronized (this.connection.chunkPacketsInTransitIds) {
++                    if (this.connection.chunkPacketsInTransitIds.contains(packet.getId())) {
++                        // This is a response to one of our fake keep-alive packets
++                        // We will remove all chunk packets in transition up to the received one that was apparently successful
++                        while (!this.connection.chunkPacketsInTransitIds.isEmpty()) {
++                            if (this.connection.chunkPacketsInTransitIds.peekFirst() == packet.getId()) {
++                                this.connection.chunkPacketsInTransitIds.removeFirst();
++                                break;
++                            }
++                            this.connection.chunkPacketsInTransitIds.removeFirst();
++                        }
++                        return;
+                     }
+-                    this.connection.chunkPacketsInTransitIds.removeFirst();
+-                }
+-                return;
+-            }
++//                }
++//            }).start();
+         }
+         // Martijn end
+         //PlayerConnectionUtils.ensureMainThread(packetplayinkeepalive, this, this.player.getWorldServer()); // CraftBukkit // Paper - This shouldn't be on the main thread
