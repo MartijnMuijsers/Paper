@@ -1,0 +1,121 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 15 Jan 2022 00:55:46 +0100
+Subject: [PATCH] Small optimization
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 88c616bcfdf951bd624cde7caf06558320d99268..ea6d7e827b207157d79f535b8a2838309e5ccd3e 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -2267,16 +2267,46 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     public void attemptToInformOfPlannedChunks(ServerPlayer player) {
++
++        {
++            // Small optimization
++            int playerChunkX = player.getBlockX() >> 4;
++            int playerChunkZ = player.getBlockZ() >> 4;
++            ChunkPos playerChunkPos = new ChunkPos(playerChunkX, playerChunkZ);
++            long playerChunkKey = playerChunkPos.longKey;
++            synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++                if (!player.connection.connection.informed.contains(playerChunkKey) && !player.connection.connection.planned.containsKey(playerChunkKey)) {
++                    return;
++                }
++            }
++        }
++
+         int amountInformed = 0;
+         while (true) {
+-            Optional<Long> minPlanned = player.connection.connection.planned.keySet().stream().min((entry1, entry2) -> {
+-                int distanceToChunk1 = getPlayerDistanceToChunk(player, entry1);
+-                int distanceToChunk2 = getPlayerDistanceToChunk(player, entry2);
+-                return Integer.compare(distanceToChunk1, distanceToChunk2);
+-            });
++
++            Optional<Long> minPlanned;
++            synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++
++                // Break if there are no more positions planned
++                if (player.connection.connection.planned.isEmpty()) {
++                    break;
++                }
++
++                // Get the closest planned position
++                minPlanned = player.connection.connection.planned.keySet().stream().min((entry1, entry2) -> {
++                    int distanceToChunk1 = getPlayerDistanceToChunk(player, entry1);
++                    int distanceToChunk2 = getPlayerDistanceToChunk(player, entry2);
++                    return Integer.compare(distanceToChunk1, distanceToChunk2);
++                });
++
++            }
++
++            // Redudant because we already verified that it is non-empty, but also not much reason to remove this part
+             if (minPlanned.isEmpty()) {
+                 break;
+             }
++
++            // Check if the player can be informed of the position
+             long planned = minPlanned.get();
+             ChunkPos chunkPos = new ChunkPos(planned);
+             Connection.PlannedChunkData informData;
+@@ -2288,15 +2318,19 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                     informData = null;
+                 }
+             }
++
++            // If the player can be informed of something, inform, otherwise break
+             if (informData != null) {
+                 informPlayerOfChunk(player, player.level.getChunk(chunkPos.x, chunkPos.z), informData.initializationPacket, informData.heldPackets);
+                 amountInformed++;
++                // Break if we informed of enough packets - to make sure enough other players get a go without going over the tick time for this tick
+                 if (amountInformed >= maxChunkPacketsToInformOfPerTick) {
+                     break;
+                 }
+             } else {
+                 break;
+             }
++
+         }
+     }
+ 
+@@ -2332,20 +2366,30 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // If returns true, will delete the chunk pos from planned and add it to informed already
+     // If returns false, will add the chunk pos to planned already
+     public boolean canInformOfChunkRightNow(ServerPlayer player, ChunkPos chunkPos) {
++
+         int playerChunkX = player.getBlockX() >> 4;
+         int playerChunkZ = player.getBlockZ() >> 4;
+         ChunkPos playerChunkPos = new ChunkPos(playerChunkX, playerChunkZ);
+         long playerChunkKey = playerChunkPos.longKey;
+         long chunkKey = chunkPos.longKey;
++        // Always inform the player of their own chunk
+         if (playerChunkKey == chunkKey) {
+             return true;
+         }
++        // Check that the player is not yet informed of their own chunk, if they are indeed not, we cannot inform of any others
+         synchronized (player.connection.connection.chunkPacketsInTransitIds) {
+             if (!player.connection.connection.informed.contains(playerChunkKey)) {
+                 return false;
+             }
+         }
++
+         int distance = getPlayerDistanceToChunk(player, chunkKey);
++        // Do not inform the player if the distance is greather than their client view distance or the world view distance
++        if (distance > player.getBukkitEntity().getClientViewDistance() || distance > player.getBukkitEntity().getWorld().getViewDistance()) {
++            return false;
++        }
++
++        // Do not inform the player if the number of chunks in transit is greater than the treshold we set before we allow this chunk, based on its distance
+         int maxNumberOfChunkPacketsInTransitByDistance = 7;
+         if (distance >= 5) {
+             maxNumberOfChunkPacketsInTransitByDistance = 1;
+@@ -2366,6 +2410,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         synchronized (player.connection.connection.chunkPacketsInTransitIds) {
+             return player.connection.connection.chunkPacketsInTransitIds.size() < maxNumberOfChunkPacketsInTransitToUse;
+         }
++
+     }
+ 
+     public ClientboundLevelChunkWithLightPacket getClientboundChunkInitializationPacket(ServerPlayer player, LevelChunk chunk) {
