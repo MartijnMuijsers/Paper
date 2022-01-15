@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 15 Jan 2022 13:58:12 +0100
+Subject: [PATCH] Send more keepalive packets
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 49b16e39a7bc8b8feee50d4cb169c26fc4c9dcae..8690ca013f6f4e290f79c098bd8596c34b898c91 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -371,7 +371,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+ //            }
+             // Martijn end
+         } else {
+-            if (elapsedTime >= 15000L) { // 15 seconds
++            if (elapsedTime >= 5000L) { // 5 seconds
+                 this.keepAlivePending = true;
+                 this.keepAliveTime = currentTime;
+                 this.keepAliveChallenge = currentTime;

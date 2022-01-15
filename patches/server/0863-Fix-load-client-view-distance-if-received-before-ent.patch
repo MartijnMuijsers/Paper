@@ -1,0 +1,227 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 15 Jan 2022 19:16:18 +0100
+Subject: [PATCH] Fix load client view distance if received before enter world
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 4908fe548f700cfd840e6da4f5ad4a4f35c94fba..7a4a9c5b0d2233f6657753b377c910f68a566e57 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -1603,14 +1603,12 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     // Martijn start
+-    public void playerClientViewDistanceChanged(ServerPlayer player, int oldClientViewDistance, int oldMartijnEffectiveLoadViewDistance) {
++    public void usePotentiallyUpdatedPlayerClientViewDistance(ServerPlayer player, int oldClientViewDistance, int oldMartijnEffectiveLoadViewDistance) {
+         int newClientViewDistance = player.clientViewDistance;
+-        if (oldClientViewDistance == newClientViewDistance) return;
+ 
+         this.distanceManager.updatePlayerTickets(player, player.getMartijnEffectiveLoadViewDistance() + 1);
+         Iterator objectiterator = getChunkHoldersSortedBySquaredPythagoreanDistance(this.updatingChunks.getVisibleValuesCopy().stream()).iterator(); // Paper // Martijn
+ 
+-
+         while (objectiterator.hasNext()) {
+             ChunkHolder playerchunk = (ChunkHolder) objectiterator.next();
+             ChunkPos chunkcoordintpair = playerchunk.getPos();
+@@ -1891,6 +1889,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 this.distanceManager.addPlayer(SectionPos.of((Entity) player), player);
+             }
+             this.addPlayerToDistanceMaps(player); // Paper - distance maps
++            // Martijn start
++            if (player.clientViewDistance != null) {
++                usePotentiallyUpdatedPlayerClientViewDistance(player, player.clientViewDistance, player.getMartijnEffectiveLoadViewDistance());
++            }
++            // Martijn end
+         } else {
+             SectionPos sectionposition = player.getLastSectionPos();
+ 
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index f31e20c39f4a608829db4647b26b686df224a39c..2c8ce88f31808c39c4c60745220229e20184d043 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -17,6 +17,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.LongIterator;
+ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+ import it.unimi.dsi.fastutil.longs.LongSet;
++import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+ import it.unimi.dsi.fastutil.objects.ObjectIterator;
+ import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
+ import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+@@ -26,11 +27,15 @@ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.nio.charset.StandardCharsets;
+ import java.util.Arrays;
++import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Objects;
+ import java.util.Set;
++import java.util.Map;
++import java.util.HashMap;
++import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.Executor;
+ import javax.annotation.Nullable;
+@@ -56,7 +61,12 @@ public abstract class DistanceManager {
+     private final DistanceManager.ChunkTicketTracker ticketTracker = new DistanceManager.ChunkTicketTracker();
+     public static final int MOB_SPAWN_RANGE = 8; // private final ChunkMapDistance.b f = new ChunkMapDistance.b(8); // Paper - no longer used
+     private final TickingTracker tickingTicketsTracker = new TickingTracker();
+-    private final Int2ObjectOpenHashMap<DistanceManager.PlayerTicketTracker> playerTicketManagers = new Int2ObjectOpenHashMap<>(); // Martijn
++    // Martijn start
++    // TODO turn into configuration option
++    private static final boolean usePerPlayerTicketManager = true;
++    private final Map<UUID, PlayerTicketTracker> playerTicketManagers = usePerPlayerTicketManager ? new HashMap<>(1) : null;
++    private final PlayerTicketTracker sharedPlayerTicketManager = usePerPlayerTicketManager ? null : createNewPlayerTicketManager();
++    // Martijn end
+     // Paper start use a queue, but still keep unique requirement
+     public final java.util.Queue<ChunkHolder> pendingChunkUpdates = new java.util.ArrayDeque<ChunkHolder>() {
+         @Override
+@@ -135,7 +145,7 @@ public abstract class DistanceManager {
+         //this.f.a(); // Paper - no longer used
+         this.tickingTicketsTracker.runAllUpdates();
+         org.spigotmc.AsyncCatcher.catchOp("DistanceManagerTick"); // Paper
+-        this.playerTicketManagers.forEach((id, it) -> it.runAllUpdates());
++        getPlayerTicketManagers().forEach(it -> it.runAllUpdates());
+         int i = Integer.MAX_VALUE - this.ticketTracker.runDistanceUpdates(Integer.MAX_VALUE);
+         boolean flag = i != 0;
+ 
+@@ -145,21 +155,24 @@ public abstract class DistanceManager {
+ 
+         // Paper start
+         if (!this.pendingChunkUpdates.isEmpty()) {
+-            this.pollingPendingChunkUpdates = true; try { // Paper - Chunk priority
++            this.pollingPendingChunkUpdates = true;
++            try { // Paper - Chunk priority
+                 // Martijn start
+                 // Reorder pending chunk updates so those close to a player are first
+-                while(!this.pendingChunkUpdates.isEmpty()) {
++                while (!this.pendingChunkUpdates.isEmpty()) {
+                     List<ChunkHolder> sortedPendingChunkUpdates = ChunkMap.getChunkHoldersSortedBySquaredPythagoreanDistance(this.pendingChunkUpdates.stream());
+                     this.pendingChunkUpdates.clear();
+                     this.pendingChunkUpdates.addAll(sortedPendingChunkUpdates);
+-                    while(!this.pendingChunkUpdates.isEmpty()) {
++                    while (!this.pendingChunkUpdates.isEmpty()) {
+                         ChunkHolder remove = this.pendingChunkUpdates.remove();
+                         remove.isUpdateQueued = false;
+                         remove.updateFutures(chunkStorage, this.mainThreadExecutor);
+                     }
+                 }
+                 // Martijn end
+-            } finally { this.pollingPendingChunkUpdates = false; } // Paper - Chunk priority
++            } finally {
++                this.pollingPendingChunkUpdates = false;
++            } // Paper - Chunk priority
+             // Paper end
+             return true;
+         } else {
+@@ -195,6 +208,7 @@ public abstract class DistanceManager {
+             return flag;
+         }
+     }
++
+     boolean pollingPendingChunkUpdates = false; // Paper - Chunk priority
+ 
+     boolean addTicket(long i, Ticket<?> ticket) { // CraftBukkit - void -> boolean
+@@ -303,9 +317,11 @@ public abstract class DistanceManager {
+     public static final int PRIORITY_TICKET_LEVEL = ChunkMap.MAX_CHUNK_DISTANCE;
+     public static final int URGENT_PRIORITY = 29;
+     public boolean delayDistanceManagerTick = false;
++
+     public boolean markUrgent(ChunkPos coords) {
+         return addPriorityTicket(coords, TicketType.URGENT, URGENT_PRIORITY);
+     }
++
+     public boolean markHighPriority(ChunkPos coords, int priority) {
+         priority = Math.min(URGENT_PRIORITY - 1, Math.max(1, priority));
+         return addPriorityTicket(coords, TicketType.PRIORITY, priority);
+@@ -421,7 +437,7 @@ public abstract class DistanceManager {
+ 
+     public void addPlayer(SectionPos pos, ServerPlayer player) {
+         // Martijn start
+-        DistanceManager.PlayerTicketTracker playerTicketManager  = this.playerTicketManagers.computeIfAbsent(player.getId(), $ -> createNewPlayerTicketManager());
++        DistanceManager.PlayerTicketTracker playerTicketManager = getOrCreatePlayerTicketManager(player);
+         // Martijn end
+         ChunkPos chunkcoordintpair = pos.chunk();
+         long i = chunkcoordintpair.toLong();
+@@ -435,22 +451,23 @@ public abstract class DistanceManager {
+     }
+ 
+     public void removePlayer(SectionPos pos, ServerPlayer player, boolean keepTicketManager) { // Martijn
++        keepTicketManager = false; // Martijn temp
+         ChunkPos chunkcoordintpair = pos.chunk();
+         long i = chunkcoordintpair.toLong();
+         ObjectSet<ServerPlayer> objectset = (ObjectSet) this.playersPerChunk.get(i);
+         if (objectset == null) return; // CraftBukkit - SPIGOT-6208
+ 
+-        if (objectset != null) objectset.remove(player); // Paper - some state corruption happens here, don't crash, clean up gracefully.
++        if (objectset != null)
++            objectset.remove(player); // Paper - some state corruption happens here, don't crash, clean up gracefully.
+         if (objectset == null || objectset.isEmpty()) { // Paper
+             this.playersPerChunk.remove(i);
+             //this.f.update(i, Integer.MAX_VALUE, false); // Paper - no longer used
+             // Martijn start
+-            int playerId = player.getId();
+             if (keepTicketManager) {
+-                DistanceManager.PlayerTicketTracker playerTicketManager  = this.playerTicketManagers.computeIfAbsent(playerId, $ -> new DistanceManager.PlayerTicketTracker(33));
++                DistanceManager.PlayerTicketTracker playerTicketManager = getOrCreatePlayerTicketManager(player);
+                 playerTicketManager.update(i, Integer.MAX_VALUE, false);
+             } else {
+-                playerTicketManagers.remove(playerId);
++                removePlayerTicketManager(player);
+             }
+             // Martijn end
+             this.tickingTicketsTracker.removeTicket(TicketType.PLAYER, chunkcoordintpair, this.getPlayerTicketLevel(), chunkcoordintpair);
+@@ -477,12 +494,30 @@ public abstract class DistanceManager {
+     }
+ 
+     // Martijn start
++    public Iterable<DistanceManager.PlayerTicketTracker> getPlayerTicketManagers() {
++        return usePerPlayerTicketManager ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
++    }
++
+     public DistanceManager.PlayerTicketTracker createNewPlayerTicketManager() {
+         return new DistanceManager.PlayerTicketTracker(33);
+     }
+ 
++    public DistanceManager.PlayerTicketTracker getOrCreatePlayerTicketManager(ServerPlayer player) {
++        return usePerPlayerTicketManager ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), id -> createNewPlayerTicketManager()) : this.sharedPlayerTicketManager;
++    }
++
++    public DistanceManager.PlayerTicketTracker getPlayerTicketManagerIfExists(ServerPlayer player) {
++        return usePerPlayerTicketManager ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
++    }
++
++    public void removePlayerTicketManager(ServerPlayer player) {
++        if (usePerPlayerTicketManager) {
++            this.playerTicketManagers.remove(player.getUUID());
++        }
++    }
++
+     protected void updatePlayerTickets(ServerPlayer player, int viewDistance) {
+-        this.playerTicketManagers.computeIfAbsent(player.getId(), $ -> createNewPlayerTicketManager()).updateViewDistance(viewDistance);
++        getOrCreatePlayerTicketManager(player).updateViewDistance(viewDistance);
+     }
+     // Martijn end
+ 
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index daad15a65ff4ba4515cfe3b0541586933fdb2d29..791ff8f3850915f4d79173333c7121a62104a92d 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -1928,13 +1928,13 @@ public class ServerPlayer extends Player {
+         int oldClientViewDistance = this.getBukkitEntity().getClientViewDistance();
+         int oldMartijnEffectiveLoadViewDistance = this.getMartijnEffectiveLoadViewDistance();
+         this.clientViewDistance = packet.viewDistance;
+-        if (oldClientViewDistance != this.clientViewDistance) {
++        {
+             ServerLevel level = this.getLevel();
+             if (level != null) {
+                 ServerChunkCache chunkSource = level.getChunkSource();
+                 if (chunkSource != null) {
+                     if (chunkSource.chunkMap != null) {
+-                        chunkSource.chunkMap.playerClientViewDistanceChanged(this, oldClientViewDistance, oldMartijnEffectiveLoadViewDistance);
++                        chunkSource.chunkMap.usePotentiallyUpdatedPlayerClientViewDistance(this, oldClientViewDistance, oldMartijnEffectiveLoadViewDistance);
+                     }
+                 }
+             }

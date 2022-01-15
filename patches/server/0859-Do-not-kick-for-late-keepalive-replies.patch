@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 15 Jan 2022 13:57:37 +0100
+Subject: [PATCH] Do not kick for late keepalive replies
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 6e1667fbb55c173627c93cce1f3e5f9b753280f3..49b16e39a7bc8b8feee50d4cb169c26fc4c9dcae 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -363,10 +363,13 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+         long elapsedTime = currentTime - this.keepAliveTime;
+ 
+         if (this.keepAlivePending) {
+-            if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
+-                ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
+-                this.disconnect(new TranslatableComponent("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
+-            }
++            // Martijn start
++            // Do not disconnect on late receival of keep-alive, or when keep-alive challenge is wrong
++//            if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
++//                ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
++//                this.disconnect(new TranslatableComponent("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
++//            }
++            // Martijn end
+         } else {
+             if (elapsedTime >= 15000L) { // 15 seconds
+                 this.keepAlivePending = true;

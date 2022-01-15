@@ -1,0 +1,132 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 15 Jan 2022 12:49:22 +0100
+Subject: [PATCH] Use Pythagorean distance in sending chunks
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index ea6d7e827b207157d79f535b8a2838309e5ccd3e..96d995eeadd28d67fba1f2aee83b02af26ed0986 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -1573,7 +1573,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+             this.viewDistance = j;
+             this.distanceManager.updatePlayerTickets(this.viewDistance + 1);
+-            Iterator objectiterator = getSortedChunkHolders(this.updatingChunks.getVisibleValuesCopy().stream()).iterator(); // Paper // Martijn
++            Iterator objectiterator = getChunkHoldersSortedBySquaredPythagoreanDistance(this.updatingChunks.getVisibleValuesCopy().stream()).iterator(); // Paper // Martijn
+ 
+ 
+             while (objectiterator.hasNext()) {
+@@ -2222,13 +2222,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         }
+     }
+ 
+-    public static List<ChunkHolder> getSortedChunkHolders(Stream<ChunkHolder> chunkHolders) {
+-        return chunkHolders.map(holder -> new ObjectObjectImmutablePair<>(holder, holder.getWorld().players
++    public static List<ChunkHolder> getChunkHoldersSortedBySquaredPythagoreanDistance(Stream<ChunkHolder> chunkHolders) {
++        return chunkHolders
++            .map(holder -> new ObjectObjectImmutablePair<>(holder, holder.getWorld().players
+                 .stream()
+-                .map(closebyPlayer -> ChunkMap.getPlayerDistanceToChunk(closebyPlayer, holder.getPos().longKey)).min(Integer::compare).orElse(null)))
++                .map(player -> ChunkMap.getPlayerSquaredPythagoreanDistanceToChunk(player, holder.getPos().longKey))
++                .min(Long::compare).orElse(null)))
+             .sorted((pair1, pair2) -> {
+-                Integer distanceToPlayer1 = pair1.second();
+-                Integer distanceToPlayer2 = pair2.second();
++                Long distanceToPlayer1 = pair1.second();
++                Long distanceToPlayer2 = pair2.second();
+                 if (distanceToPlayer1 == null) {
+                     if (distanceToPlayer2 == null) {
+                         return 0;
+@@ -2238,17 +2240,30 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 if (distanceToPlayer2 == null) {
+                     return -1;
+                 }
+-                return Integer.compare(distanceToPlayer1, distanceToPlayer2);
++                return Long.compare(distanceToPlayer1, distanceToPlayer2);
+             }).map(Pair::first).toList();
+     }
+ 
+-    public static int getPlayerDistanceToChunk(ServerPlayer player, long chunkKey) {
++    public static int getPlayerManhattanDistanceToChunk(ServerPlayer player, long chunkKey) {
+         ChunkPos chunk = new ChunkPos(chunkKey);
+         int playerChunkX = player.getBlockX() >> 4;
+         int playerChunkZ = player.getBlockZ() >> 4;
+         return Math.max(Math.abs(playerChunkX - chunk.x), Math.abs(playerChunkZ - chunk.z));
+     };
+ 
++    public static long getPlayerSquaredPythagoreanDistanceToChunk(ServerPlayer player, long chunkKey) {
++        ChunkPos chunk = new ChunkPos(chunkKey);
++        int playerChunkX = player.getBlockX() >> 4;
++        int playerChunkZ = player.getBlockZ() >> 4;
++        long dx = playerChunkX - chunk.x;
++        long dy = playerChunkZ - chunk.z;
++        return dx * dx + dy * dy;
++    };
++
++    public static double getPlayerPythagoreanDistanceToChunk(ServerPlayer player, long chunkKey) {
++        return Math.sqrt(getPlayerSquaredPythagoreanDistanceToChunk(player, chunkKey));
++    };
++
+     public static class Planned {
+         Planned(UUID playerUUID, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets, ChunkPos chunkPos) {
+             this.playerUUID = playerUUID;
+@@ -2294,9 +2309,9 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+                 // Get the closest planned position
+                 minPlanned = player.connection.connection.planned.keySet().stream().min((entry1, entry2) -> {
+-                    int distanceToChunk1 = getPlayerDistanceToChunk(player, entry1);
+-                    int distanceToChunk2 = getPlayerDistanceToChunk(player, entry2);
+-                    return Integer.compare(distanceToChunk1, distanceToChunk2);
++                    long distanceToChunk1 = getPlayerSquaredPythagoreanDistanceToChunk(player, entry1);
++                    long distanceToChunk2 = getPlayerSquaredPythagoreanDistanceToChunk(player, entry2);
++                    return Long.compare(distanceToChunk1, distanceToChunk2);
+                 });
+ 
+             }
+@@ -2383,23 +2398,25 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+         }
+ 
+-        int distance = getPlayerDistanceToChunk(player, chunkKey);
++        long squaredPythagoreanDistance = getPlayerSquaredPythagoreanDistanceToChunk(player, chunkKey);
++        int manhattanDistance = getPlayerManhattanDistanceToChunk(player, chunkKey);
+         // Do not inform the player if the distance is greather than their client view distance or the world view distance
+-        if (distance > player.getBukkitEntity().getClientViewDistance() || distance > player.getBukkitEntity().getWorld().getViewDistance()) {
++        if (manhattanDistance > player.getBukkitEntity().getClientViewDistance()
++            || manhattanDistance > player.getBukkitEntity().getWorld().getViewDistance()) {
+             return false;
+         }
+ 
+         // Do not inform the player if the number of chunks in transit is greater than the treshold we set before we allow this chunk, based on its distance
+         int maxNumberOfChunkPacketsInTransitByDistance = 7;
+-        if (distance >= 5) {
++        if (squaredPythagoreanDistance >= 256) { // 16^2
+             maxNumberOfChunkPacketsInTransitByDistance = 1;
+-        } else if (distance >= 4) {
++        } else if (squaredPythagoreanDistance >= 121) { // 11^2
+             maxNumberOfChunkPacketsInTransitByDistance = 2;
+-        } else if (distance >= 3) {
++        } else if (squaredPythagoreanDistance >= 49) { // 7^2
+             maxNumberOfChunkPacketsInTransitByDistance = 3;
+-        } else if (distance >= 2) {
++        } else if (squaredPythagoreanDistance >= 16) { // 4^2
+             maxNumberOfChunkPacketsInTransitByDistance = 5;
+-        } else if (distance >= 1) {
++        } else if (squaredPythagoreanDistance >= 4) { // 2^2
+             maxNumberOfChunkPacketsInTransitByDistance = 6;
+         }
+         int maxNumberOfChunkPacketsInTransitToUse = Math.min(
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index aded4eaadba9cfa27451b35ef7e31b0bf89f25c6..2cf5da3d74378fbc6cb34f845ab1005b5db36803 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -147,7 +147,7 @@ public abstract class DistanceManager {
+                 // Martijn start
+                 // Reorder pending chunk updates so those close to a player are first
+                 while(!this.pendingChunkUpdates.isEmpty()) {
+-                    List<ChunkHolder> sortedPendingChunkUpdates = ChunkMap.getSortedChunkHolders(this.pendingChunkUpdates.stream());
++                    List<ChunkHolder> sortedPendingChunkUpdates = ChunkMap.getChunkHoldersSortedBySquaredPythagoreanDistance(this.pendingChunkUpdates.stream());
+                     this.pendingChunkUpdates.clear();
+                     this.pendingChunkUpdates.addAll(sortedPendingChunkUpdates);
+                     while(!this.pendingChunkUpdates.isEmpty()) {

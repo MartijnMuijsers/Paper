@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 15 Jan 2022 17:33:31 +0100
+Subject: [PATCH] Remove planned and informed chunks on world change
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index bac82fb1fa5ff2de10491eea5176755c0ceeee86..daad15a65ff4ba4515cfe3b0541586933fdb2d29 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -1151,6 +1151,14 @@ public class ServerPlayer extends Player {
+             if (true) { // CraftBukkit
+                 this.isChangingDimension = true; // CraftBukkit - Set teleport invulnerability only if player changing worlds
+ 
++                // Martijn start
++                // World changed, so clear info in the player about which chunks are planned or informed
++                synchronized (this.connection.connection.chunkPacketsInTransitIds) {
++                    this.connection.connection.planned.clear();
++                    this.connection.connection.informed.clear();
++                }
++                // Martijn end
++
+                 this.connection.send(new ClientboundRespawnPacket(worldserver.dimensionType(), worldserver.dimension(), BiomeManager.obfuscateSeed(worldserver.getSeed()), this.gameMode.getGameModeForPlayer(), this.gameMode.getPreviousGameModeForPlayer(), worldserver.isDebug(), worldserver.isFlat(), true));
+                 this.connection.send(new ClientboundChangeDifficultyPacket(worldserver.getDifficulty(), worldserver.getLevelData().isDifficultyLocked())); // Paper - fix difficulty sync issue
+                 PlayerList playerlist = this.server.getPlayerList();

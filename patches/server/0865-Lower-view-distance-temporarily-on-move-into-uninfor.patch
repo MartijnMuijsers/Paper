@@ -1,0 +1,189 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 15 Jan 2022 20:38:47 +0100
+Subject: [PATCH] Lower view distance temporarily on move into uninformed chunk
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 7a4a9c5b0d2233f6657753b377c910f68a566e57..a6966caff3e96495315b7c1c30189eda148f1696 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -128,6 +128,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Martijn start
+     // TODO turn into configuration options
+     public static final int maxChunkPacketsToInformOfPerTick = Connection.maxMaxNumberOfChunkPacketsInTransit;
++    // Feature is disabled when this is null
++    public static final Long keepLowEffectiveViewDistanceAfterMoveIntoUninformedChunkInterval = 3000L;
++    // This is a send view distance: must be in the range [2, 32]
++    public static final int lowEffectiveViewDistanceAfterMovingIntoUninformedChunk = 2;
+     // Martijn end
+     private static final byte CHUNK_TYPE_REPLACEABLE = -1;
+     private static final byte CHUNK_TYPE_UNKNOWN = 0;
+@@ -1603,10 +1607,12 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     // Martijn start
+-    public void usePotentiallyUpdatedPlayerClientViewDistance(ServerPlayer player, int oldClientViewDistance, int oldMartijnEffectiveLoadViewDistance) {
+-        int newClientViewDistance = player.clientViewDistance;
++    public void usePotentiallyUpdatedPlayerEffectiveLoadViewDistance(ServerPlayer player, Integer oldMartijnEffectiveLoadViewDistanceOrNullIfForced) {
++        int newMartijnEffectiveLoadViewDistance = player.getMartijnEffectiveLoadViewDistance();
++        if (oldMartijnEffectiveLoadViewDistanceOrNullIfForced != null && oldMartijnEffectiveLoadViewDistanceOrNullIfForced == newMartijnEffectiveLoadViewDistance) return;
++        int oldMartijnEffectiveLoadViewDistance = oldMartijnEffectiveLoadViewDistanceOrNullIfForced == null ? newMartijnEffectiveLoadViewDistance : oldMartijnEffectiveLoadViewDistanceOrNullIfForced;
+ 
+-        this.distanceManager.updatePlayerTickets(player, player.getMartijnEffectiveLoadViewDistance() + 1);
++        this.distanceManager.updatePlayerTickets(player, newMartijnEffectiveLoadViewDistance + 1);
+         Iterator objectiterator = getChunkHoldersSortedBySquaredPythagoreanDistance(this.updatingChunks.getVisibleValuesCopy().stream()).iterator(); // Paper // Martijn
+ 
+         while (objectiterator.hasNext()) {
+@@ -1617,7 +1623,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             this.getPlayers(chunkcoordintpair, false, false).forEach((entityplayer) -> {
+                 if (entityplayer == player) {
+                     int oldViewDistance = oldMartijnEffectiveLoadViewDistance;
+-                    int newViewDistance = entityplayer.getMartijnEffectiveLoadViewDistance();
++                    int newViewDistance = newMartijnEffectiveLoadViewDistance;
+                     SectionPos sectionposition = entityplayer.getLastSectionPos();
+                     boolean flag = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), oldViewDistance);
+                     boolean flag1 = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), newViewDistance);
+@@ -1890,9 +1896,8 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+             this.addPlayerToDistanceMaps(player); // Paper - distance maps
+             // Martijn start
+-            if (player.clientViewDistance != null) {
+-                usePotentiallyUpdatedPlayerClientViewDistance(player, player.clientViewDistance, player.getMartijnEffectiveLoadViewDistance());
+-            }
++            player.movedIntoUninformedChunk(true, true);
++            //usePotentiallyUpdatedPlayerEffectiveLoadViewDistance(player, null);
+             // Martijn end
+         } else {
+             SectionPos sectionposition = player.getLastSectionPos();
+@@ -1926,6 +1931,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     public void move(ServerPlayer player) {
++
+         // Paper - delay this logic for the entity tracker tick, no need to duplicate it
+ 
+         int i = SectionPos.blockToSectionCoord(player.getBlockX());
+@@ -1968,6 +1974,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+         // Martijn start
+ 
++        // Update the chunk tracking here, using the most of either the old or new (potentially updated due to moving into uninformed chunk) load view distance
+         int loadViewDistance = player.getMartijnEffectiveLoadViewDistance();
+ 
+         if (Math.abs(i1 - i) <= loadViewDistance * 2 && Math.abs(j1 - j) <= loadViewDistance * 2) {
+@@ -2032,6 +2039,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+         this.updateMaps(player); // Paper - distance maps
+ 
++        // Martijn start
++        // Check if the player moved into an uninformed chunk
++        synchronized (player.connection.connection.chunkPacketsInTransitIds) {
++            if (!player.connection.connection.informed.contains(sectionposition1.chunk().longKey)) {
++                player.movedIntoUninformedChunk(true, false);
++            }
++        }
++        // Martijn end
++
+     }
+ 
+     @Override
+@@ -2156,6 +2172,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+     protected void tick() {
+         // Martijn start
++        // Update moving into uninformed chunks
++        for (ServerPlayer player : this.level.players) {
++            player.checkIfUnnecessarilyAffectedByMovingIntoUninformedChunk(true);
++        }
+         // Attempt to send planned chunks
+         attemptToInformOfPlannedChunksForAllPlayers();
+         // Martijn end
+@@ -2322,8 +2342,8 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     public void attemptToInformOfPlannedChunksForAllPlayers() {
+-        for (Player player : Bukkit.getOnlinePlayers()) {
+-            attemptToInformOfPlannedChunks(((CraftPlayer) player).getHandle());
++        for (ServerPlayer player : this.level.players) {
++            attemptToInformOfPlannedChunks(player);
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 791ff8f3850915f4d79173333c7121a62104a92d..5a5cd18fff2e62a5bc18990d6a80fc20024bb6c2 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -176,7 +176,19 @@ public class ServerPlayer extends Player {
+     }
+ 
+     public final int getMartijnEffectiveSendViewDistance(int assumedSetSendViewDistance) {
+-        return Math.min(getBukkitEntity().getClientViewDistance(), assumedSetSendViewDistance);
++        int distance = Math.min(
++            getBukkitEntity().getClientViewDistance(),
++            assumedSetSendViewDistance
++        );
++        synchronized (this.moveIntoUninformedChunkLock) {
++            if (affectedByMovingIntoUninformedChunk) {
++                distance = Math.min(
++                    distance,
++                    ChunkMap.lowEffectiveViewDistanceAfterMovingIntoUninformedChunk
++                );
++            }
++        }
++        return distance;
+     }
+ 
+     public final int getMartijnEffectiveLoadViewDistance() {
+@@ -229,6 +241,42 @@ public class ServerPlayer extends Player {
+     @Nullable
+     private Vec3 enteredLavaOnVehiclePosition;
+     private SectionPos lastSectionPos;
++    // Martijn start
++    private Object moveIntoUninformedChunkLock = new Object();
++    private Long lastTimeMovedIntoUninformedChunk = null;
++    private boolean affectedByMovingIntoUninformedChunk = false;
++
++    public void movedIntoUninformedChunk(boolean updateChunkTracking, boolean forceUpdateChunkTracking) {
++        boolean oldAffectedByMovingIntoUninformedChunk;
++        int oldMartijnEffectiveLoadViewDistance;
++        synchronized (moveIntoUninformedChunkLock) {
++            if (ChunkMap.keepLowEffectiveViewDistanceAfterMoveIntoUninformedChunkInterval == null)
++                return;
++            oldAffectedByMovingIntoUninformedChunk = affectedByMovingIntoUninformedChunk;
++            oldMartijnEffectiveLoadViewDistance = getMartijnEffectiveLoadViewDistance();
++            lastTimeMovedIntoUninformedChunk = System.currentTimeMillis();
++            affectedByMovingIntoUninformedChunk = true;
++        }
++        if (!oldAffectedByMovingIntoUninformedChunk && updateChunkTracking) {
++            this.getLevel().getChunkSource().chunkMap.usePotentiallyUpdatedPlayerEffectiveLoadViewDistance(this, forceUpdateChunkTracking ? null : oldMartijnEffectiveLoadViewDistance);
++        }
++    }
++
++    public void checkIfUnnecessarilyAffectedByMovingIntoUninformedChunk(boolean updateChunkTracking) {
++        int oldMartijnEffectiveLoadViewDistance;
++        synchronized (moveIntoUninformedChunkLock) {
++            if (!affectedByMovingIntoUninformedChunk)
++                return;
++            if (System.currentTimeMillis() < lastTimeMovedIntoUninformedChunk + ChunkMap.keepLowEffectiveViewDistanceAfterMoveIntoUninformedChunkInterval)
++                return;
++            oldMartijnEffectiveLoadViewDistance = getMartijnEffectiveLoadViewDistance();
++            affectedByMovingIntoUninformedChunk = false;
++        }
++        if (updateChunkTracking) {
++            this.getLevel().getChunkSource().chunkMap.usePotentiallyUpdatedPlayerEffectiveLoadViewDistance(this, oldMartijnEffectiveLoadViewDistance);
++        }
++    }
++    // Martijn end
+     private ResourceKey<Level> respawnDimension;
+     @Nullable
+     private BlockPos respawnPosition;
+@@ -1934,7 +1982,7 @@ public class ServerPlayer extends Player {
+                 ServerChunkCache chunkSource = level.getChunkSource();
+                 if (chunkSource != null) {
+                     if (chunkSource.chunkMap != null) {
+-                        chunkSource.chunkMap.usePotentiallyUpdatedPlayerClientViewDistance(this, oldClientViewDistance, oldMartijnEffectiveLoadViewDistance);
++                        chunkSource.chunkMap.usePotentiallyUpdatedPlayerEffectiveLoadViewDistance(this, oldMartijnEffectiveLoadViewDistance);
+                     }
+                 }
+             }
