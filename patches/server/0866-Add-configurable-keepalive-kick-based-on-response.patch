@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 18 Jan 2022 15:22:42 +0100
+Subject: [PATCH] Add configurable keepalive kick based on response
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index e4a2f012bf2f01774f7527b616489b3016b700ea..46655aab8b0bd885aba64a5030f7fc36c493b5c6 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -105,11 +105,26 @@ public class PaperConfig {
+     /**
+      * In milliseconds
+      */
+-    public static int keepaliveSendInterval = 5000; // 5 seconds
++    public static int keepaliveSendInterval = 15000; // 15 seconds
+     private static void keepaliveSendInterval() {
+         keepaliveSendInterval = getInt("keepalive.send-interval", keepaliveSendInterval);
+     }
+ 
++    public static boolean kickForLateKeepaliveResponse = true;
++    private static void kickForLateKeepaliveResponse() {
++        kickForLateKeepaliveResponse = getBoolean("keepalive.kick.late-response", kickForLateKeepaliveResponse);
++    }
++
++    public static boolean kickForWrongKeepaliveResponseId = true;
++    private static void kickForWrongKeepaliveResponseId() {
++        kickForWrongKeepaliveResponseId = getBoolean("keepalive.kick.wrong-response-id", kickForWrongKeepaliveResponseId);
++    }
++
++    public static boolean kickForUnexpectedKeepaliveResponse = true;
++    private static void kickForUnexpectedKeepaliveResponse() {
++        kickForUnexpectedKeepaliveResponse = getBoolean("keepalive.kick.unexpected-response", kickForUnexpectedKeepaliveResponse);
++    }
++
+     // Martijn end - configurable keepalive
+ 
+     public static boolean logPlayerIpAddresses = true;
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index b823073231f9f8a6b3946a5f3450eb236b000750..50cc494b6f8c375046a22a72bb87ba51823226a6 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -363,11 +363,12 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+ 
+         if (this.keepAlivePending) {
+             // Martijn start - no disconnect on late or wrong keepalive
+-            // Do not disconnect on late receival of keepalive, or when keepalive challenge is wrong
+-//            if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
+-//                ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
+-//                this.disconnect(new TranslatableComponent("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
+-//            }
++            if (PaperConfig.kickForLateKeepaliveResponse) {
++                if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
++                    ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
++                    this.disconnect(new TranslatableComponent("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
++                }
++            }
+             // Martijn end - no disconnect on late or wrong keepalive
+         } else {
+             if (elapsedTime >= PaperConfig.keepaliveSendInterval) { // Martijn - configurable keepalive
+@@ -3155,12 +3156,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+             this.keepAlivePending = false;
+         } else if (!this.isSingleplayerOwner()) {
+             // Martijn start - no disconnect on late or wrong keepalive
+-            // Do not disconnect on late receival of keepalive, or when keepalive challenge is wrong
+-//            // Paper start - This needs to be handled on the main thread for plugins
+-//            server.submit(() -> {
+-//            this.disconnect(new TranslatableComponent("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
+-//            });
+-//            // Paper end
++            // Do not disconnect when keepalive challenge is wrong
++            if (!((packet.getId() == this.keepAliveChallenge || !PaperConfig.kickForWrongKeepaliveResponseId) && (this.keepAlivePending || !PaperConfig.kickForUnexpectedKeepaliveResponse))) {
++                // Paper start - This needs to be handled on the main thread for plugins
++                server.submit(() -> {
++                    this.disconnect(new TranslatableComponent("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
++                });
++                // Paper end
++            }
+             // Martijn end - no disconnect on late or wrong keepalive
+         }
+ 

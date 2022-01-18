@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 18 Jan 2022 14:09:11 +0100
+Subject: [PATCH] Increase packet in transit amounts for higher distances
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 5ed08051b7e572c2876e6b5f5cac2268be28098e..09d920c21d4845071461bc9e8124ac759861d5ac 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -513,13 +513,16 @@ public class ServerPlayer extends Player {
+         long squaredPythagoreanDistance = this.getSquaredPythagoreanDistanceToChunk(chunkKey);
+         // TODO turn into configuration options
+         int maxNumberOfChunkPacketsInTransitByDistance = 7;
+-        if (squaredPythagoreanDistance >= 256) { // 16^2
++
++        if (squaredPythagoreanDistance >= 729) { // 27^2
+             maxNumberOfChunkPacketsInTransitByDistance = 1;
+-        } else if (squaredPythagoreanDistance >= 121) { // 11^2
++        } else if (squaredPythagoreanDistance >= 400) { // 20^2
+             maxNumberOfChunkPacketsInTransitByDistance = 2;
+-        } else if (squaredPythagoreanDistance >= 49) { // 7^2
++        } else if (squaredPythagoreanDistance >= 196) { // 14^2
+             maxNumberOfChunkPacketsInTransitByDistance = 3;
+-        } else if (squaredPythagoreanDistance >= 16) { // 4^2
++        } else if (squaredPythagoreanDistance >= 81) { // 9^2
++            maxNumberOfChunkPacketsInTransitByDistance = 4;
++        } else if (squaredPythagoreanDistance >= 25) { // 5^2
+             maxNumberOfChunkPacketsInTransitByDistance = 5;
+         } else if (squaredPythagoreanDistance >= 4) { // 2^2
+             maxNumberOfChunkPacketsInTransitByDistance = 6;
