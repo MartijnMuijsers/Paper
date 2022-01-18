@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 18 Jan 2022 02:35:31 +0100
+Subject: [PATCH] Allow larger area of chunks to be potentially tracked
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index ecc9f6c7b86500ea706c44344dcca8e0987712f3..5ed08051b7e572c2876e6b5f5cac2268be28098e 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -504,8 +504,8 @@ public class ServerPlayer extends Player {
+         }
+ 
+         int manhattanDistance = this.getManhattanDistanceToChunk(chunkKey);
+-        // Do not track if the Manhattan distance is greather than their client view distance or the world view distance
+-        if (manhattanDistance > this.getSendViewDistance()) {
++        // Do not track if the Manhattan distance is much greater than the send view distance (+2 because this is also what is normally used for the inclusive square area in which chunks can potentially be tracked)
++        if (manhattanDistance > this.getSendViewDistance() + 2) {
+             return false;
+         }
+ 

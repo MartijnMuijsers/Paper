@@ -1,0 +1,238 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 17 Jan 2022 20:22:27 +0100
+Subject: [PATCH] Limit send and load distance by client view distance
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index 7afe0e29cefb6893bb7acf7cbbff5c71e98c2bef..ef8f78fdd6afa327508a4ef51586220a1ba85a5d 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -14,6 +14,7 @@ import java.util.Map;
+ import org.bukkit.Bukkit;
+ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.spigotmc.SpigotWorldConfig;
+ 
+ import static com.destroystokyo.paper.PaperConfig.log;
+@@ -67,12 +68,47 @@ public class PaperWorldConfig {
+         }
+     }
+ 
+-    // Martijn start - per-player load distance
+-    public boolean perPlayerLoadDistance = false;
+-    private void perPlayerLoadDistance() {
+-        perPlayerLoadDistance = getBoolean("per-player-load-distance", perPlayerLoadDistance);
++    // Martijn start - per-player view distance
++    private boolean perPlayerSendViewDistance = false;
++    private void perPlayerSendViewDistance() {
++        perPlayerSendViewDistance = getBoolean("view-distances.send-view-distance.per-player", perPlayerSendViewDistance);
+     }
+-    // Martijn end - per-player load distance
++    public boolean getPerPlayerSendViewDistance() {
++        return perPlayerSendViewDistance;
++    }
++
++    private boolean limitSendViewDistanceByClientViewDistance = false;
++    private void limitSendViewDistanceByClientViewDistance() {
++        setLimitSendViewDistanceByClientViewDistance(getBoolean("view-distances.send-view-distance.limit-by-client-view-distance", limitSendViewDistanceByClientViewDistance));
++    }
++    public boolean getLimitSendViewDistanceByClientViewDistance() {
++        return limitSendViewDistanceByClientViewDistance;
++    }
++    public void setLimitSendViewDistanceByClientViewDistance(boolean limitSendViewDistanceByClientViewDistance) {
++        this.limitSendViewDistanceByClientViewDistance = limitSendViewDistanceByClientViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().sendViewDistanceMayHaveChanged());
++    }
++
++    private boolean perPlayerLoadViewDistance = false;
++    private void perPlayerLoadViewDistance() {
++        perPlayerLoadViewDistance = getBoolean("view-distances.load-view-distance.per-player", perPlayerLoadViewDistance);
++    }
++    public boolean getPerPlayerLoadViewDistance() {
++        return perPlayerLoadViewDistance;
++    }
++
++    private boolean limitLoadViewDistanceByClientViewDistance = false;
++    private void limitLoadViewDistanceByClientViewDistance() {
++        setLimitLoadViewDistanceByClientViewDistance(getBoolean("view-distances.load-view-distance.limit-by-client-view-distance", limitLoadViewDistanceByClientViewDistance));
++    }
++    public boolean getLimitLoadViewDistanceByClientViewDistance() {
++        return limitLoadViewDistanceByClientViewDistance;
++    }
++    public void setLimitLoadViewDistanceByClientViewDistance(boolean limitLoadViewDistanceByClientViewDistance) {
++        this.limitLoadViewDistanceByClientViewDistance = limitLoadViewDistanceByClientViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().loadViewDistanceMayHaveChanged());
++    }
++    // Martijn end - per-player view distance
+ 
+     public boolean zombiesTargetTurtleEggs = true;
+     private void zombiesTargetTurtleEggs() {
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 489814d9c984ffea3b232d1418169818a6f41174..01457ea0c7867b1680e2c9f4e6dc10041372dae7 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -1559,7 +1559,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             int oldWorldViewDistance = this.worldViewDistance;
+ 
+             this.worldViewDistance = newWorldViewDistance;
+-            if (this.distanceManager.usePerPlayerLoadDistance) {
++            if (this.distanceManager.perPlayerLoadViewDistance) {
+                 this.level.players.forEach(player -> {
+                     player.sendViewDistanceMayHaveChanged();
+                     player.loadViewDistanceMayHaveChanged();
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index 0be65eba296e306d0ce64771b1037566402220bb..d209fa796ea854b59c51ee59c46f36710d6fd971 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -61,7 +61,7 @@ public abstract class DistanceManager {
+     private final TickingTracker tickingTicketsTracker = new TickingTracker();
+     // Martijn start - per-player load distance
+     private static final int maxPlayerTrackerViewDistance = 33;
+-    public final boolean usePerPlayerLoadDistance;
++    public final boolean perPlayerLoadViewDistance;
+     private final @Nullable Map<UUID, PlayerTicketTracker> playerTicketManagers;
+     private final @Nullable PlayerTicketTracker sharedPlayerTicketManager;
+     private final @NotNull CombinedPlayerTicketTracker combinedPlayerTicketManager;
+@@ -96,9 +96,9 @@ public abstract class DistanceManager {
+         this.mainThreadExecutor = mainThreadExecutor;
+         this.chunkMap = chunkMap; // Paper
+         // Martijn start - per-player load distance
+-        this.usePerPlayerLoadDistance = this.chunkMap.level.paperConfig.perPlayerLoadDistance;
+-        this.playerTicketManagers = this.usePerPlayerLoadDistance ? new HashMap<>(1) : null;
+-        this.sharedPlayerTicketManager = this.usePerPlayerLoadDistance ? null : createNewPlayerTicketManager();
++        this.perPlayerLoadViewDistance = this.chunkMap.level.paperConfig.getPerPlayerLoadViewDistance();
++        this.playerTicketManagers = this.perPlayerLoadViewDistance ? new HashMap<>(1) : null;
++        this.sharedPlayerTicketManager = this.perPlayerLoadViewDistance ? null : createNewPlayerTicketManager();
+         this.combinedPlayerTicketManager = new CombinedPlayerTicketTracker();
+         // Martijn end - per-player load distance
+     }
+@@ -106,7 +106,7 @@ public abstract class DistanceManager {
+     // Martijn start - per-player load distance
+ 
+     private @NotNull Iterable<@NotNull DistanceManager.PlayerTicketTracker> getPlayerTicketManagers() {
+-        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
++        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
+     }
+ 
+     private @NotNull DistanceManager.PlayerTicketTracker createNewPlayerTicketManager() {
+@@ -114,7 +114,7 @@ public abstract class DistanceManager {
+     }
+ 
+     private @NotNull DistanceManager.PlayerTicketTracker getOrCreatePlayerTicketManager(ServerPlayer player) {
+-        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
++        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
+             DistanceManager.PlayerTicketTracker tracker = this.createNewPlayerTicketManager();
+             tracker.updateViewDistanceByPlayerLoadDistance(player);
+             return tracker;
+@@ -122,11 +122,11 @@ public abstract class DistanceManager {
+     }
+ 
+     private @NotNull DistanceManager.PlayerTicketTracker getPlayerTicketManagerIfExists(ServerPlayer player) {
+-        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
++        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
+     }
+ 
+     private void removePlayerTicketManager(ServerPlayer player) {
+-        if (this.usePerPlayerLoadDistance) this.playerTicketManagers.remove(player.getUUID());
++        if (this.perPlayerLoadViewDistance) this.playerTicketManagers.remove(player.getUUID());
+     }
+ 
+     // Martijn end - per-player load distance
+@@ -514,14 +514,14 @@ public abstract class DistanceManager {
+ 
+     // Martijn start - per-player load distance
+     protected void updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance(ServerLevel level, int worldViewDistance) {
+-        if (this.usePerPlayerLoadDistance) {
++        if (this.perPlayerLoadViewDistance) {
+             throw new IllegalStateException("Cannot call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance when using per-player load distances, call updatePlayerTicketsByPlayerLoadDistance instead");
+         }
+         this.sharedPlayerTicketManager.updateViewDistanceByWorldViewDistance(worldViewDistance);
+     }
+ 
+     protected void updatePlayerTicketsByPlayerLoadDistance(ServerPlayer player) {
+-        if (!this.usePerPlayerLoadDistance) {
++        if (!this.perPlayerLoadViewDistance) {
+             throw new IllegalStateException("Cannot call updatePlayerTicketsByPlayerLoadDistance when not using per-player load distances, call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance instead");
+         }
+         this.getOrCreatePlayerTicketManager(player).updateViewDistanceByPlayerLoadDistance(player);
+@@ -755,7 +755,7 @@ public abstract class DistanceManager {
+         }
+ 
+         private void onSomePlayerTicketTrackerLevelChange(PlayerTicketTracker tracker, long pos, int distance, boolean oldWithinViewDistance, boolean withinViewDistance) {
+-            if (!DistanceManager.this.usePerPlayerLoadDistance) {
++            if (!DistanceManager.this.perPlayerLoadViewDistance) {
+                 this.onCombinedPlayerTicketTrackerLevelChange(pos, distance, oldWithinViewDistance, withinViewDistance);
+                 return;
+             }
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index e8ba448ba1ca7526b780c9cfe6d15318be1798e0..53ab906b59ec361561f47415a59c21b8779c8445 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -172,21 +172,37 @@ public class ServerPlayer extends Player {
+ 
+     private final int getWorldSendViewDistance() { return this.getLevel().getChunkSource().chunkMap.worldViewDistance - 1; } // Paper - placeholder
+ 
++    private final int getWorldLoadViewDistance() {
++        return getWorldSendViewDistance() + 1;
++    }
++
+     private Integer lastProcessedSendViewDistance = null;
+     private Integer lastProcessedLoadViewDistance = null;
+ 
+     public final int getSendViewDistance() {
+-        return getWorldSendViewDistance();
++        int sendViewDistance = getWorldSendViewDistance();
++        if (getLevel().paperConfig.getPerPlayerSendViewDistance()) {
++            if (getLevel().paperConfig.getLimitSendViewDistanceByClientViewDistance()) {
++                sendViewDistance = Math.min(sendViewDistance, getBukkitEntity().getClientViewDistance());
++            }
++        }
++        return sendViewDistance;
+     }
+ 
+     public final int getLoadViewDistance() {
+-        return getSendViewDistance() + 1;
++        int loadViewDistance = getWorldLoadViewDistance();
++        if (getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
++            if (getLevel().paperConfig.getLimitLoadViewDistanceByClientViewDistance()) {
++                loadViewDistance = Math.min(loadViewDistance, getBukkitEntity().getClientViewDistance() + 1);
++            }
++        }
++        return loadViewDistance;
+     }
+ 
+     public void sendViewDistanceMayHaveChanged() {
+ 
+         int newSendViewDistance = this.getSendViewDistance();
+-        if (newSendViewDistance == this.lastProcessedSendViewDistance) return;
++        if (this.lastProcessedSendViewDistance != null && newSendViewDistance == this.lastProcessedSendViewDistance) return;
+         int oldSendViewDistance = (this.lastProcessedSendViewDistance == null) ? newSendViewDistance : this.lastProcessedSendViewDistance;
+ 
+         // Propagate changes
+@@ -199,11 +215,13 @@ public class ServerPlayer extends Player {
+     public void loadViewDistanceMayHaveChanged() {
+ 
+         int newLoadViewDistance = this.getLoadViewDistance();
+-        if (newLoadViewDistance == this.lastProcessedLoadViewDistance) return;
++        if (this.lastProcessedLoadViewDistance != null && newLoadViewDistance == this.lastProcessedLoadViewDistance) return;
+         int oldLoadViewDistance = (this.lastProcessedLoadViewDistance == null) ? newLoadViewDistance : this.lastProcessedLoadViewDistance;
+ 
+         // Propagate changes
+-        this.getLevel().getChunkSource().chunkMap.distanceManager.updatePlayerTicketsByPlayerLoadDistance(this);
++        if (this.getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
++            this.getLevel().getChunkSource().chunkMap.distanceManager.updatePlayerTicketsByPlayerLoadDistance(this);
++        }
+ 
+         this.lastProcessedLoadViewDistance = newLoadViewDistance;
+ 
+@@ -1991,6 +2009,8 @@ public class ServerPlayer extends Player {
+         this.connection.connection.channel.attr(PaperAdventure.LOCALE_ATTRIBUTE).set(this.adventure$locale);
+         // Paper end
+         this.clientViewDistance = packet.viewDistance;
++        sendViewDistanceMayHaveChanged();
++        loadViewDistanceMayHaveChanged();
+         // CraftBukkit end
+         this.chatVisibility = packet.chatVisibility();
+         this.canChatColor = packet.chatColors();

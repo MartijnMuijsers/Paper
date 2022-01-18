@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 17 Jan 2022 17:09:22 +0100
+Subject: [PATCH] Create per-player view distance getters
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 9a52f884916ed35530f6ec63cacbc2578cd06b40..e04b9df6b677d2f0b3e720609fcd8c0f9a3caebf 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -168,7 +168,27 @@ import org.bukkit.inventory.MainHand;
+ 
+ public class ServerPlayer extends Player {
+ 
+-    public final int getViewDistance() { return this.getLevel().getChunkSource().chunkMap.viewDistance - 1; } // Paper - placeholder
++    // Martijn start - per-player view distance
++
++    private final int getWorldSendViewDistance() { return this.getLevel().getChunkSource().chunkMap.viewDistance - 1; } // Paper - placeholder
++
++    public final int getSendViewDistance() {
++        return getSendViewDistance(getWorldSendViewDistance());
++    }
++
++    public final int getSendViewDistance(int assumedWorldSendViewDistance) {
++        return assumedWorldSendViewDistance;
++    }
++
++    public final int getLoadViewDistance() {
++        return getSendViewDistance() + 1;
++    }
++
++    public final int getLoadViewDistance(int assumedWorldLoadViewDistance) {
++        return getSendViewDistance(assumedWorldLoadViewDistance - 1) + 1;
++    }
++
++    // Martijn end - per-player view distance
+ 
+     private static final Logger LOGGER = LogManager.getLogger();
+     public long lastSave = MinecraftServer.currentTick; // Paper
+diff --git a/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java b/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
+index e17a3afa41fd628d2c4a3637ae19418e258a99b8..7a564c63a7a1090c15e0117252d78d5dd19ea214 100644
+--- a/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
++++ b/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
+@@ -647,7 +647,7 @@ public class EnderDragon extends Mob implements Enemy {
+                 // this.world.b(1028, this.getChunkCoordinates(), 0);
+                 //int viewDistance = ((WorldServer) this.world).getServer().getViewDistance() * 16; // Paper - updated to use worlds actual view distance incase we have to uncomment this due to removal of player view distance API
+                 for (net.minecraft.server.level.ServerPlayer player : (List<net.minecraft.server.level.ServerPlayer>) ((ServerLevel)level).players()) {
+-                    final int viewDistance = player.getViewDistance(); // TODO apply view distance api patch
++                    final int viewDistance = player.getSendViewDistance(); // TODO apply view distance api patch // Martijn - per-player send view distance
+                     double deltaX = this.getX() - player.getX();
+                     double deltaZ = this.getZ() - player.getZ();
+                     double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
+diff --git a/src/main/java/net/minecraft/world/entity/boss/wither/WitherBoss.java b/src/main/java/net/minecraft/world/entity/boss/wither/WitherBoss.java
+index ede0ced64d74d71547d1b8bb6853c5aacc1b486a..f48eec6cfd95ee4bb13482c41cc6cb7818ee7066 100644
+--- a/src/main/java/net/minecraft/world/entity/boss/wither/WitherBoss.java
++++ b/src/main/java/net/minecraft/world/entity/boss/wither/WitherBoss.java
+@@ -279,7 +279,7 @@ public class WitherBoss extends Monster implements PowerableMob, RangedAttackMob
+                     // this.world.globalLevelEvent(1023, new BlockPosition(this), 0);
+                     //int viewDistance = ((ServerLevel) this.level).getCraftServer().getViewDistance() * 16; // Paper - updated to use worlds actual view distance incase we have to uncomment this due to removal of player view distance API
+                     for (ServerPlayer player : (List<ServerPlayer>)this.level.players()) { // Paper
+-                        final int viewDistance = player.getViewDistance(); // TODO apply view distance api patch
++                        final int viewDistance = player.getSendViewDistance(); // TODO apply view distance api patch // Martijn - per-player send view distance
+                         double deltaX = this.getX() - player.getX();
+                         double deltaZ = this.getZ() - player.getZ();
+                         double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;

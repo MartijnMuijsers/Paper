@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 17 Jan 2022 12:37:38 +0100
+Subject: [PATCH] Add utility methods for getting the distance between a player
+ and a chunk
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index bb0756831a14b72c1c0d1334daa23c61e2a77535..9a52f884916ed35530f6ec63cacbc2578cd06b40 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -367,6 +367,36 @@ public class ServerPlayer extends Player {
+ 
+     // Martijn end
+ 
++    // Martijn start - getting distance to chunks
++
++    public int getManhattanDistanceToChunk(ChunkPos chunk) {
++        return Math.max(Math.abs(getChunkX() - chunk.x), Math.abs(getChunkZ() - chunk.z));
++    }
++
++    public int getManhattanDistanceToChunk(long chunkKey) {
++        return getManhattanDistanceToChunk(new ChunkPos(chunkKey));
++    };
++
++    public long getSquaredPythagoreanDistanceToChunk(ChunkPos chunk) {
++        long dx = getChunkX() - chunk.x;
++        long dz = getChunkZ() - chunk.z;
++        return dx * dx + dz * dz;
++    }
++
++    public long getSquaredPythagoreanDistanceToChunk(long chunkKey) {
++        return getSquaredPythagoreanDistanceToChunk(new ChunkPos(chunkKey));
++    };
++
++    public double getPythagoreanDistanceToChunk(ChunkPos chunkPos) {
++        return Math.sqrt(getSquaredPythagoreanDistanceToChunk(chunkPos));
++    }
++
++    public double getPythagoreanDistanceToChunk(long chunkKey) {
++        return getPythagoreanDistanceToChunk(new ChunkPos(chunkKey));
++    };
++
++    // Martijn end
++
+     // Yes, this doesn't match Vanilla, but it's the best we can do for now.
+     // If this is an issue, PRs are welcome
+     public final BlockPos getSpawnPoint(ServerLevel worldserver) {
