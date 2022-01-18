@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 18 Jan 2022 03:43:45 +0100
+Subject: [PATCH] Fix null when no players in world
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 235f4811818d8c885c8683b8f19694d27c441875..9cceddf21c8bb271f0bd9f72876b8f5a1baa3ba6 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -457,7 +457,9 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             .map(holder -> new ObjectObjectImmutablePair<>(holder, holder.getWorld().players
+                 .stream()
+                 .map(player -> player.getSquaredPythagoreanDistanceToChunk(holder.getPos().longKey))
+-                .min(Long::compare).orElse(null)))
++                .min(Long::compare)
++                .orElse(0L) // Happens in case there are no players in the world
++            ))
+             .sorted(Comparator.comparingLong(Pair::second))
+             .map(Pair::first);
+     }
