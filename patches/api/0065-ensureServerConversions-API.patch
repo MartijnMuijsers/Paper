@@ -7,12 +7,12 @@ This will take a Bukkit ItemStack and run it through any conversions a server pr
 to ensure it meets latest minecraft expectations.
 
 diff --git a/src/main/java/org/bukkit/inventory/ItemFactory.java b/src/main/java/org/bukkit/inventory/ItemFactory.java
-index b1fbb931148a87f29e8b8796b13851d767cc1d68..71e5ee496a947fbd8e3ec579833b157c76b51833 100644
+index e301d477c4839c27854293998ae235b91c9c46e5..9750c52309b32b4b12ecd277300aa4f9998b8072 100644
 --- a/src/main/java/org/bukkit/inventory/ItemFactory.java
 +++ b/src/main/java/org/bukkit/inventory/ItemFactory.java
-@@ -171,5 +171,17 @@ public interface ItemFactory {
-      */
+@@ -174,5 +174,17 @@ public interface ItemFactory {
      @Nullable
+     @Deprecated
      String getI18NDisplayName(@Nullable ItemStack item);
 +
 +    /**
@@ -29,7 +29,7 @@ index b1fbb931148a87f29e8b8796b13851d767cc1d68..71e5ee496a947fbd8e3ec579833b157c
      // Paper end
  }
 diff --git a/src/main/java/org/bukkit/inventory/ItemStack.java b/src/main/java/org/bukkit/inventory/ItemStack.java
-index de5bcdb7b84acdd5e22500e367df292f35a86e19..e8783b0116f4efd5447a5f6f260506000983ffd2 100644
+index dfd16531926e639231e93cb295de3d802d17413d..2581117ded5d91070bc9416eee53383e915a1564 100644
 --- a/src/main/java/org/bukkit/inventory/ItemStack.java
 +++ b/src/main/java/org/bukkit/inventory/ItemStack.java
 @@ -536,7 +536,7 @@ public class ItemStack implements Cloneable, ConfigurationSerializable, net.kyor

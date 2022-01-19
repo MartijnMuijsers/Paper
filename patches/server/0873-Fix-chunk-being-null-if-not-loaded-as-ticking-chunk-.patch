@@ -35,7 +35,7 @@ index 5576427bb2b76b4fc7c5a9c72f67d8be8e7490d1..3f27b48f0ec29e2d7659a50f05f517ca
      public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
          int i = targetStatus.getIndex();
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 50cc494b6f8c375046a22a72bb87ba51823226a6..2568b240a6066e2fa8909ae5a8da933849639335 100644
+index a2df911fd3c7042d79d6322c6aa62c77071ccb24..442fe814414ecff4b383f9d0d69e722fb0878758 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -2009,6 +2009,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser

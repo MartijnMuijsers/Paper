@@ -5,7 +5,7 @@ Subject: [PATCH] Per-player load distance
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index e7c129c74ab808eb3dd2b4a249564f7804a28d01..7afe0e29cefb6893bb7acf7cbbff5c71e98c2bef 100644
+index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..d9a534998a570592c392ecbbd82e7a16a410bfbb 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -67,6 +67,13 @@ public class PaperWorldConfig {

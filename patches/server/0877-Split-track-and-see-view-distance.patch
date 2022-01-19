@@ -35,7 +35,7 @@ index b2cc321531e2ccb9403fcb2a56a9832cfc03140c..55a95a82d9352182eae7cfa6c39899e2
  
      /**
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index d24fb89e75c3cc871f8a99d96732359176261a72..a44113d4a00da636f9e0c30ddcfee092e5ac4928 100644
+index 62744fbded0d6863b20ed6e12903ce7d60eab8dc..7be82aae456394a3f7f47f874393c0a5470231b4 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -68,29 +68,53 @@ public class PaperWorldConfig {
@@ -1308,7 +1308,7 @@ index e7dda2b49604616182be1cb2ddedc6cf97a33173..5d17f91ba29e4f4499b7642f84b59f6d
  
      /**
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 851bdc4735623467f2134b11725906cbcdba7b36..2da6c3b0fd3c509d7fb0a219390234e450770cdd 100644
+index 56653c02f0f907788141ff0a74d86ba1fdd49333..44a22539de85e5703c3abfb294e005093d053aa4 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -2010,7 +2010,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser

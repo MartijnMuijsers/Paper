@@ -5,7 +5,7 @@ Subject: [PATCH] Add max view distances per world
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index a44113d4a00da636f9e0c30ddcfee092e5ac4928..c0452f04b913c7b90be14e94014d88ba15c404d6 100644
+index 7be82aae456394a3f7f47f874393c0a5470231b4..56e4f24b4defb73e2e28a76704c9ae840e2176c2 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -78,6 +78,23 @@ public class PaperWorldConfig {

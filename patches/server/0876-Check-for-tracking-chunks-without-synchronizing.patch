@@ -43,7 +43,7 @@ index 09d920c21d4845071461bc9e8124ac759861d5ac..e7dda2b49604616182be1cb2ddedc6cf
          return this.isTracking(chunk.level.uuid, chunk.getPos().longKey);
      }
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 2568b240a6066e2fa8909ae5a8da933849639335..851bdc4735623467f2134b11725906cbcdba7b36 100644
+index 442fe814414ecff4b383f9d0d69e722fb0878758..56653c02f0f907788141ff0a74d86ba1fdd49333 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -2010,7 +2010,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
@@ -56,10 +56,10 @@ index 2568b240a6066e2fa8909ae5a8da933849639335..851bdc4735623467f2134b11725906cb
          }
      }
 diff --git a/src/main/java/net/minecraft/world/entity/monster/Zombie.java b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
-index 5c738f31099e1961d60ba9b6c823e2d92fb718c1..6f76b624fd46886e5d4be18f7cb01f820fb8baee 100644
+index 06afe26fdf5499c4e4394a03d3abb63ce9e36c39..38cc5b2b76df42f3b8cdb50edb253d5ffa45d80d 100644
 --- a/src/main/java/net/minecraft/world/entity/monster/Zombie.java
 +++ b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
-@@ -321,7 +321,7 @@ public class Zombie extends Monster {
+@@ -326,7 +326,7 @@ public class Zombie extends Monster {
                  entityliving = (LivingEntity) source.getEntity();
              }
  

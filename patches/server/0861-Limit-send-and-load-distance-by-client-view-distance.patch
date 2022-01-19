@@ -5,7 +5,7 @@ Subject: [PATCH] Limit send and load distance by client view distance
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 7afe0e29cefb6893bb7acf7cbbff5c71e98c2bef..ef8f78fdd6afa327508a4ef51586220a1ba85a5d 100644
+index d9a534998a570592c392ecbbd82e7a16a410bfbb..22724e1744b53a812bfb2688c23d84e3710dbb99 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -14,6 +14,7 @@ import java.util.Map;

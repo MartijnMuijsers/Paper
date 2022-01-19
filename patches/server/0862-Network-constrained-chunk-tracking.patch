@@ -25,7 +25,7 @@ index 61ea1c9881ea30c05580044af9496a65fe95d94e..d8b628268fe3befd03fb9a0180e3a4be
      private static void playerIpAddresses() {
          logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index ef8f78fdd6afa327508a4ef51586220a1ba85a5d..d24fb89e75c3cc871f8a99d96732359176261a72 100644
+index 22724e1744b53a812bfb2688c23d84e3710dbb99..62744fbded0d6863b20ed6e12903ce7d60eab8dc 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -68,47 +68,95 @@ public class PaperWorldConfig {
@@ -1226,7 +1226,7 @@ index 53ab906b59ec361561f47415a59c21b8779c8445..ecc9f6c7b86500ea706c44344dcca8e0
          return this.lastSectionPos;
      }
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 926d0a80cbb55184955ac6720948d2e86683cc57..61da0b9bf5a11ab1524e2c65c15ea432f3c69fb4 100644
+index 5c9310fe424943a7256f6f77c414147384bad0aa..846323d056974e8661ed358b7f1c20548aa4e982 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -144,6 +144,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -1273,7 +1273,7 @@ index 926d0a80cbb55184955ac6720948d2e86683cc57..61da0b9bf5a11ab1524e2c65c15ea432
      @Override
      public void send(Packet<?> packet) {
          this.send(packet, (GenericFutureListener) null);
-@@ -3099,18 +3111,56 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3101,18 +3113,56 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      @Override
      public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
