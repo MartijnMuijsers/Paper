@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 19 Jan 2022 02:53:21 +0100
+Subject: [PATCH] Move network-constrained chunk tracking to settings in Paper
+ config
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index a2e70386c6dcc2e4cd00472dcd8ba653eebdc3e9..0693682d586f40f160709bd1b85d6a9ec41d5ee9 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -95,7 +95,7 @@ public class PaperConfig {
+ 
+     public static int initialMaxNumberOfChunkPacketsInTransit = 1;
+     private static void initialMaxNumberOfChunkPacketsInTransit() {
+-        initialMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.initial", initialMaxNumberOfChunkPacketsInTransit);
++        initialMaxNumberOfChunkPacketsInTransit = getInt("settings.network-constrained-chunk-tracking.max-chunk-packets-in-transit.initial", initialMaxNumberOfChunkPacketsInTransit);
+     }
+ 
+     // Martijn end - network-constrained chunk tracking
