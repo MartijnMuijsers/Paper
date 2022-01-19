@@ -1,0 +1,78 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 19 Jan 2022 19:42:05 +0100
+Subject: [PATCH] Add configurable timeout in switching property when using
+ survival debug stick
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index 0693682d586f40f160709bd1b85d6a9ec41d5ee9..b2cc321531e2ccb9403fcb2a56a9832cfc03140c 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -91,6 +91,18 @@ public class PaperConfig {
+         }
+     }
+ 
++    // Martijn start - survival debug stick
++
++    /**
++     * In milliseconds
++     */
++    public static int survivallikeDebugStickSwitchPropertyTimeout = 300;
++    private static void survivallikeDebugStickSwitchPropertyTimeout() {
++        survivallikeDebugStickSwitchPropertyTimeout = getInt("settings.survivallike-debug-stick.switch-property-timeout", survivallikeDebugStickSwitchPropertyTimeout);
++    }
++
++    // Martijn end - survival debug stick
++
+     // Martijn start - network-constrained chunk tracking
+ 
+     public static int initialMaxNumberOfChunkPacketsInTransit = 1;
+diff --git a/src/main/java/net/minecraft/world/item/DebugStickItem.java b/src/main/java/net/minecraft/world/item/DebugStickItem.java
+index 12b0ec516f028bd6d608d2a6368159144083fe84..e853d2b9c0bb4440fe66dc58a0bc4d94f5f2abba 100644
+--- a/src/main/java/net/minecraft/world/item/DebugStickItem.java
++++ b/src/main/java/net/minecraft/world/item/DebugStickItem.java
+@@ -9,8 +9,13 @@ import java.util.HashSet;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
++import java.util.UUID;
+ import java.util.function.Predicate;
+ import javax.annotation.Nullable;
++
++import com.destroystokyo.paper.PaperConfig;
++import it.unimi.dsi.fastutil.objects.Object2LongMap;
++import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+ import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+@@ -79,6 +84,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+ import net.minecraft.world.level.block.state.properties.Property;
+ import net.minecraft.world.level.material.Material;
++import org.bukkit.GameMode;
+ import org.bukkit.block.DaylightDetector;
+ import org.bukkit.block.data.type.Fence;
+ 
+@@ -119,6 +125,8 @@ public class DebugStickItem extends Item {
+     }
+ 
+     // Martijn start - survival debug stick
++    private final Object2LongMap<UUID> lastSwitchPropertyTimestamp = new Object2LongOpenHashMap<>();
++
+     private boolean handleInteraction(Player player, BlockState state, LevelAccessor world, BlockPos pos, boolean update, ItemStack stack) {
+         boolean canUseDebugStickUnlimited = player.canUseGameMasterBlocks()
+             || (player.getAbilities().instabuild && player.getBukkitEntity().hasPermission("minecraft.debugstick")) // Spigot
+@@ -163,6 +171,12 @@ public class DebugStickItem extends Item {
+                     world.setBlock(pos, iblockdata1, 18);
+                     DebugStickItem.message(player, new TranslatableComponent(this.getDescriptionId() + ".update", new Object[]{iblockstate.getName(), DebugStickItem.getNameHelper(iblockdata1, iblockstate)}));
+                 } else {
++                    if (player.getBukkitEntity().getGameMode() == GameMode.SURVIVAL) {
++                        if (System.currentTimeMillis() <= lastSwitchPropertyTimestamp.getOrDefault(player.getUUID(), 0L) + PaperConfig.survivallikeDebugStickSwitchPropertyTimeout) {
++                            return true;
++                        }
++                        lastSwitchPropertyTimestamp.put(player.getUUID(), System.currentTimeMillis());
++                    }
+                     if (iblockstate == null) {
+                         iblockstate = (Property) changeableProperties.iterator().next();
+                     } else {

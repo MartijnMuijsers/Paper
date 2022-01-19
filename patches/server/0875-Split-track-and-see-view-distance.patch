@@ -1,0 +1,1382 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 19 Jan 2022 22:36:05 +0100
+Subject: [PATCH] Split track and see view distance
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index b2cc321531e2ccb9403fcb2a56a9832cfc03140c..55a95a82d9352182eae7cfa6c39899e25fdbf0ad 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -112,6 +112,25 @@ public class PaperConfig {
+ 
+     // Martijn end - network-constrained chunk tracking
+ 
++    // Martijn start - per-player track and see view distance
++
++    public static boolean sendChunkRefreshToPlayersWhoAreSeeingButNotTracking = true;
++    private static void sendChunkRefreshToPlayersWhoAreSeeingButNotTracking() {
++        sendChunkRefreshToPlayersWhoAreSeeingButNotTracking = getBoolean("settings.view-distances.track-and-see-view-distance.if-can-see-but-not-tracking.send-chunk-refresh", sendChunkRefreshToPlayersWhoAreSeeingButNotTracking);
++    }
++
++    public static boolean sendWitherSpawnSoundToPlayersWhoAreSeeingButNotTracking = true;
++    private static void sendWitherSpawnSoundToPlayersWhoAreSeeingButNotTracking() {
++        sendWitherSpawnSoundToPlayersWhoAreSeeingButNotTracking = getBoolean("settings.view-distances.track-and-see-view-distance.if-can-see-but-not-tracking.send-wither-spawn-sound", sendWitherSpawnSoundToPlayersWhoAreSeeingButNotTracking);
++    }
++
++    public static boolean sendEnderDragonSpawnSoundToPlayersWhoAreSeeingButNotTracking = true;
++    private static void sendEnderDragonSpawnSoundToPlayersWhoAreSeeingButNotTracking() {
++        sendEnderDragonSpawnSoundToPlayersWhoAreSeeingButNotTracking = getBoolean("settings.view-distances.track-and-see-view-distance.if-can-see-but-not-tracking.send-ender-dragon-spawn-sound", sendEnderDragonSpawnSoundToPlayersWhoAreSeeingButNotTracking);
++    }
++
++    // Martijn end - per-player track and see view distance
++
+     // Martijn start - configurable keepalive
+ 
+     /**
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index d24fb89e75c3cc871f8a99d96732359176261a72..a44113d4a00da636f9e0c30ddcfee092e5ac4928 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -68,29 +68,53 @@ public class PaperWorldConfig {
+         }
+     }
+ 
+-    // Martijn start - per-player send view distance
++    // Martijn start - per-player track view distance
+ 
+-    private boolean perPlayerSendViewDistance = false;
+-    private void perPlayerSendViewDistance() {
+-        this.perPlayerSendViewDistance = getBoolean("view-distances.send-view-distance.per-player", this.perPlayerSendViewDistance);
++    private boolean perPlayerTrackViewDistance = false;
++    private void perPlayerTrackViewDistance() {
++        this.perPlayerTrackViewDistance = getBoolean("view-distances.track-view-distance.per-player", this.perPlayerTrackViewDistance);
+     }
+-    public boolean getPerPlayerSendViewDistance() {
+-        return this.perPlayerSendViewDistance;
++    public boolean getPerPlayerTrackViewDistance() {
++        return this.perPlayerTrackViewDistance;
+     }
+ 
+-    private boolean limitSendViewDistanceByClientViewDistance = false;
+-    private void limitSendViewDistanceByClientViewDistance() {
+-        setLimitSendViewDistanceByClientViewDistance(getBoolean("view-distances.send-view-distance.limit-by-client-view-distance", this.limitSendViewDistanceByClientViewDistance));
++    private boolean limitTrackViewDistanceByClientViewDistance = false;
++    private void limitTrackViewDistanceByClientViewDistance() {
++        setLimitTrackViewDistanceByClientViewDistance(getBoolean("view-distances.track-view-distance.limit-by-client-view-distance", this.limitTrackViewDistanceByClientViewDistance));
+     }
+-    public boolean getLimitSendViewDistanceByClientViewDistance() {
+-        return this.limitSendViewDistanceByClientViewDistance;
++    public boolean getLimitTrackViewDistanceByClientViewDistance() {
++        return this.limitTrackViewDistanceByClientViewDistance;
+     }
+-    public void setLimitSendViewDistanceByClientViewDistance(boolean limitSendViewDistanceByClientViewDistance) {
+-        this.limitSendViewDistanceByClientViewDistance = limitSendViewDistanceByClientViewDistance;
+-        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().sendViewDistanceMayHaveChanged());
++    public void setLimitTrackViewDistanceByClientViewDistance(boolean limitTrackViewDistanceByClientViewDistance) {
++        this.limitTrackViewDistanceByClientViewDistance = limitTrackViewDistanceByClientViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().trackViewDistanceMayHaveChanged());
+     }
+ 
+-    // Martijn end - per-player send view distance
++    // Martijn end - per-player track view distance
++
++    // Martijn start - per-player see view distance
++
++    private boolean perPlayerSeeViewDistance = false;
++    private void perPlayerSeeViewDistance() {
++        this.perPlayerSeeViewDistance = getBoolean("view-distances.see-view-distance.per-player", this.perPlayerSeeViewDistance);
++    }
++    public boolean getPerPlayerSeeViewDistance() {
++        return this.perPlayerSeeViewDistance;
++    }
++
++    private boolean limitSeeViewDistanceByClientViewDistance = false;
++    private void limitSeeViewDistanceByClientViewDistance() {
++        setLimitSeeViewDistanceByClientViewDistance(getBoolean("view-distances.see-view-distance.limit-by-client-view-distance", this.limitSeeViewDistanceByClientViewDistance));
++    }
++    public boolean getLimitSeeViewDistanceByClientViewDistance() {
++        return this.limitSeeViewDistanceByClientViewDistance;
++    }
++    public void setLimitSeeViewDistanceByClientViewDistance(boolean limitSeeViewDistanceByClientViewDistance) {
++        this.limitSeeViewDistanceByClientViewDistance = limitSeeViewDistanceByClientViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().seeViewDistanceMayHaveChanged());
++    }
++
++    // Martijn end - per-player see view distance
+ 
+     // Martijn start - per-player load view distance
+ 
+@@ -102,6 +126,18 @@ public class PaperWorldConfig {
+         return this.perPlayerLoadViewDistance;
+     }
+ 
++    private boolean limitLoadViewDistanceBySeeViewDistance = false;
++    private void limitLoadViewDistanceBySeeViewDistance() {
++        setLimitLoadViewDistanceBySeeViewDistance(getBoolean("view-distances.load-view-distance.limit-by-see-distance", this.limitLoadViewDistanceBySeeViewDistance));
++    }
++    public boolean getLimitLoadViewDistanceBySeeViewDistance() {
++        return this.limitLoadViewDistanceBySeeViewDistance;
++    }
++    public void setLimitLoadViewDistanceBySeeViewDistance(boolean limitLoadViewDistanceBySeeViewDistance) {
++        this.limitLoadViewDistanceBySeeViewDistance = limitLoadViewDistanceBySeeViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().loadViewDistanceMayHaveChanged());
++    }
++
+     private boolean limitLoadViewDistanceByClientViewDistance = false;
+     private void limitLoadViewDistanceByClientViewDistance() {
+         setLimitLoadViewDistanceByClientViewDistance(getBoolean("view-distances.load-view-distance.limit-by-client-view-distance", this.limitLoadViewDistanceByClientViewDistance));
+@@ -118,19 +154,19 @@ public class PaperWorldConfig {
+ 
+     // Martijn start - sort chunks by distance
+ 
+-    public boolean trackChunksInSpiralOrderWhenChangingWorld = false;
+-    private void trackChunksInSpiralOrderWhenChangingWorld() {
+-        this.trackChunksInSpiralOrderWhenChangingWorld = getBoolean("view-distances.send-view-distance.track-chunks-in-spiral-order-when-changing-world", this.trackChunksInSpiralOrderWhenChangingWorld);
++    public boolean trackAndSeeChunksInSpiralOrderWhenChangingWorld = false;
++    private void trackAndSeeChunksInSpiralOrderWhenChangingWorld() {
++        this.trackAndSeeChunksInSpiralOrderWhenChangingWorld = getBoolean("view-distances.track-and-see-view-distance.track-and-see-chunks-in-spiral-order-when-changing-world", this.trackAndSeeChunksInSpiralOrderWhenChangingWorld);
+     }
+ 
+-    public boolean trackChunksInOrderOfDistanceWhenChangingViewDistance = false;
+-    private void trackChunksInOrderOfDistanceWhenChangingViewDistance() {
+-        this.trackChunksInOrderOfDistanceWhenChangingViewDistance = getBoolean("view-distances.send-view-distance.track-chunks-in-order-of-distance-when-changing-view-distance", this.trackChunksInOrderOfDistanceWhenChangingViewDistance);
++    public boolean trackAndSeeChunksInOrderOfDistanceWhenChangingViewDistance = false;
++    private void trackAndSeeChunksInOrderOfDistanceWhenChangingViewDistance() {
++        this.trackAndSeeChunksInOrderOfDistanceWhenChangingViewDistance = getBoolean("view-distances.track-and-see-view-distance.track-and-see-chunks-in-order-of-distance-when-changing-view-distance", this.trackAndSeeChunksInOrderOfDistanceWhenChangingViewDistance);
+     }
+ 
+-    public boolean trackChunksInOrderOfDistanceWhenMoving = false;
+-    private void trackChunksInOrderOfDistanceWhenMoving() {
+-        this.trackChunksInOrderOfDistanceWhenMoving = getBoolean("view-distances.send-view-distance.track-chunks-in-order-of-distance-when-moving", this.trackChunksInOrderOfDistanceWhenMoving);
++    public boolean trackAndSeeChunksInOrderOfDistanceWhenMoving = false;
++    private void trackAndSeeChunksInOrderOfDistanceWhenMoving() {
++        this.trackAndSeeChunksInOrderOfDistanceWhenMoving = getBoolean("view-distances.track-and-see-view-distance.track-and-see-chunks-in-order-of-distance-when-moving", this.trackAndSeeChunksInOrderOfDistanceWhenMoving);
+     }
+     public boolean processChunksInOrderOfDistanceAfterLoad = false;
+     private void processChunksInOrderOfDistanceAfterLoad() {
+@@ -151,9 +187,9 @@ public class PaperWorldConfig {
+         this.maxMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.max", this.maxMaxNumberOfChunkPacketsInTransit);
+     }
+ 
+-    public int maxChunksToNewlyTrackPerTick = 7;
+-    private void maxChunksToNewlyTrackPerTick() {
+-        this.maxChunksToNewlyTrackPerTick = getInt("network-constrained-chunk-tracking.max-to-newly-track-per-tick", this.maxChunksToNewlyTrackPerTick);
++    public int maxChunksToNewlyTrackOrSeePerTick = 7;
++    private void maxChunksToNewlyTrackOrSeePerTick() {
++        this.maxChunksToNewlyTrackOrSeePerTick = getInt("network-constrained-chunk-tracking.max-to-newly-track-or-see-per-tick", this.maxChunksToNewlyTrackOrSeePerTick);
+     }
+ 
+     // Martijn end - network-constrained chunk tracking
+diff --git a/src/main/java/net/minecraft/server/level/ChunkHolder.java b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+index 3f27b48f0ec29e2d7659a50f05f517ca130ae270..edca32e3a8f2a14d076a558e77bc73119eee82a4 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkHolder.java
++++ b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+@@ -346,7 +346,7 @@ public class ChunkHolder {
+     public void broadcast(Packet<?> packet, boolean onlyOnWatchDistanceEdge) {
+         LevelChunk chunk = this.getTickingChunk(); // Will be null if not present
+         if (chunk == null) return;
+-        this.playerProvider.getPlayersNearChunkForSending(this.pos, onlyOnWatchDistanceEdge).forEach((entityplayer) -> { // Martijn - per-player send distance
++        this.playerProvider.getPlayersNearChunkForSending(this.pos, onlyOnWatchDistanceEdge, true).forEach((entityplayer) -> { // Martijn - per-player send distance
+             entityplayer.connection.sendIfTracking(chunk, packet);
+         });
+     }
+@@ -760,7 +760,7 @@ public class ChunkHolder {
+ 
+     public interface PlayerProvider {
+ 
+-        List<ServerPlayer> getPlayersNearChunkForSending(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge); // Martijn - per-player send distance
++        List<ServerPlayer> getPlayersNearChunkForSending(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, boolean concernsTracking); // Martijn - per-player track or see view distance
+     }
+ 
+     private static final class ChunkSaveDebug {
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 9cceddf21c8bb271f0bd9f72876b8f5a1baa3ba6..09d9ab3c0bb4cab4c283f08e9c4de5a3553bab0f 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -5,10 +5,7 @@ import com.destroystokyo.paper.PaperWorldConfig; // Paper
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.collect.ImmutableList.Builder;
+ import com.google.common.collect.Iterables;
+-import com.google.common.collect.ComparisonChain; // Paper
+ import com.google.common.collect.Lists;
+-import com.google.common.collect.Queues;
+-import com.google.common.collect.Sets;
+ import com.google.gson.JsonElement;
+ import com.mojang.datafixers.DataFixer;
+ import com.mojang.datafixers.util.Either;
+@@ -32,13 +29,9 @@ import java.io.IOException;
+ import java.io.Writer;
+ import java.nio.file.Path;
+ import java.util.ArrayList;
+-import java.util.BitSet;
+ import java.util.Comparator;
+-import java.util.HashMap; // Paper
+-import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.List;
+-import java.util.Map; // Paper
+ import java.util.Objects;
+ import java.util.Optional;
+ import java.util.Queue;
+@@ -71,8 +64,6 @@ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetChunkCacheCenterPacket;
+-import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
+-import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
+ import net.minecraft.network.protocol.game.DebugPackets;
+ import net.minecraft.server.MCUtil;
+ import net.minecraft.server.MinecraftServer;
+@@ -108,14 +99,11 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
+ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureManager;
+ import net.minecraft.world.level.storage.DimensionDataStorage;
+ import net.minecraft.world.level.storage.LevelStorageSource;
+-import net.minecraft.world.phys.Vec3;
+ import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet; // Paper
+ import org.apache.commons.lang3.mutable.MutableBoolean;
+ import org.apache.commons.lang3.mutable.MutableObject;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+-import org.apache.logging.log4j.util.PropertySource;
+-import org.bukkit.entity.Player;
+ // CraftBukkit end
+ import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet; // Paper
+ 
+@@ -250,7 +238,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             com.destroystokyo.paper.util.misc.PlayerAreaMap trackMap = this.playerEntityTrackerTrackMaps[i];
+             int trackRange = this.entityTrackerTrackRanges[i];
+ 
+-            trackMap.add(player, chunkX, chunkZ, Math.min(trackRange, player.getSendViewDistance())); // Martijn - per-player send distance
++            trackMap.add(player, chunkX, chunkZ, Math.min(trackRange, player.getTrackViewDistance())); // Martijn - per-player track view distance
+         }
+         // Paper end - use distance map to optimise entity tracker
+         // Note: players need to be explicitly added to distance maps before they can be updated
+@@ -291,7 +279,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             com.destroystokyo.paper.util.misc.PlayerAreaMap trackMap = this.playerEntityTrackerTrackMaps[i];
+             int trackRange = this.entityTrackerTrackRanges[i];
+ 
+-            trackMap.update(player, chunkX, chunkZ, Math.min(trackRange, player.getSendViewDistance())); // Martijn - per-player send distance
++            trackMap.update(player, chunkX, chunkZ, Math.min(trackRange, player.getTrackViewDistance())); // Martijn - per-player track view distance
+         }
+         // Paper end - use distance map to optimise entity tracker
+         this.playerChunkTickRangeMap.update(player, chunkX, chunkZ, DistanceManager.MOB_SPAWN_RANGE); // Paper - optimise ChunkMap#anyPlayerCloseEnoughForSpawning
+@@ -1465,9 +1453,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 this.tickingGenerated.getAndIncrement();
+                 MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
+ 
+-                this.getPlayersNearChunkForSending(chunkcoordintpair, false).forEach((entityplayer) -> { // Martijn - per-player send distance
+-                    entityplayer.planToTrackChunk(/*mutableobject, */chunk); // Martijn - network-constrained chunk tracking
+-                });
++                for (boolean track : new boolean[] {true, false}) {
++                    this.getPlayersNearChunkForSending(chunkcoordintpair, false, track).forEach((entityplayer) -> { // Martijn - per-player send distance
++                        entityplayer.planToTrackOrSeeChunk(/*mutableobject, */chunk, track); // Martijn - network-constrained chunk tracking
++                    });
++                }
+             });
+         }, (runnable) -> {
+             this.mainThreadMailbox.tell(ChunkTaskPriorityQueueSorter.message(holder, runnable));
+@@ -1622,12 +1612,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         int newWorldViewDistance = Mth.clamp(watchDistance + 1, (int) 3, (int) 33);
+ 
+         if (newWorldViewDistance != this.worldViewDistance) {
+-            int oldWorldViewDistance = this.worldViewDistance;
+-
+             this.worldViewDistance = newWorldViewDistance;
+             if (this.distanceManager.perPlayerLoadViewDistance) {
+                 this.level.players.forEach(player -> {
+-                    player.sendViewDistanceMayHaveChanged();
++                    player.trackViewDistanceMayHaveChanged();
++                    player.seeViewDistanceMayHaveChanged();
+                     player.loadViewDistanceMayHaveChanged();
+                 });
+             } else {
+@@ -1638,14 +1627,22 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+     }
+ 
+-    // Martijn start - per-player send distance
+-    public void updateChunkTrackingDueToPlayerSendViewDistanceChange(ServerPlayer player, int oldSendViewDistance, int newSendViewDistance) {
++    // Martijn start - per-player track and see view distance
++    public void updateChunkTrackingDueToPlayerTrackViewDistanceChange(ServerPlayer player, int oldTrackViewDistance, int newTrackViewDistance) {
++        updateChunkTrackingOrSeeingDueToPlayerTrackOrSeeViewDistanceChange(player, oldTrackViewDistance, newTrackViewDistance, true);
++    }
++
++    public void updateChunkSeeingDueToPlayerSeeViewDistanceChange(ServerPlayer player, int oldSeeViewDistance, int newSeeViewDistance) {
++        updateChunkTrackingOrSeeingDueToPlayerTrackOrSeeViewDistanceChange(player, oldSeeViewDistance, newSeeViewDistance, false);
++    }
++
++    private void updateChunkTrackingOrSeeingDueToPlayerTrackOrSeeViewDistanceChange(ServerPlayer player, int oldSendViewDistance, int newSendViewDistance, boolean concernsTracking) {
+         if (this.playerMap.ignoredOrUnknown(player)) return;
+ 
+         // Martijn - sort chunks by distance
+         List<ChunkHolder> objects = this.updatingChunks.getVisibleValuesCopy(); // Paper
+         Iterator objectiterator;
+-        if (level.paperConfig.trackChunksInOrderOfDistanceWhenChangingViewDistance) {
++        if (level.paperConfig.trackAndSeeChunksInOrderOfDistanceWhenChangingViewDistance) {
+             objectiterator = player.getChunkHoldersSortedBySquaredPythagoreanDistance(objects.stream()).iterator();
+         } else {
+             objectiterator = objects.iterator();
+@@ -1657,18 +1654,18 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             ChunkPos chunkcoordintpair = playerchunk.getPos();
+             MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
+ 
+-            if (this.isPlayerIncludedInPlayersNearChunkForSending(player, chunkcoordintpair, false)) {
++            if (this.isPlayerIncludedInPlayersNearChunkForSending(player, chunkcoordintpair, false, concernsTracking)) {
+                 SectionPos sectionposition = player.getLastSectionPos();
+                 boolean flag = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), oldSendViewDistance);
+                 boolean flag1 = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), newSendViewDistance);
+ 
+-                this.updateChunkTracking(player, chunkcoordintpair, mutableobject, flag, flag1);
++                this.updateChunkTrackingOrSeeing(player, chunkcoordintpair, mutableobject, flag, flag1, concernsTracking);
+             }
+         }
+     }
+-    // Martijn end - per-player send distance
++    // Martijn end - per-player track and see view distance
+ 
+-    protected void updateChunkTracking(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject, boolean oldWithinViewDistance, boolean newWithinViewDistance) { // Paper - Anti-Xray - Bypass
++    protected void updateChunkTrackingOrSeeing(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject, boolean oldWithinViewDistance, boolean newWithinViewDistance, boolean concernsTracking) { // Paper - Anti-Xray - Bypass // Martijn - per-player track and see view distance
+         if (player.level == this.level) {
+             if (newWithinViewDistance && !oldWithinViewDistance) {
+                 ChunkHolder playerchunk = this.getVisibleChunkIfPresent(pos.toLong());
+@@ -1677,7 +1674,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                     LevelChunk chunk = playerchunk.getTickingChunk();
+ 
+                     if (chunk != null) {
+-                        player.planToTrackChunk(/*mutableobject, */chunk); // Martijn - network-constrained chunk tracking
++                        player.planToTrackOrSeeChunk(/*mutableobject, */chunk, concernsTracking); // Martijn - network-constrained chunk tracking, per-player track and see view distance
+                     }
+ 
+                     DebugPackets.sendPoiPacketsForChunk(this.level, pos);
+@@ -1685,7 +1682,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+ 
+             if (!newWithinViewDistance && oldWithinViewDistance) {
+-                player.untrackChunk(pos);
++                player.untrackOrUnseeChunk(pos, concernsTracking);
+             }
+ 
+         }
+@@ -1937,26 +1934,33 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+             this.removePlayerFromDistanceMaps(player); // Paper - distance maps
+         }
+-        // Martijn - sort chunks by distance
+-        int viewDistance = player.getSendViewDistance() + 2; // Martijn end - per-player send distance
+-        BiConsumer<Integer, Integer> chunkCoordinatesConsumer = (k, l) -> {
+-            if (ChunkMap.isChunkInRange(k, l, i, j, viewDistance)) {
+ 
+-                ChunkPos chunkcoordintpair = new ChunkPos(k, l);
++        // Martijn start - sort chunks by distance, per-player track and see view distance
+ 
+-                this.updateChunkTracking(player, chunkcoordintpair, new MutableObject(), !added, added);
+-            }
+-        };
+-        if (level.paperConfig.trackChunksInSpiralOrderWhenChangingWorld) {
+-            ChunkMap.evaluateSpiral(i, j, viewDistance + 1, chunkCoordinatesConsumer);
+-        } else {
+-            for (int k = i - viewDistance - 1; k <= i + viewDistance + 1; ++k) {
+-                for (int l = j - viewDistance - 1; l <= j + viewDistance + 1; ++l) {
+-                    chunkCoordinatesConsumer.accept(k, l);
++        for (boolean track : new boolean[] {true, false}) {
++
++            int viewDistance = (track ? player.getTrackViewDistance() : player.getSeeViewDistance()) + 2;
++            BiConsumer<Integer, Integer> chunkCoordinatesConsumer = (k, l) -> {
++                if (ChunkMap.isChunkInRange(k, l, i, j, viewDistance)) {
++
++                    ChunkPos chunkcoordintpair = new ChunkPos(k, l);
++
++                    this.updateChunkTrackingOrSeeing(player, chunkcoordintpair, new MutableObject(), !added, added, track);
++                }
++            };
++            if (level.paperConfig.trackAndSeeChunksInSpiralOrderWhenChangingWorld) {
++                ChunkMap.evaluateSpiral(i, j, viewDistance + 1, chunkCoordinatesConsumer);
++            } else {
++                for (int k = i - viewDistance - 1; k <= i + viewDistance + 1; ++k) {
++                    for (int l = j - viewDistance - 1; l <= j + viewDistance + 1; ++l) {
++                        chunkCoordinatesConsumer.accept(k, l);
++                    }
+                 }
+             }
++
+         }
+-        // Martijn - sort chunks by distance
++
++        // Martijn end - sort chunks by distance, per-player track and see view distance
+ 
+ 
+     }
+@@ -2010,82 +2014,77 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         int k1;
+         int l1;
+ 
+-        // Martijn start - per-player send distance
+-        int viewDistance = player.getSendViewDistance() + 1;
+-        if (Math.abs(i1 - i) <= viewDistance * 2 && Math.abs(j1 - j) <= viewDistance * 2) {
+-            k1 = Math.min(i, i1) - viewDistance - 1;
+-            l1 = Math.min(j, j1) - viewDistance - 1;
+-            int i2 = Math.max(i, i1) + viewDistance + 1;
+-            int j2 = Math.max(j, j1) + viewDistance + 1;
+-            // Martijn end - per-player send distance
+-
+-            // Martijn start - sort chunks by distance
+-            BiConsumer<Integer, Integer> chunkCoordinatesConsumer = (k2, l2) -> {
+-                // Martijn start - per-player send distance
+-                boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, viewDistance);
+-                boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, viewDistance);
+-                // Martijn end - per-player send distance
+-
+-                this.updateChunkTracking(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4);
+-            };
+-
+-            List<IntIntPair> coordinates = level.paperConfig.trackChunksInOrderOfDistanceWhenMoving ? new ArrayList<>((i2 - k1 + 1) * (j2 - l1 + 1) + 1) : null;
+-            for (int k2 = k1; k2 <= i2; ++k2) {
+-                for (int l2 = l1; l2 <= j2; ++l2) {
+-                    if (level.paperConfig.trackChunksInOrderOfDistanceWhenMoving) {
+-                        coordinates.add(new IntIntImmutablePair(k2, l2));
+-                    } else {
+-                        chunkCoordinatesConsumer.accept(k2, l2);
++        // Martijn start - per-player track and see view distance
++        for (boolean track : new boolean[] {true, false}) {
++
++            int viewDistance = (track ? player.getTrackViewDistance() : player.getSeeViewDistance()) + 1;
++            if (Math.abs(i1 - i) <= viewDistance * 2 && Math.abs(j1 - j) <= viewDistance * 2) {
++                k1 = Math.min(i, i1) - viewDistance - 1;
++                l1 = Math.min(j, j1) - viewDistance - 1;
++                int i2 = Math.max(i, i1) + viewDistance + 1;
++                int j2 = Math.max(j, j1) + viewDistance + 1;
++
++                // Martijn start - sort chunks by distance
++                BiConsumer<Integer, Integer> chunkCoordinatesConsumer = (k2, l2) -> {
++                    boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, viewDistance);
++                    boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, viewDistance);
++
++                    this.updateChunkTrackingOrSeeing(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4, track);
++                };
++
++                List<IntIntPair> coordinates = level.paperConfig.trackAndSeeChunksInOrderOfDistanceWhenMoving ? new ArrayList<>((i2 - k1 + 1) * (j2 - l1 + 1) + 1) : null;
++                for (int k2 = k1; k2 <= i2; ++k2) {
++                    for (int l2 = l1; l2 <= j2; ++l2) {
++                        if (level.paperConfig.trackAndSeeChunksInOrderOfDistanceWhenMoving) {
++                            coordinates.add(new IntIntImmutablePair(k2, l2));
++                        } else {
++                            chunkCoordinatesConsumer.accept(k2, l2);
++                        }
+                     }
+                 }
+-            }
+ 
+-            if (level.paperConfig.trackChunksInOrderOfDistanceWhenMoving) {
+-                player.getChunkCoordinatesSortedBySquaredPythagoreanDistance(coordinates.stream()).forEach(pair -> chunkCoordinatesConsumer.accept(pair.first(), pair.second()));
+-            }
++                if (level.paperConfig.trackAndSeeChunksInOrderOfDistanceWhenMoving) {
++                    player.getChunkCoordinatesSortedBySquaredPythagoreanDistance(coordinates.stream()).forEach(pair -> chunkCoordinatesConsumer.accept(pair.first(), pair.second()));
++                }
+ 
+-            // Martijn end - sort chunks by distance
++                // Martijn end - sort chunks by distance
+ 
+-        } else {
+-            boolean flag5;
+-            boolean flag6;
+-
+-            // Martijn start - track new chunks before untracking old chunks
+-
+-            // Martijn start - per-player send distance
+-            for (k1 = i - viewDistance - 1; k1 <= i + viewDistance + 1; ++k1) {
+-                for (l1 = j - viewDistance - 1; l1 <= j + viewDistance + 1; ++l1) {
+-                    if (ChunkMap.isChunkInRange(k1, l1, i, j, viewDistance)) {
+-                        // Martijn end - per-player send distance
+-                        flag5 = false;
+-                        flag6 = true;
+-                        this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), false, true);
++            } else {
++                boolean flag5;
++                boolean flag6;
++
++                // Martijn start - track new chunks before untracking old chunks
++
++                for (k1 = i - viewDistance - 1; k1 <= i + viewDistance + 1; ++k1) {
++                    for (l1 = j - viewDistance - 1; l1 <= j + viewDistance + 1; ++l1) {
++                        if (ChunkMap.isChunkInRange(k1, l1, i, j, viewDistance)) {
++                            this.updateChunkTrackingOrSeeing(player, new ChunkPos(k1, l1), new MutableObject(), false, true, track);
++                        }
+                     }
+                 }
+-            }
+ 
+-            // Martijn start - per-player send distance
+-            for (k1 = i1 - viewDistance - 1; k1 <= i1 + viewDistance + 1; ++k1) {
+-                for (l1 = j1 - viewDistance - 1; l1 <= j1 + viewDistance + 1; ++l1) {
+-                    if (ChunkMap.isChunkInRange(k1, l1, i1, j1, viewDistance)) {
+-                        // Martijn end - per-player send distance
+-                        flag5 = true;
+-                        flag6 = false;
+-                        this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), true, false);
++                for (k1 = i1 - viewDistance - 1; k1 <= i1 + viewDistance + 1; ++k1) {
++                    for (l1 = j1 - viewDistance - 1; l1 <= j1 + viewDistance + 1; ++l1) {
++                        if (ChunkMap.isChunkInRange(k1, l1, i1, j1, viewDistance)) {
++                            this.updateChunkTrackingOrSeeing(player, new ChunkPos(k1, l1), new MutableObject(), true, false, track);
++                        }
+                     }
+                 }
+-            }
+ 
+-            // Martijn end - track new chunks before untracking old chunks
++                // Martijn end - track new chunks before untracking old chunks
++
++            }
+ 
+         }
+ 
++        // Martijn end - per-player track and see view distance
++
+         this.updateMaps(player); // Paper - distance maps
+ 
+     }
+ 
+     @Override
+-    public List<ServerPlayer> getPlayersNearChunkForSending(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge) { // Martijn - per-player send distance
++    public List<ServerPlayer> getPlayersNearChunkForSending(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, boolean concernsTracking) { // Martijn - per-player track and see view distance
+         Set<ServerPlayer> set = this.playerMap.getPlayers(chunkPos.toLong());
+         Builder<ServerPlayer> builder = ImmutableList.builder();
+         Iterator iterator = set.iterator();
+@@ -2093,7 +2092,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         while (iterator.hasNext()) {
+             ServerPlayer entityplayer = (ServerPlayer) iterator.next();
+ 
+-            if (isPlayerIncludedInPlayersNearChunkForSending(entityplayer, chunkPos, onlyOnWatchDistanceEdge)) { // Martijn - per-player send distance
++            if (isPlayerIncludedInPlayersNearChunkForSending(entityplayer, chunkPos, onlyOnWatchDistanceEdge, concernsTracking)) { // Martijn - per-player track and see view distance
+                 builder.add(entityplayer);
+             }
+         }
+@@ -2101,13 +2100,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         return builder.build();
+     }
+ 
+-    // Martijn start - per-player send distance
+-    public boolean isPlayerIncludedInPlayersNearChunkForSending(ServerPlayer player, ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge) {
++    // Martijn start - per-player track and see view distance
++    public boolean isPlayerIncludedInPlayersNearChunkForSending(ServerPlayer player, ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, boolean concernsTracking) {
+         SectionPos sectionposition = player.getLastSectionPos();
+-        int viewDistance = player.getSendViewDistance() + 1;
++        int viewDistance = (concernsTracking ? player.getTrackViewDistance() : player.getSeeViewDistance()) + 1;
+         return onlyOnWatchDistanceEdge && ChunkMap.isChunkOnRangeBorder(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), viewDistance) || !onlyOnWatchDistanceEdge && ChunkMap.isChunkInRange(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), viewDistance);
+     }
+-    // Martijn end - per-player send distance
++    // Martijn end - per-player track and see view distance
+ 
+     public void addEntity(Entity entity) {
+         org.spigotmc.AsyncCatcher.catchOp("entity track"); // Spigot
+@@ -2204,7 +2203,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Paper end - optimised tracker
+ 
+     protected void tick() {
+-        attemptToTrackPlannedChunksForAllPlayers(); // Martijn - network-constrained chunk tracking
++        attemptToTrackOrSeePlannedChunksForAllPlayers(); // Martijn - network-constrained chunk tracking
+         // Paper start - optimized tracker
+         if (true) {
+             this.processTrackQueue();
+@@ -2273,9 +2272,9 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     // Martijn start - network-constrained chunk tracking
+-    public void attemptToTrackPlannedChunksForAllPlayers() {
++    public void attemptToTrackOrSeePlannedChunksForAllPlayers() {
+         for (ServerPlayer player : this.level.players) {
+-            player.tickAttemptToTrackPlannedChunks();
++            player.tickAttemptToTrackOrSeePlannedChunks();
+         }
+     }
+     // Martijn end - network-constrained chunk tracking
+@@ -2421,7 +2420,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 double vec3d_dx = player.getX() - this.entity.getX();
+                 double vec3d_dz = player.getZ() - this.entity.getZ();
+                 // Paper end - remove allocation of Vec3D here
+-                double d0 = (double) Math.min(this.getEffectiveRange(), player.getSendViewDistance() * 16); // Martijn - per-player send distance
++                double d0 = (double) Math.min(this.getEffectiveRange(), player.getTrackViewDistance() * 16); // Martijn - per-player track view distance
+                 double d1 = vec3d_dx * vec3d_dx + vec3d_dz * vec3d_dz; // Paper
+                 double d2 = d0 * d0;
+                 boolean flag = d1 <= d2 && this.entity.broadcastToPlayer(player);
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index e7dda2b49604616182be1cb2ddedc6cf97a33173..5d17f91ba29e4f4499b7642f84b59f6d8a674000 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -18,6 +18,7 @@ import java.util.Optional;
+ import java.util.OptionalInt;
+ import java.util.Random;
+ import java.util.UUID;
++import java.util.function.Supplier;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ 
+@@ -184,51 +185,86 @@ import org.bukkit.event.player.PlayerPortalEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+ import org.bukkit.inventory.MainHand;
++import org.jetbrains.annotations.NotNull;
+ // CraftBukkit end
+ 
+ public class ServerPlayer extends Player {
+ 
+     // Martijn start - per-player view distance
+ 
+-    private final int getWorldSendViewDistance() { return this.getLevel().getChunkSource().chunkMap.worldViewDistance - 1; } // Paper - placeholder
++    private final int getWorldSeeViewDistance() { return this.getLevel().getChunkSource().chunkMap.worldViewDistance - 1; } // Paper - placeholder
++
++    private final int getWorldTrackViewDistance() {
++        return getWorldSeeViewDistance();
++    }
+ 
+     private final int getWorldLoadViewDistance() {
+-        return getWorldSendViewDistance() + 1;
++        return getWorldSeeViewDistance() + 1;
+     }
+ 
+-    private Integer lastProcessedSendViewDistance = null;
++    private Integer lastProcessedTrackViewDistance = null;
++    private Integer lastProcessedSeeViewDistance = null;
+     private Integer lastProcessedLoadViewDistance = null;
+ 
+-    public final int getSendViewDistance() {
+-        int sendViewDistance = getWorldSendViewDistance();
+-        if (getLevel().paperConfig.getPerPlayerSendViewDistance()) {
+-            if (getLevel().paperConfig.getLimitSendViewDistanceByClientViewDistance()) {
+-                sendViewDistance = Math.min(sendViewDistance, getBukkitEntity().getClientViewDistance());
++    public final int getTrackViewDistance() {
++        int trackViewDistance = Math.min(getWorldTrackViewDistance(), getSeeViewDistance());
++        if (getLevel().paperConfig.getPerPlayerTrackViewDistance()) {
++            if (getLevel().paperConfig.getLimitTrackViewDistanceByClientViewDistance()) {
++                trackViewDistance = Math.min(trackViewDistance, getBukkitEntity().getClientViewDistance());
+             }
+         }
+-        return sendViewDistance;
++        return trackViewDistance;
++    }
++
++    public final int getSeeViewDistance() {
++        int seeViewDistance = this.getWorldSeeViewDistance();
++        if (getLevel().paperConfig.getPerPlayerSeeViewDistance()) {
++            if (getLevel().paperConfig.getLimitSeeViewDistanceByClientViewDistance()) {
++                seeViewDistance = Math.min(seeViewDistance, getBukkitEntity().getClientViewDistance());
++            }
++        }
++        return seeViewDistance;
+     }
+ 
+     public final int getLoadViewDistance() {
+-        int loadViewDistance = getWorldLoadViewDistance();
++        int loadViewDistance = this.getWorldLoadViewDistance();
++        if (getLevel().paperConfig.getLimitLoadViewDistanceBySeeViewDistance()) {
++            loadViewDistance = Math.min(loadViewDistance, this.getSeeViewDistance() + 1);
++        }
+         if (getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
+             if (getLevel().paperConfig.getLimitLoadViewDistanceByClientViewDistance()) {
+-                loadViewDistance = Math.min(loadViewDistance, getBukkitEntity().getClientViewDistance() + 1);
++                loadViewDistance = Math.min(loadViewDistance, this.getBukkitEntity().getClientViewDistance() + 1);
+             }
+         }
+         return loadViewDistance;
+     }
+ 
+-    public void sendViewDistanceMayHaveChanged() {
++    public void trackViewDistanceMayHaveChanged() {
+ 
+-        int newSendViewDistance = this.getSendViewDistance();
+-        if (this.lastProcessedSendViewDistance != null && newSendViewDistance == this.lastProcessedSendViewDistance) return;
+-        int oldSendViewDistance = (this.lastProcessedSendViewDistance == null) ? newSendViewDistance : this.lastProcessedSendViewDistance;
++        int newTrackViewDistance = this.getTrackViewDistance();
++        if (this.lastProcessedTrackViewDistance != null && newTrackViewDistance == this.lastProcessedTrackViewDistance) return;
++        int oldTrackViewDistance = (this.lastProcessedTrackViewDistance == null) ? newTrackViewDistance : this.lastProcessedTrackViewDistance;
+ 
+         // Propagate changes
+-        this.getLevel().getChunkSource().chunkMap.updateChunkTrackingDueToPlayerSendViewDistanceChange(this, oldSendViewDistance, newSendViewDistance);
++        this.getLevel().getChunkSource().chunkMap.updateChunkTrackingDueToPlayerTrackViewDistanceChange(this, oldTrackViewDistance, newTrackViewDistance);
+ 
+-        this.lastProcessedSendViewDistance = newSendViewDistance;
++        this.lastProcessedTrackViewDistance = newTrackViewDistance;
++
++    }
++
++    public void seeViewDistanceMayHaveChanged() {
++
++        int newSeeViewDistance = this.getSeeViewDistance();
++        if (this.lastProcessedSeeViewDistance != null && newSeeViewDistance == this.lastProcessedSeeViewDistance) return;
++        int oldSeeViewDistance = (this.lastProcessedSeeViewDistance == null) ? newSeeViewDistance : this.lastProcessedSeeViewDistance;
++
++        // Propagate changes
++        this.getLevel().getChunkSource().chunkMap.updateChunkSeeingDueToPlayerSeeViewDistanceChange(this, oldSeeViewDistance, newSeeViewDistance);
++
++        this.lastProcessedSeeViewDistance = newSeeViewDistance;
++
++        this.trackViewDistanceMayHaveChanged();
++        this.loadViewDistanceMayHaveChanged();
+ 
+     }
+ 
+@@ -245,7 +281,6 @@ public class ServerPlayer extends Player {
+ 
+         this.lastProcessedLoadViewDistance = newLoadViewDistance;
+ 
+-
+     }
+ 
+     // Martijn end - per-player view distance
+@@ -352,129 +387,153 @@ public class ServerPlayer extends Player {
+ 
+     private final Object2ObjectMap<UUID, LongSet> plannedToTrack = new Object2ObjectOpenHashMap<>();
+     private final Object2ObjectMap<UUID, LongSet> tracking = new Object2ObjectOpenHashMap<>();
++    private final Object2ObjectMap<UUID, LongSet> plannedToSee = new Object2ObjectOpenHashMap<>();
++    private final Object2ObjectMap<UUID, LongSet> seeing = new Object2ObjectOpenHashMap<>();
+     private UUID quickAccessLevelUUID = null;
+     private LongSet quickAccessPlannedToTrack = null;
+     private LongSet quickAccessTracking = null;
++    private LongSet quickAccessPlannedToSee = null;
++    private LongSet quickAccessSeeing = null;
+ 
+     private void setQuickAccessTrackingLevel(UUID levelUUID) {
+         synchronized (this.networkConstrainedTrackingLock) {
+             LongSet plannedToTrackForLevel = this.plannedToTrack.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(0));
+             LongSet trackingForLevel = this.tracking.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(0));
++            LongSet plannedToSeeForLevel = this.plannedToSee.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(0));
++            LongSet seeingForLevel = this.seeing.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(0));
+             this.quickAccessLevelUUID = levelUUID;
+             this.quickAccessPlannedToTrack = plannedToTrackForLevel;
+             this.quickAccessTracking = trackingForLevel;
++            this.quickAccessPlannedToSee = plannedToSeeForLevel;
++            this.quickAccessSeeing = seeingForLevel;
++        }
++    }
++
++    private @NotNull LongSet getOrCreatePlannedToTrackOrSeeForLevel(UUID levelUUID, boolean concernsTracking) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (levelUUID.equals(this.quickAccessLevelUUID)) {
++                return concernsTracking ? this.quickAccessPlannedToTrack : this.quickAccessPlannedToSee;
++            } else {
++                return (concernsTracking ? this.plannedToTrack : this.plannedToSee).computeIfAbsent(levelUUID, it -> new LongOpenHashSet(0));
++            }
++        }
++    }
++
++    private @Nullable LongSet getPlannedToTrackOrSeeForLevelIfExists(UUID levelUUID, boolean concernsTracking) {
++        if (levelUUID.equals(this.quickAccessLevelUUID)) {
++            return concernsTracking ? this.quickAccessPlannedToTrack : this.quickAccessPlannedToSee;
++        } else {
++            return (concernsTracking ? this.plannedToTrack : this.plannedToSee).get(levelUUID);
+         }
+     }
+ 
+-    private boolean isPlannedToTrack(UUID levelUUID, long chunkKey) {
++    private @NotNull LongSet getOrCreateTrackingOrSeeingForLevel(UUID levelUUID, boolean concernsTracking) {
+         synchronized (this.networkConstrainedTrackingLock) {
+-            if (levelUUID.equals(this.quickAccessLevelUUID)) return this.quickAccessPlannedToTrack.contains(chunkKey);
+-            LongSet plannedToTrackForLevel = this.plannedToTrack.get(levelUUID);
+-            if (plannedToTrackForLevel == null) return false;
+-            return plannedToTrackForLevel.contains(chunkKey);
++            if (levelUUID.equals(this.quickAccessLevelUUID)) {
++                return concernsTracking ? this.quickAccessTracking : this.quickAccessSeeing;
++            } else {
++                return (concernsTracking ? this.tracking : this.seeing).computeIfAbsent(levelUUID, it -> new LongOpenHashSet(0));
++            }
++        }
++    }
++
++    private @Nullable LongSet getTrackingOrSeeingForLevelIfExists(UUID levelUUID, boolean concernsTracking) {
++        if (levelUUID.equals(this.quickAccessLevelUUID)) {
++            return concernsTracking ? this.quickAccessTracking : this.quickAccessSeeing;
++        } else {
++            return (concernsTracking ? this.tracking : this.seeing).get(levelUUID);
+         }
+     }
+ 
+-    private boolean isPlannedToTrack(LevelChunk chunk) {
+-        return this.isPlannedToTrack(chunk.level.uuid, chunk.getPos().longKey);
++    private boolean isPlannedToTrackOrSee(UUID levelUUID, long chunkKey, boolean concernsTracking) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            LongSet plannedToTrackForLevel = this.getPlannedToTrackOrSeeForLevelIfExists(levelUUID, concernsTracking);
++            return plannedToTrackForLevel != null && plannedToTrackForLevel.contains(chunkKey);
++        }
++    }
++
++    private boolean isPlannedToTrackOrSee(LevelChunk chunk, boolean concernsTracking) {
++        return this.isPlannedToTrackOrSee(chunk.level.uuid, chunk.getPos().longKey, concernsTracking);
+     }
+ 
+     /**
+      * This method will not synchronize, so it doesn't need to wait for any other threads and request the lock field from RAM, but the return value may be inconsistent with the truth
+      */
+-    public boolean isTrackingNonSync(UUID levelUUID, long chunkKey) {
+-        if (levelUUID.equals(this.quickAccessLevelUUID)) return this.quickAccessTracking.contains(chunkKey);
+-        LongSet trackingForLevel = this.tracking.get(levelUUID);
+-        if (trackingForLevel == null) return false;
+-        return trackingForLevel.contains(chunkKey);
++    public boolean isTrackingOrSeeingNonSync(UUID levelUUID, long chunkKey, boolean concernsTracking) {
++        if (levelUUID.equals(this.quickAccessLevelUUID)) return (concernsTracking ? this.quickAccessTracking : this.quickAccessSeeing).contains(chunkKey);
++        LongSet trackingOrSeeingForLevel = (concernsTracking ? this.tracking : this.seeing).get(levelUUID);
++        return trackingOrSeeingForLevel != null && trackingOrSeeingForLevel.contains(chunkKey);
+     }
+ 
+-    public boolean isTracking(UUID levelUUID, long chunkKey) {
++    public boolean isTrackingOrSeeing(UUID levelUUID, long chunkKey, boolean concernsTracking) {
+         synchronized (this.networkConstrainedTrackingLock) {
+-            return isTrackingNonSync(levelUUID, chunkKey);
++            return isTrackingOrSeeingNonSync(levelUUID, chunkKey, concernsTracking);
+         }
+     }
+ 
+     /**
+      * This method will not synchronize, so it doesn't need to wait for any other threads and request the lock field from RAM, but the return value may be inconsistent with the truth
+      */
+-    public boolean isTrackingNonSync(LevelChunk chunk) {
+-        return this.isTrackingNonSync(chunk.level.uuid, chunk.getPos().longKey);
++    public boolean isTrackingOrSeeingNonSync(LevelChunk chunk, boolean concernsTracking) {
++        return this.isTrackingOrSeeingNonSync(chunk.level.uuid, chunk.getPos().longKey, concernsTracking);
+     }
+ 
+-    public boolean isTracking(LevelChunk chunk) {
+-        return this.isTracking(chunk.level.uuid, chunk.getPos().longKey);
++    public boolean isTrackingOrSeeing(LevelChunk chunk, boolean concernsTracking) {
++        return this.isTrackingOrSeeing(chunk.level.uuid, chunk.getPos().longKey, concernsTracking);
+     }
+ 
+-    private void removePlannedToTrack(UUID levelUUID, long chunkKey) {
++    private void removePlannedToTrackOrSee(UUID levelUUID, long chunkKey, boolean concernsTracking) {
+         synchronized (this.networkConstrainedTrackingLock) {
+-            if (levelUUID.equals(this.quickAccessLevelUUID)) {
+-                this.quickAccessPlannedToTrack.remove(chunkKey);
+-                return;
+-            }
+-            LongSet plannedToTrackForLevel = this.plannedToTrack.get(levelUUID);
+-            if (plannedToTrackForLevel == null) return;
+-            plannedToTrackForLevel.remove(chunkKey);
++            LongSet plannedToTrackOrSeeForLevel = this.getPlannedToTrackOrSeeForLevelIfExists(levelUUID, concernsTracking);
++            if (plannedToTrackOrSeeForLevel != null) plannedToTrackOrSeeForLevel.remove(chunkKey);
+         }
+     }
+ 
+-    private void removeTracking(UUID levelUUID, long chunkKey) {
++    private void removeTrackingOrSeeing(UUID levelUUID, long chunkKey, boolean concernsTracking) {
+         synchronized (this.networkConstrainedTrackingLock) {
+-            if (levelUUID.equals(this.quickAccessLevelUUID)) {
+-                this.quickAccessTracking.remove(chunkKey);
+-                return;
+-            }
+-            LongSet trackingForLevel = this.tracking.get(levelUUID);
+-            if (trackingForLevel == null) return;
+-            trackingForLevel.remove(chunkKey);
++            LongSet trackingOrSeeingForLevel = this.getTrackingOrSeeingForLevelIfExists(levelUUID, concernsTracking);
++            if (trackingOrSeeingForLevel != null) trackingOrSeeingForLevel.remove(chunkKey);
+         }
+     }
+ 
+-    private void addPlannedToTrack(UUID levelUUID, long chunkKey) {
++    private void addPlannedToTrackOrSee(UUID levelUUID, long chunkKey, boolean concernsTracking) {
+         synchronized (this.networkConstrainedTrackingLock) {
+-            if (levelUUID.equals(this.quickAccessLevelUUID)) {
+-                this.quickAccessPlannedToTrack.add(chunkKey);
+-                return;
+-            }
+-            LongSet plannedToTrackForLevel = this.plannedToTrack.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(1));
+-            plannedToTrackForLevel.add(chunkKey);
++            this.getOrCreatePlannedToTrackOrSeeForLevel(levelUUID, concernsTracking).add(chunkKey);
+         }
+     }
+ 
+-    private void addTracking(UUID levelUUID, long chunkKey) {
++    private void addTrackingOrSeeing(UUID levelUUID, long chunkKey, boolean concernsTracking) {
+         synchronized (this.networkConstrainedTrackingLock) {
+-            if (levelUUID.equals(this.quickAccessLevelUUID)) {
+-                this.quickAccessTracking.add(chunkKey);
+-                return;
+-            }
+-            LongSet trackingForLevel = this.tracking.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(1));
+-            trackingForLevel.add(chunkKey);
++            this.getOrCreateTrackingOrSeeingForLevel(levelUUID, concernsTracking).add(chunkKey);
+         }
+     }
+ 
+-    private boolean isNotTrackingNorPlanningToTrackOwnChunk() {
++    private boolean isNotTrackingOrSeeingNorPlanningToTrackOrSeeOwnChunk() {
+         UUID ownLevelUUID = this.getLevelUUID();
+         if (ownLevelUUID == null) {
+             return true;
+         }
+         long ownChunkKey = this.getChunkPosLongKey();
+         synchronized (this.networkConstrainedTrackingLock) {
+-            return !this.isTracking(ownLevelUUID, ownChunkKey) && !this.isPlannedToTrack(ownLevelUUID, ownChunkKey);
++            return !this.isTrackingOrSeeing(ownLevelUUID, ownChunkKey, false) && !this.isPlannedToTrackOrSee(ownLevelUUID, ownChunkKey, false);
+         }
+     }
+ 
+-    private boolean isTrackingOwnChunk() {
++    private boolean isTrackingOrSeeingOwnChunk(boolean concernsTracking) {
+         UUID ownLevelUUID = this.getLevelUUID();
+         if (ownLevelUUID == null) {
+             return false;
+         }
+         long ownChunkKey = this.getChunkPosLongKey();
+         synchronized (this.networkConstrainedTrackingLock) {
+-            return this.isTracking(ownLevelUUID, ownChunkKey);
++            return this.isTrackingOrSeeing(ownLevelUUID, ownChunkKey, concernsTracking);
+         }
+     }
+ 
+-    private @Nullable Long getFirstPlannedChunkToTrack() {
++    /**
++     * @return A pair of: the long key of the first planned chunk to track or see, and a boolean that is true if it is planned to be tracked, and false if it splanned to be seen
++     */
++    private @Nullable Pair<Long, Boolean> getFirstPlannedChunkToTrackOrSee() {
+         UUID ownLevelUUID = this.getLevelUUID();
+         if (ownLevelUUID == null) {
+             // None if this player is not in a world
+@@ -482,48 +541,52 @@ public class ServerPlayer extends Player {
+         }
+         synchronized (this.networkConstrainedTrackingLock) {
+ 
+-            LongSet plannedToTrackForLevel;
+-            if (ownLevelUUID.equals(this.quickAccessLevelUUID)) {
+-                plannedToTrackForLevel = this.quickAccessPlannedToTrack;
+-            } else {
+-                plannedToTrackForLevel = this.plannedToTrack.get(ownLevelUUID);
+-            }
++            for (boolean track : new boolean[] {true, false}) {
++
++                LongSet plannedToTrackOrSeeForLevel = getPlannedToTrackOrSeeForLevelIfExists(ownLevelUUID, track);
++
++                // None if there are no more chunks planned
++                if (plannedToTrackOrSeeForLevel == null || plannedToTrackOrSeeForLevel.isEmpty()) {
++                    continue;
++                }
++
++                // Get the closest chunk that is planned
++                @Nullable Long closestChunkPlanned = plannedToTrackOrSeeForLevel.stream()
++                    .min(Comparator.comparingLong(this::getSquaredPythagoreanDistanceToChunk))
++                    .orElse(null);
++                if (closestChunkPlanned != null) {
++                    return new ObjectObjectImmutablePair<>(closestChunkPlanned, track);
++                }
+ 
+-            // None if there are no more chunks planned
+-            if (plannedToTrackForLevel == null || plannedToTrackForLevel.isEmpty()) {
+-                return null;
+             }
+ 
+-            // Get the closest chunk that is planned
+-            return plannedToTrackForLevel.stream()
+-                .min(Comparator.comparingLong(this::getSquaredPythagoreanDistanceToChunk))
+-                .orElse(null);
++            return null;
+ 
+         }
+     }
+ 
+-    private boolean canStartTrackingChunkRightNow(ChunkPos chunkPos) {
++    private boolean canStartTrackingOrSeeingChunkRightNow(ChunkPos chunkPos, boolean concernsTracking) {
+ 
+         long ownChunkKey = this.getChunkPosLongKey();
+         long chunkKey = chunkPos.longKey;
+-        // Can always immediately start tracking the chunk the player is in
++        // Can always immediately start tracking or seeing the chunk the player is in
+         if (ownChunkKey == chunkKey) {
+             return true;
+         }
+-        // Otherwise, if not yet tracking the chunk the player is in, if they are indeed not, we cannot start tracking any others
++        // Otherwise, if not yet tracking or seeing the chunk the player is in, if they are indeed not, we cannot start tracking or seeing any others
+         synchronized (this.networkConstrainedTrackingLock) {
+-            if (!this.isTrackingOwnChunk()) {
++            if (!this.isTrackingOrSeeingOwnChunk(concernsTracking)) {
+                 return false;
+             }
+         }
+ 
+         int manhattanDistance = this.getManhattanDistanceToChunk(chunkKey);
+-        // Do not track if the Manhattan distance is much greater than the send view distance (+2 because this is also what is normally used for the inclusive square area in which chunks can potentially be tracked)
+-        if (manhattanDistance > this.getSendViewDistance() + 2) {
++        // Do not track or see if the Manhattan distance is much greater than the respective view distance (+2 because this is also what is normally used for the inclusive square area in which chunks can potentially be tracked or seen)
++        if (manhattanDistance > (concernsTracking ? this.getTrackViewDistance() : this.getSeeViewDistance()) + 2) {
+             return false;
+         }
+ 
+-        // Do not track if the number of chunks in transit is greater than the treshold we set before we allow this chunk, based on its distance
++        // Do not track or see if the number of chunks in transit is greater than the treshold we set before we allow this chunk, based on its distance
+         long squaredPythagoreanDistance = this.getSquaredPythagoreanDistanceToChunk(chunkKey);
+         // TODO turn into configuration options
+         int maxNumberOfChunkPacketsInTransitByDistance = 7;
+@@ -2315,7 +2378,8 @@ public class ServerPlayer extends Player {
+         // Paper end
+         this.clientViewDistance = packet.viewDistance;
+         // Martijn start - per-player view distance
+-        sendViewDistanceMayHaveChanged();
++        trackViewDistanceMayHaveChanged();
++        seeViewDistanceMayHaveChanged();
+         loadViewDistanceMayHaveChanged();
+         // Martijn end - per-player view distance
+         // CraftBukkit end
+@@ -2577,145 +2641,166 @@ public class ServerPlayer extends Player {
+ 
+     }
+ 
+-    // Martijn start - network-constrained chunk tracking
++    // Martijn start - network-constrained chunk tracking, per-player track and see view distance
+ 
+-    public void planToTrackChunk(LevelChunk chunk) {
++    public void planToTrackOrSeeChunk(LevelChunk chunk, boolean concernsTracking) {
+ 
+         UUID levelUUID = chunk.level.uuid;
+         ChunkPos chunkPos = chunk.getPos();
+ 
+         UUID ownLevelUUID = this.getLevelUUID();
+ 
+-        boolean trackInstantly;
++        boolean trackOrSeeInstantly;
+         synchronized (this.networkConstrainedTrackingLock) {
+-            if (ownLevelUUID != null && ownLevelUUID.equals(levelUUID) && this.canStartTrackingChunkRightNow(chunkPos)) {
+-                trackInstantly = true;
++            if (ownLevelUUID != null && ownLevelUUID.equals(levelUUID) && this.canStartTrackingOrSeeingChunkRightNow(chunkPos, concernsTracking)) {
++                trackOrSeeInstantly = true;
+             } else {
+-                trackInstantly = false;
+-                if (this.isTracking(levelUUID, chunkPos.longKey)) return;
+-                this.addPlannedToTrack(levelUUID, chunkPos.longKey);
++                trackOrSeeInstantly = false;
++                if (this.isTrackingOrSeeing(levelUUID, chunkPos.longKey, concernsTracking)) return;
++                this.addPlannedToTrackOrSee(levelUUID, chunkPos.longKey, concernsTracking);
+             }
+         }
+ 
+-        if (trackInstantly) {
+-            this.actuallyTrackChunk(chunk);
++        if (trackOrSeeInstantly) {
++            this.actuallyTrackOrSeeChunk(chunk, concernsTracking);
+         }
+ 
+     }
+-    // Note: does nothing if the chunk is already tracked
+-    private void actuallyTrackChunk(LevelChunk chunk) {
+-        this.actuallyTrackChunk(chunk, this.getClientboundChunkInitializationPacket(chunk));
++    // Note: does nothing if the chunk is already tracked or seen
++    private boolean actuallyTrackOrSeeChunk(LevelChunk chunk, boolean concernsTracking) {
++        return this.actuallyTrackOrSeeChunk(chunk, () -> this.getClientboundChunkInitializationPacket(chunk), concernsTracking);
+     }
+ 
+-    // Note: does nothing if the chunk is already tracked
+-    private void actuallyTrackChunk(LevelChunk chunk, Packet<?> chunkInitializationPacket) {
++    // Note: does nothing if the chunk is already tracked or seen
++    private boolean actuallyTrackOrSeeChunk(LevelChunk chunk, Supplier<Packet<?>> chunkInitializationPacketSupplier, boolean concernsTracking) {
+ 
+         UUID levelUUID = chunk.level.uuid;
+         ChunkMap chunkMap = this.getLevel().getChunkSource().chunkMap;
+         ChunkPos chunkPos = chunk.getPos();
+ 
+-        // Update tracked status
++        // Update tracked or seen status
+         synchronized (this.networkConstrainedTrackingLock) {
+-            // This is important: when already tracked, do nothing
+-            if (this.isTracking(levelUUID, chunkPos.longKey)) {
+-                return;
++
++            // This is important: when already tracked or seen, do nothing
++            if (this.isTrackingOrSeeing(levelUUID, chunkPos.longKey, concernsTracking)) {
++                return false;
+             }
+-            this.removePlannedToTrack(levelUUID, chunkPos.longKey);
+-            this.addTracking(levelUUID, chunkPos.longKey);
++
++            this.removePlannedToTrackOrSee(levelUUID, chunkPos.longKey, concernsTracking);
++            this.addTrackingOrSeeing(levelUUID, chunkPos.longKey, concernsTracking);
++            // If we start tracking, we also start seeing, no need to send double initialization packets
++            if (concernsTracking) {
++                this.removePlannedToTrackOrSee(levelUUID, chunkPos.longKey, false);
++                this.addTrackingOrSeeing(levelUUID, chunkPos.longKey, false);
++            }
++
+         }
+ 
+         // Send the initialization packet
+-        this.connection.send(chunkInitializationPacket);
+-        // Paper start
+-        if(io.papermc.paper.event.packet.PlayerChunkLoadEvent.getHandlerList().getRegisteredListeners().length > 0){
+-            new io.papermc.paper.event.packet.PlayerChunkLoadEvent(this.getBukkitEntity().getWorld().getChunkAt(chunkPos.longKey), this.getBukkitEntity()).callEvent();
++        this.connection.send(chunkInitializationPacketSupplier.get());
++
++        if (concernsTracking) {
++
++            // Paper start
++            if (io.papermc.paper.event.packet.PlayerChunkLoadEvent.getHandlerList().getRegisteredListeners().length > 0) {
++                new io.papermc.paper.event.packet.PlayerChunkLoadEvent(this.getBukkitEntity().getWorld().getChunkAt(chunkPos.longKey), this.getBukkitEntity()).callEvent();
++            }
++            // Paper end
++
+         }
+-        // Paper end
+ 
+-        this.sendKeepaliveForChunkInTransit(); // Martijn
++        this.sendKeepaliveForChunkInTransit();
+ 
+-        // The following used to be the tail of ChunkMap.playerLoadedChunk, after the call to ServerPlayer.trackChunk
++        if (concernsTracking) {
+ 
+-        DebugPackets.sendPoiPacketsForChunk(getLevel(), chunkPos);
+-        List<Entity> list = Lists.newArrayList();
+-        List<Entity> list1 = Lists.newArrayList();
+-        // Paper start - optimise entity tracker
+-        // use the chunk entity list, not the whole trackedEntities map...
+-        Entity[] entities = chunk.entities.getRawData();
+-        for (int i = 0, size = chunk.entities.size(); i < size; ++i) {
+-            Entity entity = entities[i];
+-            if (entity == this) {
+-                continue;
+-            }
+-            ChunkMap.TrackedEntity tracker = chunkMap.entityMap.get(entity.getId());
+-            if (tracker != null) { // dumb plugins... move on...
+-                tracker.updatePlayer(this);
+-            }
++            // The following used to be the tail of ChunkMap.playerLoadedChunk, after the call to ServerPlayer.trackChunk
+ 
+-            // keep the vanilla logic here - this is REQUIRED or else passengers and their vehicles disappear!
+-            // (and god knows what the leash thing is)
++            DebugPackets.sendPoiPacketsForChunk(getLevel(), chunkPos);
++            List<Entity> list = Lists.newArrayList();
++            List<Entity> list1 = Lists.newArrayList();
++            // Paper start - optimise entity tracker
++            // use the chunk entity list, not the whole trackedEntities map...
++            Entity[] entities = chunk.entities.getRawData();
++            for (int i = 0, size = chunk.entities.size(); i < size; ++i) {
++                Entity entity = entities[i];
++                if (entity == this) {
++                    continue;
++                }
++                ChunkMap.TrackedEntity tracker = chunkMap.entityMap.get(entity.getId());
++                if (tracker != null) { // dumb plugins... move on...
++                    tracker.updatePlayer(this);
++                }
+ 
+-            if (entity instanceof Mob && ((Mob)entity).getLeashHolder() != null) {
+-                list.add(entity);
+-            }
++                // keep the vanilla logic here - this is REQUIRED or else passengers and their vehicles disappear!
++                // (and god knows what the leash thing is)
++
++                if (entity instanceof Mob && ((Mob) entity).getLeashHolder() != null) {
++                    list.add(entity);
++                }
+ 
+-            if (!entity.getPassengers().isEmpty()) {
+-                list1.add(entity);
++                if (!entity.getPassengers().isEmpty()) {
++                    list1.add(entity);
++                }
+             }
+-        }
+-        // Paper end - optimise entity tracker
++            // Paper end - optimise entity tracker
+ 
+-        Iterator iterator;
+-        Entity entity1;
++            Iterator iterator;
++            Entity entity1;
+ 
+-        if (!list.isEmpty()) {
+-            iterator = list.iterator();
++            if (!list.isEmpty()) {
++                iterator = list.iterator();
+ 
+-            while (iterator.hasNext()) {
+-                entity1 = (Entity) iterator.next();
+-                connection.send(new ClientboundSetEntityLinkPacket(entity1, ((Mob) entity1).getLeashHolder()));
++                while (iterator.hasNext()) {
++                    entity1 = (Entity) iterator.next();
++                    connection.send(new ClientboundSetEntityLinkPacket(entity1, ((Mob) entity1).getLeashHolder()));
++                }
+             }
+-        }
+ 
+-        if (!list1.isEmpty()) {
+-            iterator = list1.iterator();
++            if (!list1.isEmpty()) {
++                iterator = list1.iterator();
+ 
+-            while (iterator.hasNext()) {
+-                entity1 = (Entity) iterator.next();
+-                connection.send(new ClientboundSetPassengersPacket(entity1));
++                while (iterator.hasNext()) {
++                    entity1 = (Entity) iterator.next();
++                    connection.send(new ClientboundSetPassengersPacket(entity1));
++                }
+             }
++
+         }
+ 
++        return true;
++
+     }
+ 
+-    public void tickAttemptToTrackPlannedChunks() {
++    public void tickAttemptToTrackOrSeePlannedChunks() {
+ 
+         {
+             // Small optimization
+-            if (this.isNotTrackingNorPlanningToTrackOwnChunk()) {
++            if (this.isNotTrackingOrSeeingNorPlanningToTrackOrSeeOwnChunk()) {
+                 return;
+             }
+         }
+ 
+-        int amountNewlyTracked = 0;
++        int amountNewlyTrackedOrSeen = 0;
+         while (true) {
+ 
+-            Long planned = this.getFirstPlannedChunkToTrack();
++            Pair<Long, Boolean> planned = this.getFirstPlannedChunkToTrackOrSee();
++            boolean plannedToTrack;
+             if (planned == null) {
+                 break;
+             }
+ 
+             // Check if the player can start tracking this chunk
+-            ChunkPos chunkPos = new ChunkPos(planned);
+-            boolean canStartTracking = this.canStartTrackingChunkRightNow(chunkPos);
++            ChunkPos chunkPos = new ChunkPos(planned.first());
++            boolean canStartTracking = this.canStartTrackingOrSeeingChunkRightNow(chunkPos, planned.second());
+ 
+             // If the player can be informed of something, inform, otherwise break
+             if (canStartTracking) {
+-                actuallyTrackChunk(level.getChunk(chunkPos.x, chunkPos.z));
+-                amountNewlyTracked++;
+-                // Break if we informed of enough packets - to make sure enough other players get a go without going over the tick time for this tick
+-                if (amountNewlyTracked >= level.paperConfig.maxChunksToNewlyTrackPerTick) {
+-                    break;
++                if (actuallyTrackOrSeeChunk(level.getChunk(chunkPos.x, chunkPos.z), planned.second())) {
++                    amountNewlyTrackedOrSeen++;
++                    // Break if we informed of enough packets - to make sure enough other players get a go without going over the tick time for this tick
++                    if (amountNewlyTrackedOrSeen >= level.paperConfig.maxChunksToNewlyTrackOrSeePerTick) {
++                        break;
++                    }
+                 }
+             } else {
+                 break;
+@@ -2725,32 +2810,39 @@ public class ServerPlayer extends Player {
+ 
+     }
+ 
+-    // Note that this will execute untracking actions even if the chunk was not tracked
+-    public void untrackChunk(ChunkPos chunkPos) {
++    // Note that this will execute untracking or unseeing actions even if the chunk was not tracked or seen
++    public void untrackOrUnseeChunk(ChunkPos chunkPos, boolean concernsTracking) {
++
+         ServerLevel level = this.getLevel();
+         if (level != null) {
+             UUID levelUUID = level.uuid;
+             synchronized (this.networkConstrainedTrackingLock) {
+-                this.removePlannedToTrack(levelUUID, chunkPos.longKey);
+-                this.removeTracking(levelUUID, chunkPos.longKey);
++
++                this.removePlannedToTrackOrSee(levelUUID, chunkPos.longKey, concernsTracking);
++                this.removeTrackingOrSeeing(levelUUID, chunkPos.longKey, concernsTracking);
++
+             }
+         }
+ 
+         if (this.isAlive()) {
+-            this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
+-            // Paper start
+-            if(io.papermc.paper.event.packet.PlayerChunkUnloadEvent.getHandlerList().getRegisteredListeners().length > 0){
+-                new io.papermc.paper.event.packet.PlayerChunkUnloadEvent(this.getBukkitEntity().getWorld().getChunkAt(chunkPos.longKey), this.getBukkitEntity()).callEvent();
++            if (!concernsTracking) {
++                this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
++            }
++            if (concernsTracking) {
++                // Paper start
++                if (io.papermc.paper.event.packet.PlayerChunkUnloadEvent.getHandlerList().getRegisteredListeners().length > 0) {
++                    new io.papermc.paper.event.packet.PlayerChunkUnloadEvent(this.getBukkitEntity().getWorld().getChunkAt(chunkPos.longKey), this.getBukkitEntity()).callEvent();
++                }
++                // Paper end
+             }
+-            // Paper end
+         }
+ 
+     }
+ 
+     private ClientboundLevelChunkWithLightPacket getClientboundChunkInitializationPacket(LevelChunk chunk) {
+-        Boolean shouldModify = chunk.getLevel().chunkPacketBlockController.shouldModify(this, chunk);
++        boolean shouldModify = chunk.getLevel().chunkPacketBlockController.shouldModify(this, chunk);
+         ChunkMap chunkMap = this.getLevel().getChunkSource().chunkMap;
+-        return new ClientboundLevelChunkWithLightPacket(chunk, chunkMap.lightEngine, (BitSet) null, (BitSet) null, true, (Boolean) shouldModify);
++        return new ClientboundLevelChunkWithLightPacket(chunk, chunkMap.lightEngine, (BitSet) null, (BitSet) null, true, shouldModify);
+     }
+ 
+     /**
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 851bdc4735623467f2134b11725906cbcdba7b36..2da6c3b0fd3c509d7fb0a219390234e450770cdd 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2010,7 +2010,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+     // Martijn start - network-constrained chunk tracking
+     public void sendIfTracking(LevelChunk chunk, Packet<?> packet) {
+         if (chunk == null) return;
+-        if (this.getPlayer().isTrackingNonSync(chunk)) {
++        if (this.getPlayer().isTrackingOrSeeingNonSync(chunk, true)) {
+             this.send(packet);
+         }
+     }
+diff --git a/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java b/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
+index 7a564c63a7a1090c15e0117252d78d5dd19ea214..7ad96e2882e1047b4d7784775f54ce651a449495 100644
+--- a/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
++++ b/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.world.entity.boss.enderdragon;
+ 
++import com.destroystokyo.paper.PaperConfig;
+ import com.google.common.collect.Lists;
+ import java.util.Iterator;
+ import java.util.List;
+@@ -647,7 +648,7 @@ public class EnderDragon extends Mob implements Enemy {
+                 // this.world.b(1028, this.getChunkCoordinates(), 0);
+                 //int viewDistance = ((WorldServer) this.world).getServer().getViewDistance() * 16; // Paper - updated to use worlds actual view distance incase we have to uncomment this due to removal of player view distance API
+                 for (net.minecraft.server.level.ServerPlayer player : (List<net.minecraft.server.level.ServerPlayer>) ((ServerLevel)level).players()) {
+-                    final int viewDistance = player.getSendViewDistance(); // TODO apply view distance api patch // Martijn - per-player send view distance
++                    final int viewDistance = PaperConfig.sendEnderDragonSpawnSoundToPlayersWhoAreSeeingButNotTracking ? player.getSeeViewDistance() : player.getTrackViewDistance(); // TODO apply view distance api patch // Martijn - per-player track and see view distance
+                     double deltaX = this.getX() - player.getX();
+                     double deltaZ = this.getZ() - player.getZ();
+                     double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
+diff --git a/src/main/java/net/minecraft/world/entity/boss/wither/WitherBoss.java b/src/main/java/net/minecraft/world/entity/boss/wither/WitherBoss.java
+index f48eec6cfd95ee4bb13482c41cc6cb7818ee7066..1bc3284e3379c3428e3b7a1584bd6637838f13da 100644
+--- a/src/main/java/net/minecraft/world/entity/boss/wither/WitherBoss.java
++++ b/src/main/java/net/minecraft/world/entity/boss/wither/WitherBoss.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.world.entity.boss.wither;
+ 
++import com.destroystokyo.paper.PaperConfig;
+ import com.google.common.collect.ImmutableList;
+ import java.util.EnumSet;
+ import java.util.List;
+@@ -279,7 +280,7 @@ public class WitherBoss extends Monster implements PowerableMob, RangedAttackMob
+                     // this.world.globalLevelEvent(1023, new BlockPosition(this), 0);
+                     //int viewDistance = ((ServerLevel) this.level).getCraftServer().getViewDistance() * 16; // Paper - updated to use worlds actual view distance incase we have to uncomment this due to removal of player view distance API
+                     for (ServerPlayer player : (List<ServerPlayer>)this.level.players()) { // Paper
+-                        final int viewDistance = player.getSendViewDistance(); // TODO apply view distance api patch // Martijn - per-player send view distance
++                        final int viewDistance = PaperConfig.sendWitherSpawnSoundToPlayersWhoAreSeeingButNotTracking ? player.getSeeViewDistance() : player.getTrackViewDistance(); // TODO apply view distance api patch // Martijn - per-player track and see view distance
+                         double deltaX = this.getX() - player.getX();
+                         double deltaZ = this.getZ() - player.getZ();
+                         double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 0f120d8c6c09a39bea52277a9b18c6bdacf64058..66d2e1dd2022b4d819165e4d19bdcd8788d075a4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.craftbukkit;
+ 
++import com.destroystokyo.paper.PaperConfig;
+ import com.google.common.base.Preconditions;
+ import com.google.common.base.Predicates;
+ import com.google.common.collect.ImmutableList;
+@@ -465,7 +466,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+         playerChunk.getTickingChunkFuture().thenAccept(either -> {
+             either.left().ifPresent(chunk -> {
+-                List<ServerPlayer> playersInRange = playerChunk.playerProvider.getPlayersNearChunkForSending(playerChunk.getPos(), false); // Martijn - per-player send distance
++                List<ServerPlayer> playersInRange = playerChunk.playerProvider.getPlayersNearChunkForSending(playerChunk.getPos(), false, !PaperConfig.sendChunkRefreshToPlayersWhoAreSeeingButNotTracking); // Martijn - per-player track and see view distance
+                 if (playersInRange.isEmpty()) return;
+ 
+                 ClientboundLevelChunkWithLightPacket refreshPacket = new ClientboundLevelChunkWithLightPacket(chunk, this.world.getLightEngine(), null, null, true);

@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 19 Jan 2022 20:06:31 +0100
+Subject: [PATCH] Check for tracking chunks without synchronizing
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 09d920c21d4845071461bc9e8124ac759861d5ac..e7dda2b49604616182be1cb2ddedc6cf97a33173 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -379,15 +379,29 @@ public class ServerPlayer extends Player {
+         return this.isPlannedToTrack(chunk.level.uuid, chunk.getPos().longKey);
+     }
+ 
++    /**
++     * This method will not synchronize, so it doesn't need to wait for any other threads and request the lock field from RAM, but the return value may be inconsistent with the truth
++     */
++    public boolean isTrackingNonSync(UUID levelUUID, long chunkKey) {
++        if (levelUUID.equals(this.quickAccessLevelUUID)) return this.quickAccessTracking.contains(chunkKey);
++        LongSet trackingForLevel = this.tracking.get(levelUUID);
++        if (trackingForLevel == null) return false;
++        return trackingForLevel.contains(chunkKey);
++    }
++
+     public boolean isTracking(UUID levelUUID, long chunkKey) {
+         synchronized (this.networkConstrainedTrackingLock) {
+-            if (levelUUID.equals(this.quickAccessLevelUUID)) return this.quickAccessTracking.contains(chunkKey);
+-            LongSet trackingForLevel = this.tracking.get(levelUUID);
+-            if (trackingForLevel == null) return false;
+-            return trackingForLevel.contains(chunkKey);
++            return isTrackingNonSync(levelUUID, chunkKey);
+         }
+     }
+ 
++    /**
++     * This method will not synchronize, so it doesn't need to wait for any other threads and request the lock field from RAM, but the return value may be inconsistent with the truth
++     */
++    public boolean isTrackingNonSync(LevelChunk chunk) {
++        return this.isTrackingNonSync(chunk.level.uuid, chunk.getPos().longKey);
++    }
++
+     public boolean isTracking(LevelChunk chunk) {
+         return this.isTracking(chunk.level.uuid, chunk.getPos().longKey);
+     }
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 2568b240a6066e2fa8909ae5a8da933849639335..851bdc4735623467f2134b11725906cbcdba7b36 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2010,7 +2010,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+     // Martijn start - network-constrained chunk tracking
+     public void sendIfTracking(LevelChunk chunk, Packet<?> packet) {
+         if (chunk == null) return;
+-        if (this.getPlayer().isTracking(chunk)) {
++        if (this.getPlayer().isTrackingNonSync(chunk)) {
+             this.send(packet);
+         }
+     }
+diff --git a/src/main/java/net/minecraft/world/entity/monster/Zombie.java b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
+index 5c738f31099e1961d60ba9b6c823e2d92fb718c1..6f76b624fd46886e5d4be18f7cb01f820fb8baee 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/Zombie.java
++++ b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
+@@ -321,7 +321,7 @@ public class Zombie extends Monster {
+                 entityliving = (LivingEntity) source.getEntity();
+             }
+ 
+-            if (entityliving != null && this.level.getDifficulty() != Difficulty.PEACEFUL && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) { // Martijn - Zombies call for reinforcements on all difficulties
++            if (entityliving != null && this.level.getDifficulty() != Difficulty.PEACEFUL && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) { // Martijn - Zombies can call for reinforcements on all difficulties
+                 int i = Mth.floor(this.getX());
+                 int j = Mth.floor(this.getY());
+                 int k = Mth.floor(this.getZ());

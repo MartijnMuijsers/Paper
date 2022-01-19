@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 00:20:30 +0100
+Subject: [PATCH] No longer limit see distance by load distance (chunks may be
+ tracked by a player without the player being responsible for loading them)
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index d499b04a5fdda00c52715acb2ca0952cc17eb72b..4805ffa8aaf58da40e4ea92703e4be68fd9488b6 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -222,14 +222,7 @@ public class ServerPlayer extends Player {
+     }
+ 
+     public final int getSeeViewDistance() {
+-        return getSeeViewDistance(true);
+-    }
+-
+-    private final int getSeeViewDistance(boolean limitByLoadViewDistanceAlready) {
+         int seeViewDistance = this.getWorldSeeViewDistance();
+-        if (limitByLoadViewDistanceAlready) {
+-            seeViewDistance = Math.min(seeViewDistance, getLoadViewDistance() - 1);
+-        }
+         if (getLevel().paperConfig.getPerPlayerSeeViewDistance()) {
+             if (getLevel().paperConfig.getMaxSeeViewDistance() != -1) {
+                 seeViewDistance = Math.min(seeViewDistance, getLevel().paperConfig.getMaxSeeViewDistance());
+@@ -249,7 +242,7 @@ public class ServerPlayer extends Player {
+                 loadViewDistance = Math.min(loadViewDistance, getLevel().paperConfig.getMaxLoadViewDistance());
+             }
+             if (getLevel().paperConfig.getLimitLoadViewDistanceBySeeViewDistance()) {
+-                loadViewDistance = Math.min(loadViewDistance, this.getSeeViewDistance(false) + 1);
++                loadViewDistance = Math.min(loadViewDistance, this.getSeeViewDistance() + 1);
+             }
+             if (getLevel().paperConfig.getLimitLoadViewDistanceByClientViewDistance()) {
+                 loadViewDistance = Math.min(loadViewDistance, this.getBukkitEntity().getClientViewDistance() + 1);

@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 19 Jan 2022 19:48:22 +0100
+Subject: [PATCH] Zombies can call for reinforcements on all difficulties
+
+
+diff --git a/src/main/java/net/minecraft/world/entity/monster/Zombie.java b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
+index e72e9b748b3f3e34baddf01366c703efba50c67c..5c738f31099e1961d60ba9b6c823e2d92fb718c1 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/Zombie.java
++++ b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
+@@ -321,7 +321,7 @@ public class Zombie extends Monster {
+                 entityliving = (LivingEntity) source.getEntity();
+             }
+ 
+-            if (entityliving != null && this.level.getDifficulty() == Difficulty.HARD && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) {
++            if (entityliving != null && this.level.getDifficulty() != Difficulty.PEACEFUL && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) { // Martijn - Zombies call for reinforcements on all difficulties
+                 int i = Mth.floor(this.getX());
+                 int j = Mth.floor(this.getY());
+                 int k = Mth.floor(this.getZ());
