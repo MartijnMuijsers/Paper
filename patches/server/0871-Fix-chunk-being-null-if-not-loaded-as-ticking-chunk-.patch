@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 19 Jan 2022 03:28:50 +0100
+Subject: [PATCH] Fix chunk being null if not loaded as ticking chunk but a
+ packet is broadcasted
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkHolder.java b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+index 5576427bb2b76b4fc7c5a9c72f67d8be8e7490d1..3f27b48f0ec29e2d7659a50f05f517ca130ae270 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkHolder.java
++++ b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+@@ -36,6 +36,7 @@ import net.minecraft.world.level.chunk.ProtoChunk;
+ import net.minecraft.world.level.lighting.LevelLightEngine;
+ // CraftBukkit start
+ import net.minecraft.server.MinecraftServer;
++import org.bukkit.Chunk;
+ // CraftBukkit end
+ 
+ public class ChunkHolder {
+@@ -341,11 +342,15 @@ public class ChunkHolder {
+ 
+     }
+ 
++    // Martijn start - network-constrained chunk tracking
+     public void broadcast(Packet<?> packet, boolean onlyOnWatchDistanceEdge) {
++        LevelChunk chunk = this.getTickingChunk(); // Will be null if not present
++        if (chunk == null) return;
+         this.playerProvider.getPlayersNearChunkForSending(this.pos, onlyOnWatchDistanceEdge).forEach((entityplayer) -> { // Martijn - per-player send distance
+-            entityplayer.connection.sendIfTracking(this.getTickingChunk(), packet); // Martijn - network-constrained chunk tracking
++            entityplayer.connection.sendIfTracking(chunk, packet);
+         });
+     }
++    // Martijn end - network-constrained chunk tracking
+ 
+     public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
+         int i = targetStatus.getIndex();
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 50cc494b6f8c375046a22a72bb87ba51823226a6..2568b240a6066e2fa8909ae5a8da933849639335 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2009,6 +2009,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+ 
+     // Martijn start - network-constrained chunk tracking
+     public void sendIfTracking(LevelChunk chunk, Packet<?> packet) {
++        if (chunk == null) return;
+         if (this.getPlayer().isTracking(chunk)) {
+             this.send(packet);
+         }
