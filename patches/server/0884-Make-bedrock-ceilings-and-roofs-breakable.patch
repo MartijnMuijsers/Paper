@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 18:41:31 +0100
+Subject: [PATCH] Make bedrock ceilings and roofs breakable
+
+
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index dd7b55cb2b4d8306e595306d057f9cf1f42169ba..36ca7ac59cb64f9cca66ead4967d8af65df6e3fa 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -62,6 +62,7 @@ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.World;
+ 
+ public class Block extends BlockBehaviour implements ItemLike {
+ 
+@@ -103,6 +104,18 @@ public class Block extends BlockBehaviour implements ItemLike {
+                 this != Blocks.BARRIER &&
+                 this != Blocks.STRUCTURE_BLOCK &&
+                 this != Blocks.JIGSAW) return true;
++        // Martijn start - bedrock floors and roofs can be broken
++        if (blockPos != null) {
++            if (this == Blocks.BEDROCK) {
++                if (level != null) {
++                    World.Environment environment = level.getWorld().getEnvironment();
++                    if (environment == World.Environment.NORMAL && blockPos.getY() >= -64 && blockPos.getY() <= -61) return true;
++                    if ((environment == World.Environment.NETHER || environment == World.Environment.NORMAL) && blockPos.getY() >= 0 && blockPos.getY() <= 3) return true;
++                    if (environment == World.Environment.NETHER && blockPos.getY() >= 124 && blockPos.getY() <= 127) return true;
++                }
++            }
++        }
++        // Martijn end - bedrock floors and roofs can be broken
+         return false;
+     }
+     // Martijn end - destroyable depends on position

@@ -1,0 +1,123 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 15:21:26 +0100
+Subject: [PATCH] Fix one-off bug in updating tracked or seen chunks when the
+ view distance was changed
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 09d9ab3c0bb4cab4c283f08e9c4de5a3553bab0f..853de37416cf9018c9faa42e65876e52649d41bd 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -1639,7 +1639,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     private void updateChunkTrackingOrSeeingDueToPlayerTrackOrSeeViewDistanceChange(ServerPlayer player, int oldSendViewDistance, int newSendViewDistance, boolean concernsTracking) {
+         if (this.playerMap.ignoredOrUnknown(player)) return;
+ 
+-        // Martijn - sort chunks by distance
++        // Martijn start - sort chunks by distance
+         List<ChunkHolder> objects = this.updatingChunks.getVisibleValuesCopy(); // Paper
+         Iterator objectiterator;
+         if (level.paperConfig.trackAndSeeChunksInOrderOfDistanceWhenChangingViewDistance) {
+@@ -1647,19 +1647,23 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         } else {
+             objectiterator = objects.iterator();
+         }
+-        // Martijn - sort chunks by distance
++        // Martijn end - sort chunks by distance
++
++        int oldWatchViewDistance = oldSendViewDistance + 1;
++        int newWatchViewDistance = newSendViewDistance + 1;
++        int updateChunkTrackingOrSeeingDistance = Math.max(oldWatchViewDistance, newWatchViewDistance);
+ 
+         while (objectiterator.hasNext()) {
+             ChunkHolder playerchunk = (ChunkHolder) objectiterator.next();
+             ChunkPos chunkcoordintpair = playerchunk.getPos();
+             MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
+ 
+-            if (this.isPlayerIncludedInPlayersNearChunkForSending(player, chunkcoordintpair, false, concernsTracking)) {
++            if (this.isPlayerIncludedInPlayersNearChunkForSending(player, chunkcoordintpair, false, updateChunkTrackingOrSeeingDistance)) {
+                 SectionPos sectionposition = player.getLastSectionPos();
+-                boolean flag = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), oldSendViewDistance);
+-                boolean flag1 = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), newSendViewDistance);
++                boolean oldWithinViewDistance = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), oldWatchViewDistance);
++                boolean newWithinViewDistance = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), newWatchViewDistance);
+ 
+-                this.updateChunkTrackingOrSeeing(player, chunkcoordintpair, mutableobject, flag, flag1, concernsTracking);
++                this.updateChunkTrackingOrSeeing(player, chunkcoordintpair, mutableobject, oldWithinViewDistance, newWithinViewDistance, concernsTracking);
+             }
+         }
+     }
+@@ -1667,6 +1671,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+     protected void updateChunkTrackingOrSeeing(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject, boolean oldWithinViewDistance, boolean newWithinViewDistance, boolean concernsTracking) { // Paper - Anti-Xray - Bypass // Martijn - per-player track and see view distance
+         if (player.level == this.level) {
++
+             if (newWithinViewDistance && !oldWithinViewDistance) {
+                 ChunkHolder playerchunk = this.getVisibleChunkIfPresent(pos.toLong());
+ 
+@@ -2026,10 +2031,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+                 // Martijn start - sort chunks by distance
+                 BiConsumer<Integer, Integer> chunkCoordinatesConsumer = (k2, l2) -> {
+-                    boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, viewDistance);
+-                    boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, viewDistance);
++                    boolean oldWithinViewDistance = ChunkMap.isChunkInRange(k2, l2, i1, j1, viewDistance);
++                    boolean newWithinViewDistance = ChunkMap.isChunkInRange(k2, l2, i, j, viewDistance);
+ 
+-                    this.updateChunkTrackingOrSeeing(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4, track);
++                    this.updateChunkTrackingOrSeeing(player, new ChunkPos(k2, l2), new MutableObject<>(), oldWithinViewDistance, newWithinViewDistance, track);
+                 };
+ 
+                 List<IntIntPair> coordinates = level.paperConfig.trackAndSeeChunksInOrderOfDistanceWhenMoving ? new ArrayList<>((i2 - k1 + 1) * (j2 - l1 + 1) + 1) : null;
+@@ -2050,15 +2055,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 // Martijn end - sort chunks by distance
+ 
+             } else {
+-                boolean flag5;
+-                boolean flag6;
+ 
+                 // Martijn start - track new chunks before untracking old chunks
+ 
+                 for (k1 = i - viewDistance - 1; k1 <= i + viewDistance + 1; ++k1) {
+                     for (l1 = j - viewDistance - 1; l1 <= j + viewDistance + 1; ++l1) {
+                         if (ChunkMap.isChunkInRange(k1, l1, i, j, viewDistance)) {
+-                            this.updateChunkTrackingOrSeeing(player, new ChunkPos(k1, l1), new MutableObject(), false, true, track);
++                            this.updateChunkTrackingOrSeeing(player, new ChunkPos(k1, l1), new MutableObject<>(), false, true, track);
+                         }
+                     }
+                 }
+@@ -2066,7 +2069,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 for (k1 = i1 - viewDistance - 1; k1 <= i1 + viewDistance + 1; ++k1) {
+                     for (l1 = j1 - viewDistance - 1; l1 <= j1 + viewDistance + 1; ++l1) {
+                         if (ChunkMap.isChunkInRange(k1, l1, i1, j1, viewDistance)) {
+-                            this.updateChunkTrackingOrSeeing(player, new ChunkPos(k1, l1), new MutableObject(), true, false, track);
++                            this.updateChunkTrackingOrSeeing(player, new ChunkPos(k1, l1), new MutableObject<>(), true, false, track);
+                         }
+                     }
+                 }
+@@ -2092,7 +2095,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         while (iterator.hasNext()) {
+             ServerPlayer entityplayer = (ServerPlayer) iterator.next();
+ 
+-            if (isPlayerIncludedInPlayersNearChunkForSending(entityplayer, chunkPos, onlyOnWatchDistanceEdge, concernsTracking)) { // Martijn - per-player track and see view distance
++            if (isPlayerIncludedInPlayersNearChunkForSendingBasedOnCurrentViewDistance(entityplayer, chunkPos, onlyOnWatchDistanceEdge, concernsTracking)) { // Martijn - per-player track and see view distance
+                 builder.add(entityplayer);
+             }
+         }
+@@ -2101,10 +2104,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     // Martijn start - per-player track and see view distance
+-    public boolean isPlayerIncludedInPlayersNearChunkForSending(ServerPlayer player, ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, boolean concernsTracking) {
++    public boolean isPlayerIncludedInPlayersNearChunkForSendingBasedOnCurrentViewDistance(ServerPlayer player, ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, boolean concernsTracking) {
++        return isPlayerIncludedInPlayersNearChunkForSending(player, chunkPos, onlyOnWatchDistanceEdge, (concernsTracking ? player.getTrackViewDistance() : player.getSeeViewDistance()) + 1);
++    }
++
++    public boolean isPlayerIncludedInPlayersNearChunkForSending(ServerPlayer player, ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, int distance) {
+         SectionPos sectionposition = player.getLastSectionPos();
+-        int viewDistance = (concernsTracking ? player.getTrackViewDistance() : player.getSeeViewDistance()) + 1;
+-        return onlyOnWatchDistanceEdge && ChunkMap.isChunkOnRangeBorder(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), viewDistance) || !onlyOnWatchDistanceEdge && ChunkMap.isChunkInRange(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), viewDistance);
++        return onlyOnWatchDistanceEdge && ChunkMap.isChunkOnRangeBorder(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), distance) || !onlyOnWatchDistanceEdge && ChunkMap.isChunkInRange(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), distance);
+     }
+     // Martijn end - per-player track and see view distance
+ 

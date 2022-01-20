@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 19:09:02 +0100
+Subject: [PATCH] Making panda methods public - should already have been done
+ by Paper upstream but something went wrong rebasing
+
+
+diff --git a/src/main/java/net/minecraft/world/entity/animal/Panda.java b/src/main/java/net/minecraft/world/entity/animal/Panda.java
+index f9be50049325a1139d67ccf590caeeceadb2fd23..26e1898f6c9d716f8efa7b0cc4b9ad947e36ebd6 100644
+--- a/src/main/java/net/minecraft/world/entity/animal/Panda.java
++++ b/src/main/java/net/minecraft/world/entity/animal/Panda.java
+@@ -150,11 +150,11 @@ public class Panda extends Animal {
+         this.entityData.set(Panda.EAT_COUNTER, eating ? 1 : 0);
+     }
+ 
+-    private int getEatCounter() {
++    public int getEatCounter() {
+         return (Integer) this.entityData.get(Panda.EAT_COUNTER);
+     }
+ 
+-    private void setEatCounter(int eatingTicks) {
++    public void setEatCounter(int eatingTicks) {
+         this.entityData.set(Panda.EAT_COUNTER, eatingTicks);
+     }
+ 

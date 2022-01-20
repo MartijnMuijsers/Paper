@@ -1,0 +1,137 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 17:30:34 +0100
+Subject: [PATCH] Make whether a block is destroyable dependent on its world
+
+
+diff --git a/src/main/java/net/minecraft/world/level/Explosion.java b/src/main/java/net/minecraft/world/level/Explosion.java
+index e42a9eac05d7615a6cb86292e559ff77b4e65457..bc4cbe693d69ed8414a206f6daefa6c49d6c166d 100644
+--- a/src/main/java/net/minecraft/world/level/Explosion.java
++++ b/src/main/java/net/minecraft/world/level/Explosion.java
+@@ -176,7 +176,7 @@ public class Explosion {
+                         for (float f1 = 0.3F; f > 0.0F; f -= 0.22500001F) {
+                             BlockPos blockposition = new BlockPos(d4, d5, d6);
+                             BlockState iblockdata = this.level.getBlockState(blockposition);
+-                            if (!iblockdata.isDestroyable(blockposition)) continue; // Paper // Martijn - destroyable depends on position
++                            if (!iblockdata.isDestroyable(blockposition, this.level)) continue; // Paper // Martijn - destroyable depends on position
+                             FluidState fluid = iblockdata.getFluidState(); // Paper
+ 
+                             if (!this.level.isInWorldBounds(blockposition)) {
+@@ -363,7 +363,7 @@ public class Explosion {
+                 BlockState iblockdata = this.level.getBlockState(blockposition);
+                 Block block = iblockdata.getBlock();
+ 
+-                if (!iblockdata.isAir() && iblockdata.isDestroyable(blockposition)) { // Paper // Martijn - destroyable depends on position
++                if (!iblockdata.isAir() && iblockdata.isDestroyable(blockposition, this.level)) { // Paper // Martijn - destroyable depends on position
+                     BlockPos blockposition1 = blockposition.immutable();
+ 
+                     this.level.getProfiler().push("explosion_blocks");
+diff --git a/src/main/java/net/minecraft/world/level/Level.java b/src/main/java/net/minecraft/world/level/Level.java
+index 2f1ee700491424a049031b268b00989324a4dd6b..66477dacbfc88cf8a0df206d2d29bd191865145d 100644
+--- a/src/main/java/net/minecraft/world/level/Level.java
++++ b/src/main/java/net/minecraft/world/level/Level.java
+@@ -549,7 +549,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable {
+         if (this.captureTreeGeneration) {
+             // Paper start
+             BlockState type = getBlockState(pos);
+-            if (!type.isDestroyable(pos)) return false; // Martijn - destroyable depends on position
++            if (!type.isDestroyable(pos, this)) return false; // Martijn - destroyable depends on position
+             // Paper end
+             CraftBlockState blockstate = this.capturedBlockStates.get(pos);
+             if (blockstate == null) {
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index 086ae88dcb0a78af9f8ac0a6e48ad4ab1ca6e891..dd7b55cb2b4d8306e595306d057f9cf1f42169ba 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -91,7 +91,7 @@ public class Block extends BlockBehaviour implements ItemLike {
+     // Paper start
+     
+     // Martijn start - destroyable depends on position
+-    public final boolean isDestroyable(@Nullable BlockPos blockPos) {
++    public final boolean isDestroyable(@Nullable BlockPos blockPos, @Nullable Level level) {
+         if (com.destroystokyo.paper.PaperConfig.allowBlockPermanentBreakingExploits ||
+             this != Blocks.BEDROCK &&
+                 this != Blocks.END_PORTAL_FRAME &&
+diff --git a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+index 5ebb0fd39169946a6d0c2a0f9f392da99aa7e472..b30e989afe5ece2922d43b596929642e9f49a2ec 100644
+--- a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+@@ -266,7 +266,7 @@ public class PistonBaseBlock extends DirectionalBlock {
+                 }
+ 
+                 if (!flag1) {
+-                    if (type == 1 && !iblockdata2.isAir() && PistonBaseBlock.isPushable(iblockdata2, world, blockposition1, enumdirection.getOpposite(), false, enumdirection) && (iblockdata2.getPistonPushReaction(blockposition1) == PushReaction.NORMAL || iblockdata2.is(Blocks.PISTON) || iblockdata2.is(Blocks.STICKY_PISTON))) { // Martijn - destroyable depends on position
++                    if (type == 1 && !iblockdata2.isAir() && PistonBaseBlock.isPushable(iblockdata2, world, blockposition1, enumdirection.getOpposite(), false, enumdirection) && (iblockdata2.getPistonPushReaction(blockposition1, world) == PushReaction.NORMAL || iblockdata2.is(Blocks.PISTON) || iblockdata2.is(Blocks.STICKY_PISTON))) { // Martijn - destroyable depends on position
+                         this.moveBlocks(world, pos, enumdirection, false);
+                     } else {
+                         // Paper start - fire BlockPistonRetractEvent for sticky pistons retracting nothing (air)
+@@ -312,7 +312,7 @@ public class PistonBaseBlock extends DirectionalBlock {
+                             return false;
+                         }
+ 
+-                        switch (state.getPistonPushReaction(pos)) { // Martijn - destroyable depends on position
++                        switch (state.getPistonPushReaction(pos, world)) { // Martijn - destroyable depends on position
+                             case BLOCK:
+                                 return false;
+                             case DESTROY:
+diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
+index e0749134d349ae90f2600bc924ed55182fe08913..99477f5bc37a67ba4ef8b62e57a82aac078283cc 100644
+--- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
++++ b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
+@@ -232,7 +232,7 @@ public abstract class BlockBehaviour {
+     /** @deprecated */
+     @Deprecated
+     public boolean canBeReplaced(BlockState state, BlockPlaceContext context) {
+-        return this.material.isReplaceable() && (context.getItemInHand().isEmpty() || !context.getItemInHand().is(this.asItem())) && (state.isDestroyable(context.getClickedPos()) || (context.getPlayer() != null && context.getPlayer().getAbilities().instabuild)); // Paper // Martijn - destroyable depends on position
++        return this.material.isReplaceable() && (context.getItemInHand().isEmpty() || !context.getItemInHand().is(this.asItem())) && (state.isDestroyable(context.getClickedPos(), context.getLevel()) || (context.getPlayer() != null && context.getPlayer().getAbilities().instabuild)); // Paper // Martijn - destroyable depends on position
+     }
+ 
+     /** @deprecated */
+@@ -738,8 +738,8 @@ public abstract class BlockBehaviour {
+         // Paper start
+ 
+         // Martijn start - destroyable depends on position
+-        public final boolean isDestroyable(BlockPos blockPos) {
+-            return getBlock().isDestroyable(blockPos);
++        public final boolean isDestroyable(@Nullable BlockPos blockPos, @Nullable Level level) {
++            return getBlock().isDestroyable(blockPos, level);
+         }
+         // Martijn end - destroyable depends on position
+ 
+@@ -841,8 +841,8 @@ public abstract class BlockBehaviour {
+         }
+ 
+         // Martijn start - destroyable depends on position
+-        public PushReaction getPistonPushReaction(BlockPos blockPos) {
+-            return !isDestroyable(blockPos) ? PushReaction.BLOCK : this.getBlock().getPistonPushReaction(this.asState()); // Paper
++        public PushReaction getPistonPushReaction(@Nullable BlockPos blockPos, @Nullable Level level) {
++            return !isDestroyable(blockPos, level) ? PushReaction.BLOCK : this.getBlock().getPistonPushReaction(this.asState()); // Paper
+         }
+         // Martijn end - destroyable depends on position
+ 
+diff --git a/src/main/java/net/minecraft/world/level/portal/PortalForcer.java b/src/main/java/net/minecraft/world/level/portal/PortalForcer.java
+index 8c22cd073f60e693e9e0a20653abad7285929368..148c851d3b6eaa9f15fb51edc1d11819b9c019cb 100644
+--- a/src/main/java/net/minecraft/world/level/portal/PortalForcer.java
++++ b/src/main/java/net/minecraft/world/level/portal/PortalForcer.java
+@@ -234,7 +234,7 @@ public class PortalForcer {
+                 temp.setWithOffset(pos, portalDirection.getStepX() * j + enumdirection1.getStepX() * distanceOrthogonalToPortal, k, portalDirection.getStepZ() * j + enumdirection1.getStepZ() * distanceOrthogonalToPortal);
+                 // Paper start - prevent destroying unbreakable blocks
+                 if (!com.destroystokyo.paper.PaperConfig.allowBlockPermanentBreakingExploits) {
+-                    if (!this.level.getBlockState(temp).isDestroyable(temp)) { // Martijn - destroyable depends on position
++                    if (!this.level.getBlockState(temp).isDestroyable(temp, this.level)) { // Martijn - destroyable depends on position
+                         return false;
+                     }
+                 }
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
+index c61e844988cb083c757540d7d25b2eb1e298c4f8..d869a4768f25f4e6a8b7ae06e527e3bf6003b97d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
+@@ -476,7 +476,7 @@ public class CraftBlock implements Block {
+ 
+     @Override
+     public PistonMoveReaction getPistonMoveReaction() {
+-        return PistonMoveReaction.getById(this.getNMS().getPistonPushReaction(this.getPosition()).ordinal()); // Martijn - destroyable depends on position
++        return PistonMoveReaction.getById(this.getNMS().getPistonPushReaction(this.getPosition(), this.world.getMinecraftWorld()).ordinal()); // Martijn - destroyable depends on position
+     }
+ 
+     @Override

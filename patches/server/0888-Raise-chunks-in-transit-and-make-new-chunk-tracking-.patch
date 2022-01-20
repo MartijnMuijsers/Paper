@@ -1,0 +1,199 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 20:59:34 +0100
+Subject: [PATCH] Raise chunks in transit and make new chunk tracking or seeing
+ limit universal
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index bfaa9a455cdefc6d8d5e23b74c520e7bf977d954..b98202e45167d9268bd882e53c0aa588f7f7551c 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -116,7 +116,7 @@ public class PaperConfig {
+ 
+     // Martijn start - network-constrained chunk tracking
+ 
+-    public static int initialMaxNumberOfChunkPacketsInTransit = 1;
++    public static int initialMaxNumberOfChunkPacketsInTransit = 5;
+     private static void initialMaxNumberOfChunkPacketsInTransit() {
+         initialMaxNumberOfChunkPacketsInTransit = getInt("settings.network-constrained-chunk-tracking.max-chunk-packets-in-transit.initial", initialMaxNumberOfChunkPacketsInTransit);
+     }
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index 56e4f24b4defb73e2e28a76704c9ae840e2176c2..60e82eb19697a389d1c0f6a29336d2395abd20b8 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -228,17 +228,20 @@ public class PaperWorldConfig {
+ 
+     // Martijn start - network-constrained chunk tracking
+ 
+-    public int minMaxNumberOfChunkPacketsInTransit = 1;
++    public int minMaxNumberOfChunkPacketsInTransit = 5;
+     private void minMaxNumberOfChunkPacketsInTransit() {
+         this.minMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.min", this.minMaxNumberOfChunkPacketsInTransit);
+     }
+ 
+-    public int maxMaxNumberOfChunkPacketsInTransit = 7;
++    public int maxMaxNumberOfChunkPacketsInTransit = 50;
+     private void maxMaxNumberOfChunkPacketsInTransit() {
+         this.maxMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.max", this.maxMaxNumberOfChunkPacketsInTransit);
+     }
+ 
+-    public int maxChunksToNewlyTrackOrSeePerTick = 7;
++    /**
++     * -1 indicates no limit
++     */
++    public int maxChunksToNewlyTrackOrSeePerTick = -1;
+     private void maxChunksToNewlyTrackOrSeePerTick() {
+         this.maxChunksToNewlyTrackOrSeePerTick = getInt("network-constrained-chunk-tracking.max-to-newly-track-or-see-per-tick", this.maxChunksToNewlyTrackOrSeePerTick);
+     }
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 853de37416cf9018c9faa42e65876e52649d41bd..aec7ca25ccb8d200a95394b198e249388e983c02 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -2209,7 +2209,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Paper end - optimised tracker
+ 
+     protected void tick() {
+-        attemptToTrackOrSeePlannedChunksForAllPlayers(); // Martijn - network-constrained chunk tracking
++        // Martijn start - network-constrained chunk tracking
++        this.level.players.forEach(ServerPlayer::resetChunksNewlyTrackedOrSeenThisTick);
++        attemptToTrackOrSeePlannedChunksForAllPlayers();
++        // Martijn end - network-constrained chunk tracking
+         // Paper start - optimized tracker
+         if (true) {
+             this.processTrackQueue();
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 4ef5b75d6fc574bf20746bdfdad8b8ef3c2a2f68..0874086ebea13d8c5a01e6b658e81ce769ca5d23 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -474,6 +474,27 @@ public class ServerPlayer extends Player {
+         }
+     }
+ 
++    private int numberOfChunksNewlyTrackedOrSeenThisTick = 0;
++
++    public void resetChunksNewlyTrackedOrSeenThisTick() {
++        synchronized (networkConstrainedTrackingLock) {
++            numberOfChunksNewlyTrackedOrSeenThisTick = 0;
++        }
++    }
++
++    private void incrementChunksNewlyTrackedOrSeenThisTick() {
++        synchronized (networkConstrainedTrackingLock) {
++            numberOfChunksNewlyTrackedOrSeenThisTick++;
++        }
++    }
++
++    private boolean canNewlyTrackOrSeeMoreChunksThisTick() {
++        if (this.getLevel().paperConfig.maxChunksToNewlyTrackOrSeePerTick == -1) return true;
++        synchronized (networkConstrainedTrackingLock) {
++            return numberOfChunksNewlyTrackedOrSeenThisTick < this.getLevel().paperConfig.maxChunksToNewlyTrackOrSeePerTick;
++        }
++    }
++
+     private final Object2ObjectMap<UUID, LongSet> plannedToTrack = new Object2ObjectOpenHashMap<>();
+     private final Object2ObjectMap<UUID, LongSet> tracking = new Object2ObjectOpenHashMap<>();
+     private final Object2ObjectMap<UUID, LongSet> plannedToSee = new Object2ObjectOpenHashMap<>();
+@@ -669,36 +690,42 @@ public class ServerPlayer extends Player {
+             }
+         }
+ 
++        // We cannot newly track or see a new chunk if we already did so for too many this tick
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (!this.canNewlyTrackOrSeeMoreChunksThisTick()) return false;
++        }
++
+         int manhattanDistance = this.getManhattanDistanceToChunk(chunkKey);
+         // Do not track or see if the Manhattan distance is much greater than the respective view distance (+2 because this is also what is normally used for the inclusive square area in which chunks can potentially be tracked or seen)
+         if (manhattanDistance > (concernsTracking ? this.getTrackViewDistance() : this.getSeeViewDistance()) + 2) {
+             return false;
+         }
+ 
+-        // Do not track or see if the number of chunks in transit is greater than the treshold we set before we allow this chunk, based on its distance
+-        long squaredPythagoreanDistance = this.getSquaredPythagoreanDistanceToChunk(chunkKey);
+-        // TODO turn into configuration options
+-        int maxNumberOfChunkPacketsInTransitByDistance = 7;
+-
+-        if (squaredPythagoreanDistance >= 729) { // 27^2
+-            maxNumberOfChunkPacketsInTransitByDistance = 1;
+-        } else if (squaredPythagoreanDistance >= 400) { // 20^2
+-            maxNumberOfChunkPacketsInTransitByDistance = 2;
+-        } else if (squaredPythagoreanDistance >= 196) { // 14^2
+-            maxNumberOfChunkPacketsInTransitByDistance = 3;
+-        } else if (squaredPythagoreanDistance >= 81) { // 9^2
+-            maxNumberOfChunkPacketsInTransitByDistance = 4;
+-        } else if (squaredPythagoreanDistance >= 25) { // 5^2
+-            maxNumberOfChunkPacketsInTransitByDistance = 5;
+-        } else if (squaredPythagoreanDistance >= 4) { // 2^2
+-            maxNumberOfChunkPacketsInTransitByDistance = 6;
+-        }
++        // Do not track or see if the number of chunks in transit is greater than the threshold we set before we allow this chunk, based on its distance
++        // ^ Edit: we no longer do this, it was added to prevent screen lag due to receiving many chunks simultaneously, but the max number of chunks to send per tick has become the replacement solution
++//        long squaredPythagoreanDistance = this.getSquaredPythagoreanDistanceToChunk(chunkKey);
++//        // Should be turned into configuration options
++//        int maxNumberOfChunkPacketsInTransitByDistance = 7;
++//
++//        if (squaredPythagoreanDistance >= 729) { // 27^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 1;
++//        } else if (squaredPythagoreanDistance >= 400) { // 20^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 2;
++//        } else if (squaredPythagoreanDistance >= 196) { // 14^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 3;
++//        } else if (squaredPythagoreanDistance >= 81) { // 9^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 4;
++//        } else if (squaredPythagoreanDistance >= 25) { // 5^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 5;
++//        } else if (squaredPythagoreanDistance >= 4) { // 2^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 6;
++//        }
+         synchronized (this.networkConstrainedTrackingLock) {
+-            int maxNumberOfChunkPacketsInTransitToUse = Math.min(
+-                this.getMaxNumberOfChunkPacketsInTransitBasedOnConnection(),
+-                maxNumberOfChunkPacketsInTransitByDistance
+-            );
+-            return this.getNumberOfChunkInitializationPacketsInTransit() < maxNumberOfChunkPacketsInTransitToUse;
++//            int maxNumberOfChunkPacketsInTransitToUse = Math.min(
++//                this.getMaxNumberOfChunkPacketsInTransitBasedOnConnection(),
++//                maxNumberOfChunkPacketsInTransitByDistance
++//            );
++            return this.getNumberOfChunkInitializationPacketsInTransit() < this.getMaxNumberOfChunkPacketsInTransitBasedOnConnection();
+         }
+ 
+     }
+@@ -2856,6 +2883,7 @@ public class ServerPlayer extends Player {
+ 
+         }
+ 
++        this.incrementChunksNewlyTrackedOrSeenThisTick();
+         return true;
+ 
+     }
+@@ -2869,7 +2897,6 @@ public class ServerPlayer extends Player {
+             }
+         }
+ 
+-        int amountNewlyTrackedOrSeen = 0;
+         while (true) {
+ 
+             Pair<Long, Boolean> planned = this.getFirstPlannedChunkToTrackOrSee();
+@@ -2884,13 +2911,14 @@ public class ServerPlayer extends Player {
+ 
+             // If the player can be informed of something, inform, otherwise break
+             if (canStartTracking) {
+-                if (actuallyTrackOrSeeChunk(level.getChunk(chunkPos.x, chunkPos.z), planned.second())) {
+-                    amountNewlyTrackedOrSeen++;
++                actuallyTrackOrSeeChunk(level.getChunk(chunkPos.x, chunkPos.z), planned.second());
++//                    incrementChunksNewlyTrackedOrSeenThisTick();
+                     // Break if we informed of enough packets - to make sure enough other players get a go without going over the tick time for this tick
+-                    if (amountNewlyTrackedOrSeen >= level.paperConfig.maxChunksToNewlyTrackOrSeePerTick) {
+-                        break;
+-                    }
+-                }
++                    // ^ Edit: no longer necessary, we will break on the next step when canStartTrackingOrSeeingChunkRightNow returns false because of this - we don't want to break here in case the next planned chunk has some reason to be exempted from this rule
++//                    if (amountNewlyTrackedOrSeen >= level.paperConfig.maxChunksToNewlyTrackOrSeePerTick) {
++//                        break;
++//                    }
++//                }
+             } else {
+                 break;
+             }

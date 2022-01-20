@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 20:11:53 +0100
+Subject: [PATCH] Add configuration for breaking bedrock floors and roofs
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index c039267affa4d246ac5ca3445914a3fed796d9df..bfaa9a455cdefc6d8d5e23b74c520e7bf977d954 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -93,6 +93,15 @@ public class PaperConfig {
+         }
+     }
+ 
++    // Martijn start - bedrock floors and roofs can be broken
++
++    public static boolean allowBreakingBedrockFloorsAndRoofs = false;
++    private static void allowBreakingBedrockFloorsAndRoofs() {
++        allowBreakingBedrockFloorsAndRoofs = getBoolean("settings.allow-breaking-bedrock-floors-and-roofs", allowBreakingBedrockFloorsAndRoofs);
++    }
++
++    // Martijn end - bedrock floors and roofs can be broken
++
+     // Martijn start - survival debug stick
+ 
+     /**
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index adaca4b662eefe1d5992c868c94d6f3fbf1a6b3f..ee59d41dfa1ae765637e3e25d58a8b7f175f7453 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -93,6 +93,7 @@ public class Block extends BlockBehaviour implements ItemLike {
+ 
+     // Martijn start - bedrock floors and roofs can be broken
+     public static boolean isBreakableBedrockFloorOrRoof(@Nullable BlockPos blockPos, @Nullable Level level) {
++        if (!com.destroystokyo.paper.PaperConfig.allowBreakingBedrockFloorsAndRoofs) return false;
+         if (blockPos == null || level == null) return false;
+         if (!level.getBlockState(blockPos).is(Blocks.BEDROCK)) return false;
+         World.Environment environment = level.getWorld().getEnvironment();

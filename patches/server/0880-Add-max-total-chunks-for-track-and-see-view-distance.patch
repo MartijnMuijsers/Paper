@@ -1,0 +1,248 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 13:48:59 +0100
+Subject: [PATCH] Add max total chunks for track and see view distances
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index 55a95a82d9352182eae7cfa6c39899e25fdbf0ad..c039267affa4d246ac5ca3445914a3fed796d9df 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
+ 
+ import com.google.common.collect.Lists;
+ import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerPlayer;
+ import org.bukkit.Bukkit;
+ import org.bukkit.ChatColor;
+ import org.bukkit.command.Command;
+@@ -27,6 +28,7 @@ import org.bukkit.configuration.InvalidConfigurationException;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ import co.aikar.timings.Timings;
+ import co.aikar.timings.TimingsManager;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.spigotmc.SpigotConfig;
+ import org.spigotmc.WatchdogThread;
+ 
+@@ -129,6 +131,42 @@ public class PaperConfig {
+         sendEnderDragonSpawnSoundToPlayersWhoAreSeeingButNotTracking = getBoolean("settings.view-distances.track-and-see-view-distance.if-can-see-but-not-tracking.send-ender-dragon-spawn-sound", sendEnderDragonSpawnSoundToPlayersWhoAreSeeingButNotTracking);
+     }
+ 
++    /**
++     * -1 indicates no limit
++     */
++    public static int maxTotalTrackedChunks = -1;
++    private static void maxTotalTrackChunks() {
++        maxTotalTrackedChunks = getInt("settings.view-distances.track-view-distance.max-total", maxTotalTrackedChunks);
++    }
++    public static int getMaxTotalTrackedChunks() {
++        return maxTotalTrackedChunks;
++    }
++    public static void setMaxTotalTrackedChunks(int maxTotalTrackedChunks) {
++        if (PaperConfig.maxTotalTrackedChunks != maxTotalTrackedChunks) {
++            PaperConfig.maxTotalTrackedChunks = maxTotalTrackedChunks;
++            int precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks = ServerPlayer.computeMaxTrackViewDistanceDueToMaxTotalTrackedChunks();
++            Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().trackViewDistanceMayHaveChanged(precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks));
++        }
++    }
++
++    /**
++     * -1 indicates no limit
++     */
++    public static int maxTotalSeenChunks = -1;
++    private static void maxTotalSeeChunks() {
++        maxTotalSeenChunks = getInt("settings.view-distances.see-view-distance.max-total", maxTotalSeenChunks);
++    }
++    public static int getMaxTotalSeenChunks() {
++        return maxTotalSeenChunks;
++    }
++    public static void setMaxTotalSeenChunks(int maxTotalSeenChunks) {
++        if (PaperConfig.maxTotalSeenChunks != maxTotalSeenChunks) {
++            PaperConfig.maxTotalSeenChunks = maxTotalSeenChunks;
++            int precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks = ServerPlayer.computeMaxSeeViewDistanceDueToMaxTotalSeenChunks();
++            Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().seeViewDistanceMayHaveChanged(precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks));
++        }
++    }
++
+     // Martijn end - per-player track and see view distance
+ 
+     // Martijn start - configurable keepalive
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 4805ffa8aaf58da40e4ea92703e4be68fd9488b6..4ef5b75d6fc574bf20746bdfdad8b8ef3c2a2f68 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -202,49 +202,69 @@ public class ServerPlayer extends Player {
+         return getWorldSeeViewDistance() + 1;
+     }
+ 
+-    private Integer lastProcessedTrackViewDistance = null;
+-    private Integer lastProcessedSeeViewDistance = null;
+-    private Integer lastProcessedLoadViewDistance = null;
++    private @Nullable Integer lastProcessedTrackViewDistance = null;
++    private @Nullable Integer lastProcessedSeeViewDistance = null;
++    private @Nullable Integer lastProcessedLoadViewDistance = null;
+ 
+     public final int getTrackViewDistance() {
++        return getSeeViewDistance(computeMaxTrackViewDistanceDueToMaxTotalTrackedChunks());
++    }
++
++    /**
++     * @param maxTrackViewDistanceDueToMaxTotalTrackedChunks If -1, indicates there is no maximum
++     */
++    private final int getTrackViewDistance(int maxTrackViewDistanceDueToMaxTotalTrackedChunks) {
+         int trackViewDistance = getWorldTrackViewDistance();
+-        trackViewDistance = Math.min(trackViewDistance, getSeeViewDistance());
+-        if (getLevel().paperConfig.getPerPlayerTrackViewDistance()) {
+-            if (getLevel().paperConfig.getMaxTrackViewDistance() != -1) {
+-                trackViewDistance = Math.min(trackViewDistance, getLevel().paperConfig.getMaxTrackViewDistance());
++        trackViewDistance = Math.min(trackViewDistance, this.getSeeViewDistance());
++        if (this.getLevel().paperConfig.getPerPlayerTrackViewDistance()) {
++            if (this.getLevel().paperConfig.getMaxTrackViewDistance() != -1) {
++                trackViewDistance = Math.min(trackViewDistance, this.getLevel().paperConfig.getMaxTrackViewDistance());
+             }
+-            if (getLevel().paperConfig.getLimitTrackViewDistanceByClientViewDistance()) {
+-                trackViewDistance = Math.min(trackViewDistance, getBukkitEntity().getClientViewDistance());
++            if (this.getLevel().paperConfig.getLimitTrackViewDistanceByClientViewDistance()) {
++                trackViewDistance = Math.min(trackViewDistance, this.getBukkitEntity().getClientViewDistance());
+             }
+         }
++        if (maxTrackViewDistanceDueToMaxTotalTrackedChunks != -1) {
++            trackViewDistance = Math.min(trackViewDistance, maxTrackViewDistanceDueToMaxTotalTrackedChunks);
++        }
+         trackViewDistance = Mth.clamp(trackViewDistance, 2, 32);
+         return trackViewDistance;
+     }
+ 
+     public final int getSeeViewDistance() {
++        return getSeeViewDistance(computeMaxSeeViewDistanceDueToMaxTotalSeenChunks());
++    }
++
++    /**
++     * @param maxSeeViewDistanceDueToMaxTotalSeenChunks If -1, indicates there is no maximum
++     */
++    private final int getSeeViewDistance(int maxSeeViewDistanceDueToMaxTotalSeenChunks) {
+         int seeViewDistance = this.getWorldSeeViewDistance();
+-        if (getLevel().paperConfig.getPerPlayerSeeViewDistance()) {
+-            if (getLevel().paperConfig.getMaxSeeViewDistance() != -1) {
+-                seeViewDistance = Math.min(seeViewDistance, getLevel().paperConfig.getMaxSeeViewDistance());
++        if (this.getLevel().paperConfig.getPerPlayerSeeViewDistance()) {
++            if (this.getLevel().paperConfig.getMaxSeeViewDistance() != -1) {
++                seeViewDistance = Math.min(seeViewDistance, this.getLevel().paperConfig.getMaxSeeViewDistance());
+             }
+-            if (getLevel().paperConfig.getLimitSeeViewDistanceByClientViewDistance()) {
+-                seeViewDistance = Math.min(seeViewDistance, getBukkitEntity().getClientViewDistance());
++            if (this.getLevel().paperConfig.getLimitSeeViewDistanceByClientViewDistance()) {
++                seeViewDistance = Math.min(seeViewDistance, this.getBukkitEntity().getClientViewDistance());
+             }
+         }
++        if (maxSeeViewDistanceDueToMaxTotalSeenChunks != -1) {
++            seeViewDistance = Math.min(seeViewDistance, maxSeeViewDistanceDueToMaxTotalSeenChunks);
++        }
+         seeViewDistance = Mth.clamp(seeViewDistance, 2, 32);
+         return seeViewDistance;
+     }
+ 
+     public final int getLoadViewDistance() {
+         int loadViewDistance = this.getWorldLoadViewDistance();
+-        if (getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
+-            if (getLevel().paperConfig.getMaxLoadViewDistance() != -1) {
+-                loadViewDistance = Math.min(loadViewDistance, getLevel().paperConfig.getMaxLoadViewDistance());
++        if (this.getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
++            if (this.getLevel().paperConfig.getMaxLoadViewDistance() != -1) {
++                loadViewDistance = Math.min(loadViewDistance, this.getLevel().paperConfig.getMaxLoadViewDistance());
+             }
+-            if (getLevel().paperConfig.getLimitLoadViewDistanceBySeeViewDistance()) {
++            if (this.getLevel().paperConfig.getLimitLoadViewDistanceBySeeViewDistance()) {
+                 loadViewDistance = Math.min(loadViewDistance, this.getSeeViewDistance() + 1);
+             }
+-            if (getLevel().paperConfig.getLimitLoadViewDistanceByClientViewDistance()) {
++            if (this.getLevel().paperConfig.getLimitLoadViewDistanceByClientViewDistance()) {
+                 loadViewDistance = Math.min(loadViewDistance, this.getBukkitEntity().getClientViewDistance() + 1);
+             }
+         }
+@@ -253,8 +273,17 @@ public class ServerPlayer extends Player {
+     }
+ 
+     public void trackViewDistanceMayHaveChanged() {
++        this.trackViewDistanceMayHaveChanged(null);
++    }
++
++    /**
++     * @param precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks If null, indicates it hasn't been computed; if -1, indicates there is no maximum
++     */
++    public void trackViewDistanceMayHaveChanged(@Nullable Integer precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks) {
+ 
+-        int newTrackViewDistance = this.getTrackViewDistance();
++        int maxTrackViewDistanceDueToMaxTotalTrackedChunks = precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks != null ? precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks : computeMaxTrackViewDistanceDueToMaxTotalTrackedChunks();
++
++        int newTrackViewDistance = this.getTrackViewDistance(maxTrackViewDistanceDueToMaxTotalTrackedChunks);
+         if (this.lastProcessedTrackViewDistance != null && newTrackViewDistance == this.lastProcessedTrackViewDistance) return;
+         int oldTrackViewDistance = (this.lastProcessedTrackViewDistance == null) ? newTrackViewDistance : this.lastProcessedTrackViewDistance;
+ 
+@@ -263,11 +292,39 @@ public class ServerPlayer extends Player {
+ 
+         this.lastProcessedTrackViewDistance = newTrackViewDistance;
+ 
++        if (precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks == null && maxTrackViewDistanceDueToMaxTotalTrackedChunks != -1) {
++            Bukkit.getOnlinePlayers().stream()
++                .map(it -> ((CraftPlayer) it).getHandle())
++                .filter(it -> !it.equals(this))
++                .forEach(it -> it.trackViewDistanceMayHaveChanged(maxTrackViewDistanceDueToMaxTotalTrackedChunks));
++        }
++
++    }
++
++    /**
++     * @return If -1, indicates there is no maximum; otherwise in the range [2, 32]
++     */
++    public static int computeMaxTrackViewDistanceDueToMaxTotalTrackedChunks() {
++        if (PaperConfig.getMaxTotalTrackedChunks() == -1) return -1;
++        // Finds the lowest distance that is not possible (or 3 if none are possible, or 33 if all are possible), then subtracts 1 to find the highest distance that is possible (or 2 if none are possible, or 32 if all are posisble)
++        return Mth.binarySearch(3, 33, candidate -> {
++            // Must return whether the candidate is not possible
++            return Bukkit.getOnlinePlayers().stream().mapToInt(it -> ((CraftPlayer) it).getHandle().getTrackViewDistance(candidate)).map(it -> (it*2+1)*(it*2+1)).sum() > PaperConfig.getMaxTotalTrackedChunks();
++        }) - 1;
+     }
+ 
+     public void seeViewDistanceMayHaveChanged() {
++        this.seeViewDistanceMayHaveChanged(null);
++    }
++
++    /**
++     * @param precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks If null, indicates it hasn't been computed; if -1, indicates there is no maximum
++     */
++    public void seeViewDistanceMayHaveChanged(@Nullable Integer precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks) {
++
++        int maxSeeViewDistanceDueToMaxTotalSeenChunks = precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks != null ? precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks : computeMaxSeeViewDistanceDueToMaxTotalSeenChunks();
+ 
+-        int newSeeViewDistance = this.getSeeViewDistance();
++        int newSeeViewDistance = this.getSeeViewDistance(maxSeeViewDistanceDueToMaxTotalSeenChunks);
+         if (this.lastProcessedSeeViewDistance != null && newSeeViewDistance == this.lastProcessedSeeViewDistance) return;
+         int oldSeeViewDistance = (this.lastProcessedSeeViewDistance == null) ? newSeeViewDistance : this.lastProcessedSeeViewDistance;
+ 
+@@ -279,6 +336,25 @@ public class ServerPlayer extends Player {
+         this.trackViewDistanceMayHaveChanged();
+         this.loadViewDistanceMayHaveChanged();
+ 
++        if (precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks == null && maxSeeViewDistanceDueToMaxTotalSeenChunks != -1) {
++            Bukkit.getOnlinePlayers().stream()
++                .map(it -> ((CraftPlayer) it).getHandle())
++                .filter(it -> !it.equals(this))
++                .forEach(it -> it.seeViewDistanceMayHaveChanged(maxSeeViewDistanceDueToMaxTotalSeenChunks));
++        }
++
++    }
++
++    /**
++     * @return If -1, indicates there is no maximum; otherwise in the range [2, 32]
++     */
++    public static int computeMaxSeeViewDistanceDueToMaxTotalSeenChunks() {
++        if (PaperConfig.getMaxTotalSeenChunks() == -1) return -1;
++        // Finds the lowest distance that is not possible (or 3 if none are possible, or 33 if all are possible), then subtracts 1 to find the highest distance that is possible (or 2 if none are possible, or 32 if all are posisble)
++        return Mth.binarySearch(3, 33, candidate -> {
++            // Must return whether the candidate is not possible
++            return Bukkit.getOnlinePlayers().stream().mapToInt(it -> ((CraftPlayer) it).getHandle().getSeeViewDistance(candidate)).map(it -> (it*2+1)*(it*2+1)).sum() > PaperConfig.getMaxTotalSeenChunks();
++        }) - 1;
+     }
+ 
+     public void loadViewDistanceMayHaveChanged() {

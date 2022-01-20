@@ -1,0 +1,101 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 20 Jan 2022 20:08:53 +0100
+Subject: [PATCH] Make bedrock breakable by pistons
+
+
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index 36ca7ac59cb64f9cca66ead4967d8af65df6e3fa..adaca4b662eefe1d5992c868c94d6f3fbf1a6b3f 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -90,11 +90,23 @@ public class Block extends BlockBehaviour implements ItemLike {
+     protected final StateDefinition<Block, BlockState> stateDefinition;
+     private BlockState defaultBlockState;
+     // Paper start
++
++    // Martijn start - bedrock floors and roofs can be broken
++    public static boolean isBreakableBedrockFloorOrRoof(@Nullable BlockPos blockPos, @Nullable Level level) {
++        if (blockPos == null || level == null) return false;
++        if (!level.getBlockState(blockPos).is(Blocks.BEDROCK)) return false;
++        World.Environment environment = level.getWorld().getEnvironment();
++        if (environment == World.Environment.NORMAL && blockPos.getY() >= -64 && blockPos.getY() <= -61) return true;
++        if ((environment == World.Environment.NETHER || environment == World.Environment.NORMAL) && blockPos.getY() >= 0 && blockPos.getY() <= 3) return true;
++        if (environment == World.Environment.NETHER && blockPos.getY() >= 124 && blockPos.getY() <= 127) return true;
++        return false;
++    }
++    // Martijn end - bedrock floors and roofs can be broken
+     
+     // Martijn start - destroyable depends on position
+     public final boolean isDestroyable(@Nullable BlockPos blockPos, @Nullable Level level) {
+         if (com.destroystokyo.paper.PaperConfig.allowBlockPermanentBreakingExploits ||
+-            this != Blocks.BEDROCK &&
++            (this != Blocks.BEDROCK &&
+                 this != Blocks.END_PORTAL_FRAME &&
+                 this != Blocks.END_PORTAL &&
+                 this != Blocks.END_GATEWAY &&
+@@ -103,19 +115,8 @@ public class Block extends BlockBehaviour implements ItemLike {
+                 this != Blocks.CHAIN_COMMAND_BLOCK &&
+                 this != Blocks.BARRIER &&
+                 this != Blocks.STRUCTURE_BLOCK &&
+-                this != Blocks.JIGSAW) return true;
+-        // Martijn start - bedrock floors and roofs can be broken
+-        if (blockPos != null) {
+-            if (this == Blocks.BEDROCK) {
+-                if (level != null) {
+-                    World.Environment environment = level.getWorld().getEnvironment();
+-                    if (environment == World.Environment.NORMAL && blockPos.getY() >= -64 && blockPos.getY() <= -61) return true;
+-                    if ((environment == World.Environment.NETHER || environment == World.Environment.NORMAL) && blockPos.getY() >= 0 && blockPos.getY() <= 3) return true;
+-                    if (environment == World.Environment.NETHER && blockPos.getY() >= 124 && blockPos.getY() <= 127) return true;
+-                }
+-            }
+-        }
+-        // Martijn end - bedrock floors and roofs can be broken
++                this != Blocks.JIGSAW)) return true;
++       if (isBreakableBedrockFloorOrRoof(blockPos, level)) return true; // Martijn - bedrock floors and roofs can be broken
+         return false;
+     }
+     // Martijn end - destroyable depends on position
+diff --git a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+index b30e989afe5ece2922d43b596929642e9f49a2ec..9dcbb52229e43b01f01c3da0641f41d066b92b83 100644
+--- a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+@@ -201,7 +201,7 @@ public class PistonBaseBlock extends DirectionalBlock {
+         Direction enumdirection = (Direction) state.getValue(PistonBaseBlock.FACING);
+         // Paper start - prevent retracting when we're facing the wrong way (we were replaced before retraction could occur)
+         Direction directionQueuedAs = Direction.from3DDataValue(data & 7); // Paper - copied from below
+-        if (!com.destroystokyo.paper.PaperConfig.allowBlockPermanentBreakingExploits && enumdirection != directionQueuedAs) {
++        if (!com.destroystokyo.paper.PaperConfig.allowBlockPermanentBreakingExploits && enumdirection != directionQueuedAs && !Block.isBreakableBedrockFloorOrRoof(pos.relative(enumdirection), world)) { // Martijn - bedrock floors and roofs can be broken
+             return false;
+         }
+         // Paper end - prevent retracting when we're facing the wrong way
+@@ -282,7 +282,7 @@ public class PistonBaseBlock extends DirectionalBlock {
+             } else {
+                 // Paper start - fix headless pistons breaking blocks
+                 BlockPos headPos = pos.relative(enumdirection);
+-                if (com.destroystokyo.paper.PaperConfig.allowBlockPermanentBreakingExploits || world.getBlockState(headPos) == Blocks.PISTON_HEAD.defaultBlockState().setValue(FACING, enumdirection)) { // double check to make sure we're not a headless piston.
++                if (com.destroystokyo.paper.PaperConfig.allowBlockPermanentBreakingExploits || world.getBlockState(headPos) == Blocks.PISTON_HEAD.defaultBlockState().setValue(FACING, enumdirection) || Block.isBreakableBedrockFloorOrRoof(headPos, world)) { // double check to make sure we're not a headless piston. // Martijn - bedrock floors and roofs can be broken
+                     world.removeBlock(headPos, false);
+                 } else {
+                     ((ServerLevel)world).getChunkSource().blockChanged(headPos); // ... fix client desync
+diff --git a/src/main/java/net/minecraft/world/level/block/piston/PistonStructureResolver.java b/src/main/java/net/minecraft/world/level/block/piston/PistonStructureResolver.java
+index 744d91546d1a810f60a43c15ed74b4158f341a4a..81cbbc263eda71c8a07f094707f332faea79eafa 100644
+--- a/src/main/java/net/minecraft/world/level/block/piston/PistonStructureResolver.java
++++ b/src/main/java/net/minecraft/world/level/block/piston/PistonStructureResolver.java
+@@ -40,7 +40,7 @@ public class PistonStructureResolver {
+         this.toDestroy.clear();
+         BlockState blockState = this.level.getBlockState(this.startPos);
+         if (!PistonBaseBlock.isPushable(blockState, this.level, this.startPos, this.pushDirection, false, this.pistonDirection)) {
+-            if (this.extending && blockState.getPistonPushReaction() == PushReaction.DESTROY) {
++            if (this.extending && blockState.getPistonPushReaction(this.startPos, this.level) == PushReaction.DESTROY) { // Martijn - destroyable depends on position
+                 this.toDestroy.add(this.startPos);
+                 return true;
+             } else {
+@@ -137,7 +137,7 @@ public class PistonStructureResolver {
+                         return false;
+                     }
+ 
+-                    if (blockState.getPistonPushReaction() == PushReaction.DESTROY) {
++                    if (blockState.getPistonPushReaction(blockPos2, this.level) == PushReaction.DESTROY) { // Martijn - destroyable depends on position
+                         this.toDestroy.add(blockPos2);
+                         return true;
+                     }
