@@ -1,0 +1,127 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sun, 23 Jan 2022 15:18:59 +0100
+Subject: [PATCH] Remove player ticket tracket synchronization
+
+
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index a35a9dc400d7f4cef7eac544ee8d129f3e592196..fe6589d87632263ed50163ae3dc2aa42a1ae7035 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -65,7 +65,7 @@ public abstract class DistanceManager {
+     public static final int MOB_SPAWN_RANGE = 8; // private final ChunkMapDistance.b f = new ChunkMapDistance.b(8); // Paper - no longer used
+     private final TickingTracker tickingTicketsTracker = new TickingTracker();
+     // Martijn start - per-player load distance
+-    private final Object playerTicketManagerLock = new Object();
++//    private final Object playerTicketManagerLock = new Object();
+     private static final int maxPlayerTrackerViewDistance = 33;
+     public final boolean perPlayerLoadViewDistance;
+     private final @Nullable Map<UUID, PlayerTicketTracker> playerTicketManagers;
+@@ -103,20 +103,20 @@ public abstract class DistanceManager {
+         this.chunkMap = chunkMap; // Paper
+         // Martijn start - per-player load distance
+         this.perPlayerLoadViewDistance = this.chunkMap.level.paperConfig.getPerPlayerLoadViewDistance();
+-        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
+             this.playerTicketManagers = this.perPlayerLoadViewDistance ? new HashMap<>(1) : null;
+             this.sharedPlayerTicketManager = this.perPlayerLoadViewDistance ? null : createNewPlayerTicketManager();
+             this.combinedPlayerTicketManager = new CombinedPlayerTicketTracker();
+-        }
++//        }
+         // Martijn end - per-player load distance
+     }
+ 
+     // Martijn start - per-player load distance
+ 
+     private @NotNull Iterable<@NotNull DistanceManager.PlayerTicketTracker> getPlayerTicketManagers() {
+-        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
+             return this.perPlayerLoadViewDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
+-        }
++//        }
+     }
+ 
+     private @NotNull DistanceManager.PlayerTicketTracker createNewPlayerTicketManager() {
+@@ -124,25 +124,25 @@ public abstract class DistanceManager {
+     }
+ 
+     private @NotNull DistanceManager.PlayerTicketTracker getOrCreatePlayerTicketManager(ServerPlayer player) {
+-        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
+             return this.perPlayerLoadViewDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
+                 DistanceManager.PlayerTicketTracker tracker = this.createNewPlayerTicketManager();
+                 tracker.updateViewDistanceByPlayerLoadDistance(player);
+                 return tracker;
+             }) : this.sharedPlayerTicketManager;
+-        }
++//        }
+     }
+ 
+     private @NotNull DistanceManager.PlayerTicketTracker getPlayerTicketManagerIfExists(ServerPlayer player) {
+-        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
+             return this.perPlayerLoadViewDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
+-        }
++//        }
+     }
+ 
+     private void removePlayerTicketManager(ServerPlayer player) {
+-        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
+             if (this.perPlayerLoadViewDistance) this.playerTicketManagers.remove(player.getUUID());
+-        }
++//        }
+     }
+ 
+     // Martijn end - per-player load distance
+@@ -195,7 +195,7 @@ public abstract class DistanceManager {
+         this.tickingTicketsTracker.runAllUpdates();
+         org.spigotmc.AsyncCatcher.catchOp("DistanceManagerTick"); // Paper
+         // Martijn - per-player load distance
+-        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
+             List<PlayerTicketTracker> playerTicketTrackers = new ArrayList<>();
+             this.getPlayerTicketManagers().forEach(playerTicketTrackers::add);
+             playerTicketTrackers.forEach(it -> it.runAllUpdates());
+@@ -211,7 +211,7 @@ public abstract class DistanceManager {
+                     playerTicketManagers.remove(playerTicketTracerUUID);
+                 }
+             }
+-        }
++//        }
+         // Martijn end - per-player load distance
+         int i = Integer.MAX_VALUE - this.ticketTracker.runDistanceUpdates(Integer.MAX_VALUE);
+         boolean flag = i != 0;
+@@ -524,12 +524,12 @@ public abstract class DistanceManager {
+             this.playersPerChunk.remove(i);
+             //this.f.update(i, Integer.MAX_VALUE, false); // Paper - no longer used
+             // Martijn start - per-player load distance
+-            synchronized (this.playerTicketManagerLock) {
++//            synchronized (this.playerTicketManagerLock) {
+                 DistanceManager.PlayerTicketTracker playerTicketManager = this.getPlayerTicketManagerIfExists(player);
+                 if (playerTicketManager != null) {
+                     playerTicketManager.update(i, Integer.MAX_VALUE, false);
+                 }
+-            }
++//            }
+             // Martijn end - per-player load distance
+             this.tickingTicketsTracker.removeTicket(TicketType.PLAYER, chunkcoordintpair, this.getPlayerTicketLevel(), chunkcoordintpair);
+         }
+@@ -804,7 +804,7 @@ public abstract class DistanceManager {
+             int minDistance = distance;
+             boolean oldWithinSomeViewDistance = oldWithinViewDistance;
+             boolean withinSomeViewDistance = withinViewDistance;
+-            synchronized (DistanceManager.this.playerTicketManagerLock) {
++//            synchronized (DistanceManager.this.playerTicketManagerLock) {
+                 for (PlayerTicketTracker otherTracker : DistanceManager.this.getPlayerTicketManagers()) {
+                     if (otherTracker != tracker) {
+                         int otherTrackerDistance = otherTracker.getLevel(pos);
+@@ -813,7 +813,7 @@ public abstract class DistanceManager {
+                         withinSomeViewDistance |= otherTracker.haveTicketFor(otherTrackerDistance);
+                     }
+                 }
+-            }
++//            }
+             this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
+         }
+ 

@@ -1,0 +1,73 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sun, 23 Jan 2022 19:40:04 +0100
+Subject: [PATCH] Clear tickets before player tracker is removed
+
+
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index fe6589d87632263ed50163ae3dc2aa42a1ae7035..f5f4761f5a606557400773905b8e1a3d77f9a2ba 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -139,12 +139,6 @@ public abstract class DistanceManager {
+ //        }
+     }
+ 
+-    private void removePlayerTicketManager(ServerPlayer player) {
+-//        synchronized (this.playerTicketManagerLock) {
+-            if (this.perPlayerLoadViewDistance) this.playerTicketManagers.remove(player.getUUID());
+-//        }
+-    }
+-
+     // Martijn end - per-player load distance
+ 
+     protected void purgeStaleTickets() {
+@@ -196,17 +190,26 @@ public abstract class DistanceManager {
+         org.spigotmc.AsyncCatcher.catchOp("DistanceManagerTick"); // Paper
+         // Martijn - per-player load distance
+ //        synchronized (this.playerTicketManagerLock) {
+-            List<PlayerTicketTracker> playerTicketTrackers = new ArrayList<>();
+-            this.getPlayerTicketManagers().forEach(playerTicketTrackers::add);
+-            playerTicketTrackers.forEach(it -> it.runAllUpdates());
++            List<UUID> playerTicketTrackerUUIDsToRemove = null;
+             if (this.perPlayerLoadViewDistance) {
+-                List<UUID> playerTicketTrackerUUIDsToRemove = new ArrayList<>(0);
++                playerTicketTrackerUUIDsToRemove = new ArrayList<>(0);
+                 for (UUID playerTicketTracerUUID : this.playerTicketManagers.keySet()) {
+                     Player player = Bukkit.getPlayer(playerTicketTracerUUID);
+                     if (player == null || !((CraftPlayer) player).getHandle().getLevel().uuid.equals(this.chunkMap.level.uuid)) {
+                         playerTicketTrackerUUIDsToRemove.add(playerTicketTracerUUID);
+                     }
+                 }
++                for (UUID playerTicketTracerUUID : playerTicketTrackerUUIDsToRemove) {
++                    PlayerTicketTracker playerTicketTracker = playerTicketManagers.get(playerTicketTracerUUID);
++                    if (playerTicketTracker != null) {
++                        playerTicketTracker.removeAllTickets();
++                    }
++                }
++            }
++            List<PlayerTicketTracker> playerTicketTrackers = new ArrayList<>();
++            this.getPlayerTicketManagers().forEach(playerTicketTrackers::add);
++            playerTicketTrackers.forEach(it -> it.runAllUpdates());
++            if (this.perPlayerLoadViewDistance) {
+                 for (UUID playerTicketTracerUUID : playerTicketTrackerUUIDsToRemove) {
+                     playerTicketManagers.remove(playerTicketTracerUUID);
+                 }
+@@ -889,6 +892,18 @@ public abstract class DistanceManager {
+             this.viewDistance = watchDistance;
+         }
+ 
++        // Martijn start - per-player load distance
++        private void removeAllTickets() {
++            ObjectIterator objectiterator = this.chunks.long2ByteEntrySet().iterator();
++            while (objectiterator.hasNext()) {
++                it.unimi.dsi.fastutil.longs.Long2ByteMap.Entry it_unimi_dsi_fastutil_longs_long2bytemap_entry = (it.unimi.dsi.fastutil.longs.Long2ByteMap.Entry) objectiterator.next();
++                byte b0 = it_unimi_dsi_fastutil_longs_long2bytemap_entry.getByteValue();
++                long j = it_unimi_dsi_fastutil_longs_long2bytemap_entry.getLongKey();
++                this.onLevelChange(j, b0, this.haveTicketFor(b0), false);
++            }
++        }
++        // Martijn end - per-player load distance
++
+         private void onLevelChange(long pos, int distance, boolean oldWithinViewDistance, boolean withinViewDistance) {
+             if (oldWithinViewDistance != withinViewDistance) {
+                 DistanceManager.this.combinedPlayerTicketManager.onSomePlayerTicketTrackerLevelChange(this, pos, distance, oldWithinViewDistance, withinViewDistance); // Martijn - per-player load distance
