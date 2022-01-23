@@ -1,0 +1,150 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sun, 23 Jan 2022 15:07:20 +0100
+Subject: [PATCH] Fix chunks not unloading on world leave
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 73eed29b3e5670e436c8ae8d7c14250a164da011..551255f9dddb945d0565cf877b19d068f8dbf2c5 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -2236,7 +2236,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     protected void tick() {
+         // Martijn start - network-constrained chunk tracking
+         // TODO remove this temp debug print
+-        if (Math.random() < 1.0/20/60) {
++        if (Math.random() < 1.0/20/30) {
+             org.bukkit.Bukkit.getLogger().info("Number of loaded chunks in " + this.level.getWorld().getName() + ": " + this.level.getWorld().getLoadedChunks().length);
+         }
+         this.level.players.forEach(ServerPlayer::resetChunksNewlyTrackedOrSeenThisTick);
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index 74c73152760149204f86bec3743de49575d82b3e..a35a9dc400d7f4cef7eac544ee8d129f3e592196 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -25,6 +25,7 @@ import java.io.File;
+ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.HashMap;
+ import java.util.Iterator;
+@@ -45,6 +46,9 @@ import net.minecraft.world.level.chunk.ChunkStatus;
+ import net.minecraft.world.level.chunk.LevelChunk;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.Bukkit;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.entity.Player;
+ import org.jetbrains.annotations.NotNull;
+ 
+ public abstract class DistanceManager {
+@@ -192,7 +196,21 @@ public abstract class DistanceManager {
+         org.spigotmc.AsyncCatcher.catchOp("DistanceManagerTick"); // Paper
+         // Martijn - per-player load distance
+         synchronized (this.playerTicketManagerLock) {
+-            this.getPlayerTicketManagers().forEach(it -> it.runAllUpdates());
++            List<PlayerTicketTracker> playerTicketTrackers = new ArrayList<>();
++            this.getPlayerTicketManagers().forEach(playerTicketTrackers::add);
++            playerTicketTrackers.forEach(it -> it.runAllUpdates());
++            if (this.perPlayerLoadViewDistance) {
++                List<UUID> playerTicketTrackerUUIDsToRemove = new ArrayList<>(0);
++                for (UUID playerTicketTracerUUID : this.playerTicketManagers.keySet()) {
++                    Player player = Bukkit.getPlayer(playerTicketTracerUUID);
++                    if (player == null || !((CraftPlayer) player).getHandle().getLevel().uuid.equals(this.chunkMap.level.uuid)) {
++                        playerTicketTrackerUUIDsToRemove.add(playerTicketTracerUUID);
++                    }
++                }
++                for (UUID playerTicketTracerUUID : playerTicketTrackerUUIDsToRemove) {
++                    playerTicketManagers.remove(playerTicketTracerUUID);
++                }
++            }
+         }
+         // Martijn end - per-player load distance
+         int i = Integer.MAX_VALUE - this.ticketTracker.runDistanceUpdates(Integer.MAX_VALUE);
+@@ -511,9 +529,6 @@ public abstract class DistanceManager {
+                 if (playerTicketManager != null) {
+                     playerTicketManager.update(i, Integer.MAX_VALUE, false);
+                 }
+-                if (!keepPlayerTicketManager) {
+-                    removePlayerTicketManager(player);
+-                }
+             }
+             // Martijn end - per-player load distance
+             this.tickingTicketsTracker.removeTicket(TicketType.PLAYER, chunkcoordintpair, this.getPlayerTicketLevel(), chunkcoordintpair);
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 9ccb06508e6cdd0b632cbb0a83d9b16f0a6616a2..7f499c9c2f101f1c6ef370f55e801e9cfed111ed 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -219,7 +219,7 @@ public class ServerPlayer extends Player {
+         int maxTrackViewDistanceDueToTotalTrackedChunks = precomputedMaxTrackViewDistanceDueToTotalTrackedChunks != null ? precomputedMaxTrackViewDistanceDueToTotalTrackedChunks : computeMaxTrackViewDistanceDueToMaxTotalTrackedChunks();
+         @Nullable Integer oldTrackViewDistance = this.lastComputedTrackViewDistance;
+         this.lastComputedTrackViewDistance = this.computeTrackViewDistance(maxTrackViewDistanceDueToTotalTrackedChunks);
+-        this.processTrackViewDistanceChange(oldTrackViewDistance, this.lastComputedTrackViewDistance, maxTrackViewDistanceDueToTotalTrackedChunks, dontUpdateOtherPlayersAfterwards);
++        this.processTrackViewDistanceChange(oldTrackViewDistance, maxTrackViewDistanceDueToTotalTrackedChunks, dontUpdateOtherPlayersAfterwards);
+         return this.lastComputedTrackViewDistance;
+     }
+ 
+@@ -270,7 +270,7 @@ public class ServerPlayer extends Player {
+         int maxSeeViewDistanceDueToMaxTotalSeenChunks = precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks != null ? precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks : computeMaxSeeViewDistanceDueToMaxTotalSeenChunks();
+         @Nullable Integer oldSeeViewDistance = this.lastComputedSeeViewDistance;
+         this.lastComputedSeeViewDistance = this.computeSeeViewDistance(maxSeeViewDistanceDueToMaxTotalSeenChunks);
+-        this.processSeeViewDistanceChange(oldSeeViewDistance, this.lastComputedSeeViewDistance, maxSeeViewDistanceDueToMaxTotalSeenChunks, dontUpdateOtherPlayersAfterwards);
++        this.processSeeViewDistanceChange(oldSeeViewDistance, maxSeeViewDistanceDueToMaxTotalSeenChunks, dontUpdateOtherPlayersAfterwards);
+         return this.lastComputedSeeViewDistance;
+     }
+ 
+@@ -314,7 +314,7 @@ public class ServerPlayer extends Player {
+     private final int computeAndCacheLoadViewDistance() {
+         Integer oldLoadViewDistance = this.lastComputedLoadViewDistance;
+         this.lastComputedLoadViewDistance = this.computeLoadViewDistance();
+-        processLoadViewDistanceChange(oldLoadViewDistance, this.lastComputedLoadViewDistance);
++        processLoadViewDistanceChange(oldLoadViewDistance);
+         return this.lastComputedLoadViewDistance;
+     }
+ 
+@@ -361,7 +361,9 @@ public class ServerPlayer extends Player {
+     /**
+      * @param precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks If null, indicates it hasn't been computed; if -1, indicates there is no maximum
+      */
+-    private void processTrackViewDistanceChange(@Nullable Integer oldTrackViewDistance, int newTrackViewDistance, int precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks, boolean dontUpdateOtherPlayersAfterwards) {
++    private void processTrackViewDistanceChange(@Nullable Integer oldTrackViewDistance, int precomputedMaxTrackViewDistanceDueToMaxTotalTrackedChunks, boolean dontUpdateOtherPlayersAfterwards) {
++
++        int newTrackViewDistance = this.lastComputedTrackViewDistance;
+ 
+         if (oldTrackViewDistance != null && oldTrackViewDistance == newTrackViewDistance) return;
+ 
+@@ -406,7 +408,9 @@ public class ServerPlayer extends Player {
+     /**
+      * @param precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks If null, indicates it hasn't been computed; if -1, indicates there is no maximum
+      */
+-    private void processSeeViewDistanceChange(@Nullable Integer oldSeeViewDistance, int newSeeViewDistance, int precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks, boolean dontUpdateOtherPlayersAfterwards) {
++    private void processSeeViewDistanceChange(@Nullable Integer oldSeeViewDistance, int precomputedMaxSeeViewDistanceDueToMaxTotalSeenChunks, boolean dontUpdateOtherPlayersAfterwards) {
++
++        int newSeeViewDistance = this.lastComputedSeeViewDistance;
+ 
+         if (oldSeeViewDistance != null && oldSeeViewDistance == newSeeViewDistance) return;
+ 
+@@ -449,15 +453,19 @@ public class ServerPlayer extends Player {
+         computeAndCacheLoadViewDistance();
+     }
+ 
+-    private void processLoadViewDistanceChange(@Nullable Integer oldLoadViewDistance, int newLoadViewDistance) {
++    private void processLoadViewDistanceChange(@Nullable Integer oldLoadViewDistance) {
++
++        int newLoadViewDistance = this.lastComputedLoadViewDistance;
+ 
+         if (oldLoadViewDistance != null && oldLoadViewDistance == newLoadViewDistance) return;
+ 
+         this.level.timings.loadViewDistanceMayHaveChanged.startTiming();
+ 
+         // Update player chunk load tickets
+-        if (this.getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
+-            this.getLevel().getChunkSource().chunkMap.distanceManager.updatePlayerTicketsByPlayerLoadDistance(this);
++        if (oldLoadViewDistance != null) { // This prevents calling updatePlayerTicketsByPlayerLoadDistance when already inside a call of updatePlayerTicketsByPlayerLoadDistance by getOrCreatePlayerTicketManager (which would lead to a ConcurrentModificationException)
++            if (this.getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
++                this.getLevel().getChunkSource().chunkMap.distanceManager.updatePlayerTicketsByPlayerLoadDistance(this);
++            }
+         }
+ 
+         this.level.timings.loadViewDistanceMayHaveChanged.stopTiming();
