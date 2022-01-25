@@ -4,6 +4,19 @@ Date: Mon, 17 Jan 2022 17:09:22 +0100
 Subject: [PATCH] Per-player load, see and track view distances
 
 
+diff --git a/src/main/java/co/aikar/timings/TimingsExport.java b/src/main/java/co/aikar/timings/TimingsExport.java
+index 5e3b7fb2e0b7608610555cd23e7ad25a05883181..85de61e7731ee2dbd52c64d6cafe2bb30e087e85 100644
+--- a/src/main/java/co/aikar/timings/TimingsExport.java
++++ b/src/main/java/co/aikar/timings/TimingsExport.java
+@@ -152,7 +152,7 @@ public class TimingsExport extends Thread {
+                 pair("gamerules", toObjectMapper(world.getWorld().getGameRules(), rule -> {
+                     return pair(rule, world.getWorld().getGameRuleValue(rule));
+                 })),
+-                pair("ticking-distance", world.getChunkSource().chunkMap.getEffectiveViewDistance())
++                pair("ticking-distance", world.getChunkSource().chunkMap.getEffectiveWorldViewDistance())
+             ));
+         }));
+ 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..d9a534998a570592c392ecbbd82e7a16a410bfbb 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
@@ -22,20 +35,164 @@ index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..d9a534998a570592c392ecbbd82e7a16
      public boolean zombiesTargetTurtleEggs = true;
      private void zombiesTargetTurtleEggs() {
          zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
+diff --git a/src/main/java/net/minecraft/server/level/ChunkHolder.java b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+index d271871563fa883efb77b35ec3b1dfbba87f0b62..980d91a34f886b8833ff693289ec0443b5bd4d95 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkHolder.java
++++ b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+@@ -342,7 +342,7 @@ public class ChunkHolder {
+     }
+ 
+     public void broadcast(Packet<?> packet, boolean onlyOnWatchDistanceEdge) {
+-        this.playerProvider.getPlayers(this.pos, onlyOnWatchDistanceEdge).forEach((entityplayer) -> {
++        this.playerProvider.getPlayersNearChunkForSending(this.pos, onlyOnWatchDistanceEdge).forEach((entityplayer) -> { // Martijn - per-player send distance
+             entityplayer.connection.send(packet);
+         });
+     }
+@@ -755,7 +755,7 @@ public class ChunkHolder {
+ 
+     public interface PlayerProvider {
+ 
+-        List<ServerPlayer> getPlayers(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge);
++        List<ServerPlayer> getPlayersNearChunkForSending(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge); // Martijn - per-player send distance
+     }
+ 
+     private static final class ChunkSaveDebug {
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 0a04980a8015fe08907a040f0f3ff537267bd462..fe6a716210df6f66b8b82b3c8ef2173401a8f618 100644
+index 0a04980a8015fe08907a040f0f3ff537267bd462..489814d9c984ffea3b232d1418169818a6f41174 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
-@@ -1555,7 +1555,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
-             int k = this.viewDistance;
+@@ -156,7 +156,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     public final Int2ObjectMap<ChunkMap.TrackedEntity> entityMap;
+     private final Long2ByteMap chunkTypeCache;
+     private final Queue<Runnable> unloadQueue;
+-    int viewDistance;
++    // Martijn start- per-player view distance
++    // This value is the intended world send view distance + 1
++    int worldViewDistance;
++    // Martijn end - per-player view distance
+     public final com.destroystokyo.paper.util.misc.PlayerAreaMap playerMobDistanceMap; // Paper
  
-             this.viewDistance = j;
+     // Paper start - optimise checkDespawn
+@@ -238,7 +241,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             com.destroystokyo.paper.util.misc.PlayerAreaMap trackMap = this.playerEntityTrackerTrackMaps[i];
+             int trackRange = this.entityTrackerTrackRanges[i];
+ 
+-            trackMap.add(player, chunkX, chunkZ, Math.min(trackRange, this.getEffectiveViewDistance()));
++            trackMap.add(player, chunkX, chunkZ, Math.min(trackRange, player.getSendViewDistance())); // Martijn - per-player send distance
+         }
+         // Paper end - use distance map to optimise entity tracker
+         // Note: players need to be explicitly added to distance maps before they can be updated
+@@ -279,7 +282,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             com.destroystokyo.paper.util.misc.PlayerAreaMap trackMap = this.playerEntityTrackerTrackMaps[i];
+             int trackRange = this.entityTrackerTrackRanges[i];
+ 
+-            trackMap.update(player, chunkX, chunkZ, Math.min(trackRange, this.getEffectiveViewDistance()));
++            trackMap.update(player, chunkX, chunkZ, Math.min(trackRange, player.getSendViewDistance())); // Martijn - per-player send distance
+         }
+         // Paper end - use distance map to optimise entity tracker
+         this.playerChunkTickRangeMap.update(player, chunkX, chunkZ, DistanceManager.MOB_SPAWN_RANGE); // Paper - optimise ChunkMap#anyPlayerCloseEnoughForSpawning
+@@ -442,7 +445,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         this.distanceManager = new ChunkMap.ChunkDistanceManager(executor, mainThreadExecutor);
+         this.overworldDataStorage = persistentStateManagerFactory;
+         this.poiManager = new PoiManager(path.resolve("poi"), dataFixer, dsync, world);
+-        this.setViewDistance(viewDistance);
++        this.setWorldViewDistance(viewDistance); // Martijn - per-player view distance
+         // Paper start
+         this.dataRegionManager = new io.papermc.paper.chunk.SingleThreadChunkRegionManager(this.level, 2, (1.0 / 3.0), 1, 6, "Data", DataRegionData::new, DataRegionSectionData::new);
+         this.regionManagers.add(this.dataRegionManager);
+@@ -689,11 +692,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     // Paper start
+-    public final int getEffectiveViewDistance() {
+-        // TODO this needs to be checked on update
+-        // Mojang currently sets it to +1 of the configured view distance. So subtract one to get the one we really want.
+-        return this.viewDistance - 1;
++    // Martijn start - per-player view distance
++    public final int getEffectiveWorldViewDistance() {
++        return this.worldViewDistance - 1;
+     }
++    // Martijn start - per-player view distance
+     // Paper end
+ 
+     private CompletableFuture<Either<List<ChunkAccess>, ChunkHolder.ChunkLoadingFailure>> getChunkRangeFuture(ChunkPos centerChunk, int margin, IntFunction<ChunkStatus> distanceToStatus) {
+@@ -1396,7 +1399,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 this.tickingGenerated.getAndIncrement();
+                 MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
+ 
+-                this.getPlayers(chunkcoordintpair, false).forEach((entityplayer) -> {
++                this.getPlayersNearChunkForSending(chunkcoordintpair, false).forEach((entityplayer) -> { // Martijn - per-player send distance
+                     this.playerLoadedChunk(entityplayer, mutableobject, chunk);
+                 });
+             });
+@@ -1548,32 +1551,48 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         }
+     }
+ 
+-    public void setViewDistance(int watchDistance) {
+-        int j = Mth.clamp(watchDistance + 1, (int) 3, (int) 33);
++    // Martijn start - per-player view distance
++    public void setWorldViewDistance(int watchDistance) {
++        int newWorldViewDistance = Mth.clamp(watchDistance + 1, (int) 3, (int) 33);
+ 
+-        if (j != this.viewDistance) {
+-            int k = this.viewDistance;
++        if (newWorldViewDistance != this.worldViewDistance) {
++            int oldWorldViewDistance = this.worldViewDistance;
+ 
+-            this.viewDistance = j;
 -            this.distanceManager.updatePlayerTickets(this.viewDistance + 1);
-+            this.distanceManager.updatePlayerTicketsForAllPlayersInWorld(this.level, this.viewDistance + 1); // Martijn - per-player load distance
-             Iterator objectiterator = this.updatingChunks.getVisibleValuesCopy().iterator(); // Paper
+-            Iterator objectiterator = this.updatingChunks.getVisibleValuesCopy().iterator(); // Paper
++            this.worldViewDistance = newWorldViewDistance;
++            if (this.distanceManager.usePerPlayerLoadDistance) {
++                this.level.players.forEach(player -> {
++                    player.sendViewDistanceMayHaveChanged();
++                    player.loadViewDistanceMayHaveChanged();
++                });
++            } else {
++                this.distanceManager.updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance(this.level, this.worldViewDistance);
++            }
++            // Martijn end - per-player view distance
++        }
  
-             while (objectiterator.hasNext()) {
-@@ -1840,7 +1840,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+-            while (objectiterator.hasNext()) {
+-                ChunkHolder playerchunk = (ChunkHolder) objectiterator.next();
+-                ChunkPos chunkcoordintpair = playerchunk.getPos();
+-                MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
++    }
+ 
+-                this.getPlayers(chunkcoordintpair, false).forEach((entityplayer) -> {
+-                    SectionPos sectionposition = entityplayer.getLastSectionPos();
+-                    boolean flag = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), k);
+-                    boolean flag1 = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), this.viewDistance);
++    // Martijn start - per-player send distance
++    public void updateChunkTrackingDueToPlayerSendViewDistanceChange(ServerPlayer player, int oldSendViewDistance, int newSendViewDistance) {
++        if (this.playerMap.ignoredOrUnknown(player)) return;
+ 
+-                    this.updateChunkTracking(entityplayer, chunkcoordintpair, mutableobject, flag, flag1);
+-                });
++        Iterator objectiterator = this.updatingChunks.getVisibleValuesCopy().iterator(); // Paper
++
++        while (objectiterator.hasNext()) {
++            ChunkHolder playerchunk = (ChunkHolder) objectiterator.next();
++            ChunkPos chunkcoordintpair = playerchunk.getPos();
++            MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
++
++            if (this.isPlayerIncludedInPlayersNearChunkForSending(player, chunkcoordintpair, false)) {
++                SectionPos sectionposition = player.getLastSectionPos();
++                boolean flag = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), oldSendViewDistance);
++                boolean flag1 = ChunkMap.isChunkInRange(chunkcoordintpair.x, chunkcoordintpair.z, sectionposition.x(), sectionposition.z(), newSendViewDistance);
++
++                this.updateChunkTracking(player, chunkcoordintpair, mutableobject, flag, flag1);
+             }
+         }
+-
+     }
++    // Martijn end - per-player send distance
+ 
+     protected void updateChunkTracking(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject, boolean oldWithinViewDistance, boolean newWithinViewDistance) { // Paper - Anti-Xray - Bypass
+         if (player.level == this.level) {
+@@ -1840,14 +1859,17 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  
              this.playerMap.removePlayer(sectionposition.chunk().toLong(), player);
              if (!flag2) {
@@ -44,7 +201,20 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..fe6a716210df6f66b8b82b3c8ef21734
              }
              this.removePlayerFromDistanceMaps(player); // Paper - distance maps
          }
-@@ -1881,7 +1881,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+-        for (int k = i - this.viewDistance - 1; k <= i + this.viewDistance + 1; ++k) {
+-            for (int l = j - this.viewDistance - 1; l <= j + this.viewDistance + 1; ++l) {
+-                if (ChunkMap.isChunkInRange(k, l, i, j, this.viewDistance)) {
++        // Martijn start - per-player send distance
++        int viewDistance = player.getSendViewDistance() + 2;
++        for (int k = i - viewDistance; k <= i + viewDistance; ++k) {
++            for (int l = j - viewDistance; l <= j + viewDistance + 1; ++l) {
++                if (ChunkMap.isChunkInRange(k, l, i, j, viewDistance)) {
++                    // Martijn end - per-player send distance
+                     ChunkPos chunkcoordintpair = new ChunkPos(k, l);
+ 
+                     this.updateChunkTracking(player, chunkcoordintpair, new MutableObject(), !added, added);
+@@ -1881,7 +1903,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
          if (flag2 || flag != flag1) {
              this.updatePlayerPos(player);
              if (!flag) {
@@ -53,8 +223,110 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..fe6a716210df6f66b8b82b3c8ef21734
              }
  
              if (!flag1) {
+@@ -1906,16 +1928,21 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         int k1;
+         int l1;
+ 
+-        if (Math.abs(i1 - i) <= this.viewDistance * 2 && Math.abs(j1 - j) <= this.viewDistance * 2) {
+-            k1 = Math.min(i, i1) - this.viewDistance - 1;
+-            l1 = Math.min(j, j1) - this.viewDistance - 1;
+-            int i2 = Math.max(i, i1) + this.viewDistance + 1;
+-            int j2 = Math.max(j, j1) + this.viewDistance + 1;
++        // Martijn start - per-player send distance
++        int viewDistance = player.getSendViewDistance() + 1;
++        if (Math.abs(i1 - i) <= viewDistance * 2 && Math.abs(j1 - j) <= viewDistance * 2) {
++            k1 = Math.min(i, i1) - viewDistance - 1;
++            l1 = Math.min(j, j1) - viewDistance - 1;
++            int i2 = Math.max(i, i1) + viewDistance + 1;
++            int j2 = Math.max(j, j1) + viewDistance + 1;
++            // Martijn end - per-player send distance
+ 
+             for (int k2 = k1; k2 <= i2; ++k2) {
+                 for (int l2 = l1; l2 <= j2; ++l2) {
+-                    boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, this.viewDistance);
+-                    boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, this.viewDistance);
++                    // Martijn start - per-player send distance
++                    boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, viewDistance);
++                    boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, viewDistance);
++                    // Martijn end - per-player send distance
+ 
+                     this.updateChunkTracking(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4);
+                 }
+@@ -1924,9 +1951,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             boolean flag5;
+             boolean flag6;
+ 
+-            for (k1 = i1 - this.viewDistance - 1; k1 <= i1 + this.viewDistance + 1; ++k1) {
+-                for (l1 = j1 - this.viewDistance - 1; l1 <= j1 + this.viewDistance + 1; ++l1) {
+-                    if (ChunkMap.isChunkInRange(k1, l1, i1, j1, this.viewDistance)) {
++            // Martijn start - per-player send distance
++            for (k1 = i1 - viewDistance - 1; k1 <= i1 + viewDistance + 1; ++k1) {
++                for (l1 = j1 - viewDistance - 1; l1 <= j1 + viewDistance + 1; ++l1) {
++                    if (ChunkMap.isChunkInRange(k1, l1, i1, j1, viewDistance)) {
++                        // Martijn end - per-player send distance
+                         flag5 = true;
+                         flag6 = false;
+                         this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), true, false);
+@@ -1934,9 +1963,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 }
+             }
+ 
+-            for (k1 = i - this.viewDistance - 1; k1 <= i + this.viewDistance + 1; ++k1) {
+-                for (l1 = j - this.viewDistance - 1; l1 <= j + this.viewDistance + 1; ++l1) {
+-                    if (ChunkMap.isChunkInRange(k1, l1, i, j, this.viewDistance)) {
++            // Martijn start - per-player send distance
++            for (k1 = i - viewDistance - 1; k1 <= i + viewDistance + 1; ++k1) {
++                for (l1 = j - viewDistance - 1; l1 <= j + viewDistance + 1; ++l1) {
++                    if (ChunkMap.isChunkInRange(k1, l1, i, j, viewDistance)) {
++                        // Martijn end - per-player send distance
+                         flag5 = false;
+                         flag6 = true;
+                         this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), false, true);
+@@ -1950,16 +1981,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+ 
+     @Override
+-    public List<ServerPlayer> getPlayers(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge) {
++    public List<ServerPlayer> getPlayersNearChunkForSending(ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge) { // Martijn - per-player send distance
+         Set<ServerPlayer> set = this.playerMap.getPlayers(chunkPos.toLong());
+         Builder<ServerPlayer> builder = ImmutableList.builder();
+         Iterator iterator = set.iterator();
+ 
+         while (iterator.hasNext()) {
+             ServerPlayer entityplayer = (ServerPlayer) iterator.next();
+-            SectionPos sectionposition = entityplayer.getLastSectionPos();
+ 
+-            if (onlyOnWatchDistanceEdge && ChunkMap.isChunkOnRangeBorder(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), this.viewDistance) || !onlyOnWatchDistanceEdge && ChunkMap.isChunkInRange(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), this.viewDistance)) {
++            if (isPlayerIncludedInPlayersNearChunkForSending(entityplayer, chunkPos, onlyOnWatchDistanceEdge)) { // Martijn - per-player send distance
+                 builder.add(entityplayer);
+             }
+         }
+@@ -1967,6 +1997,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         return builder.build();
+     }
+ 
++    // Martijn start - per-player send distance
++    public boolean isPlayerIncludedInPlayersNearChunkForSending(ServerPlayer player, ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge) {
++        SectionPos sectionposition = player.getLastSectionPos();
++        int viewDistance = player.getSendViewDistance() + 1;
++        return onlyOnWatchDistanceEdge && ChunkMap.isChunkOnRangeBorder(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), viewDistance) || !onlyOnWatchDistanceEdge && ChunkMap.isChunkInRange(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), viewDistance);
++    }
++    // Martijn end - per-player send distance
++
+     public void addEntity(Entity entity) {
+         org.spigotmc.AsyncCatcher.catchOp("entity track"); // Spigot
+         // Paper start - ignore and warn about illegal addEntity calls instead of crashing server
+@@ -2333,7 +2371,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 double vec3d_dx = player.getX() - this.entity.getX();
+                 double vec3d_dz = player.getZ() - this.entity.getZ();
+                 // Paper end - remove allocation of Vec3D here
+-                double d0 = (double) Math.min(this.getEffectiveRange(), (ChunkMap.this.viewDistance - 1) * 16);
++                double d0 = (double) Math.min(this.getEffectiveRange(), player.getSendViewDistance() * 16); // Martijn - per-player send distance
+                 double d1 = vec3d_dx * vec3d_dx + vec3d_dz * vec3d_dz; // Paper
+                 double d2 = d0 * d0;
+                 boolean flag = d1 <= d2 && this.entity.broadcastToPlayer(player);
 diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
-index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e4637c6457f 100644
+index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566402220bb 100644
 --- a/src/main/java/net/minecraft/server/level/DistanceManager.java
 +++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
 @@ -1,9 +1,12 @@
@@ -102,7 +374,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
 -    private final DistanceManager.PlayerTicketTracker playerTicketManager = new DistanceManager.PlayerTicketTracker(33);
 +    // Martijn start - per-player load distance
 +    private static final int maxPlayerTrackerViewDistance = 33;
-+    private final boolean usePerPlayerTicketManager;
++    public final boolean usePerPlayerLoadDistance;
 +    private final @Nullable Map<UUID, PlayerTicketTracker> playerTicketManagers;
 +    private final @Nullable PlayerTicketTracker sharedPlayerTicketManager;
 +    private final @NotNull CombinedPlayerTicketTracker combinedPlayerTicketManager;
@@ -115,9 +387,9 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
          this.mainThreadExecutor = mainThreadExecutor;
          this.chunkMap = chunkMap; // Paper
 +        // Martijn start - per-player load distance
-+        this.usePerPlayerTicketManager = this.chunkMap.level.paperConfig.perPlayerLoadDistance;
-+        this.playerTicketManagers = this.usePerPlayerTicketManager ? new HashMap<>(1) : null;
-+        this.sharedPlayerTicketManager = this.usePerPlayerTicketManager ? null : createNewPlayerTicketManager();
++        this.usePerPlayerLoadDistance = this.chunkMap.level.paperConfig.perPlayerLoadDistance;
++        this.playerTicketManagers = this.usePerPlayerLoadDistance ? new HashMap<>(1) : null;
++        this.sharedPlayerTicketManager = this.usePerPlayerLoadDistance ? null : createNewPlayerTicketManager();
 +        this.combinedPlayerTicketManager = new CombinedPlayerTicketTracker();
 +        // Martijn end - per-player load distance
      }
@@ -125,7 +397,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
 +    // Martijn start - per-player load distance
 +
 +    private @NotNull Iterable<@NotNull DistanceManager.PlayerTicketTracker> getPlayerTicketManagers() {
-+        return this.usePerPlayerTicketManager ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
++        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker createNewPlayerTicketManager() {
@@ -133,19 +405,19 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker getOrCreatePlayerTicketManager(ServerPlayer player) {
-+        return this.usePerPlayerTicketManager ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
++        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
 +            DistanceManager.PlayerTicketTracker tracker = this.createNewPlayerTicketManager();
-+            tracker.updateViewDistance(chunkMap.viewDistance + 1);//TODO replace by player load view distance
++            tracker.updateViewDistanceByPlayerLoadDistance(player);
 +            return tracker;
 +        }) : this.sharedPlayerTicketManager;
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker getPlayerTicketManagerIfExists(ServerPlayer player) {
-+        return this.usePerPlayerTicketManager ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
++        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
 +    }
 +
 +    private void removePlayerTicketManager(ServerPlayer player) {
-+        if (this.usePerPlayerTicketManager) this.playerTicketManagers.remove(player.getUUID());
++        if (this.usePerPlayerLoadDistance) this.playerTicketManagers.remove(player.getUUID());
 +    }
 +
 +    // Martijn end - per-player load distance
@@ -204,29 +476,32 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
              this.tickingTicketsTracker.removeTicket(TicketType.PLAYER, chunkcoordintpair, this.getPlayerTicketLevel(), chunkcoordintpair);
          }
  
-@@ -451,9 +512,19 @@ public abstract class DistanceManager {
+@@ -451,10 +512,22 @@ public abstract class DistanceManager {
          return arraysetsorted != null && !arraysetsorted.isEmpty() ? ((Ticket) arraysetsorted.first()).toString() : "no_ticket";
      }
  
 -    protected void updatePlayerTickets(int viewDistance) {
 -        this.playerTicketManager.updateViewDistance(viewDistance);
 +    // Martijn start - per-player load distance
-+    protected void updatePlayerTicketsForAllPlayersInWorld(ServerLevel level, int viewDistance) {
-+        if (!this.usePerPlayerTicketManager) {
-+            this.sharedPlayerTicketManager.updateViewDistance(viewDistance);
-+        } else {
-+            level.players.forEach(player -> this.getOrCreatePlayerTicketManager(player).updateViewDistance(viewDistance));
++    protected void updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance(ServerLevel level, int worldViewDistance) {
++        if (this.usePerPlayerLoadDistance) {
++            throw new IllegalStateException("Cannot call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance when using per-player load distances, call updatePlayerTicketsByPlayerLoadDistance instead");
 +        }
-+    }
-+
-+    protected void updatePlayerTickets(ServerPlayer player, int viewDistance) {
-+        this.getOrCreatePlayerTicketManager(player).updateViewDistance(viewDistance);
++        this.sharedPlayerTicketManager.updateViewDistanceByWorldViewDistance(worldViewDistance);
      }
-+    // Martijn end - per-player load distance
  
++    protected void updatePlayerTicketsByPlayerLoadDistance(ServerPlayer player) {
++        if (!this.usePerPlayerLoadDistance) {
++            throw new IllegalStateException("Cannot call updatePlayerTicketsByPlayerLoadDistance when not using per-player load distances, call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance instead");
++        }
++        this.getOrCreatePlayerTicketManager(player).updateViewDistanceByPlayerLoadDistance(player);
++    }
++    // Martijn end - per-player load distance
++
      public void updateSimulationDistance(int simulationDistance) {
          if (simulationDistance != this.simulationDistance) {
-@@ -670,37 +741,44 @@ public abstract class DistanceManager {
+             this.simulationDistance = simulationDistance;
+@@ -670,37 +743,36 @@ public abstract class DistanceManager {
          }
      }
  
@@ -237,17 +512,11 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
 -        private int viewDistance = 0;
 -        private final Long2IntMap queueLevels = Long2IntMaps.synchronize(new Long2IntOpenHashMap());
 -        private final LongSet toUpdate = new LongOpenHashSet();
-+//        protected final @Nullable IntSet distancesWithTicket = DistanceManager.this.usePerPlayerTicketManager ? new IntOpenHashSet() : null;
-+//
-+//        public CombinedPlayerTicketTracker() {
-+//
-+//        }
- 
+-
 -        protected PlayerTicketTracker(int i) {
 -            super(i);
 -            this.queueLevels.defaultReturnValue(i + 2);
 +        private boolean haveTicketFor(int distance) {
-+//            return DistanceManager.this.usePerPlayerTicketManager ? this.distancesWithTicket.contains(distance) : DistanceManager.this.sharedPlayerTicketManager.haveTicketFor(distance);
 +            return StreamSupport.stream(DistanceManager.this.getPlayerTicketManagers().spliterator(), false).anyMatch(tracker -> tracker.haveTicketFor(distance));
          }
  
@@ -255,7 +524,6 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
 -        protected void onLevelChange(long pos, int oldDistance, int distance) {
 -            this.toUpdate.add(pos);
 +        private int getLevel(long id) {
-+//            return DistanceManager.this.usePerPlayerTicketManager ? this.chunks.get(id) : DistanceManager.this.sharedPlayerTicketManager.getLevel(id);
 +            return StreamSupport.stream(DistanceManager.this.getPlayerTicketManagers().spliterator(), false).mapToInt(tracker -> tracker.getLevel(id)).min().orElse(maxPlayerTrackerViewDistance + 2);
          }
  
@@ -269,7 +537,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
 -
 -                this.onLevelChange(j, b0, this.haveTicketFor(b0), b0 <= watchDistance - 2);
 +        private void onSomePlayerTicketTrackerLevelChange(PlayerTicketTracker tracker, long pos, int distance, boolean oldWithinViewDistance, boolean withinViewDistance) {
-+            if (!DistanceManager.this.usePerPlayerTicketManager) {
++            if (!DistanceManager.this.usePerPlayerLoadDistance) {
 +                this.onCombinedPlayerTicketTrackerLevelChange(pos, distance, oldWithinViewDistance, withinViewDistance);
 +                return;
              }
@@ -293,12 +561,12 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
              if (oldWithinViewDistance != withinViewDistance) {
                  Ticket<?> ticket = new Ticket<>(TicketType.PLAYER, DistanceManager.PLAYER_TICKET_LEVEL, new ChunkPos(pos));
  
-@@ -727,7 +805,45 @@ public abstract class DistanceManager {
+@@ -727,7 +799,55 @@ public abstract class DistanceManager {
                      }, pos, true));
                  }
              }
 +        }
- 
++
 +    }
 +    // Martijn end - per-player load distance
 +
@@ -318,7 +586,17 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
 +            this.toUpdate.add(pos);
 +        }
 +
-+        public void updateViewDistance(int watchDistance) {
++        // Martijn start - per-player load distance
++        public void updateViewDistanceByPlayerLoadDistance(ServerPlayer player) {
++            this.updateViewDistanceByOriginalWatchDistance(player.getLoadViewDistance() + 1);
++        }
++
++        public void updateViewDistanceByWorldViewDistance(int worldViewDistance) {
++            this.updateViewDistanceByOriginalWatchDistance(worldViewDistance + 1);
++        }
++
++        private void updateViewDistanceByOriginalWatchDistance(int watchDistance) {
++            // Martijn end - per-player load distance
 +            ObjectIterator objectiterator = this.chunks.long2ByteEntrySet().iterator();
 +
 +            while (objectiterator.hasNext()) {
@@ -331,7 +609,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
 +
 +            this.viewDistance = watchDistance;
 +        }
-+
+ 
 +        private void onLevelChange(long pos, int distance, boolean oldWithinViewDistance, boolean withinViewDistance) {
 +            if (oldWithinViewDistance != withinViewDistance) {
 +                DistanceManager.this.combinedPlayerTicketManager.onSomePlayerTicketTrackerLevelChange(this, pos, distance, oldWithinViewDistance, withinViewDistance); // Martijn - per-player load distance
@@ -339,33 +617,77 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..b6846ba71382c23fb655bb3b12c01e46
          }
  
          @Override
+diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+index 9a07ccbd12675e501a9aebf89ab85adf6fb658ba..1f0ba4a15d15ea570dfb22cf73f7999d4cc526db 100644
+--- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
++++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+@@ -948,7 +948,7 @@ public class ServerChunkCache extends ChunkSource {
+                     continue;
+                 }
+ 
+-                int viewDistance = this.chunkMap.getEffectiveViewDistance();
++                int viewDistance = player.getLoadViewDistance() - 1; // Martijn - per-player load view distance
+ 
+                 // copied and modified from isOutisdeRange
+                 int chunkRange = level.spigotConfig.mobSpawnRange;
+@@ -1177,7 +1177,7 @@ public class ServerChunkCache extends ChunkSource {
+     }
+ 
+     public void setViewDistance(int watchDistance) {
+-        this.chunkMap.setViewDistance(watchDistance);
++        this.chunkMap.setWorldViewDistance(watchDistance); // Martijn - per-player view distance
+     }
+ 
+     public void setSimulationDistance(int simulationDistance) {
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..baf067f812a066badd856ccf50f790b5764ca0cb 100644
+index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..35ab2ba45228716a3231f5b8ef1ce47b3e0c0872 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -168,7 +168,27 @@ import org.bukkit.inventory.MainHand;
+@@ -168,7 +168,49 @@ import org.bukkit.inventory.MainHand;
  
  public class ServerPlayer extends Player {
  
 -    public final int getViewDistance() { return this.getLevel().getChunkSource().chunkMap.viewDistance - 1; } // Paper - placeholder
 +    // Martijn start - per-player view distance
 +
-+    private final int getWorldSendViewDistance() { return this.getLevel().getChunkSource().chunkMap.viewDistance - 1; } // Paper - placeholder
++    private final int getWorldSendViewDistance() { return this.getLevel().getChunkSource().chunkMap.worldViewDistance - 1; } // Paper - placeholder
++
++    private Integer lastProcessedSendViewDistance = null;
++    private Integer lastProcessedLoadViewDistance = null;
 +
 +    public final int getSendViewDistance() {
-+        return getSendViewDistance(getWorldSendViewDistance());
-+    }
-+
-+    public final int getSendViewDistance(int assumedWorldSendViewDistance) {
-+        return assumedWorldSendViewDistance;
++        return getWorldSendViewDistance();
 +    }
 +
 +    public final int getLoadViewDistance() {
 +        return getSendViewDistance() + 1;
 +    }
 +
-+    public final int getLoadViewDistance(int assumedWorldLoadViewDistance) {
-+        return getSendViewDistance(assumedWorldLoadViewDistance - 1) + 1;
++    public void sendViewDistanceMayHaveChanged() {
++
++        int newSendViewDistance = this.getSendViewDistance();
++        if (newSendViewDistance == this.lastProcessedSendViewDistance) return;
++        int oldSendViewDistance = (this.lastProcessedSendViewDistance == null) ? newSendViewDistance : this.lastProcessedSendViewDistance;
++
++        // Propagate changes
++        this.getLevel().getChunkSource().chunkMap.updateChunkTrackingDueToPlayerSendViewDistanceChange(this, oldSendViewDistance, newSendViewDistance);
++
++        this.lastProcessedSendViewDistance = newSendViewDistance;
++
++    }
++
++    public void loadViewDistanceMayHaveChanged() {
++
++        int newLoadViewDistance = this.getLoadViewDistance();
++        if (newLoadViewDistance == this.lastProcessedLoadViewDistance) return;
++        int oldLoadViewDistance = (this.lastProcessedLoadViewDistance == null) ? newLoadViewDistance : this.lastProcessedLoadViewDistance;
++
++        // Propagate changes
++        this.getLevel().getChunkSource().chunkMap.distanceManager.updatePlayerTicketsByPlayerLoadDistance(this);
++
++        this.lastProcessedLoadViewDistance = newLoadViewDistance;
++
++
 +    }
 +
 +    // Martijn end - per-player view distance
@@ -398,3 +720,16 @@ index ede0ced64d74d71547d1b8bb6853c5aacc1b486a..f48eec6cfd95ee4bb13482c41cc6cb78
                          double deltaX = this.getX() - player.getX();
                          double deltaZ = this.getZ() - player.getZ();
                          double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 5fb475b3ccaa98861e2c817b37cd1740e5bfed8d..0f120d8c6c09a39bea52277a9b18c6bdacf64058 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -465,7 +465,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+         playerChunk.getTickingChunkFuture().thenAccept(either -> {
+             either.left().ifPresent(chunk -> {
+-                List<ServerPlayer> playersInRange = playerChunk.playerProvider.getPlayers(playerChunk.getPos(), false);
++                List<ServerPlayer> playersInRange = playerChunk.playerProvider.getPlayersNearChunkForSending(playerChunk.getPos(), false); // Martijn - per-player send distance
+                 if (playersInRange.isEmpty()) return;
+ 
+                 ClientboundLevelChunkWithLightPacket refreshPacket = new ClientboundLevelChunkWithLightPacket(chunk, this.world.getLightEngine(), null, null, true);
