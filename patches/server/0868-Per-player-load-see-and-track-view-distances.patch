@@ -18,19 +18,62 @@ index 5e3b7fb2e0b7608610555cd23e7ad25a05883181..85de61e7731ee2dbd52c64d6cafe2bb3
          }));
  
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..d9a534998a570592c392ecbbd82e7a16a410bfbb 100644
+index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..22724e1744b53a812bfb2688c23d84e3710dbb99 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-@@ -67,6 +67,13 @@ public class PaperWorldConfig {
+@@ -14,6 +14,7 @@ import java.util.Map;
+ import org.bukkit.Bukkit;
+ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.spigotmc.SpigotWorldConfig;
+ 
+ import static com.destroystokyo.paper.PaperConfig.log;
+@@ -67,6 +68,48 @@ public class PaperWorldConfig {
          }
      }
  
-+    // Martijn start - per-player load distance
-+    public boolean perPlayerLoadDistance = false;
-+    private void perPlayerLoadDistance() {
-+        perPlayerLoadDistance = getBoolean("per-player-load-distance", perPlayerLoadDistance);
++    // Martijn start - per-player view distance
++    private boolean perPlayerSendViewDistance = false;
++    private void perPlayerSendViewDistance() {
++        perPlayerSendViewDistance = getBoolean("view-distances.send-view-distance.per-player", perPlayerSendViewDistance);
 +    }
-+    // Martijn end - per-player load distance
++    public boolean getPerPlayerSendViewDistance() {
++        return perPlayerSendViewDistance;
++    }
++
++    private boolean limitSendViewDistanceByClientViewDistance = false;
++    private void limitSendViewDistanceByClientViewDistance() {
++        setLimitSendViewDistanceByClientViewDistance(getBoolean("view-distances.send-view-distance.limit-by-client-view-distance", limitSendViewDistanceByClientViewDistance));
++    }
++    public boolean getLimitSendViewDistanceByClientViewDistance() {
++        return limitSendViewDistanceByClientViewDistance;
++    }
++    public void setLimitSendViewDistanceByClientViewDistance(boolean limitSendViewDistanceByClientViewDistance) {
++        this.limitSendViewDistanceByClientViewDistance = limitSendViewDistanceByClientViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().sendViewDistanceMayHaveChanged());
++    }
++
++    private boolean perPlayerLoadViewDistance = false;
++    private void perPlayerLoadViewDistance() {
++        perPlayerLoadViewDistance = getBoolean("view-distances.load-view-distance.per-player", perPlayerLoadViewDistance);
++    }
++    public boolean getPerPlayerLoadViewDistance() {
++        return perPlayerLoadViewDistance;
++    }
++
++    private boolean limitLoadViewDistanceByClientViewDistance = false;
++    private void limitLoadViewDistanceByClientViewDistance() {
++        setLimitLoadViewDistanceByClientViewDistance(getBoolean("view-distances.load-view-distance.limit-by-client-view-distance", limitLoadViewDistanceByClientViewDistance));
++    }
++    public boolean getLimitLoadViewDistanceByClientViewDistance() {
++        return limitLoadViewDistanceByClientViewDistance;
++    }
++    public void setLimitLoadViewDistanceByClientViewDistance(boolean limitLoadViewDistanceByClientViewDistance) {
++        this.limitLoadViewDistanceByClientViewDistance = limitLoadViewDistanceByClientViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().loadViewDistanceMayHaveChanged());
++    }
++    // Martijn end - per-player view distance
 +
      public boolean zombiesTargetTurtleEggs = true;
      private void zombiesTargetTurtleEggs() {
@@ -58,7 +101,7 @@ index d271871563fa883efb77b35ec3b1dfbba87f0b62..980d91a34f886b8833ff693289ec0443
  
      private static final class ChunkSaveDebug {
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 0a04980a8015fe08907a040f0f3ff537267bd462..489814d9c984ffea3b232d1418169818a6f41174 100644
+index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc10041372dae7 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -156,7 +156,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
@@ -144,7 +187,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..489814d9c984ffea3b232d1418169818
 -            this.distanceManager.updatePlayerTickets(this.viewDistance + 1);
 -            Iterator objectiterator = this.updatingChunks.getVisibleValuesCopy().iterator(); // Paper
 +            this.worldViewDistance = newWorldViewDistance;
-+            if (this.distanceManager.usePerPlayerLoadDistance) {
++            if (this.distanceManager.perPlayerLoadViewDistance) {
 +                this.level.players.forEach(player -> {
 +                    player.sendViewDistanceMayHaveChanged();
 +                    player.loadViewDistanceMayHaveChanged();
@@ -326,7 +369,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..489814d9c984ffea3b232d1418169818
                  double d2 = d0 * d0;
                  boolean flag = d1 <= d2 && this.entity.broadcastToPlayer(player);
 diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
-index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566402220bb 100644
+index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f36710d6fd971 100644
 --- a/src/main/java/net/minecraft/server/level/DistanceManager.java
 +++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
 @@ -1,9 +1,12 @@
@@ -374,7 +417,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566
 -    private final DistanceManager.PlayerTicketTracker playerTicketManager = new DistanceManager.PlayerTicketTracker(33);
 +    // Martijn start - per-player load distance
 +    private static final int maxPlayerTrackerViewDistance = 33;
-+    public final boolean usePerPlayerLoadDistance;
++    public final boolean perPlayerLoadViewDistance;
 +    private final @Nullable Map<UUID, PlayerTicketTracker> playerTicketManagers;
 +    private final @Nullable PlayerTicketTracker sharedPlayerTicketManager;
 +    private final @NotNull CombinedPlayerTicketTracker combinedPlayerTicketManager;
@@ -387,9 +430,9 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566
          this.mainThreadExecutor = mainThreadExecutor;
          this.chunkMap = chunkMap; // Paper
 +        // Martijn start - per-player load distance
-+        this.usePerPlayerLoadDistance = this.chunkMap.level.paperConfig.perPlayerLoadDistance;
-+        this.playerTicketManagers = this.usePerPlayerLoadDistance ? new HashMap<>(1) : null;
-+        this.sharedPlayerTicketManager = this.usePerPlayerLoadDistance ? null : createNewPlayerTicketManager();
++        this.perPlayerLoadViewDistance = this.chunkMap.level.paperConfig.getPerPlayerLoadViewDistance();
++        this.playerTicketManagers = this.perPlayerLoadViewDistance ? new HashMap<>(1) : null;
++        this.sharedPlayerTicketManager = this.perPlayerLoadViewDistance ? null : createNewPlayerTicketManager();
 +        this.combinedPlayerTicketManager = new CombinedPlayerTicketTracker();
 +        // Martijn end - per-player load distance
      }
@@ -397,7 +440,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566
 +    // Martijn start - per-player load distance
 +
 +    private @NotNull Iterable<@NotNull DistanceManager.PlayerTicketTracker> getPlayerTicketManagers() {
-+        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
++        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker createNewPlayerTicketManager() {
@@ -405,7 +448,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker getOrCreatePlayerTicketManager(ServerPlayer player) {
-+        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
++        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
 +            DistanceManager.PlayerTicketTracker tracker = this.createNewPlayerTicketManager();
 +            tracker.updateViewDistanceByPlayerLoadDistance(player);
 +            return tracker;
@@ -413,11 +456,11 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker getPlayerTicketManagerIfExists(ServerPlayer player) {
-+        return this.usePerPlayerLoadDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
++        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
 +    }
 +
 +    private void removePlayerTicketManager(ServerPlayer player) {
-+        if (this.usePerPlayerLoadDistance) this.playerTicketManagers.remove(player.getUUID());
++        if (this.perPlayerLoadViewDistance) this.playerTicketManagers.remove(player.getUUID());
 +    }
 +
 +    // Martijn end - per-player load distance
@@ -484,14 +527,14 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566
 -        this.playerTicketManager.updateViewDistance(viewDistance);
 +    // Martijn start - per-player load distance
 +    protected void updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance(ServerLevel level, int worldViewDistance) {
-+        if (this.usePerPlayerLoadDistance) {
++        if (this.perPlayerLoadViewDistance) {
 +            throw new IllegalStateException("Cannot call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance when using per-player load distances, call updatePlayerTicketsByPlayerLoadDistance instead");
 +        }
 +        this.sharedPlayerTicketManager.updateViewDistanceByWorldViewDistance(worldViewDistance);
      }
  
 +    protected void updatePlayerTicketsByPlayerLoadDistance(ServerPlayer player) {
-+        if (!this.usePerPlayerLoadDistance) {
++        if (!this.perPlayerLoadViewDistance) {
 +            throw new IllegalStateException("Cannot call updatePlayerTicketsByPlayerLoadDistance when not using per-player load distances, call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance instead");
 +        }
 +        this.getOrCreatePlayerTicketManager(player).updateViewDistanceByPlayerLoadDistance(player);
@@ -537,7 +580,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..0be65eba296e306d0ce64771b1037566
 -
 -                this.onLevelChange(j, b0, this.haveTicketFor(b0), b0 <= watchDistance - 2);
 +        private void onSomePlayerTicketTrackerLevelChange(PlayerTicketTracker tracker, long pos, int distance, boolean oldWithinViewDistance, boolean withinViewDistance) {
-+            if (!DistanceManager.this.usePerPlayerLoadDistance) {
++            if (!DistanceManager.this.perPlayerLoadViewDistance) {
 +                this.onCombinedPlayerTicketTrackerLevelChange(pos, distance, oldWithinViewDistance, withinViewDistance);
 +                return;
              }
@@ -640,10 +683,10 @@ index 9a07ccbd12675e501a9aebf89ab85adf6fb658ba..1f0ba4a15d15ea570dfb22cf73f7999d
  
      public void setSimulationDistance(int simulationDistance) {
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..35ab2ba45228716a3231f5b8ef1ce47b3e0c0872 100644
+index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..c71e2abe05c2351d2c06a6e37a72a20f9abc568e 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -168,7 +168,49 @@ import org.bukkit.inventory.MainHand;
+@@ -168,7 +168,67 @@ import org.bukkit.inventory.MainHand;
  
  public class ServerPlayer extends Player {
  
@@ -652,21 +695,37 @@ index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..35ab2ba45228716a3231f5b8ef1ce47b
 +
 +    private final int getWorldSendViewDistance() { return this.getLevel().getChunkSource().chunkMap.worldViewDistance - 1; } // Paper - placeholder
 +
++    private final int getWorldLoadViewDistance() {
++        return getWorldSendViewDistance() + 1;
++    }
++
 +    private Integer lastProcessedSendViewDistance = null;
 +    private Integer lastProcessedLoadViewDistance = null;
 +
 +    public final int getSendViewDistance() {
-+        return getWorldSendViewDistance();
++        int sendViewDistance = getWorldSendViewDistance();
++        if (getLevel().paperConfig.getPerPlayerSendViewDistance()) {
++            if (getLevel().paperConfig.getLimitSendViewDistanceByClientViewDistance()) {
++                sendViewDistance = Math.min(sendViewDistance, getBukkitEntity().getClientViewDistance());
++            }
++        }
++        return sendViewDistance;
 +    }
 +
 +    public final int getLoadViewDistance() {
-+        return getSendViewDistance() + 1;
++        int loadViewDistance = getWorldLoadViewDistance();
++        if (getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
++            if (getLevel().paperConfig.getLimitLoadViewDistanceByClientViewDistance()) {
++                loadViewDistance = Math.min(loadViewDistance, getBukkitEntity().getClientViewDistance() + 1);
++            }
++        }
++        return loadViewDistance;
 +    }
 +
 +    public void sendViewDistanceMayHaveChanged() {
 +
 +        int newSendViewDistance = this.getSendViewDistance();
-+        if (newSendViewDistance == this.lastProcessedSendViewDistance) return;
++        if (this.lastProcessedSendViewDistance != null && newSendViewDistance == this.lastProcessedSendViewDistance) return;
 +        int oldSendViewDistance = (this.lastProcessedSendViewDistance == null) ? newSendViewDistance : this.lastProcessedSendViewDistance;
 +
 +        // Propagate changes
@@ -679,11 +738,13 @@ index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..35ab2ba45228716a3231f5b8ef1ce47b
 +    public void loadViewDistanceMayHaveChanged() {
 +
 +        int newLoadViewDistance = this.getLoadViewDistance();
-+        if (newLoadViewDistance == this.lastProcessedLoadViewDistance) return;
++        if (this.lastProcessedLoadViewDistance != null && newLoadViewDistance == this.lastProcessedLoadViewDistance) return;
 +        int oldLoadViewDistance = (this.lastProcessedLoadViewDistance == null) ? newLoadViewDistance : this.lastProcessedLoadViewDistance;
 +
 +        // Propagate changes
-+        this.getLevel().getChunkSource().chunkMap.distanceManager.updatePlayerTicketsByPlayerLoadDistance(this);
++        if (this.getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
++            this.getLevel().getChunkSource().chunkMap.distanceManager.updatePlayerTicketsByPlayerLoadDistance(this);
++        }
 +
 +        this.lastProcessedLoadViewDistance = newLoadViewDistance;
 +
@@ -694,6 +755,15 @@ index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..35ab2ba45228716a3231f5b8ef1ce47b
  
      private static final Logger LOGGER = LogManager.getLogger();
      public long lastSave = MinecraftServer.currentTick; // Paper
+@@ -1949,6 +2009,8 @@ public class ServerPlayer extends Player {
+         this.connection.connection.channel.attr(PaperAdventure.LOCALE_ATTRIBUTE).set(this.adventure$locale);
+         // Paper end
+         this.clientViewDistance = packet.viewDistance;
++        sendViewDistanceMayHaveChanged();
++        loadViewDistanceMayHaveChanged();
+         // CraftBukkit end
+         this.chatVisibility = packet.chatVisibility();
+         this.canChatColor = packet.chatColors();
 diff --git a/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java b/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
 index e17a3afa41fd628d2c4a3637ae19418e258a99b8..7a564c63a7a1090c15e0117252d78d5dd19ea214 100644
 --- a/src/main/java/net/minecraft/world/entity/boss/enderdragon/EnderDragon.java
