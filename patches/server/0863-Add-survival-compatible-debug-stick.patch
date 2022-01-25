@@ -4,6 +4,29 @@ Date: Tue, 18 Jan 2022 21:44:58 +0100
 Subject: [PATCH] Add survival-compatible debug stick
 
 
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index 61ea1c9881ea30c05580044af9496a65fe95d94e..0a36ae64a8d50f19587c90ac22681199a9fec773 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -91,6 +91,18 @@ public class PaperConfig {
+         }
+     }
+ 
++    // Martijn start - survival debug stick
++
++    /**
++     * In milliseconds
++     */
++    public static int survivallikeDebugStickSwitchPropertyTimeout = 300;
++    private static void survivallikeDebugStickSwitchPropertyTimeout() {
++        survivallikeDebugStickSwitchPropertyTimeout = getInt("settings.survivallike-debug-stick.switch-property-timeout", survivallikeDebugStickSwitchPropertyTimeout);
++    }
++
++    // Martijn end - survival debug stick
++
+     public static boolean logPlayerIpAddresses = true;
+     private static void playerIpAddresses() {
+         logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
 diff --git a/src/main/java/net/minecraft/core/Direction.java b/src/main/java/net/minecraft/core/Direction.java
 index 6d883db5c04cbcf454952c0f361029ecbfe4f037..1f07bd3dca485154e3e69b7456b63d60e65a431a 100644
 --- a/src/main/java/net/minecraft/core/Direction.java
@@ -52,10 +75,10 @@ index d85da02be7f1d494af8f2cc840c49073774f5f9c..94acb1a3e7d460e856b6c12a3c82355e
  import org.bukkit.craftbukkit.event.CraftEventFactory;
  import org.bukkit.craftbukkit.util.CraftVector;
 diff --git a/src/main/java/net/minecraft/world/item/DebugStickItem.java b/src/main/java/net/minecraft/world/item/DebugStickItem.java
-index 00b5bb5c3dd16eeff17790205fb7cfdec3c50804..12b0ec516f028bd6d608d2a6368159144083fe84 100644
+index 00b5bb5c3dd16eeff17790205fb7cfdec3c50804..e853d2b9c0bb4440fe66dc58a0bc4d94f5f2abba 100644
 --- a/src/main/java/net/minecraft/world/item/DebugStickItem.java
 +++ b/src/main/java/net/minecraft/world/item/DebugStickItem.java
-@@ -1,10 +1,19 @@
+@@ -1,10 +1,24 @@
  // mc-dev import
  package net.minecraft.world.item;
  
@@ -67,15 +90,20 @@ index 00b5bb5c3dd16eeff17790205fb7cfdec3c50804..12b0ec516f028bd6d608d2a636815914
 +import java.util.List;
 +import java.util.Map;
 +import java.util.Set;
++import java.util.UUID;
 +import java.util.function.Predicate;
  import javax.annotation.Nullable;
++
++import com.destroystokyo.paper.PaperConfig;
++import it.unimi.dsi.fastutil.objects.Object2LongMap;
++import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
  import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
 +import net.minecraft.core.Direction;
  import net.minecraft.core.Registry;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.network.chat.ChatType;
-@@ -17,10 +26,61 @@ import net.minecraft.world.entity.player.Player;
+@@ -17,10 +31,62 @@ import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelAccessor;
@@ -132,16 +160,19 @@ index 00b5bb5c3dd16eeff17790205fb7cfdec3c50804..12b0ec516f028bd6d608d2a636815914
 +import net.minecraft.world.level.block.state.properties.BlockStateProperties;
  import net.minecraft.world.level.block.state.properties.Property;
 +import net.minecraft.world.level.material.Material;
++import org.bukkit.GameMode;
 +import org.bukkit.block.DaylightDetector;
 +import org.bukkit.block.data.type.Fence;
  
  public class DebugStickItem extends Item {
  
-@@ -58,36 +118,61 @@ public class DebugStickItem extends Item {
+@@ -58,36 +124,69 @@ public class DebugStickItem extends Item {
          return InteractionResult.sidedSuccess(world.isClientSide);
      }
  
 +    // Martijn start - survival debug stick
++    private final Object2LongMap<UUID> lastSwitchPropertyTimestamp = new Object2LongOpenHashMap<>();
++
      private boolean handleInteraction(Player player, BlockState state, LevelAccessor world, BlockPos pos, boolean update, ItemStack stack) {
 -        if (!player.canUseGameMasterBlocks() && !(player.getAbilities().instabuild && player.getBukkitEntity().hasPermission("minecraft.debugstick")) && !player.getBukkitEntity().hasPermission("minecraft.debugstick.always")) { // Spigot
 +        boolean canUseDebugStickUnlimited = player.canUseGameMasterBlocks()
@@ -192,6 +223,12 @@ index 00b5bb5c3dd16eeff17790205fb7cfdec3c50804..12b0ec516f028bd6d608d2a636815914
                      DebugStickItem.message(player, new TranslatableComponent(this.getDescriptionId() + ".update", new Object[]{iblockstate.getName(), DebugStickItem.getNameHelper(iblockdata1, iblockstate)}));
                  } else {
 -                    iblockstate = (Property) DebugStickItem.getRelative(collection, iblockstate, player.isSecondaryUseActive());
++                    if (player.getBukkitEntity().getGameMode() == GameMode.SURVIVAL) {
++                        if (System.currentTimeMillis() <= lastSwitchPropertyTimestamp.getOrDefault(player.getUUID(), 0L) + PaperConfig.survivallikeDebugStickSwitchPropertyTimeout) {
++                            return true;
++                        }
++                        lastSwitchPropertyTimestamp.put(player.getUUID(), System.currentTimeMillis());
++                    }
 +                    if (iblockstate == null) {
 +                        iblockstate = (Property) changeableProperties.iterator().next();
 +                    } else {
@@ -205,7 +242,7 @@ index 00b5bb5c3dd16eeff17790205fb7cfdec3c50804..12b0ec516f028bd6d608d2a636815914
                      nbttagcompound.putString(s, s2);
                      DebugStickItem.message(player, new TranslatableComponent(this.getDescriptionId() + ".select", new Object[]{s2, DebugStickItem.getNameHelper(state, iblockstate)}));
                  }
-@@ -97,9 +182,13 @@ public class DebugStickItem extends Item {
+@@ -97,9 +196,13 @@ public class DebugStickItem extends Item {
          }
      }
  
@@ -221,7 +258,7 @@ index 00b5bb5c3dd16eeff17790205fb7cfdec3c50804..12b0ec516f028bd6d608d2a636815914
  
      private static <T> T getRelative(Iterable<T> elements, @Nullable T current, boolean inverse) {
          return inverse ? Util.findPreviousInIterable(elements, current) : Util.findNextInIterable(elements, current);
-@@ -112,4 +201,122 @@ public class DebugStickItem extends Item {
+@@ -112,4 +215,122 @@ public class DebugStickItem extends Item {
      private static <T extends Comparable<T>> String getNameHelper(BlockState state, Property<T> property) {
          return property.getName(state.getValue(property));
      }
