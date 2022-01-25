@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 17 Jan 2022 12:24:17 +0100
+Subject: [PATCH] Add more packets that can be sent immediately
+
+
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 81dde0efc1a06420c0791520b9e40b24dd1f0318..6782643d04bf1efba4c5e2e99b56dfcf0843381c 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -315,6 +315,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         }
+         // Paper start
+         private static boolean canSendImmediate(Connection networkManager, Packet<?> packet) {
++            // Martijn start - ClientboundPlayerInfoPacket and ClientboundMapItemDataPacket can also be sent immediately
+             return networkManager.isPending || networkManager.protocol != ConnectionProtocol.PLAY ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundChatPacket ||
+@@ -324,7 +325,10 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
+-                packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket;
++                packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
++            // Martijn end
+         }
+         // Paper end
+     }
