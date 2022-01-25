@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 17 Jan 2022 12:37:38 +0100
+Subject: [PATCH] Add utility methods for getting the distance between a player
+ and a chunk
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index ea6f3223928f1f98b51911bb37d60fcdd014a1fe..c6fc376c0ac88b0047c946c3828a0cfedcccba4b 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -367,6 +367,36 @@ public class ServerPlayer extends Player {
+ 
+     // Martijn end - getting the player's chunk
+ 
++    // Martijn start - getting distance to chunks
++
++    public int getManhattanDistanceToChunk(ChunkPos chunk) {
++        return Math.max(Math.abs(getChunkX() - chunk.x), Math.abs(getChunkZ() - chunk.z));
++    }
++
++    public int getManhattanDistanceToChunk(long chunkKey) {
++        return getManhattanDistanceToChunk(new ChunkPos(chunkKey));
++    };
++
++    public long getSquaredPythagoreanDistanceToChunk(ChunkPos chunk) {
++        long dx = getChunkX() - chunk.x;
++        long dz = getChunkZ() - chunk.z;
++        return dx * dx + dz * dz;
++    }
++
++    public long getSquaredPythagoreanDistanceToChunk(long chunkKey) {
++        return getSquaredPythagoreanDistanceToChunk(new ChunkPos(chunkKey));
++    };
++
++    public double getPythagoreanDistanceToChunk(ChunkPos chunkPos) {
++        return Math.sqrt(getSquaredPythagoreanDistanceToChunk(chunkPos));
++    }
++
++    public double getPythagoreanDistanceToChunk(long chunkKey) {
++        return getPythagoreanDistanceToChunk(new ChunkPos(chunkKey));
++    };
++
++    // Martijn end - getting distance to chunks
++
+     // Yes, this doesn't match Vanilla, but it's the best we can do for now.
+     // If this is an issue, PRs are welcome
+     public final BlockPos getSpawnPoint(ServerLevel worldserver) {
