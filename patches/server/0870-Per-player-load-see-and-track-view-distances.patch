@@ -1017,7 +1017,7 @@ index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..26fb337dc13885ddd9e2c1ab4e1759f1
                  double d2 = d0 * d0;
                  boolean flag = d1 <= d2 && this.entity.broadcastToPlayer(player);
 diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
-index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4e70da453 100644
+index 1744f4983b24a87f3861ebd5d68120cfce904934..74c73152760149204f86bec3743de49575d82b3e 100644
 --- a/src/main/java/net/minecraft/server/level/DistanceManager.java
 +++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
 @@ -1,9 +1,12 @@
@@ -1059,12 +1059,13 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
  
  public abstract class DistanceManager {
  
-@@ -50,7 +60,13 @@ public abstract class DistanceManager {
+@@ -50,7 +60,14 @@ public abstract class DistanceManager {
      private final DistanceManager.ChunkTicketTracker ticketTracker = new DistanceManager.ChunkTicketTracker();
      public static final int MOB_SPAWN_RANGE = 8; // private final ChunkMapDistance.b f = new ChunkMapDistance.b(8); // Paper - no longer used
      private final TickingTracker tickingTicketsTracker = new TickingTracker();
 -    private final DistanceManager.PlayerTicketTracker playerTicketManager = new DistanceManager.PlayerTicketTracker(33);
 +    // Martijn start - per-player load distance
++    private final Object playerTicketManagerLock = new Object();
 +    private static final int maxPlayerTrackerViewDistance = 33;
 +    public final boolean perPlayerLoadViewDistance;
 +    private final @Nullable Map<UUID, PlayerTicketTracker> playerTicketManagers;
@@ -1074,22 +1075,26 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
      // Paper start use a queue, but still keep unique requirement
      public final java.util.Queue<ChunkHolder> pendingChunkUpdates = new java.util.ArrayDeque<ChunkHolder>() {
          @Override
-@@ -80,8 +96,42 @@ public abstract class DistanceManager {
+@@ -80,8 +97,52 @@ public abstract class DistanceManager {
          this.ticketThrottlerReleaser = chunktaskqueuesorter.getReleaseProcessor(mailbox);
          this.mainThreadExecutor = mainThreadExecutor;
          this.chunkMap = chunkMap; // Paper
 +        // Martijn start - per-player load distance
 +        this.perPlayerLoadViewDistance = this.chunkMap.level.paperConfig.getPerPlayerLoadViewDistance();
-+        this.playerTicketManagers = this.perPlayerLoadViewDistance ? new HashMap<>(1) : null;
-+        this.sharedPlayerTicketManager = this.perPlayerLoadViewDistance ? null : createNewPlayerTicketManager();
-+        this.combinedPlayerTicketManager = new CombinedPlayerTicketTracker();
++        synchronized (this.playerTicketManagerLock) {
++            this.playerTicketManagers = this.perPlayerLoadViewDistance ? new HashMap<>(1) : null;
++            this.sharedPlayerTicketManager = this.perPlayerLoadViewDistance ? null : createNewPlayerTicketManager();
++            this.combinedPlayerTicketManager = new CombinedPlayerTicketTracker();
++        }
 +        // Martijn end - per-player load distance
-     }
- 
++    }
++
 +    // Martijn start - per-player load distance
 +
 +    private @NotNull Iterable<@NotNull DistanceManager.PlayerTicketTracker> getPlayerTicketManagers() {
-+        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
++        synchronized (this.playerTicketManagerLock) {
++            return this.perPlayerLoadViewDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
++        }
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker createNewPlayerTicketManager() {
@@ -1097,19 +1102,25 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker getOrCreatePlayerTicketManager(ServerPlayer player) {
-+        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
-+            DistanceManager.PlayerTicketTracker tracker = this.createNewPlayerTicketManager();
-+            tracker.updateViewDistanceByPlayerLoadDistance(player);
-+            return tracker;
-+        }) : this.sharedPlayerTicketManager;
++        synchronized (this.playerTicketManagerLock) {
++            return this.perPlayerLoadViewDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
++                DistanceManager.PlayerTicketTracker tracker = this.createNewPlayerTicketManager();
++                tracker.updateViewDistanceByPlayerLoadDistance(player);
++                return tracker;
++            }) : this.sharedPlayerTicketManager;
++        }
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker getPlayerTicketManagerIfExists(ServerPlayer player) {
-+        return this.perPlayerLoadViewDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
-+    }
-+
++        synchronized (this.playerTicketManagerLock) {
++            return this.perPlayerLoadViewDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
++        }
+     }
+ 
 +    private void removePlayerTicketManager(ServerPlayer player) {
-+        if (this.perPlayerLoadViewDistance) this.playerTicketManagers.remove(player.getUUID());
++        synchronized (this.playerTicketManagerLock) {
++            if (this.perPlayerLoadViewDistance) this.playerTicketManagers.remove(player.getUUID());
++        }
 +    }
 +
 +    // Martijn end - per-player load distance
@@ -1117,16 +1128,20 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
      protected void purgeStaleTickets() {
          ++this.ticketTickCounter;
          ObjectIterator objectiterator = this.tickets.long2ObjectEntrySet().fastIterator();
-@@ -129,7 +179,7 @@ public abstract class DistanceManager {
+@@ -129,7 +190,11 @@ public abstract class DistanceManager {
          //this.f.a(); // Paper - no longer used
          this.tickingTicketsTracker.runAllUpdates();
          org.spigotmc.AsyncCatcher.catchOp("DistanceManagerTick"); // Paper
 -        this.playerTicketManager.runAllUpdates();
-+        this.getPlayerTicketManagers().forEach(it -> it.runAllUpdates()); // Martijn - per-player load distance
++        // Martijn - per-player load distance
++        synchronized (this.playerTicketManagerLock) {
++            this.getPlayerTicketManagers().forEach(it -> it.runAllUpdates());
++        }
++        // Martijn end - per-player load distance
          int i = Integer.MAX_VALUE - this.ticketTracker.runDistanceUpdates(Integer.MAX_VALUE);
          boolean flag = i != 0;
  
-@@ -140,11 +190,20 @@ public abstract class DistanceManager {
+@@ -140,11 +205,20 @@ public abstract class DistanceManager {
          // Paper start
          if (!this.pendingChunkUpdates.isEmpty()) {
              this.pollingPendingChunkUpdates = true; try { // Paper - Chunk priority
@@ -1152,7 +1167,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
              } finally { this.pollingPendingChunkUpdates = false; } // Paper - Chunk priority
              // Paper end
              return true;
-@@ -406,6 +465,9 @@ public abstract class DistanceManager {
+@@ -406,6 +480,9 @@ public abstract class DistanceManager {
      }
  
      public void addPlayer(SectionPos pos, ServerPlayer player) {
@@ -1162,7 +1177,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
          ChunkPos chunkcoordintpair = pos.chunk();
          long i = chunkcoordintpair.toLong();
  
-@@ -413,11 +475,12 @@ public abstract class DistanceManager {
+@@ -413,11 +490,12 @@ public abstract class DistanceManager {
              return new ObjectOpenHashSet();
          })).add(player);
          //this.f.update(i, 0, true); // Paper - no longer used
@@ -1177,24 +1192,26 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
          ChunkPos chunkcoordintpair = pos.chunk();
          long i = chunkcoordintpair.toLong();
          ObjectSet<ServerPlayer> objectset = (ObjectSet) this.playersPerChunk.get(i);
-@@ -427,7 +490,15 @@ public abstract class DistanceManager {
+@@ -427,7 +505,17 @@ public abstract class DistanceManager {
          if (objectset == null || objectset.isEmpty()) { // Paper
              this.playersPerChunk.remove(i);
              //this.f.update(i, Integer.MAX_VALUE, false); // Paper - no longer used
 -            this.playerTicketManager.update(i, Integer.MAX_VALUE, false);
 +            // Martijn start - per-player load distance
-+            DistanceManager.PlayerTicketTracker playerTicketManager = this.getPlayerTicketManagerIfExists(player);
-+            if (playerTicketManager != null) {
-+                playerTicketManager.update(i, Integer.MAX_VALUE, false);
-+            }
-+            if (!keepPlayerTicketManager) {
-+                removePlayerTicketManager(player);
++            synchronized (this.playerTicketManagerLock) {
++                DistanceManager.PlayerTicketTracker playerTicketManager = this.getPlayerTicketManagerIfExists(player);
++                if (playerTicketManager != null) {
++                    playerTicketManager.update(i, Integer.MAX_VALUE, false);
++                }
++                if (!keepPlayerTicketManager) {
++                    removePlayerTicketManager(player);
++                }
 +            }
 +            // Martijn end - per-player load distance
              this.tickingTicketsTracker.removeTicket(TicketType.PLAYER, chunkcoordintpair, this.getPlayerTicketLevel(), chunkcoordintpair);
          }
  
-@@ -451,10 +522,22 @@ public abstract class DistanceManager {
+@@ -451,9 +539,21 @@ public abstract class DistanceManager {
          return arraysetsorted != null && !arraysetsorted.isEmpty() ? ((Ticket) arraysetsorted.first()).toString() : "no_ticket";
      }
  
@@ -1206,31 +1223,30 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
 +            throw new IllegalStateException("Cannot call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance when using per-player load distances, call updatePlayerTicketsByPlayerLoadDistance instead");
 +        }
 +        this.sharedPlayerTicketManager.updateViewDistanceByWorldViewDistance(worldViewDistance);
-     }
- 
++    }
++
 +    protected void updatePlayerTicketsByPlayerLoadDistance(ServerPlayer player) {
 +        if (!this.perPlayerLoadViewDistance) {
 +            throw new IllegalStateException("Cannot call updatePlayerTicketsByPlayerLoadDistance when not using per-player load distances, call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance instead");
 +        }
 +        this.getOrCreatePlayerTicketManager(player).updateViewDistanceByPlayerLoadDistance(player);
-+    }
+     }
 +    // Martijn end - per-player load distance
-+
+ 
      public void updateSimulationDistance(int simulationDistance) {
          if (simulationDistance != this.simulationDistance) {
-             this.simulationDistance = simulationDistance;
-@@ -670,37 +753,36 @@ public abstract class DistanceManager {
+@@ -670,37 +770,39 @@ public abstract class DistanceManager {
          }
      }
  
 -    private class PlayerTicketTracker extends DistanceManager.FixedPlayerDistanceChunkTracker {
-+    // Martijn start - per-player load distance
-+    private class CombinedPlayerTicketTracker {
- 
+-
 -        private int viewDistance = 0;
 -        private final Long2IntMap queueLevels = Long2IntMaps.synchronize(new Long2IntOpenHashMap());
 -        private final LongSet toUpdate = new LongOpenHashSet();
--
++    // Martijn start - per-player load distance
++    private class CombinedPlayerTicketTracker {
+ 
 -        protected PlayerTicketTracker(int i) {
 -            super(i);
 -            this.queueLevels.defaultReturnValue(i + 2);
@@ -1264,11 +1280,14 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
 +            int minDistance = distance;
 +            boolean oldWithinSomeViewDistance = oldWithinViewDistance;
 +            boolean withinSomeViewDistance = withinViewDistance;
-+            for (PlayerTicketTracker otherTracker : DistanceManager.this.getPlayerTicketManagers()) {
-+                if (otherTracker != tracker) {
-+                    minDistance = Math.min(distance, otherTracker.getLevel(pos));
-+                    oldWithinSomeViewDistance |= otherTracker.haveTicketFor(distance);
-+                    withinSomeViewDistance |= otherTracker.haveTicketFor(distance);
++            synchronized (DistanceManager.this.playerTicketManagerLock) {
++                for (PlayerTicketTracker otherTracker : DistanceManager.this.getPlayerTicketManagers()) {
++                    if (otherTracker != tracker) {
++                        int otherTrackerDistance = otherTracker.getLevel(pos);
++                        minDistance = Math.min(minDistance, otherTracker.getLevel(pos));
++                        oldWithinSomeViewDistance |= otherTracker.haveTicketFor(otherTrackerDistance);
++                        withinSomeViewDistance |= otherTracker.haveTicketFor(otherTrackerDistance);
++                    }
 +                }
 +            }
 +            this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
@@ -1279,7 +1298,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..ca8314fc7d35d2fdb6d0a9019ef358f4
              if (oldWithinViewDistance != withinViewDistance) {
                  Ticket<?> ticket = new Ticket<>(TicketType.PLAYER, DistanceManager.PLAYER_TICKET_LEVEL, new ChunkPos(pos));
  
-@@ -727,7 +809,55 @@ public abstract class DistanceManager {
+@@ -727,7 +829,55 @@ public abstract class DistanceManager {
                      }, pos, true));
                  }
              }
