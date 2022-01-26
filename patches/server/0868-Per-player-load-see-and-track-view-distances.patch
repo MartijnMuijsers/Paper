@@ -725,7 +725,7 @@ index 9a07ccbd12675e501a9aebf89ab85adf6fb658ba..1f0ba4a15d15ea570dfb22cf73f7999d
  
      public void setSimulationDistance(int simulationDistance) {
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058..28345e5fa659212f3f7385efc65ec5bd18a8e6ff 100644
+index 09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058..cdf83c3effe0aafcf99eebd5bc1701f0a7e2f64a 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -188,7 +188,67 @@ import org.bukkit.inventory.MainHand;
@@ -797,12 +797,14 @@ index 09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058..28345e5fa659212f3f7385efc65ec5bd
  
      private static final Logger LOGGER = LogManager.getLogger();
      public long lastSave = MinecraftServer.currentTick; // Paper
-@@ -1974,6 +2034,8 @@ public class ServerPlayer extends Player {
+@@ -1974,6 +2034,10 @@ public class ServerPlayer extends Player {
          this.connection.connection.channel.attr(PaperAdventure.LOCALE_ATTRIBUTE).set(this.adventure$locale);
          // Paper end
          this.clientViewDistance = packet.viewDistance;
++        // Martijn start - per-player view distance
 +        sendViewDistanceMayHaveChanged();
 +        loadViewDistanceMayHaveChanged();
++        // Martijn end - per-player view distance
          // CraftBukkit end
          this.chatVisibility = packet.chatVisibility();
          this.canChatColor = packet.chatColors();

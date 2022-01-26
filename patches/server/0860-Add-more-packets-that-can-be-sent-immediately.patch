@@ -5,18 +5,26 @@ Subject: [PATCH] Add more packets that can be sent immediately
 
 
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 81dde0efc1a06420c0791520b9e40b24dd1f0318..6782643d04bf1efba4c5e2e99b56dfcf0843381c 100644
+index 81dde0efc1a06420c0791520b9e40b24dd1f0318..1b62ca915a94258e94fadda0b59336cb14b265b0 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
-@@ -315,6 +315,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -43,6 +43,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
+ import net.minecraft.server.network.ServerLoginPacketListenerImpl;
+ import net.minecraft.util.LazyLoadedValue;
+ import net.minecraft.util.Mth;
++import net.minecraft.world.level.chunk.LevelChunk;
+ import org.apache.commons.lang3.Validate;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+@@ -315,6 +316,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          }
          // Paper start
          private static boolean canSendImmediate(Connection networkManager, Packet<?> packet) {
-+            // Martijn start - ClientboundPlayerInfoPacket and ClientboundMapItemDataPacket can also be sent immediately
++            // Martijn start - more packets that can also be sent immediately
              return networkManager.isPending || networkManager.protocol != ConnectionProtocol.PLAY ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundChatPacket ||
-@@ -324,7 +325,10 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -324,7 +326,10 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
                  packet instanceof net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
@@ -24,7 +32,7 @@ index 81dde0efc1a06420c0791520b9e40b24dd1f0318..6782643d04bf1efba4c5e2e99b56dfcf
 +                packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
 +                packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
 +                packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
-+            // Martijn end
++            // Martijn end - more packets that can be sent immediately
          }
          // Paper end
      }
