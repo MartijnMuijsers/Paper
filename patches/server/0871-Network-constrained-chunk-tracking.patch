@@ -414,10 +414,10 @@ index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cb
              }
              this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b537b8e0f3f 100644
+index 3dc7491c85e446a1d474c1b8f6c4d02390369097..a19a7fcd3894dd97544e13f0fd7ee1a4d924c376 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -317,6 +317,240 @@ public class ServerPlayer extends Player {
+@@ -317,6 +317,254 @@ public class ServerPlayer extends Player {
      public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
      // Paper end
  
@@ -483,13 +483,27 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
 +        return this.isPlannedToTrack(chunk.level.uuid, chunk.getPos().longKey);
 +    }
 +
++    /**
++     * This method will not synchronize, so it doesn't need to wait for any other threads and request the lock field from RAM, but the return value may be inconsistent with the truth
++     */
++    public boolean isTrackingNonSync(UUID levelUUID, long chunkKey) {
++        if (levelUUID.equals(this.quickAccessLevelUUID)) return this.quickAccessTracking.contains(chunkKey);
++        LongSet trackingForLevel = this.tracking.get(levelUUID);
++        if (trackingForLevel == null) return false;
++        return trackingForLevel.contains(chunkKey);
++    }
++
 +    public boolean isTracking(UUID levelUUID, long chunkKey) {
 +        synchronized (this.networkConstrainedTrackingLock) {
-+            if (levelUUID.equals(this.quickAccessLevelUUID)) return this.quickAccessTracking.contains(chunkKey);
-+            LongSet trackingForLevel = this.tracking.get(levelUUID);
-+            if (trackingForLevel == null) return false;
-+            return trackingForLevel.contains(chunkKey);
++            return isTrackingNonSync(levelUUID, chunkKey);
 +        }
++    }
++
++    /**
++     * This method will not synchronize, so it doesn't need to wait for any other threads and request the lock field from RAM, but the return value may be inconsistent with the truth
++     */
++    public boolean isTrackingNonSync(LevelChunk chunk) {
++        return this.isTrackingNonSync(chunk.level.uuid, chunk.getPos().longKey);
 +    }
 +
 +    public boolean isTracking(LevelChunk chunk) {
@@ -658,7 +672,7 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
      // CraftBukkit start
      public String displayName;
      public net.kyori.adventure.text.Component adventure$displayName; // Paper
-@@ -341,6 +575,11 @@ public class ServerPlayer extends Player {
+@@ -341,6 +589,11 @@ public class ServerPlayer extends Player {
  
      public ServerPlayer(MinecraftServer server, ServerLevel world, GameProfile profile) {
          super(world, world.getSharedSpawnPos(), world.getSharedSpawnAngle(), profile);
@@ -670,7 +684,7 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
          this.chatVisibility = ChatVisiblity.FULL;
          this.canChatColor = true;
          this.lastActionTime = Util.getMillis();
-@@ -692,6 +931,11 @@ public class ServerPlayer extends Player {
+@@ -692,6 +945,11 @@ public class ServerPlayer extends Player {
      // CraftBukkit start - World fallback code, either respawn location or global spawn
      public void spawnIn(Level world) {
          this.level = world;
@@ -682,7 +696,7 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
          if (world == null) {
              this.unsetRemoved();
              Vec3 position = null;
-@@ -1296,6 +1540,9 @@ public class ServerPlayer extends Player {
+@@ -1296,6 +1554,9 @@ public class ServerPlayer extends Player {
  
                  // CraftBukkit end
                  this.setLevel(worldserver);
@@ -692,7 +706,7 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
                  worldserver.addDuringPortalTeleport(this);
                  this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
                  this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
-@@ -2315,16 +2562,165 @@ public class ServerPlayer extends Player {
+@@ -2315,16 +2576,165 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -807,8 +821,8 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
 +            }
 +        }
 +
-+    }
-+
+     }
+ 
 +    public void tickAttemptToTrackPlannedChunks() {
 +
 +        {
@@ -844,8 +858,8 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
 +
 +        }
 +
-     }
- 
++    }
++
 +    // Note that this will execute untracking actions even if the chunk was not tracked
      public void untrackChunk(ChunkPos chunkPos) {
 +        ServerLevel level = this.getLevel();
@@ -860,7 +874,7 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
          if (this.isAlive()) {
              this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
              // Paper start
-@@ -2336,6 +2732,37 @@ public class ServerPlayer extends Player {
+@@ -2336,6 +2746,37 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -899,7 +913,7 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
          return this.lastSectionPos;
      }
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..442fe814414ecff4b383f9d0d69e722fb0878758 100644
+index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..56653c02f0f907788141ff0a74d86ba1fdd49333 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -145,6 +145,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -917,7 +931,7 @@ index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..442fe814414ecff4b383f9d0d69e722f
 +    // Martijn start - network-constrained chunk tracking
 +    public void sendIfTracking(LevelChunk chunk, Packet<?> packet) {
 +        if (chunk == null) return;
-+        if (this.getPlayer().isTracking(chunk)) {
++        if (this.getPlayer().isTrackingNonSync(chunk)) {
 +            this.send(packet);
 +        }
 +    }
