@@ -18,7 +18,7 @@ index 5e3b7fb2e0b7608610555cd23e7ad25a05883181..85de61e7731ee2dbd52c64d6cafe2bb3
          }));
  
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..e5c6f36d522d798341e0ec17e96247156b2e6f63 100644
+index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..660c8fe4c8b2a459d738754e624fdd6cd59f7792 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -14,6 +14,7 @@ import java.util.Map;
@@ -29,7 +29,7 @@ index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..e5c6f36d522d798341e0ec17e9624715
  import org.spigotmc.SpigotWorldConfig;
  
  import static com.destroystokyo.paper.PaperConfig.log;
-@@ -67,6 +68,54 @@ public class PaperWorldConfig {
+@@ -67,6 +68,63 @@ public class PaperWorldConfig {
          }
      }
  
@@ -80,6 +80,15 @@ index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..e5c6f36d522d798341e0ec17e9624715
 +    }
 +
 +    // Martijn end - per-player load view distance
++
++    // Martijn start - sort chunks by distance
++
++    public boolean processChunksInOrderOfDistanceAfterLoad = false;
++    private void processChunksInOrderOfDistanceAfterLoad() {
++        this.processChunksInOrderOfDistanceAfterLoad = getBoolean("view-distances.load-view-distance.process-chunks-in-order-of-distance-after-load", this.processChunksInOrderOfDistanceAfterLoad);
++    }
++
++    // Martijn end - sort chunks by distance
 +
      public boolean zombiesTargetTurtleEggs = true;
      private void zombiesTargetTurtleEggs() {
@@ -375,7 +384,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
                  double d2 = d0 * d0;
                  boolean flag = d1 <= d2 && this.entity.broadcastToPlayer(player);
 diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
-index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f36710d6fd971 100644
+index 1744f4983b24a87f3861ebd5d68120cfce904934..9ee2441cb104d5a8fab62b6c94eca1d1d4631540 100644
 --- a/src/main/java/net/minecraft/server/level/DistanceManager.java
 +++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
 @@ -1,9 +1,12 @@
@@ -391,13 +400,14 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
  import it.unimi.dsi.fastutil.longs.Long2ByteMap;
  import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
  import it.unimi.dsi.fastutil.longs.Long2IntMap;
-@@ -22,11 +25,16 @@ import java.io.File;
+@@ -22,11 +25,17 @@ import java.io.File;
  import java.io.FileOutputStream;
  import java.io.IOException;
  import java.nio.charset.StandardCharsets;
 +import java.util.Collections;
 +import java.util.HashMap;
  import java.util.Iterator;
++import java.util.List;
 +import java.util.Map;
  import java.util.Objects;
  import java.util.Set;
@@ -408,7 +418,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
  import javax.annotation.Nullable;
  import net.minecraft.core.SectionPos;
  import net.minecraft.util.SortedArraySet;
-@@ -36,6 +44,7 @@ import net.minecraft.world.level.chunk.ChunkStatus;
+@@ -36,6 +45,7 @@ import net.minecraft.world.level.chunk.ChunkStatus;
  import net.minecraft.world.level.chunk.LevelChunk;
  import org.apache.logging.log4j.LogManager;
  import org.apache.logging.log4j.Logger;
@@ -416,7 +426,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
  
  public abstract class DistanceManager {
  
-@@ -50,7 +59,13 @@ public abstract class DistanceManager {
+@@ -50,7 +60,13 @@ public abstract class DistanceManager {
      private final DistanceManager.ChunkTicketTracker ticketTracker = new DistanceManager.ChunkTicketTracker();
      public static final int MOB_SPAWN_RANGE = 8; // private final ChunkMapDistance.b f = new ChunkMapDistance.b(8); // Paper - no longer used
      private final TickingTracker tickingTicketsTracker = new TickingTracker();
@@ -431,7 +441,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
      // Paper start use a queue, but still keep unique requirement
      public final java.util.Queue<ChunkHolder> pendingChunkUpdates = new java.util.ArrayDeque<ChunkHolder>() {
          @Override
-@@ -80,8 +95,42 @@ public abstract class DistanceManager {
+@@ -80,8 +96,42 @@ public abstract class DistanceManager {
          this.ticketThrottlerReleaser = chunktaskqueuesorter.getReleaseProcessor(mailbox);
          this.mainThreadExecutor = mainThreadExecutor;
          this.chunkMap = chunkMap; // Paper
@@ -474,7 +484,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
      protected void purgeStaleTickets() {
          ++this.ticketTickCounter;
          ObjectIterator objectiterator = this.tickets.long2ObjectEntrySet().fastIterator();
-@@ -129,7 +178,7 @@ public abstract class DistanceManager {
+@@ -129,7 +179,7 @@ public abstract class DistanceManager {
          //this.f.a(); // Paper - no longer used
          this.tickingTicketsTracker.runAllUpdates();
          org.spigotmc.AsyncCatcher.catchOp("DistanceManagerTick"); // Paper
@@ -483,7 +493,33 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
          int i = Integer.MAX_VALUE - this.ticketTracker.runDistanceUpdates(Integer.MAX_VALUE);
          boolean flag = i != 0;
  
-@@ -406,6 +455,9 @@ public abstract class DistanceManager {
+@@ -140,11 +190,20 @@ public abstract class DistanceManager {
+         // Paper start
+         if (!this.pendingChunkUpdates.isEmpty()) {
+             this.pollingPendingChunkUpdates = true; try { // Paper - Chunk priority
+-            while(!this.pendingChunkUpdates.isEmpty()) {
+-                ChunkHolder remove = this.pendingChunkUpdates.remove();
+-                remove.isUpdateQueued = false;
+-                remove.updateFutures(chunkStorage, this.mainThreadExecutor);
+-            }
++                while(!this.pendingChunkUpdates.isEmpty()) {
++                    // Martijn start - sort chunks by distance
++                    if (this.chunkMap.level.paperConfig.processChunksInOrderOfDistanceAfterLoad) {
++                        List<ChunkHolder> sortedPendingChunkUpdates = this.chunkMap.getChunkHoldersSortedBySquaredPythagoreanDistanceToClosestPlayer(this.pendingChunkUpdates.stream()).toList();
++                        this.pendingChunkUpdates.clear();
++                        this.pendingChunkUpdates.addAll(sortedPendingChunkUpdates);
++                    }
++                    while (!this.pendingChunkUpdates.isEmpty()) {
++                        ChunkHolder remove = this.pendingChunkUpdates.remove();
++                        remove.isUpdateQueued = false;
++                        remove.updateFutures(chunkStorage, this.mainThreadExecutor);
++                    }
++                    // Martijn end - sort chunks by distance
++                }
+             } finally { this.pollingPendingChunkUpdates = false; } // Paper - Chunk priority
+             // Paper end
+             return true;
+@@ -406,6 +465,9 @@ public abstract class DistanceManager {
      }
  
      public void addPlayer(SectionPos pos, ServerPlayer player) {
@@ -493,7 +529,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
          ChunkPos chunkcoordintpair = pos.chunk();
          long i = chunkcoordintpair.toLong();
  
-@@ -413,11 +465,12 @@ public abstract class DistanceManager {
+@@ -413,11 +475,12 @@ public abstract class DistanceManager {
              return new ObjectOpenHashSet();
          })).add(player);
          //this.f.update(i, 0, true); // Paper - no longer used
@@ -508,7 +544,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
          ChunkPos chunkcoordintpair = pos.chunk();
          long i = chunkcoordintpair.toLong();
          ObjectSet<ServerPlayer> objectset = (ObjectSet) this.playersPerChunk.get(i);
-@@ -427,7 +480,15 @@ public abstract class DistanceManager {
+@@ -427,7 +490,15 @@ public abstract class DistanceManager {
          if (objectset == null || objectset.isEmpty()) { // Paper
              this.playersPerChunk.remove(i);
              //this.f.update(i, Integer.MAX_VALUE, false); // Paper - no longer used
@@ -525,7 +561,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
              this.tickingTicketsTracker.removeTicket(TicketType.PLAYER, chunkcoordintpair, this.getPlayerTicketLevel(), chunkcoordintpair);
          }
  
-@@ -451,10 +512,22 @@ public abstract class DistanceManager {
+@@ -451,10 +522,22 @@ public abstract class DistanceManager {
          return arraysetsorted != null && !arraysetsorted.isEmpty() ? ((Ticket) arraysetsorted.first()).toString() : "no_ticket";
      }
  
@@ -550,7 +586,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
      public void updateSimulationDistance(int simulationDistance) {
          if (simulationDistance != this.simulationDistance) {
              this.simulationDistance = simulationDistance;
-@@ -670,37 +743,36 @@ public abstract class DistanceManager {
+@@ -670,37 +753,36 @@ public abstract class DistanceManager {
          }
      }
  
@@ -610,7 +646,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
              if (oldWithinViewDistance != withinViewDistance) {
                  Ticket<?> ticket = new Ticket<>(TicketType.PLAYER, DistanceManager.PLAYER_TICKET_LEVEL, new ChunkPos(pos));
  
-@@ -727,7 +799,55 @@ public abstract class DistanceManager {
+@@ -727,7 +809,55 @@ public abstract class DistanceManager {
                      }, pos, true));
                  }
              }
@@ -655,10 +691,10 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..d209fa796ea854b59c51ee59c46f3671
 +
 +                this.onLevelChange(j, b0, this.haveTicketFor(b0), b0 <= watchDistance - 2);
 +            }
-+
+ 
 +            this.viewDistance = watchDistance;
 +        }
- 
++
 +        private void onLevelChange(long pos, int distance, boolean oldWithinViewDistance, boolean withinViewDistance) {
 +            if (oldWithinViewDistance != withinViewDistance) {
 +                DistanceManager.this.combinedPlayerTicketManager.onSomePlayerTicketTrackerLevelChange(this, pos, distance, oldWithinViewDistance, withinViewDistance); // Martijn - per-player load distance
