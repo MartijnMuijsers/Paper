@@ -87,7 +87,7 @@ index e8aec6972def3c6e4f7daedcc387d48c1f34be6e..edca32e3a8f2a14d076a558e77bc7311
      public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
          int i = targetStatus.getIndex();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845c4a729dd 100644
+index 3deab3fec1f10f42e1f69f16eb09f3103ccb8b6d..359508b18261b26b1054febe13ea9d2920912e1e 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -29,7 +29,7 @@ import java.io.IOException;
@@ -107,7 +107,7 @@ index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845
  // CraftBukkit end
  import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet; // Paper
  
-@@ -1456,13 +1455,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1458,13 +1457,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
              either.ifLeft((chunk) -> {
                  this.tickingGenerated.getAndIncrement();
                  MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
@@ -124,7 +124,7 @@ index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845
              });
          }, (runnable) -> {
              this.mainThreadMailbox.tell(ChunkTaskPriorityQueueSorter.message(holder, runnable));
-@@ -1684,7 +1683,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1686,7 +1685,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                      LevelChunk chunk = playerchunk.getTickingChunk();
  
                      if (chunk != null) {
@@ -133,7 +133,7 @@ index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845
                      }
  
                      DebugPackets.sendPoiPacketsForChunk(this.level, pos);
-@@ -1972,7 +1971,6 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1974,7 +1973,6 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  
          // Martijn end - sort chunks by distance, per-player track and see view distance
  
@@ -141,7 +141,7 @@ index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845
      }
  
      private SectionPos updatePlayerPos(ServerPlayer player) {
-@@ -2025,7 +2023,6 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2035,7 +2033,6 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
          int l1;
  
          // Martijn start - per-player track and see view distance
@@ -149,7 +149,7 @@ index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845
          for (boolean track : new boolean[] {true, false}) {
  
              int viewDistance = (track ? player.getTrackViewDistance() : player.getSeeViewDistance()) + 1;
-@@ -2079,6 +2076,9 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2096,6 +2093,9 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                          }
                      }
                  }
@@ -159,7 +159,7 @@ index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845
              }
  
          }
-@@ -2212,6 +2212,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2237,6 +2237,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      // Paper end - optimised tracker
  
      protected void tick() {
@@ -170,7 +170,7 @@ index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845
          // Paper start - optimized tracker
          if (true) {
              this.processTrackQueue();
-@@ -2342,6 +2346,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2367,6 +2371,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  //
  //    }
  
@@ -204,10 +204,10 @@ index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cb
              }
              this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149a1f20bf8 100644
+index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890ec446a37 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -441,6 +441,309 @@ public class ServerPlayer extends Player {
+@@ -468,6 +468,309 @@ public class ServerPlayer extends Player {
      public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
      // Paper end
  
@@ -517,7 +517,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149
      // CraftBukkit start
      public String displayName;
      public net.kyori.adventure.text.Component adventure$displayName; // Paper
-@@ -465,6 +768,11 @@ public class ServerPlayer extends Player {
+@@ -492,6 +795,11 @@ public class ServerPlayer extends Player {
  
      public ServerPlayer(MinecraftServer server, ServerLevel world, GameProfile profile) {
          super(world, world.getSharedSpawnPos(), world.getSharedSpawnAngle(), profile);
@@ -529,7 +529,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149
          this.chatVisibility = ChatVisiblity.FULL;
          this.canChatColor = true;
          this.lastActionTime = Util.getMillis();
-@@ -816,6 +1124,11 @@ public class ServerPlayer extends Player {
+@@ -843,6 +1151,11 @@ public class ServerPlayer extends Player {
      // CraftBukkit start - World fallback code, either respawn location or global spawn
      public void spawnIn(Level world) {
          this.level = world;
@@ -541,7 +541,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149
          if (world == null) {
              this.unsetRemoved();
              Vec3 position = null;
-@@ -1420,6 +1733,9 @@ public class ServerPlayer extends Player {
+@@ -1447,6 +1760,9 @@ public class ServerPlayer extends Player {
  
                  // CraftBukkit end
                  this.setLevel(worldserver);
@@ -551,7 +551,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149
                  worldserver.addDuringPortalTeleport(this);
                  this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
                  this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
-@@ -2440,25 +2756,81 @@ public class ServerPlayer extends Player {
+@@ -2467,25 +2783,81 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -640,7 +640,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149
              List<Entity> list = Lists.newArrayList();
              List<Entity> list1 = Lists.newArrayList();
              // Paper start - optimise entity tracker
-@@ -2469,7 +2841,7 @@ public class ServerPlayer extends Player {
+@@ -2496,7 +2868,7 @@ public class ServerPlayer extends Player {
                  if (entity == this) {
                      continue;
                  }
@@ -649,7 +649,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149
                  if (tracker != null) { // dumb plugins... move on...
                      tracker.updatePlayer(this);
                  }
-@@ -2509,10 +2881,65 @@ public class ServerPlayer extends Player {
+@@ -2536,10 +2908,65 @@ public class ServerPlayer extends Player {
              }
  
          }
@@ -715,7 +715,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149
          if (this.isAlive()) {
              if (!concernsTracking) {
                  this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
-@@ -2528,13 +2955,36 @@ public class ServerPlayer extends Player {
+@@ -2555,13 +2982,36 @@ public class ServerPlayer extends Player {
  
      }
  
