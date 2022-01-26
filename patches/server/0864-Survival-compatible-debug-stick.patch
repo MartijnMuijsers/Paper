@@ -5,15 +5,18 @@ Subject: [PATCH] Survival-compatible debug stick
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 3e0456f469c481e9614a4ff77f3c99cd49c6fdc2..5f32e124048856147f75d2475d0a38ef9ea0faa5 100644
+index 4a3731c286065d9027872ddca42a0aa8026001f5..952c1f6278cea1dd01f5851e6fe34fac3ff17e2a 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -118,6 +118,15 @@ public class PaperConfig {
+@@ -118,6 +118,18 @@ public class PaperConfig {
  
      // Martijn end - configurable keepalive
  
 +    // Martijn start - survival debug stick
 +
++    /**
++     * In milliseconds
++     */
 +    public static int survivallikeDebugStickSwitchPropertyTimeout = 300;
 +    private static void survivallikeDebugStickSwitchPropertyTimeout() {
 +        survivallikeDebugStickSwitchPropertyTimeout = getInt("settings.survivallike-debug-stick.switch-property-timeout", survivallikeDebugStickSwitchPropertyTimeout);
