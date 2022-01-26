@@ -1377,7 +1377,7 @@ index d271871563fa883efb77b35ec3b1dfbba87f0b62..1b6a4fdefa0a18cb400631ac4cb3c529
  
      public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 0a04980a8015fe08907a040f0f3ff537267bd462..0754c45fadf17d3ee2e30e161e77119aeefad9ba 100644
+index 2e6e86439173ebdb13b9cebd1e266e91335c1e2d..6c321df7c2ea0187232818555f7851ec3ff05389 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -212,6 +212,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
@@ -1468,7 +1468,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..0754c45fadf17d3ee2e30e161e77119a
  
      }
  
--    protected void updateChunkTracking(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject, boolean oldWithinViewDistance, boolean newWithinViewDistance) { // Paper - Anti-Xray - Bypass
+-    protected void updateChunkTracking(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> packet, boolean oldWithinViewDistance, boolean newWithinViewDistance) { // Paper - Anti-Xray - Bypass
 +    // Paper start - replace player loader system
 +    public void setTickViewDistance(int distance) {
 +        this.playerChunkManager.setTickDistance(distance);
@@ -1485,7 +1485,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..0754c45fadf17d3ee2e30e161e77119a
 +                    LevelChunk chunk = playerchunk.getSendingChunk(); // Paper - replace chunk loader system
  
                      if (chunk != null) {
-                         this.playerLoadedChunk(player, mutableobject, chunk);
+                         this.playerLoadedChunk(player, packet, chunk);
 @@ -1612,7 +1603,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  
      void dumpChunks(Writer writer) throws IOException {
@@ -1787,7 +1787,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..94be1d23683d682285c976f3b48b0e36
 +     */ // Paper - replace old loader system
  }
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index 9a07ccbd12675e501a9aebf89ab85adf6fb658ba..3996f7e20834de36b1beb812e2de96bbaaa3a718 100644
+index 099b9f57c710ee378307dc8edc942f7049703bee..583bac30c16f789b359334623fcddfeff54f233a 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 @@ -920,6 +920,7 @@ public class ServerChunkCache extends ChunkSource {
@@ -2076,7 +2076,7 @@ index 5fb475b3ccaa98861e2c817b37cd1740e5bfed8d..c0e1d53f41bf8ed0de8cca901ea75483
      // Spigot end
  
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 148e1985017f6955267b5c970730645394d700f6..1fbd998fa06de2c2253ecfe62fa0415d2d38504a 100644
+index d9c40138617ce73ae25d2175f1b4a70f47c32ea5..9470a771279d3bb8ceb1a099b21585e8f4bca075 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -523,35 +523,59 @@ public class CraftPlayer extends CraftHumanEntity implements Player {

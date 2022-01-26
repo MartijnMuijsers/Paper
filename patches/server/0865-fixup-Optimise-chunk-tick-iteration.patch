@@ -5,7 +5,7 @@ Subject: [PATCH] fixup! Optimise chunk tick iteration
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index 3996f7e20834de36b1beb812e2de96bbaaa3a718..e5c18a2aa3a3a02044288ff5c75134862f0f7b63 100644
+index 583bac30c16f789b359334623fcddfeff54f233a..5bff42d8a333b33e45c28f53cd1f718c8a5fbf84 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 @@ -1036,7 +1036,7 @@ public class ServerChunkCache extends ChunkSource {

@@ -5,7 +5,7 @@ Subject: [PATCH] fixup! Replace player chunk loader system
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index e5c18a2aa3a3a02044288ff5c75134862f0f7b63..7355e6afbe839e0a83db16750162f0e64005bbf7 100644
+index 5bff42d8a333b33e45c28f53cd1f718c8a5fbf84..5bb7c2a7955c2188304dd917457afbe3354f8b2d 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 @@ -854,17 +854,10 @@ public class ServerChunkCache extends ChunkSource {
