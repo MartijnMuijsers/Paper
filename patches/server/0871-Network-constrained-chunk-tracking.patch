@@ -84,7 +84,7 @@ index e8aec6972def3c6e4f7daedcc387d48c1f34be6e..edca32e3a8f2a14d076a558e77bc7311
      public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
          int i = targetStatus.getIndex();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..3efab896faee9a6ea3ec720bc8debf185fc588b4 100644
+index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..73e0e773078972c8c2b811eb10029845c4a729dd 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -29,7 +29,7 @@ import java.io.IOException;
@@ -156,15 +156,18 @@ index 9c1d58e4f1b8d61c3743a868c8cfeb0070d8e3dd..3efab896faee9a6ea3ec720bc8debf18
              }
  
          }
-@@ -2212,6 +2212,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2212,6 +2212,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      // Paper end - optimised tracker
  
      protected void tick() {
-+        attemptToTrackOrSeePlannedChunksForAllPlayers(); // Martijn - network-constrained chunk tracking
++        // Martijn start - network-constrained chunk tracking
++        this.level.players.forEach(ServerPlayer::resetChunksNewlyTrackedOrSeenThisTick);
++        attemptToTrackOrSeePlannedChunksForAllPlayers();
++        // Martijn end - network-constrained chunk tracking
          // Paper start - optimized tracker
          if (true) {
              this.processTrackQueue();
-@@ -2342,6 +2343,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2342,6 +2346,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  //
  //    }
  
@@ -198,10 +201,10 @@ index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cb
              }
              this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd855212afc 100644
+index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9aac55a5c0 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -441,6 +441,282 @@ public class ServerPlayer extends Player {
+@@ -441,6 +441,308 @@ public class ServerPlayer extends Player {
      public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
      // Paper end
  
@@ -235,6 +238,27 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
 +    private int getNumberOfChunkInitializationPacketsInTransit() {
 +        synchronized (this.networkConstrainedTrackingLock) {
 +            return this.chunkInitializationPacketsInTransitKeepaliveIds.size();
++        }
++    }
++
++    private int numberOfChunksNewlyTrackedOrSeenThisTick = 0;
++
++    public void resetChunksNewlyTrackedOrSeenThisTick() {
++        synchronized (networkConstrainedTrackingLock) {
++            numberOfChunksNewlyTrackedOrSeenThisTick = 0;
++        }
++    }
++
++    private void incrementChunksNewlyTrackedOrSeenThisTick() {
++        synchronized (networkConstrainedTrackingLock) {
++            numberOfChunksNewlyTrackedOrSeenThisTick++;
++        }
++    }
++
++    private boolean canNewlyTrackOrSeeMoreChunksThisTick() {
++        if (this.getLevel().paperConfig.maxChunksToNewlyTrackOrSeePerTick == -1) return true;
++        synchronized (networkConstrainedTrackingLock) {
++            return numberOfChunksNewlyTrackedOrSeenThisTick < this.getLevel().paperConfig.maxChunksToNewlyTrackOrSeePerTick;
 +        }
 +    }
 +
@@ -433,6 +457,11 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
 +            }
 +        }
 +
++        // We cannot newly track or see a new chunk if we already did so for too many this tick
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (!this.canNewlyTrackOrSeeMoreChunksThisTick()) return false;
++        }
++
 +        int manhattanDistance = this.getManhattanDistanceToChunk(chunkKey);
 +        // Do not track or see if the Manhattan distance is much greater than the respective view distance (+2 because this is also what is normally used for the inclusive square area in which chunks can potentially be tracked or seen)
 +        if (manhattanDistance > (concernsTracking ? this.getTrackViewDistance() : this.getSeeViewDistance()) + 2) {
@@ -484,7 +513,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
      // CraftBukkit start
      public String displayName;
      public net.kyori.adventure.text.Component adventure$displayName; // Paper
-@@ -465,6 +741,11 @@ public class ServerPlayer extends Player {
+@@ -465,6 +767,11 @@ public class ServerPlayer extends Player {
  
      public ServerPlayer(MinecraftServer server, ServerLevel world, GameProfile profile) {
          super(world, world.getSharedSpawnPos(), world.getSharedSpawnAngle(), profile);
@@ -496,7 +525,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
          this.chatVisibility = ChatVisiblity.FULL;
          this.canChatColor = true;
          this.lastActionTime = Util.getMillis();
-@@ -816,6 +1097,11 @@ public class ServerPlayer extends Player {
+@@ -816,6 +1123,11 @@ public class ServerPlayer extends Player {
      // CraftBukkit start - World fallback code, either respawn location or global spawn
      public void spawnIn(Level world) {
          this.level = world;
@@ -508,7 +537,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
          if (world == null) {
              this.unsetRemoved();
              Vec3 position = null;
-@@ -1420,6 +1706,9 @@ public class ServerPlayer extends Player {
+@@ -1420,6 +1732,9 @@ public class ServerPlayer extends Player {
  
                  // CraftBukkit end
                  this.setLevel(worldserver);
@@ -518,7 +547,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
                  worldserver.addDuringPortalTeleport(this);
                  this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
                  this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
-@@ -2440,25 +2729,81 @@ public class ServerPlayer extends Player {
+@@ -2440,25 +2755,81 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -607,7 +636,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
              List<Entity> list = Lists.newArrayList();
              List<Entity> list1 = Lists.newArrayList();
              // Paper start - optimise entity tracker
-@@ -2469,7 +2814,7 @@ public class ServerPlayer extends Player {
+@@ -2469,7 +2840,7 @@ public class ServerPlayer extends Player {
                  if (entity == this) {
                      continue;
                  }
@@ -616,11 +645,12 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
                  if (tracker != null) { // dumb plugins... move on...
                      tracker.updatePlayer(this);
                  }
-@@ -2509,10 +2854,64 @@ public class ServerPlayer extends Player {
+@@ -2509,10 +2880,65 @@ public class ServerPlayer extends Player {
              }
  
          }
 +
++        this.incrementChunksNewlyTrackedOrSeenThisTick();
 +        return true;
 +
 +    }
@@ -634,7 +664,6 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
 +            }
 +        }
 +
-+        int amountNewlyTrackedOrSeen = 0;
 +        while (true) {
 +
 +            Pair<Long, Boolean> planned = this.getFirstPlannedChunkToTrackOrSee();
@@ -649,13 +678,14 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
 +
 +            // If the player can be informed of something, inform, otherwise break
 +            if (canStartTracking) {
-+                if (actuallyTrackOrSeeChunk(level.getChunk(chunkPos.x, chunkPos.z), planned.second())) {
-+                    amountNewlyTrackedOrSeen++;
++                actuallyTrackOrSeeChunk(level.getChunk(chunkPos.x, chunkPos.z), planned.second());
++//                    incrementChunksNewlyTrackedOrSeenThisTick();
 +                    // Break if we informed of enough packets - to make sure enough other players get a go without going over the tick time for this tick
-+                    if (amountNewlyTrackedOrSeen >= level.paperConfig.maxChunksToNewlyTrackOrSeePerTick) {
-+                        break;
-+                    }
-+                }
++                    // ^ Edit: no longer necessary, we will break on the next step when canStartTrackingOrSeeingChunkRightNow returns false because of this - we don't want to break here in case the next planned chunk has some reason to be exempted from this rule
++//                    if (amountNewlyTrackedOrSeen >= level.paperConfig.maxChunksToNewlyTrackOrSeePerTick) {
++//                        break;
++//                    }
++//                }
 +            } else {
 +                break;
 +            }
@@ -681,7 +711,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..d2a8d85e75b12094ca2290a8ed25bcd8
          if (this.isAlive()) {
              if (!concernsTracking) {
                  this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
-@@ -2528,13 +2927,36 @@ public class ServerPlayer extends Player {
+@@ -2528,13 +2954,36 @@ public class ServerPlayer extends Player {
  
      }
  
