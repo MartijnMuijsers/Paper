@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 26 Jan 2022 01:10:39 +0100
+Subject: [PATCH] Add utility method to sort chunks by distance
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058..ecc30a97d5788f3c33ab79d9c3d1fce52614c96a 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -422,6 +422,24 @@ public class ServerPlayer extends Player {
+ 
+     // Martijn end - getting distance to chunks
+ 
++    // Martijn start - sorting chunks by distance
++
++    public Stream<ChunkHolder> getChunkHoldersSortedBySquaredPythagoreanDistance(Stream<ChunkHolder> chunkHolders) {
++        return chunkHolders
++            .map(holder -> new ObjectObjectImmutablePair<>(holder, this.getSquaredPythagoreanDistanceToChunk(holder.getPos().longKey)))
++            .sorted(Comparator.comparingLong(Pair::second))
++            .map(Pair::first);
++    }
++
++    public Stream<IntIntPair> getChunkCoordinatesSortedBySquaredPythagoreanDistance(Stream<IntIntPair> chunkCoordinates) {
++        return chunkCoordinates
++            .map(coordinates -> new ObjectObjectImmutablePair<>(coordinates, this.getSquaredPythagoreanDistanceToChunk(new ChunkPos(coordinates.first(), coordinates.second()).longKey)))
++            .sorted(Comparator.comparingLong(Pair::second))
++            .map(Pair::first);
++    }
++
++    // Martijn end - sorting chunks by distance
++
+     // Yes, this doesn't match Vanilla, but it's the best we can do for now.
+     // If this is an issue, PRs are welcome
+     public final BlockPos getSpawnPoint(ServerLevel worldserver) {
