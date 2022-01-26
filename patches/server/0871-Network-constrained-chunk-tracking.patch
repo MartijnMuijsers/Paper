@@ -5,7 +5,7 @@ Subject: [PATCH] Network-constrained chunk tracking
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 5f32e124048856147f75d2475d0a38ef9ea0faa5..f545ea0140542e87ef5c61884e36203617e14470 100644
+index 49263fd7e2527192e5d47fa769fa8dc9cddeea00..ace448cd6b15c043e229c4dbd56f3331d5cc811a 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -127,6 +127,15 @@ public class PaperConfig {
@@ -379,6 +379,24 @@ index 397f2b75d7cbf564ab450ba8be8576f3e5507ae5..9cceddf21c8bb271f0bd9f72876b8f5a
  
      public PoiManager getPoiManager() {
          return this.poiManager;
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cbfafb419d 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -774,9 +774,10 @@ public abstract class DistanceManager {
+             boolean withinSomeViewDistance = withinViewDistance;
+             for (PlayerTicketTracker otherTracker : DistanceManager.this.getPlayerTicketManagers()) {
+                 if (otherTracker != tracker) {
+-                    minDistance = Math.min(distance, otherTracker.getLevel(pos));
+-                    oldWithinSomeViewDistance |= otherTracker.haveTicketFor(distance);
+-                    withinSomeViewDistance |= otherTracker.haveTicketFor(distance);
++                    int otherTrackerDistance = otherTracker.getLevel(pos);
++                    minDistance = Math.min(minDistance, otherTracker.getLevel(pos));
++                    oldWithinSomeViewDistance |= otherTracker.haveTicketFor(otherTrackerDistance);
++                    withinSomeViewDistance |= otherTracker.haveTicketFor(otherTrackerDistance);
+                 }
+             }
+             this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b537b8e0f3f 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
