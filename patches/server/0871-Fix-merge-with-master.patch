@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 26 Jan 2022 23:36:08 +0100
+Subject: [PATCH] Fix merge with master
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index b41e6a95c2bf9f169ea8ce95706b8ea0a3d9735a..af3eef20c367bc4e08e31f6029d966cb2a25ac65 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -1577,7 +1577,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                     LevelChunk chunk = playerchunk.getSendingChunk(); // Paper - replace chunk loader system
+ 
+                     if (chunk != null) {
+-                        this.playerLoadedChunk(player, packet, chunk);
++                        this.playerLoadedChunk(player, mutableobject, chunk);
+                     }
+ 
+                     DebugPackets.sendPoiPacketsForChunk(this.level, pos);
