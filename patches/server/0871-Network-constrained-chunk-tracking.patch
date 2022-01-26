@@ -25,10 +25,10 @@ index 868067ab2f33ec29e533bc661b80dfc0e1149906..4829ecad255b29cf062c2ac17d0ec6b8
      private static void playerIpAddresses() {
          logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 57f9976da6b91470e81dda368470870176bc9922..9112d1a764d8661e68e2db39ade6e1cc990434b8 100644
+index 57f9976da6b91470e81dda368470870176bc9922..f0d0c6cbf749ba2e9681f878955ccede4882b5ed 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-@@ -227,6 +227,25 @@ public class PaperWorldConfig {
+@@ -227,6 +227,28 @@ public class PaperWorldConfig {
  
      // Martijn end - sort chunks by distance
  
@@ -44,7 +44,10 @@ index 57f9976da6b91470e81dda368470870176bc9922..9112d1a764d8661e68e2db39ade6e1cc
 +        this.maxMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.max", this.maxMaxNumberOfChunkPacketsInTransit);
 +    }
 +
-+    public int maxChunksToNewlyTrackOrSeePerTick = 7;
++    /**
++     * -1 indicates no limit
++     */
++    public int maxChunksToNewlyTrackOrSeePerTick = -1;
 +    private void maxChunksToNewlyTrackOrSeePerTick() {
 +        this.maxChunksToNewlyTrackOrSeePerTick = getInt("network-constrained-chunk-tracking.max-to-newly-track-or-see-per-tick", this.maxChunksToNewlyTrackOrSeePerTick);
 +    }
