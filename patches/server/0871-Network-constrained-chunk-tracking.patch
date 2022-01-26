@@ -129,7 +129,7 @@ index e8aec6972def3c6e4f7daedcc387d48c1f34be6e..edca32e3a8f2a14d076a558e77bc7311
      public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
          int i = targetStatus.getIndex();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 3deab3fec1f10f42e1f69f16eb09f3103ccb8b6d..2e9bd1529eac765bbe97b5f3f326a550c5128d22 100644
+index 7b35a7b6c386d9d0358418e8bc1a77697813c0d8..fecc9e937a4d88f18d611dc9b12f2ac01f005d2b 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -29,7 +29,7 @@ import java.io.IOException;
@@ -201,20 +201,21 @@ index 3deab3fec1f10f42e1f69f16eb09f3103ccb8b6d..2e9bd1529eac765bbe97b5f3f326a550
              }
  
          }
-@@ -2237,6 +2237,12 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
-     // Paper end - optimised tracker
+@@ -2245,6 +2245,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         }
+         // Martijn end - temporary debug message containing the number of loaded chunks
  
-     protected void tick() {
 +        // Martijn start - network-constrained chunk tracking
 +        this.level.players.forEach(ServerPlayer::resetChunksNewlyTrackedOrSeenThisTick);
 +        level.timings.tickAttemptTrackOrSeePlannedChunks.startTiming();
 +        attemptToTrackOrSeePlannedChunksForAllPlayers();
 +        level.timings.tickAttemptTrackOrSeePlannedChunks.stopTiming();
 +        // Martijn end - network-constrained chunk tracking
++
          // Paper start - optimized tracker
          if (true) {
              this.processTrackQueue();
-@@ -2367,6 +2373,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2375,6 +2382,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  //
  //    }
  
