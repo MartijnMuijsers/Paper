@@ -1,0 +1,973 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 26 Jan 2022 01:21:31 +0100
+Subject: [PATCH] Network-constrained chunk tracking
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index 0a36ae64a8d50f19587c90ac22681199a9fec773..871e9043117641f50db8e64a8eb68558b2057b0c 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -103,6 +103,15 @@ public class PaperConfig {
+ 
+     // Martijn end - survival debug stick
+ 
++    // Martijn start - network-constrained chunk tracking
++
++    public static int initialMaxNumberOfChunkPacketsInTransit = 1;
++    private static void initialMaxNumberOfChunkPacketsInTransit() {
++        initialMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.initial", initialMaxNumberOfChunkPacketsInTransit);
++    }
++
++    // Martijn end - network-constrained chunk tracking
++
+     public static boolean logPlayerIpAddresses = true;
+     private static void playerIpAddresses() {
+         logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index 660c8fe4c8b2a459d738754e624fdd6cd59f7792..62744fbded0d6863b20ed6e12903ce7d60eab8dc 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -118,6 +118,20 @@ public class PaperWorldConfig {
+ 
+     // Martijn start - sort chunks by distance
+ 
++    public boolean trackChunksInSpiralOrderWhenChangingWorld = false;
++    private void trackChunksInSpiralOrderWhenChangingWorld() {
++        this.trackChunksInSpiralOrderWhenChangingWorld = getBoolean("view-distances.send-view-distance.track-chunks-in-spiral-order-when-changing-world", this.trackChunksInSpiralOrderWhenChangingWorld);
++    }
++
++    public boolean trackChunksInOrderOfDistanceWhenChangingViewDistance = false;
++    private void trackChunksInOrderOfDistanceWhenChangingViewDistance() {
++        this.trackChunksInOrderOfDistanceWhenChangingViewDistance = getBoolean("view-distances.send-view-distance.track-chunks-in-order-of-distance-when-changing-view-distance", this.trackChunksInOrderOfDistanceWhenChangingViewDistance);
++    }
++
++    public boolean trackChunksInOrderOfDistanceWhenMoving = false;
++    private void trackChunksInOrderOfDistanceWhenMoving() {
++        this.trackChunksInOrderOfDistanceWhenMoving = getBoolean("view-distances.send-view-distance.track-chunks-in-order-of-distance-when-moving", this.trackChunksInOrderOfDistanceWhenMoving);
++    }
+     public boolean processChunksInOrderOfDistanceAfterLoad = false;
+     private void processChunksInOrderOfDistanceAfterLoad() {
+         this.processChunksInOrderOfDistanceAfterLoad = getBoolean("view-distances.load-view-distance.process-chunks-in-order-of-distance-after-load", this.processChunksInOrderOfDistanceAfterLoad);
+@@ -125,6 +139,25 @@ public class PaperWorldConfig {
+ 
+     // Martijn end - sort chunks by distance
+ 
++    // Martijn start - network-constrained chunk tracking
++
++    public int minMaxNumberOfChunkPacketsInTransit = 1;
++    private void minMaxNumberOfChunkPacketsInTransit() {
++        this.minMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.min", this.minMaxNumberOfChunkPacketsInTransit);
++    }
++
++    public int maxMaxNumberOfChunkPacketsInTransit = 7;
++    private void maxMaxNumberOfChunkPacketsInTransit() {
++        this.maxMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.max", this.maxMaxNumberOfChunkPacketsInTransit);
++    }
++
++    public int maxChunksToNewlyTrackPerTick = 7;
++    private void maxChunksToNewlyTrackPerTick() {
++        this.maxChunksToNewlyTrackPerTick = getInt("network-constrained-chunk-tracking.max-to-newly-track-per-tick", this.maxChunksToNewlyTrackPerTick);
++    }
++
++    // Martijn end - network-constrained chunk tracking
++
+     public boolean zombiesTargetTurtleEggs = true;
+     private void zombiesTargetTurtleEggs() {
+         zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
+diff --git a/src/main/java/net/minecraft/server/level/ChunkHolder.java b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+index 980d91a34f886b8833ff693289ec0443b5bd4d95..5576427bb2b76b4fc7c5a9c72f67d8be8e7490d1 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkHolder.java
++++ b/src/main/java/net/minecraft/server/level/ChunkHolder.java
+@@ -343,7 +343,7 @@ public class ChunkHolder {
+ 
+     public void broadcast(Packet<?> packet, boolean onlyOnWatchDistanceEdge) {
+         this.playerProvider.getPlayersNearChunkForSending(this.pos, onlyOnWatchDistanceEdge).forEach((entityplayer) -> { // Martijn - per-player send distance
+-            entityplayer.connection.send(packet);
++            entityplayer.connection.sendIfTracking(this.getTickingChunk(), packet); // Martijn - network-constrained chunk tracking
+         });
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d27c441875 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -14,8 +14,11 @@ import com.mojang.datafixers.DataFixer;
+ import com.mojang.datafixers.util.Either;
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.JsonOps;
++import it.unimi.dsi.fastutil.Pair;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.ints.IntIntImmutablePair;
++import it.unimi.dsi.fastutil.ints.IntIntPair;
+ import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+ import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
+@@ -30,6 +33,7 @@ import java.io.Writer;
+ import java.nio.file.Path;
+ import java.util.ArrayList;
+ import java.util.BitSet;
++import java.util.Comparator;
+ import java.util.HashMap; // Paper
+ import java.util.Collection;
+ import java.util.Iterator;
+@@ -46,13 +50,17 @@ import java.util.concurrent.CompletionException;
+ import java.util.concurrent.CompletionStage;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.atomic.AtomicInteger;
++import java.util.function.BiConsumer;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Consumer;
+ import java.util.function.IntFunction;
+ import java.util.function.IntSupplier;
+ import java.util.function.Supplier;
+ import java.util.stream.Collectors;
++import java.util.stream.Stream;
+ import javax.annotation.Nullable;
++
++import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.ReportedException;
+@@ -106,6 +114,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
+ import org.apache.commons.lang3.mutable.MutableObject;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.apache.logging.log4j.util.PropertySource;
+ import org.bukkit.entity.Player;
+ // CraftBukkit end
+ import it.unimi.dsi.fastutil.objects.ReferenceOpenHashSet; // Paper
+@@ -129,7 +138,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     private final Long2ObjectLinkedOpenHashMap<ChunkHolder> pendingUnloads;
+     public final LongSet entitiesInLevel;
+     public final ServerLevel level;
+-    private final ThreadedLevelLightEngine lightEngine;
++    public final ThreadedLevelLightEngine lightEngine; // Martijn - network-constrained chunk tracking
+     public final BlockableEventLoop<Runnable> mainThreadExecutor; // Paper - public
+     final java.util.concurrent.Executor mainInvokingExecutor; // Paper
+     public ChunkGenerator generator;
+@@ -1455,7 +1464,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
+ 
+                 this.getPlayersNearChunkForSending(chunkcoordintpair, false).forEach((entityplayer) -> { // Martijn - per-player send distance
+-                    this.playerLoadedChunk(entityplayer, mutableobject, chunk);
++                    entityplayer.planToTrackChunk(/*mutableobject, */chunk); // Martijn - network-constrained chunk tracking
+                 });
+             });
+         }, (runnable) -> {
+@@ -1631,7 +1640,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     public void updateChunkTrackingDueToPlayerSendViewDistanceChange(ServerPlayer player, int oldSendViewDistance, int newSendViewDistance) {
+         if (this.playerMap.ignoredOrUnknown(player)) return;
+ 
+-        Iterator objectiterator = this.updatingChunks.getVisibleValuesCopy().iterator(); // Paper
++        // Martijn - sort chunks by distance
++        List<ChunkHolder> objects = this.updatingChunks.getVisibleValuesCopy(); // Paper
++        Iterator objectiterator;
++        if (level.paperConfig.trackChunksInOrderOfDistanceWhenChangingViewDistance) {
++            objectiterator = player.getChunkHoldersSortedBySquaredPythagoreanDistance(objects.stream()).iterator();
++        } else {
++            objectiterator = objects.iterator();
++        }
++        // Martijn - sort chunks by distance
+ 
+         while (objectiterator.hasNext()) {
+             ChunkHolder playerchunk = (ChunkHolder) objectiterator.next();
+@@ -1658,7 +1675,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                     LevelChunk chunk = playerchunk.getTickingChunk();
+ 
+                     if (chunk != null) {
+-                        this.playerLoadedChunk(player, mutableobject, chunk);
++                        player.planToTrackChunk(/*mutableobject, */chunk); // Martijn - network-constrained chunk tracking
+                     }
+ 
+                     DebugPackets.sendPoiPacketsForChunk(this.level, pos);
+@@ -1918,19 +1935,27 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             }
+             this.removePlayerFromDistanceMaps(player); // Paper - distance maps
+         }
++        // Martijn - sort chunks by distance
++        int viewDistance = player.getSendViewDistance() + 2; // Martijn end - per-player send distance
++        BiConsumer<Integer, Integer> chunkCoordinatesConsumer = (k, l) -> {
++            if (ChunkMap.isChunkInRange(k, l, i, j, viewDistance)) {
+ 
+-        // Martijn start - per-player send distance
+-        int viewDistance = player.getSendViewDistance() + 2;
+-        for (int k = i - viewDistance; k <= i + viewDistance; ++k) {
+-            for (int l = j - viewDistance; l <= j + viewDistance + 1; ++l) {
+-                if (ChunkMap.isChunkInRange(k, l, i, j, viewDistance)) {
+-                    // Martijn end - per-player send distance
+-                    ChunkPos chunkcoordintpair = new ChunkPos(k, l);
+-
+-                    this.updateChunkTracking(player, chunkcoordintpair, new MutableObject(), !added, added);
++                ChunkPos chunkcoordintpair = new ChunkPos(k, l);
++
++                this.updateChunkTracking(player, chunkcoordintpair, new MutableObject(), !added, added);
++            }
++        };
++        if (level.paperConfig.trackChunksInSpiralOrderWhenChangingWorld) {
++            ChunkMap.evaluateSpiral(i, j, viewDistance + 1, chunkCoordinatesConsumer);
++        } else {
++            for (int k = i - viewDistance - 1; k <= i + viewDistance + 1; ++k) {
++                for (int l = j - viewDistance - 1; l <= j + viewDistance + 1; ++l) {
++                    chunkCoordinatesConsumer.accept(k, l);
+                 }
+             }
+         }
++        // Martijn - sort chunks by distance
++
+ 
+     }
+ 
+@@ -1992,31 +2017,38 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+             int j2 = Math.max(j, j1) + viewDistance + 1;
+             // Martijn end - per-player send distance
+ 
++            // Martijn start - sort chunks by distance
++            BiConsumer<Integer, Integer> chunkCoordinatesConsumer = (k2, l2) -> {
++                // Martijn start - per-player send distance
++                boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, viewDistance);
++                boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, viewDistance);
++                // Martijn end - per-player send distance
++
++                this.updateChunkTracking(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4);
++            };
++
++            List<IntIntPair> coordinates = level.paperConfig.trackChunksInOrderOfDistanceWhenMoving ? new ArrayList<>((i2 - k1 + 1) * (j2 - l1 + 1) + 1) : null;
+             for (int k2 = k1; k2 <= i2; ++k2) {
+                 for (int l2 = l1; l2 <= j2; ++l2) {
+-                    // Martijn start - per-player send distance
+-                    boolean flag3 = ChunkMap.isChunkInRange(k2, l2, i1, j1, viewDistance);
+-                    boolean flag4 = ChunkMap.isChunkInRange(k2, l2, i, j, viewDistance);
+-                    // Martijn end - per-player send distance
+-
+-                    this.updateChunkTracking(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4);
++                    if (level.paperConfig.trackChunksInOrderOfDistanceWhenMoving) {
++                        coordinates.add(new IntIntImmutablePair(k2, l2));
++                    } else {
++                        chunkCoordinatesConsumer.accept(k2, l2);
++                    }
+                 }
+             }
++
++            if (level.paperConfig.trackChunksInOrderOfDistanceWhenMoving) {
++                player.getChunkCoordinatesSortedBySquaredPythagoreanDistance(coordinates.stream()).forEach(pair -> chunkCoordinatesConsumer.accept(pair.first(), pair.second()));
++            }
++
++            // Martijn end - sort chunks by distance
++
+         } else {
+             boolean flag5;
+             boolean flag6;
+ 
+-            // Martijn start - per-player send distance
+-            for (k1 = i1 - viewDistance - 1; k1 <= i1 + viewDistance + 1; ++k1) {
+-                for (l1 = j1 - viewDistance - 1; l1 <= j1 + viewDistance + 1; ++l1) {
+-                    if (ChunkMap.isChunkInRange(k1, l1, i1, j1, viewDistance)) {
+-                        // Martijn end - per-player send distance
+-                        flag5 = true;
+-                        flag6 = false;
+-                        this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), true, false);
+-                    }
+-                }
+-            }
++            // Martijn start - track new chunks before untracking old chunks
+ 
+             // Martijn start - per-player send distance
+             for (k1 = i - viewDistance - 1; k1 <= i + viewDistance + 1; ++k1) {
+@@ -2029,6 +2061,21 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                     }
+                 }
+             }
++
++            // Martijn start - per-player send distance
++            for (k1 = i1 - viewDistance - 1; k1 <= i1 + viewDistance + 1; ++k1) {
++                for (l1 = j1 - viewDistance - 1; l1 <= j1 + viewDistance + 1; ++l1) {
++                    if (ChunkMap.isChunkInRange(k1, l1, i1, j1, viewDistance)) {
++                        // Martijn end - per-player send distance
++                        flag5 = true;
++                        flag6 = false;
++                        this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), true, false);
++                    }
++                }
++            }
++
++            // Martijn end - track new chunks before untracking old chunks
++
+         }
+ 
+         this.updateMaps(player); // Paper - distance maps
+@@ -2155,6 +2202,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Paper end - optimised tracker
+ 
+     protected void tick() {
++        attemptToTrackPlannedChunksForAllPlayers(); // Martijn - network-constrained chunk tracking
+         // Paper start - optimized tracker
+         if (true) {
+             this.processTrackQueue();
+@@ -2222,68 +2270,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+ 
+     }
+ 
+-    // Paper start - Anti-Xray - Bypass
+-    private void playerLoadedChunk(ServerPlayer player, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> cachedDataPackets, LevelChunk chunk) {
+-        if (cachedDataPackets.getValue() == null) {
+-            cachedDataPackets.setValue(new java.util.HashMap<>());
++    // Martijn start - network-constrained chunk tracking
++    public void attemptToTrackPlannedChunksForAllPlayers() {
++        for (ServerPlayer player : this.level.players) {
++            player.tickAttemptToTrackPlannedChunks();
+         }
+-
+-        Boolean shouldModify = chunk.getLevel().chunkPacketBlockController.shouldModify(player, chunk);
+-        player.trackChunk(chunk.getPos(), cachedDataPackets.getValue().computeIfAbsent(shouldModify, (s) -> {
+-            return new ClientboundLevelChunkWithLightPacket(chunk, this.lightEngine, (BitSet) null, (BitSet) null, true, (Boolean) s);
+-        }));
+-        // Paper end
+-        DebugPackets.sendPoiPacketsForChunk(this.level, chunk.getPos());
+-        List<Entity> list = Lists.newArrayList();
+-        List<Entity> list1 = Lists.newArrayList();
+-        // Paper start - optimise entity tracker
+-        // use the chunk entity list, not the whole trackedEntities map...
+-        Entity[] entities = chunk.entities.getRawData();
+-        for (int i = 0, size = chunk.entities.size(); i < size; ++i) {
+-            Entity entity = entities[i];
+-            if (entity == player) {
+-                continue;
+-            }
+-            ChunkMap.TrackedEntity tracker = this.entityMap.get(entity.getId());
+-            if (tracker != null) { // dumb plugins... move on...
+-                tracker.updatePlayer(player);
+-            }
+-
+-            // keep the vanilla logic here - this is REQUIRED or else passengers and their vehicles disappear!
+-            // (and god knows what the leash thing is)
+-
+-            if (entity instanceof Mob && ((Mob)entity).getLeashHolder() != null) {
+-                list.add(entity);
+-            }
+-
+-            if (!entity.getPassengers().isEmpty()) {
+-                list1.add(entity);
+-            }
+-        }
+-        // Paper end - optimise entity tracker
+-
+-        Iterator iterator;
+-        Entity entity1;
+-
+-        if (!list.isEmpty()) {
+-            iterator = list.iterator();
+-
+-            while (iterator.hasNext()) {
+-                entity1 = (Entity) iterator.next();
+-                player.connection.send(new ClientboundSetEntityLinkPacket(entity1, ((Mob) entity1).getLeashHolder()));
+-            }
+-        }
+-
+-        if (!list1.isEmpty()) {
+-            iterator = list1.iterator();
+-
+-            while (iterator.hasNext()) {
+-                entity1 = (Entity) iterator.next();
+-                player.connection.send(new ClientboundSetPassengersPacket(entity1));
+-            }
+-        }
+-
+     }
++    // Martijn end - network-constrained chunk tracking
+ 
+     public PoiManager getPoiManager() {
+         return this.poiManager;
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8df409b7b08a801cdc200b56279974fddb83f278 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -317,6 +317,237 @@ public class ServerPlayer extends Player {
+     public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
+     // Paper end
+ 
++    // Martijn start - network-constrained chunk tracking
++
++    private final Object networkConstrainedTrackingLock = new Object();
++
++    private int maxNumberOfChunkPacketsInTransitBasedOnConnection = PaperConfig.initialMaxNumberOfChunkPacketsInTransit;
++
++    public int getMaxNumberOfChunkPacketsInTransitBasedOnConnection() {
++        synchronized (this.networkConstrainedTrackingLock) {
++            return this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
++        }
++    }
++
++    public void setMaxNumberOfChunkPacketsInTransitBasedOnConnection(int maxNumberOfChunkPacketsInTransitBasedOnConnection) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            this.maxNumberOfChunkPacketsInTransitBasedOnConnection = maxNumberOfChunkPacketsInTransitBasedOnConnection;
++        }
++    }
++
++    // Keep track of chunk packets in transit
++    private final ArrayDeque<Long> chunkInitializationPacketsInTransitKeepaliveIds = new ArrayDeque<>();
++
++    private void addChunkInitializationPacketInTransitKeepaliveId(long id) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            this.chunkInitializationPacketsInTransitKeepaliveIds.add(id);
++        }
++    }
++
++    private int getNumberOfChunkInitializationPacketsInTransit() {
++        synchronized (this.networkConstrainedTrackingLock) {
++            return this.chunkInitializationPacketsInTransitKeepaliveIds.size();
++        }
++    }
++
++    private final Object2ObjectMap<UUID, LongSet> plannedToTrack = new Object2ObjectOpenHashMap<>();
++    private final Object2ObjectMap<UUID, LongSet> tracking = new Object2ObjectOpenHashMap<>();
++    private UUID quickAccessLevelUUID = null;
++    private LongSet quickAccessPlannedToTrack = null;
++    private LongSet quickAccessTracking = null;
++
++    private void setQuickAccessTrackingLevel(UUID levelUUID) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            LongSet plannedToTrackForLevel = this.plannedToTrack.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(0));
++            LongSet trackingForLevel = this.tracking.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(0));
++            this.quickAccessLevelUUID = levelUUID;
++            this.quickAccessPlannedToTrack = plannedToTrackForLevel;
++            this.quickAccessTracking = trackingForLevel;
++        }
++    }
++
++    private boolean isPlannedToTrack(UUID levelUUID, long chunkKey) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (levelUUID.equals(this.quickAccessLevelUUID)) return this.quickAccessPlannedToTrack.contains(chunkKey);
++            LongSet plannedToTrackForLevel = this.plannedToTrack.get(levelUUID);
++            if (plannedToTrackForLevel == null) return false;
++            return plannedToTrackForLevel.contains(chunkKey);
++        }
++    }
++
++    private boolean isPlannedToTrack(LevelChunk chunk) {
++        return this.isPlannedToTrack(chunk.level.uuid, chunk.getPos().longKey);
++    }
++
++    public boolean isTracking(UUID levelUUID, long chunkKey) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (levelUUID.equals(this.quickAccessLevelUUID)) return this.quickAccessTracking.contains(chunkKey);
++            LongSet trackingForLevel = this.tracking.get(levelUUID);
++            if (trackingForLevel == null) return false;
++            return trackingForLevel.contains(chunkKey);
++        }
++    }
++
++    public boolean isTracking(LevelChunk chunk) {
++        return this.isTracking(chunk.level.uuid, chunk.getPos().longKey);
++    }
++
++    private void removePlannedToTrack(UUID levelUUID, long chunkKey) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (levelUUID.equals(this.quickAccessLevelUUID)) {
++                this.quickAccessPlannedToTrack.remove(chunkKey);
++                return;
++            }
++            LongSet plannedToTrackForLevel = this.plannedToTrack.get(levelUUID);
++            if (plannedToTrackForLevel == null) return;
++            plannedToTrackForLevel.remove(chunkKey);
++        }
++    }
++
++    private void removeTracking(UUID levelUUID, long chunkKey) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (levelUUID.equals(this.quickAccessLevelUUID)) {
++                this.quickAccessTracking.remove(chunkKey);
++                return;
++            }
++            LongSet trackingForLevel = this.tracking.get(levelUUID);
++            if (trackingForLevel == null) return;
++            trackingForLevel.remove(chunkKey);
++        }
++    }
++
++    private void addPlannedToTrack(UUID levelUUID, long chunkKey) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (levelUUID.equals(this.quickAccessLevelUUID)) {
++                this.quickAccessPlannedToTrack.add(chunkKey);
++                return;
++            }
++            LongSet plannedToTrackForLevel = this.plannedToTrack.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(1));
++            plannedToTrackForLevel.add(chunkKey);
++        }
++    }
++
++    private void addTracking(UUID levelUUID, long chunkKey) {
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (levelUUID.equals(this.quickAccessLevelUUID)) {
++                this.quickAccessTracking.add(chunkKey);
++                return;
++            }
++            LongSet trackingForLevel = this.tracking.computeIfAbsent(levelUUID, $ -> new LongOpenHashSet(1));
++            trackingForLevel.add(chunkKey);
++        }
++    }
++
++    private boolean isNotTrackingNorPlanningToTrackOwnChunk() {
++        UUID ownLevelUUID = this.getLevelUUID();
++        if (ownLevelUUID == null) {
++            return true;
++        }
++        long ownChunkKey = this.getChunkPosLongKey();
++        synchronized (this.networkConstrainedTrackingLock) {
++            return !this.isTracking(ownLevelUUID, ownChunkKey) && !this.isPlannedToTrack(ownLevelUUID, ownChunkKey);
++        }
++    }
++
++    private boolean isTrackingOwnChunk() {
++        UUID ownLevelUUID = this.getLevelUUID();
++        if (ownLevelUUID == null) {
++            return false;
++        }
++        long ownChunkKey = this.getChunkPosLongKey();
++        synchronized (this.networkConstrainedTrackingLock) {
++            return this.isTracking(ownLevelUUID, ownChunkKey);
++        }
++    }
++
++    private @Nullable Long getFirstPlannedChunkToTrack() {
++        UUID ownLevelUUID = this.getLevelUUID();
++        if (ownLevelUUID == null) {
++            // None if this player is not in a world
++            return null;
++        }
++        synchronized (this.networkConstrainedTrackingLock) {
++
++            LongSet plannedToTrackForLevel;
++            if (ownLevelUUID.equals(this.quickAccessLevelUUID)) {
++                plannedToTrackForLevel = this.quickAccessPlannedToTrack;
++            } else {
++                plannedToTrackForLevel = this.plannedToTrack.get(ownLevelUUID);
++            }
++
++            // None if there are no more chunks planned
++            if (plannedToTrackForLevel == null || plannedToTrackForLevel.isEmpty()) {
++                return null;
++            }
++
++            // Get the closest chunk that is planned
++            return plannedToTrackForLevel.stream()
++                .min(Comparator.comparingLong(this::getSquaredPythagoreanDistanceToChunk))
++                .orElse(null);
++
++        }
++    }
++
++    private boolean canStartTrackingChunkRightNow(ChunkPos chunkPos) {
++
++        long ownChunkKey = this.getChunkPosLongKey();
++        long chunkKey = chunkPos.longKey;
++        // Can always immediately start tracking the chunk the player is in
++        if (ownChunkKey == chunkKey) {
++            return true;
++        }
++        // Otherwise, if not yet tracking the chunk the player is in, if they are indeed not, we cannot start tracking any others
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (!this.isTrackingOwnChunk()) {
++                return false;
++            }
++        }
++
++        int manhattanDistance = this.getManhattanDistanceToChunk(chunkKey);
++        // Do not track if the Manhattan distance is greather than their client view distance or the world view distance
++        if (manhattanDistance > this.getSendViewDistance()) {
++            return false;
++        }
++
++        // Do not track if the number of chunks in transit is greater than the treshold we set before we allow this chunk, based on its distance
++        long squaredPythagoreanDistance = this.getSquaredPythagoreanDistanceToChunk(chunkKey);
++        // TODO turn into configuration options
++        int maxNumberOfChunkPacketsInTransitByDistance = 7;
++        if (squaredPythagoreanDistance >= 256) { // 16^2
++            maxNumberOfChunkPacketsInTransitByDistance = 1;
++        } else if (squaredPythagoreanDistance >= 121) { // 11^2
++            maxNumberOfChunkPacketsInTransitByDistance = 2;
++        } else if (squaredPythagoreanDistance >= 49) { // 7^2
++            maxNumberOfChunkPacketsInTransitByDistance = 3;
++        } else if (squaredPythagoreanDistance >= 16) { // 4^2
++            maxNumberOfChunkPacketsInTransitByDistance = 5;
++        } else if (squaredPythagoreanDistance >= 4) { // 2^2
++            maxNumberOfChunkPacketsInTransitByDistance = 6;
++        }
++        synchronized (this.networkConstrainedTrackingLock) {
++            int maxNumberOfChunkPacketsInTransitToUse = Math.min(
++                this.getMaxNumberOfChunkPacketsInTransitBasedOnConnection(),
++                maxNumberOfChunkPacketsInTransitByDistance
++            );
++            return this.getNumberOfChunkInitializationPacketsInTransit() < maxNumberOfChunkPacketsInTransitToUse;
++        }
++
++    }
++
++    public void sendKeepaliveForChunkInTransit() {
++
++        // Quickly write a keep-alive packet after sending a chunk
++        // Generate a keep-alive challenge that is not the same as any real one (the real ones use the current system time itself)
++        long keepAliveChallenge = -System.currentTimeMillis();
++
++        Packet<?> followingKeepAlivePacket = new ClientboundKeepAlivePacket(keepAliveChallenge);
++        this.addChunkInitializationPacketInTransitKeepaliveId(keepAliveChallenge);
++        this.connection.send(followingKeepAlivePacket);
++
++    }
++
++    // Martijn end - network-constrained chunk tracking
++
+     // CraftBukkit start
+     public String displayName;
+     public net.kyori.adventure.text.Component adventure$displayName; // Paper
+@@ -341,6 +572,11 @@ public class ServerPlayer extends Player {
+ 
+     public ServerPlayer(MinecraftServer server, ServerLevel world, GameProfile profile) {
+         super(world, world.getSharedSpawnPos(), world.getSharedSpawnAngle(), profile);
++        // Martijn start - network-constrained chunk tracking
++        if (world != null) {
++            setQuickAccessTrackingLevel(world.uuid);
++        }
++        // Martijn end - network-constrained chunk tracking
+         this.chatVisibility = ChatVisiblity.FULL;
+         this.canChatColor = true;
+         this.lastActionTime = Util.getMillis();
+@@ -692,6 +928,11 @@ public class ServerPlayer extends Player {
+     // CraftBukkit start - World fallback code, either respawn location or global spawn
+     public void spawnIn(Level world) {
+         this.level = world;
++        // Martijn start - network-constrained chunk tracking
++        if (world != null && world instanceof ServerLevel) {
++            setQuickAccessTrackingLevel(((ServerLevel) world).uuid);
++        }
++        // Martijn end - network-constrained chunk tracking
+         if (world == null) {
+             this.unsetRemoved();
+             Vec3 position = null;
+@@ -1296,6 +1537,9 @@ public class ServerPlayer extends Player {
+ 
+                 // CraftBukkit end
+                 this.setLevel(worldserver);
++
++                setQuickAccessTrackingLevel(worldserver.uuid); // Martijn - network-constrained chunk tracking
++
+                 worldserver.addDuringPortalTeleport(this);
+                 this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
+                 this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
+@@ -2315,16 +2559,165 @@ public class ServerPlayer extends Player {
+ 
+     }
+ 
+-    public void trackChunk(ChunkPos chunkPos, Packet<?> chunkDataPacket) {
+-        this.connection.send(chunkDataPacket);
++    // Martijn start - network-constrained chunk tracking
++
++    public void planToTrackChunk(LevelChunk chunk) {
++
++        UUID levelUUID = chunk.level.uuid;
++        ChunkPos chunkPos = chunk.getPos();
++
++        UUID ownLevelUUID = this.getLevelUUID();
++
++        boolean trackInstantly;
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (ownLevelUUID != null && ownLevelUUID.equals(levelUUID) && this.canStartTrackingChunkRightNow(chunkPos)) {
++                trackInstantly = true;
++            } else {
++                trackInstantly = false;
++                if (this.isTracking(levelUUID, chunkPos.longKey)) return;
++                this.addPlannedToTrack(levelUUID, chunkPos.longKey);
++            }
++        }
++
++        if (trackInstantly) {
++            this.actuallyTrackChunk(chunk);
++        }
++
++    }
++    // Note: does nothing if the chunk is already tracked
++    private void actuallyTrackChunk(LevelChunk chunk) {
++        this.actuallyTrackChunk(chunk, this.getClientboundChunkInitializationPacket(chunk));
++    }
++
++    // Note: does nothing if the chunk is already tracked
++    private void actuallyTrackChunk(LevelChunk chunk, Packet<?> chunkInitializationPacket) {
++
++        UUID levelUUID = chunk.level.uuid;
++        ChunkMap chunkMap = this.getLevel().getChunkSource().chunkMap;
++        ChunkPos chunkPos = chunk.getPos();
++
++        // Update tracked status
++        synchronized (this.networkConstrainedTrackingLock) {
++            // This is important: when already tracked, do nothing
++            if (this.isTracking(levelUUID, chunkPos.longKey)) {
++                return;
++            }
++            this.removePlannedToTrack(levelUUID, chunkPos.longKey);
++            this.addTracking(levelUUID, chunkPos.longKey);
++        }
++
++        // Send the initialization packet
++        this.connection.send(chunkInitializationPacket);
+         // Paper start
+         if(io.papermc.paper.event.packet.PlayerChunkLoadEvent.getHandlerList().getRegisteredListeners().length > 0){
+             new io.papermc.paper.event.packet.PlayerChunkLoadEvent(this.getBukkitEntity().getWorld().getChunkAt(chunkPos.longKey), this.getBukkitEntity()).callEvent();
+         }
+         // Paper end
++
++        this.sendKeepaliveForChunkInTransit(); // Martijn
++
++        // The following used to be the tail of ChunkMap.playerLoadedChunk, after the call to ServerPlayer.trackChunk
++
++        DebugPackets.sendPoiPacketsForChunk(getLevel(), chunkPos);
++        List<Entity> list = Lists.newArrayList();
++        List<Entity> list1 = Lists.newArrayList();
++        // Paper start - optimise entity tracker
++        // use the chunk entity list, not the whole trackedEntities map...
++        Entity[] entities = chunk.entities.getRawData();
++        for (int i = 0, size = chunk.entities.size(); i < size; ++i) {
++            Entity entity = entities[i];
++            if (entity == this) {
++                continue;
++            }
++            ChunkMap.TrackedEntity tracker = chunkMap.entityMap.get(entity.getId());
++            if (tracker != null) { // dumb plugins... move on...
++                tracker.updatePlayer(this);
++            }
++
++            // keep the vanilla logic here - this is REQUIRED or else passengers and their vehicles disappear!
++            // (and god knows what the leash thing is)
++
++            if (entity instanceof Mob && ((Mob)entity).getLeashHolder() != null) {
++                list.add(entity);
++            }
++
++            if (!entity.getPassengers().isEmpty()) {
++                list1.add(entity);
++            }
++        }
++        // Paper end - optimise entity tracker
++
++        Iterator iterator;
++        Entity entity1;
++
++        if (!list.isEmpty()) {
++            iterator = list.iterator();
++
++            while (iterator.hasNext()) {
++                entity1 = (Entity) iterator.next();
++                connection.send(new ClientboundSetEntityLinkPacket(entity1, ((Mob) entity1).getLeashHolder()));
++            }
++        }
++
++        if (!list1.isEmpty()) {
++            iterator = list1.iterator();
++
++            while (iterator.hasNext()) {
++                entity1 = (Entity) iterator.next();
++                connection.send(new ClientboundSetPassengersPacket(entity1));
++            }
++        }
++
++    }
++
++    public void tickAttemptToTrackPlannedChunks() {
++
++        {
++            // Small optimization
++            if (this.isNotTrackingNorPlanningToTrackOwnChunk()) {
++                return;
++            }
++        }
++
++        int amountNewlyTracked = 0;
++        while (true) {
++
++            Long planned = this.getFirstPlannedChunkToTrack();
++            if (planned == null) {
++                break;
++            }
++
++            // Check if the player can start tracking this chunk
++            ChunkPos chunkPos = new ChunkPos(planned);
++            boolean canStartTracking = this.canStartTrackingChunkRightNow(chunkPos);
++
++            // If the player can be informed of something, inform, otherwise break
++            if (canStartTracking) {
++                actuallyTrackChunk(level.getChunk(chunkPos.x, chunkPos.z));
++                amountNewlyTracked++;
++                // Break if we informed of enough packets - to make sure enough other players get a go without going over the tick time for this tick
++                if (amountNewlyTracked >= level.paperConfig.maxChunksToNewlyTrackPerTick) {
++                    break;
++                }
++            } else {
++                break;
++            }
++
++        }
++
+     }
+ 
++    // Note that this will execute untracking actions even if the chunk was not tracked
+     public void untrackChunk(ChunkPos chunkPos) {
++        ServerLevel level = this.getLevel();
++        if (level != null) {
++            UUID levelUUID = level.uuid;
++            synchronized (this.networkConstrainedTrackingLock) {
++                this.removePlannedToTrack(levelUUID, chunkPos.longKey);
++                this.removeTracking(levelUUID, chunkPos.longKey);
++            }
++        }
++
+         if (this.isAlive()) {
+             this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
+             // Paper start
+@@ -2336,6 +2729,37 @@ public class ServerPlayer extends Player {
+ 
+     }
+ 
++    private ClientboundLevelChunkWithLightPacket getClientboundChunkInitializationPacket(LevelChunk chunk) {
++        Boolean shouldModify = chunk.getLevel().chunkPacketBlockController.shouldModify(this, chunk);
++        ChunkMap chunkMap = this.getLevel().getChunkSource().chunkMap;
++        return new ClientboundLevelChunkWithLightPacket(chunk, chunkMap.lightEngine, (BitSet) null, (BitSet) null, true, (Boolean) shouldModify);
++    }
++
++    /**
++     * @return If this keepalive id was recognized as a fake one sent after a chunk initialization
++     */
++    public boolean removePacketsInTransitUpToKeepaliveId(long id) {
++
++        synchronized (this.networkConstrainedTrackingLock) {
++            if (this.chunkInitializationPacketsInTransitKeepaliveIds.contains(id)) {
++                // This is a response to one of our fake keep-alive packets
++                // We will remove all chunk packets in transition up to the received one that was apparently successful
++                while (!this.chunkInitializationPacketsInTransitKeepaliveIds.isEmpty()) {
++                    if (this.chunkInitializationPacketsInTransitKeepaliveIds.peekFirst() == id) {
++                        this.chunkInitializationPacketsInTransitKeepaliveIds.removeFirst();
++                        break;
++                    }
++                    this.chunkInitializationPacketsInTransitKeepaliveIds.removeFirst();
++                }
++                return true;
++            }
++        }
++        return false;
++
++    }
++
++    // Martijn end - network-constrained chunk tracking
++
+     public SectionPos getLastSectionPos() {
+         return this.lastSectionPos;
+     }
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 5c9310fe424943a7256f6f77c414147384bad0aa..846323d056974e8661ed358b7f1c20548aa4e982 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -144,6 +144,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
+ import net.minecraft.world.level.block.entity.StructureBlockEntity;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.chunk.LevelChunk;
+ import net.minecraft.world.phys.AABB;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.HitResult;
+@@ -360,12 +361,15 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+         long elapsedTime = currentTime - this.keepAliveTime;
+ 
+         if (this.keepAlivePending) {
+-            if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
+-                ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
+-                this.disconnect(new TranslatableComponent("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
+-            }
++            // Martijn start - no disconnect on late or wrong keepalive
++            // Do not disconnect on late receival of keepalive, or when keepalive challenge is wrong
++//            if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
++//                ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
++//                this.disconnect(new TranslatableComponent("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
++//            }
++            // Martijn end - no disconnect on late or wrong keepalive
+         } else {
+-            if (elapsedTime >= 15000L) { // 15 seconds
++            if (elapsedTime >= 5000L) { // 5 seconds // Martijn - send keepalive more often
+                 this.keepAlivePending = true;
+                 this.keepAliveTime = currentTime;
+                 this.keepAliveChallenge = currentTime;
+@@ -2001,6 +2005,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+ 
+     }
+ 
++    // Martijn start - network-constrained chunk tracking
++    public void sendIfTracking(LevelChunk chunk, Packet<?> packet) {
++        if (this.getPlayer().isTracking(chunk)) {
++            this.send(packet);
++        }
++    }
++    // Martijn end - network-constrained chunk tracking
++
+     @Override
+     public void send(Packet<?> packet) {
+         this.send(packet, (GenericFutureListener) null);
+@@ -3101,18 +3113,56 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+ 
+     @Override
+     public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
++        if (player.removePacketsInTransitUpToKeepaliveId(packet.getId())) return; // Martijn - network-constrained chunk tracking
+         //PlayerConnectionUtils.ensureMainThread(packetplayinkeepalive, this, this.player.getWorldServer()); // CraftBukkit // Paper - This shouldn't be on the main thread
+         if (this.keepAlivePending && packet.getId() == this.keepAliveChallenge) {
+             int i = (int) (Util.getMillis() - this.keepAliveTime);
+ 
+             this.player.latency = (this.player.latency * 3 + i) / 4;
++
++            // Martijn start - network-constrained chunk tracking
++            // Player ping was updated: if it is too high we update the max number of chunk packets in transit
++            // TODO turn into configuration options
++            if (this.player.latency > 500) {
++                // This ping is unnaceptable
++                this.player.setMaxNumberOfChunkPacketsInTransitBasedOnConnection(player.level.paperConfig.minMaxNumberOfChunkPacketsInTransit);
++            } else {
++                int maxNumberOfChunkPacketsInTransitChange = 0;
++                if (this.player.latency > 330) {
++                    // This ping is very undesired
++                    maxNumberOfChunkPacketsInTransitChange = -2;
++                } else if (this.player.latency > 260) {
++                    // This ping is quite undesired
++                    maxNumberOfChunkPacketsInTransitChange = -1;
++                } else if (this.player.latency < 50) {
++                    // This ping is very good
++                    maxNumberOfChunkPacketsInTransitChange = 2;
++                } else if (this.player.latency < 130) {
++                    // This ping is quite good
++                    maxNumberOfChunkPacketsInTransitChange = 1;
++                }
++                if (maxNumberOfChunkPacketsInTransitChange != 0) {
++                    this.player.setMaxNumberOfChunkPacketsInTransitBasedOnConnection(Math.max(
++                        player.level.paperConfig.minMaxNumberOfChunkPacketsInTransit,
++                        Math.min(
++                            player.level.paperConfig.maxMaxNumberOfChunkPacketsInTransit,
++                            this.player.getMaxNumberOfChunkPacketsInTransitBasedOnConnection() + maxNumberOfChunkPacketsInTransitChange
++                        )
++                    ));
++                }
++            }
++            // Martijn end - network-constrained chunk tracking
++
+             this.keepAlivePending = false;
+         } else if (!this.isSingleplayerOwner()) {
+-            // Paper start - This needs to be handled on the main thread for plugins
+-            server.submit(() -> {
+-            this.disconnect(new TranslatableComponent("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
+-            });
+-            // Paper end
++            // Martijn start - no disconnect on late or wrong keepalive
++            // Do not disconnect on late receival of keepalive, or when keepalive challenge is wrong
++//            // Paper start - This needs to be handled on the main thread for plugins
++//            server.submit(() -> {
++//            this.disconnect(new TranslatableComponent("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
++//            });
++//            // Paper end
++            // Martijn end - no disconnect on late or wrong keepalive
+         }
+ 
+     }
