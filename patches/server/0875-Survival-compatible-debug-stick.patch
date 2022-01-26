@@ -5,7 +5,7 @@ Subject: [PATCH] Survival-compatible debug stick
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 4a3731c286065d9027872ddca42a0aa8026001f5..952c1f6278cea1dd01f5851e6fe34fac3ff17e2a 100644
+index a663f7fc11b75d5ed3127f8144fc65f5cba68e41..5e3f23d5898b391609a1115f40c94d293c4dfbd2 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -118,6 +118,18 @@ public class PaperConfig {
@@ -382,7 +382,7 @@ index 00b5bb5c3dd16eeff17790205fb7cfdec3c50804..e853d2b9c0bb4440fe66dc58a0bc4d94
 +
  }
 diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
-index 05c46f3b3bce5225b819d86e6e06729a5093e092..3bf1f1603be9174fac7044f3437b9a667c02c0d8 100644
+index eac017fc521bfd1391e75db8628f42b28329d681..b19b0e1ea61761a4358b2b68591957c0c6937ed5 100644
 --- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
 +++ b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
 @@ -30,6 +30,7 @@ import net.minecraft.world.entity.projectile.Projectile;
