@@ -5,7 +5,7 @@ Subject: [PATCH] Configurable keepalive mechanics
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 61ea1c9881ea30c05580044af9496a65fe95d94e..3e0456f469c481e9614a4ff77f3c99cd49c6fdc2 100644
+index 61ea1c9881ea30c05580044af9496a65fe95d94e..4a3731c286065d9027872ddca42a0aa8026001f5 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -91,6 +91,33 @@ public class PaperConfig {
@@ -19,22 +19,22 @@ index 61ea1c9881ea30c05580044af9496a65fe95d94e..3e0456f469c481e9614a4ff77f3c99cd
 +     */
 +    public static int keepaliveSendInterval = 15000; // 15 seconds
 +    private static void keepaliveSendInterval() {
-+        keepaliveSendInterval = getInt("keepalive.send-interval", keepaliveSendInterval);
++        keepaliveSendInterval = getInt("settings.keepalive.send-interval", keepaliveSendInterval);
 +    }
 +
 +    public static boolean kickForLateKeepaliveResponse = true;
 +    private static void kickForLateKeepaliveResponse() {
-+        kickForLateKeepaliveResponse = getBoolean("keepalive.kick.late-response", kickForLateKeepaliveResponse);
++        kickForLateKeepaliveResponse = getBoolean("settings.keepalive.kick.late-response", kickForLateKeepaliveResponse);
 +    }
 +
 +    public static boolean kickForWrongKeepaliveResponseId = true;
 +    private static void kickForWrongKeepaliveResponseId() {
-+        kickForWrongKeepaliveResponseId = getBoolean("keepalive.kick.wrong-response-id", kickForWrongKeepaliveResponseId);
++        kickForWrongKeepaliveResponseId = getBoolean("settings.keepalive.kick.wrong-response-id", kickForWrongKeepaliveResponseId);
 +    }
 +
 +    public static boolean kickForUnexpectedKeepaliveResponse = true;
 +    private static void kickForUnexpectedKeepaliveResponse() {
-+        kickForUnexpectedKeepaliveResponse = getBoolean("keepalive.kick.unexpected-response", kickForUnexpectedKeepaliveResponse);
++        kickForUnexpectedKeepaliveResponse = getBoolean("settings.keepalive.kick.unexpected-response", kickForUnexpectedKeepaliveResponse);
 +    }
 +
 +    // Martijn end - configurable keepalive
