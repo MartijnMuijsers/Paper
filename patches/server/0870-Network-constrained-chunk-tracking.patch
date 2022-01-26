@@ -89,7 +89,7 @@ index 980d91a34f886b8833ff693289ec0443b5bd4d95..5576427bb2b76b4fc7c5a9c72f67d8be
      }
  
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d27c441875 100644
+index 397f2b75d7cbf564ab450ba8be8576f3e5507ae5..9cceddf21c8bb271f0bd9f72876b8f5a1baa3ba6 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -14,8 +14,11 @@ import com.mojang.datafixers.DataFixer;
@@ -147,7 +147,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
      public final BlockableEventLoop<Runnable> mainThreadExecutor; // Paper - public
      final java.util.concurrent.Executor mainInvokingExecutor; // Paper
      public ChunkGenerator generator;
-@@ -1455,7 +1464,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1457,7 +1466,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                  MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
  
                  this.getPlayersNearChunkForSending(chunkcoordintpair, false).forEach((entityplayer) -> { // Martijn - per-player send distance
@@ -156,7 +156,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
                  });
              });
          }, (runnable) -> {
-@@ -1631,7 +1640,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1633,7 +1642,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      public void updateChunkTrackingDueToPlayerSendViewDistanceChange(ServerPlayer player, int oldSendViewDistance, int newSendViewDistance) {
          if (this.playerMap.ignoredOrUnknown(player)) return;
  
@@ -173,7 +173,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
  
          while (objectiterator.hasNext()) {
              ChunkHolder playerchunk = (ChunkHolder) objectiterator.next();
-@@ -1658,7 +1675,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1660,7 +1677,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                      LevelChunk chunk = playerchunk.getTickingChunk();
  
                      if (chunk != null) {
@@ -182,7 +182,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
                      }
  
                      DebugPackets.sendPoiPacketsForChunk(this.level, pos);
-@@ -1918,19 +1935,27 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1920,19 +1937,27 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
              }
              this.removePlayerFromDistanceMaps(player); // Paper - distance maps
          }
@@ -219,7 +219,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
  
      }
  
-@@ -1992,31 +2017,38 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1994,31 +2019,38 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
              int j2 = Math.max(j, j1) + viewDistance + 1;
              // Martijn end - per-player send distance
  
@@ -275,7 +275,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
  
              // Martijn start - per-player send distance
              for (k1 = i - viewDistance - 1; k1 <= i + viewDistance + 1; ++k1) {
-@@ -2029,6 +2061,21 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2031,6 +2063,21 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                      }
                  }
              }
@@ -297,7 +297,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
          }
  
          this.updateMaps(player); // Paper - distance maps
-@@ -2155,6 +2202,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2157,6 +2204,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      // Paper end - optimised tracker
  
      protected void tick() {
@@ -305,7 +305,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
          // Paper start - optimized tracker
          if (true) {
              this.processTrackQueue();
-@@ -2222,68 +2270,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2224,68 +2272,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  
      }
  
