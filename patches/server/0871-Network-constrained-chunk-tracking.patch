@@ -5,10 +5,10 @@ Subject: [PATCH] Network-constrained chunk tracking
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index fe6c339173fee74ed23615762f2fb3dc63ceb0ae..7e90fea29d7c1c1de19e436ba2e4ebb697b45681 100644
+index 868067ab2f33ec29e533bc661b80dfc0e1149906..4829ecad255b29cf062c2ac17d0ec6b8f65b4b90 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -184,6 +184,15 @@ public class PaperConfig {
+@@ -187,6 +187,15 @@ public class PaperConfig {
  
      // Martijn end - survival debug stick
  
