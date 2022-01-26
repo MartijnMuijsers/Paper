@@ -5,10 +5,10 @@ Subject: [PATCH] Utility method to sort chunks by distance
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 0a04980a8015fe08907a040f0f3ff537267bd462..176babda1914b65ec4d05812ce1a8b1d7f558dc9 100644
+index b41e6a95c2bf9f169ea8ce95706b8ea0a3d9735a..b9fd050ab33e131d01d8874f19af9cb9827c8cf2 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
-@@ -397,6 +397,63 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -402,6 +402,63 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      }
      // Paper end
  
@@ -73,7 +73,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..176babda1914b65ec4d05812ce1a8b1d
      public ChunkMap(ServerLevel world, LevelStorageSource.LevelStorageAccess session, DataFixer dataFixer, StructureManager structureManager, Executor executor, BlockableEventLoop<Runnable> mainThreadExecutor, LightChunkGetter chunkProvider, ChunkGenerator chunkGenerator, ChunkProgressListener worldGenerationProgressListener, ChunkStatusUpdateListener chunkStatusChangeListener, Supplier<DimensionDataStorage> persistentStateManagerFactory, int viewDistance, boolean dsync) {
          super(session.getDimensionPath(world.dimension()).resolve("region"), dataFixer, dsync);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058..ecc30a97d5788f3c33ab79d9c3d1fce52614c96a 100644
+index 80b0a25b0f69ff3093d979960ab32021e1dea731..8043ec6108f5da104bcbf79d739667562eca866d 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -422,6 +422,24 @@ public class ServerPlayer extends Player {
