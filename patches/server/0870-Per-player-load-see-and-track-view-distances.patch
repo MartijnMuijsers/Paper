@@ -353,7 +353,7 @@ index d271871563fa883efb77b35ec3b1dfbba87f0b62..e8aec6972def3c6e4f7daedcc387d48c
  
      private static final class ChunkSaveDebug {
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..3deab3fec1f10f42e1f69f16eb09f3103ccb8b6d 100644
+index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..7b35a7b6c386d9d0358418e8bc1a77697813c0d8 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -5,17 +5,17 @@ import com.destroystokyo.paper.PaperWorldConfig; // Paper
@@ -845,13 +845,13 @@ index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..3deab3fec1f10f42e1f69f16eb09f310
 +        return result;
 +        // Martijn end - per-player track and see view distance
 +
-     }
- 
++    }
++
 +    // Martijn start - per-player track and see view distance
 +    public boolean isPlayerIncludedInPlayersNearChunkForSendingBasedOnCurrentViewDistance(ServerPlayer player, ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, boolean concernsTracking) {
 +        return isPlayerIncludedInPlayersNearChunkForSending(player, chunkPos, onlyOnWatchDistanceEdge, (concernsTracking ? player.getTrackViewDistance() : player.getSeeViewDistance()) + 1);
-+    }
-+
+     }
+ 
 +    public boolean isPlayerIncludedInPlayersNearChunkForSending(ServerPlayer player, ChunkPos chunkPos, boolean onlyOnWatchDistanceEdge, int distance) {
 +        SectionPos sectionposition = player.getLastSectionPos();
 +        return onlyOnWatchDistanceEdge && ChunkMap.isChunkOnRangeBorder(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), distance) || !onlyOnWatchDistanceEdge && ChunkMap.isChunkInRange(chunkPos.x, chunkPos.z, sectionposition.x(), sectionposition.z(), distance);
@@ -861,7 +861,22 @@ index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..3deab3fec1f10f42e1f69f16eb09f310
      public void addEntity(Entity entity) {
          org.spigotmc.AsyncCatcher.catchOp("entity track"); // Spigot
          // Paper start - ignore and warn about illegal addEntity calls instead of crashing server
-@@ -2186,68 +2304,68 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2119,6 +2237,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Paper end - optimised tracker
+ 
+     protected void tick() {
++
++        // Martijn start - temporary debug message containing the number of loaded chunks
++        // TODO remove this temporary debug message
++        if (Math.random() < 1.0/20/30) {
++            org.bukkit.Bukkit.getLogger().info("Number of loaded chunks in " + this.level.getWorld().getName() + ": " + this.level.getWorld().getLoadedChunks().length);
++        }
++        // Martijn end - temporary debug message containing the number of loaded chunks
++
+         // Paper start - optimized tracker
+         if (true) {
+             this.processTrackQueue();
+@@ -2186,68 +2312,68 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  
      }
  
@@ -992,7 +1007,7 @@ index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..3deab3fec1f10f42e1f69f16eb09f310
  
      public PoiManager getPoiManager() {
          return this.poiManager;
-@@ -2390,7 +2508,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2390,7 +2516,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                  double vec3d_dx = player.getX() - this.entity.getX();
                  double vec3d_dz = player.getZ() - this.entity.getZ();
                  // Paper end - remove allocation of Vec3D here
