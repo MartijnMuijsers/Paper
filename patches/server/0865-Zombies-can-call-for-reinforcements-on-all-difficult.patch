@@ -5,7 +5,7 @@ Subject: [PATCH] Zombies can call for reinforcements on all difficulties
 
 
 diff --git a/src/main/java/net/minecraft/world/entity/monster/Zombie.java b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
-index 35f0203d260c11b729c30e6241316fda4b70bfd7..06afe26fdf5499c4e4394a03d3abb63ce9e36c39 100644
+index 35f0203d260c11b729c30e6241316fda4b70bfd7..38cc5b2b76df42f3b8cdb50edb253d5ffa45d80d 100644
 --- a/src/main/java/net/minecraft/world/entity/monster/Zombie.java
 +++ b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
 @@ -326,7 +326,7 @@ public class Zombie extends Monster {
@@ -13,7 +13,7 @@ index 35f0203d260c11b729c30e6241316fda4b70bfd7..06afe26fdf5499c4e4394a03d3abb63c
              }
  
 -            if (entityliving != null && this.level.getDifficulty() == Difficulty.HARD && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) {
-+            if (entityliving != null && this.level.getDifficulty() != Difficulty.PEACEFUL && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) { // Martijn - Zombies call for reinforcements on all difficulties
++            if (entityliving != null && this.level.getDifficulty() != Difficulty.PEACEFUL && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) { // Martijn - Zombies can call for reinforcements on all difficulties
                  int i = Mth.floor(this.getX());
                  int j = Mth.floor(this.getY());
                  int k = Mth.floor(this.getZ());
