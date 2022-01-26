@@ -6,39 +6,39 @@ Subject: [PATCH] Add utility methods for getting the distance between a player
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index ea6f3223928f1f98b51911bb37d60fcdd014a1fe..c6fc376c0ac88b0047c946c3828a0cfedcccba4b 100644
+index c032aec0e35f1be6ef967577f47dbc4a304515b7..09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -367,6 +367,36 @@ public class ServerPlayer extends Player {
- 
+@@ -392,6 +392,36 @@ public class ServerPlayer extends Player {
+     }
      // Martijn end - getting the player's chunk
  
 +    // Martijn start - getting distance to chunks
 +
 +    public int getManhattanDistanceToChunk(ChunkPos chunk) {
-+        return Math.max(Math.abs(getChunkX() - chunk.x), Math.abs(getChunkZ() - chunk.z));
++        return Math.max(Math.abs(this.getChunkX() - chunk.x), Math.abs(this.getChunkZ() - chunk.z));
 +    }
 +
 +    public int getManhattanDistanceToChunk(long chunkKey) {
-+        return getManhattanDistanceToChunk(new ChunkPos(chunkKey));
++        return this.getManhattanDistanceToChunk(new ChunkPos(chunkKey));
 +    };
 +
 +    public long getSquaredPythagoreanDistanceToChunk(ChunkPos chunk) {
-+        long dx = getChunkX() - chunk.x;
-+        long dz = getChunkZ() - chunk.z;
++        long dx = this.getChunkX() - chunk.x;
++        long dz = this.getChunkZ() - chunk.z;
 +        return dx * dx + dz * dz;
 +    }
 +
 +    public long getSquaredPythagoreanDistanceToChunk(long chunkKey) {
-+        return getSquaredPythagoreanDistanceToChunk(new ChunkPos(chunkKey));
++        return this.getSquaredPythagoreanDistanceToChunk(new ChunkPos(chunkKey));
 +    };
 +
 +    public double getPythagoreanDistanceToChunk(ChunkPos chunkPos) {
-+        return Math.sqrt(getSquaredPythagoreanDistanceToChunk(chunkPos));
++        return Math.sqrt(this.getSquaredPythagoreanDistanceToChunk(chunkPos));
 +    }
 +
 +    public double getPythagoreanDistanceToChunk(long chunkKey) {
-+        return getPythagoreanDistanceToChunk(new ChunkPos(chunkKey));
++        return this.getPythagoreanDistanceToChunk(new ChunkPos(chunkKey));
 +    };
 +
 +    // Martijn end - getting distance to chunks
