@@ -5,7 +5,7 @@ Subject: [PATCH] Network-constrained chunk tracking
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 49263fd7e2527192e5d47fa769fa8dc9cddeea00..ace448cd6b15c043e229c4dbd56f3331d5cc811a 100644
+index 49263fd7e2527192e5d47fa769fa8dc9cddeea00..52c28bd6fe22207c9870eeac1d94bd70804838cf 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -127,6 +127,15 @@ public class PaperConfig {
@@ -16,7 +16,7 @@ index 49263fd7e2527192e5d47fa769fa8dc9cddeea00..ace448cd6b15c043e229c4dbd56f3331
 +
 +    public static int initialMaxNumberOfChunkPacketsInTransit = 1;
 +    private static void initialMaxNumberOfChunkPacketsInTransit() {
-+        initialMaxNumberOfChunkPacketsInTransit = getInt("network-constrained-chunk-tracking.max-chunk-packets-in-transit.initial", initialMaxNumberOfChunkPacketsInTransit);
++        initialMaxNumberOfChunkPacketsInTransit = getInt("settings.network-constrained-chunk-tracking.max-chunk-packets-in-transit.initial", initialMaxNumberOfChunkPacketsInTransit);
 +    }
 +
 +    // Martijn end - network-constrained chunk tracking
