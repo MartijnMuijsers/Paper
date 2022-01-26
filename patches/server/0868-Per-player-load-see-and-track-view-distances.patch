@@ -18,7 +18,7 @@ index 5e3b7fb2e0b7608610555cd23e7ad25a05883181..85de61e7731ee2dbd52c64d6cafe2bb3
          }));
  
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..22724e1744b53a812bfb2688c23d84e3710dbb99 100644
+index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..e5c6f36d522d798341e0ec17e96247156b2e6f63 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -14,6 +14,7 @@ import java.util.Map;
@@ -29,51 +29,57 @@ index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..22724e1744b53a812bfb2688c23d84e3
  import org.spigotmc.SpigotWorldConfig;
  
  import static com.destroystokyo.paper.PaperConfig.log;
-@@ -67,6 +68,48 @@ public class PaperWorldConfig {
+@@ -67,6 +68,54 @@ public class PaperWorldConfig {
          }
      }
  
-+    // Martijn start - per-player view distance
++    // Martijn start - per-player send view distance
++
 +    private boolean perPlayerSendViewDistance = false;
 +    private void perPlayerSendViewDistance() {
-+        perPlayerSendViewDistance = getBoolean("view-distances.send-view-distance.per-player", perPlayerSendViewDistance);
++        this.perPlayerSendViewDistance = getBoolean("view-distances.send-view-distance.per-player", this.perPlayerSendViewDistance);
 +    }
 +    public boolean getPerPlayerSendViewDistance() {
-+        return perPlayerSendViewDistance;
++        return this.perPlayerSendViewDistance;
 +    }
 +
 +    private boolean limitSendViewDistanceByClientViewDistance = false;
 +    private void limitSendViewDistanceByClientViewDistance() {
-+        setLimitSendViewDistanceByClientViewDistance(getBoolean("view-distances.send-view-distance.limit-by-client-view-distance", limitSendViewDistanceByClientViewDistance));
++        setLimitSendViewDistanceByClientViewDistance(getBoolean("view-distances.send-view-distance.limit-by-client-view-distance", this.limitSendViewDistanceByClientViewDistance));
 +    }
 +    public boolean getLimitSendViewDistanceByClientViewDistance() {
-+        return limitSendViewDistanceByClientViewDistance;
++        return this.limitSendViewDistanceByClientViewDistance;
 +    }
 +    public void setLimitSendViewDistanceByClientViewDistance(boolean limitSendViewDistanceByClientViewDistance) {
 +        this.limitSendViewDistanceByClientViewDistance = limitSendViewDistanceByClientViewDistance;
 +        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().sendViewDistanceMayHaveChanged());
 +    }
 +
++    // Martijn end - per-player send view distance
++
++    // Martijn start - per-player load view distance
++
 +    private boolean perPlayerLoadViewDistance = false;
 +    private void perPlayerLoadViewDistance() {
-+        perPlayerLoadViewDistance = getBoolean("view-distances.load-view-distance.per-player", perPlayerLoadViewDistance);
++        this.perPlayerLoadViewDistance = getBoolean("view-distances.load-view-distance.per-player", this.perPlayerLoadViewDistance);
 +    }
 +    public boolean getPerPlayerLoadViewDistance() {
-+        return perPlayerLoadViewDistance;
++        return this.perPlayerLoadViewDistance;
 +    }
 +
 +    private boolean limitLoadViewDistanceByClientViewDistance = false;
 +    private void limitLoadViewDistanceByClientViewDistance() {
-+        setLimitLoadViewDistanceByClientViewDistance(getBoolean("view-distances.load-view-distance.limit-by-client-view-distance", limitLoadViewDistanceByClientViewDistance));
++        setLimitLoadViewDistanceByClientViewDistance(getBoolean("view-distances.load-view-distance.limit-by-client-view-distance", this.limitLoadViewDistanceByClientViewDistance));
 +    }
 +    public boolean getLimitLoadViewDistanceByClientViewDistance() {
-+        return limitLoadViewDistanceByClientViewDistance;
++        return this.limitLoadViewDistanceByClientViewDistance;
 +    }
 +    public void setLimitLoadViewDistanceByClientViewDistance(boolean limitLoadViewDistanceByClientViewDistance) {
 +        this.limitLoadViewDistanceByClientViewDistance = limitLoadViewDistanceByClientViewDistance;
 +        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().loadViewDistanceMayHaveChanged());
 +    }
-+    // Martijn end - per-player view distance
++
++    // Martijn end - per-player load view distance
 +
      public boolean zombiesTargetTurtleEggs = true;
      private void zombiesTargetTurtleEggs() {
@@ -683,10 +689,10 @@ index 9a07ccbd12675e501a9aebf89ab85adf6fb658ba..1f0ba4a15d15ea570dfb22cf73f7999d
  
      public void setSimulationDistance(int simulationDistance) {
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..c71e2abe05c2351d2c06a6e37a72a20f9abc568e 100644
+index 09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058..28345e5fa659212f3f7385efc65ec5bd18a8e6ff 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -168,7 +168,67 @@ import org.bukkit.inventory.MainHand;
+@@ -188,7 +188,67 @@ import org.bukkit.inventory.MainHand;
  
  public class ServerPlayer extends Player {
  
@@ -755,7 +761,7 @@ index c6fc376c0ac88b0047c946c3828a0cfedcccba4b..c71e2abe05c2351d2c06a6e37a72a20f
  
      private static final Logger LOGGER = LogManager.getLogger();
      public long lastSave = MinecraftServer.currentTick; // Paper
-@@ -1949,6 +2009,8 @@ public class ServerPlayer extends Player {
+@@ -1974,6 +2034,8 @@ public class ServerPlayer extends Player {
          this.connection.connection.channel.attr(PaperAdventure.LOCALE_ATTRIBUTE).set(this.adventure$locale);
          // Paper end
          this.clientViewDistance = packet.viewDistance;
