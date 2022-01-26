@@ -353,7 +353,7 @@ index d271871563fa883efb77b35ec3b1dfbba87f0b62..e8aec6972def3c6e4f7daedcc387d48c
  
      private static final class ChunkSaveDebug {
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..26fb337dc13885ddd9e2c1ab4e1759f11c2cc584 100644
+index 3da71a46fd9c3200350c1fac8b83c56952a9f285..48d20e03922dcb0be0f743d23b1e929e87d6f654 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -5,17 +5,17 @@ import com.destroystokyo.paper.PaperWorldConfig; // Paper
@@ -605,7 +605,7 @@ index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..26fb337dc13885ddd9e2c1ab4e1759f1
      }
 +    // Martijn end - per-player track and see view distance
  
--    protected void updateChunkTracking(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject, boolean oldWithinViewDistance, boolean newWithinViewDistance) { // Paper - Anti-Xray - Bypass
+-    protected void updateChunkTracking(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> packet, boolean oldWithinViewDistance, boolean newWithinViewDistance) { // Paper - Anti-Xray - Bypass
 +    protected void updateChunkTrackingOrSeeing(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject, boolean oldWithinViewDistance, boolean newWithinViewDistance, boolean concernsTracking) { // Paper - Anti-Xray - Bypass // Martijn - per-player track and see view distance
          if (player.level == this.level) {
 +
@@ -616,7 +616,7 @@ index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..26fb337dc13885ddd9e2c1ab4e1759f1
                      LevelChunk chunk = playerchunk.getTickingChunk();
  
                      if (chunk != null) {
--                        this.playerLoadedChunk(player, mutableobject, chunk);
+-                        this.playerLoadedChunk(player, packet, chunk);
 +                        player.trackOrSeeChunk(chunk, player.getClientboundChunkInitializationPacket(chunk), concernsTracking); // Martijn - per-player track and see view distance
                      }
  
@@ -1386,7 +1386,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..f5f4761f5a606557400773905b8e1a3d
  
          @Override
 diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
-index 9a07ccbd12675e501a9aebf89ab85adf6fb658ba..67b32cef8eeb31fa7c05fcb34abce9366426cdb0 100644
+index 099b9f57c710ee378307dc8edc942f7049703bee..117348e02445d781c6e8fde43ae73efc79c102a9 100644
 --- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 +++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
 @@ -948,7 +948,7 @@ public class ServerChunkCache extends ChunkSource {
