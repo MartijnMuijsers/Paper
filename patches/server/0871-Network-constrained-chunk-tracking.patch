@@ -201,10 +201,10 @@ index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cb
              }
              this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9aac55a5c0 100644
+index 3fcdbc2ec4b85950ed165145612b3339c21240b2..ab09281b1dff85b104cad906f6d1b149a1f20bf8 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -441,6 +441,308 @@ public class ServerPlayer extends Player {
+@@ -441,6 +441,309 @@ public class ServerPlayer extends Player {
      public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
      // Paper end
  
@@ -468,30 +468,31 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
 +            return false;
 +        }
 +
-+        // Do not track or see if the number of chunks in transit is greater than the treshold we set before we allow this chunk, based on its distance
-+        long squaredPythagoreanDistance = this.getSquaredPythagoreanDistanceToChunk(chunkKey);
-+        // TODO turn into configuration options
-+        int maxNumberOfChunkPacketsInTransitByDistance = 7;
-+
-+        if (squaredPythagoreanDistance >= 729) { // 27^2
-+            maxNumberOfChunkPacketsInTransitByDistance = 1;
-+        } else if (squaredPythagoreanDistance >= 400) { // 20^2
-+            maxNumberOfChunkPacketsInTransitByDistance = 2;
-+        } else if (squaredPythagoreanDistance >= 196) { // 14^2
-+            maxNumberOfChunkPacketsInTransitByDistance = 3;
-+        } else if (squaredPythagoreanDistance >= 81) { // 9^2
-+            maxNumberOfChunkPacketsInTransitByDistance = 4;
-+        } else if (squaredPythagoreanDistance >= 25) { // 5^2
-+            maxNumberOfChunkPacketsInTransitByDistance = 5;
-+        } else if (squaredPythagoreanDistance >= 4) { // 2^2
-+            maxNumberOfChunkPacketsInTransitByDistance = 6;
-+        }
++        // Do not track or see if the number of chunks in transit is greater than the threshold we set before we allow this chunk, based on its distance
++        // ^ Edit: we no longer do this, it was added to prevent screen lag due to receiving many chunks simultaneously, but the max number of chunks to send per tick has become the replacement solution
++//        long squaredPythagoreanDistance = this.getSquaredPythagoreanDistanceToChunk(chunkKey);
++//        // Should be turned into configuration options
++//        int maxNumberOfChunkPacketsInTransitByDistance = 7;
++//
++//        if (squaredPythagoreanDistance >= 729) { // 27^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 1;
++//        } else if (squaredPythagoreanDistance >= 400) { // 20^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 2;
++//        } else if (squaredPythagoreanDistance >= 196) { // 14^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 3;
++//        } else if (squaredPythagoreanDistance >= 81) { // 9^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 4;
++//        } else if (squaredPythagoreanDistance >= 25) { // 5^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 5;
++//        } else if (squaredPythagoreanDistance >= 4) { // 2^2
++//            maxNumberOfChunkPacketsInTransitByDistance = 6;
++//        }
 +        synchronized (this.networkConstrainedTrackingLock) {
-+            int maxNumberOfChunkPacketsInTransitToUse = Math.min(
-+                this.getMaxNumberOfChunkPacketsInTransitBasedOnConnection(),
-+                maxNumberOfChunkPacketsInTransitByDistance
-+            );
-+            return this.getNumberOfChunkInitializationPacketsInTransit() < maxNumberOfChunkPacketsInTransitToUse;
++//            int maxNumberOfChunkPacketsInTransitToUse = Math.min(
++//                this.getMaxNumberOfChunkPacketsInTransitBasedOnConnection(),
++//                maxNumberOfChunkPacketsInTransitByDistance
++//            );
++            return this.getNumberOfChunkInitializationPacketsInTransit() < this.getMaxNumberOfChunkPacketsInTransitBasedOnConnection();
 +        }
 +
 +    }
@@ -513,7 +514,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
      // CraftBukkit start
      public String displayName;
      public net.kyori.adventure.text.Component adventure$displayName; // Paper
-@@ -465,6 +767,11 @@ public class ServerPlayer extends Player {
+@@ -465,6 +768,11 @@ public class ServerPlayer extends Player {
  
      public ServerPlayer(MinecraftServer server, ServerLevel world, GameProfile profile) {
          super(world, world.getSharedSpawnPos(), world.getSharedSpawnAngle(), profile);
@@ -525,7 +526,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
          this.chatVisibility = ChatVisiblity.FULL;
          this.canChatColor = true;
          this.lastActionTime = Util.getMillis();
-@@ -816,6 +1123,11 @@ public class ServerPlayer extends Player {
+@@ -816,6 +1124,11 @@ public class ServerPlayer extends Player {
      // CraftBukkit start - World fallback code, either respawn location or global spawn
      public void spawnIn(Level world) {
          this.level = world;
@@ -537,7 +538,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
          if (world == null) {
              this.unsetRemoved();
              Vec3 position = null;
-@@ -1420,6 +1732,9 @@ public class ServerPlayer extends Player {
+@@ -1420,6 +1733,9 @@ public class ServerPlayer extends Player {
  
                  // CraftBukkit end
                  this.setLevel(worldserver);
@@ -547,7 +548,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
                  worldserver.addDuringPortalTeleport(this);
                  this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
                  this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
-@@ -2440,25 +2755,81 @@ public class ServerPlayer extends Player {
+@@ -2440,25 +2756,81 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -636,7 +637,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
              List<Entity> list = Lists.newArrayList();
              List<Entity> list1 = Lists.newArrayList();
              // Paper start - optimise entity tracker
-@@ -2469,7 +2840,7 @@ public class ServerPlayer extends Player {
+@@ -2469,7 +2841,7 @@ public class ServerPlayer extends Player {
                  if (entity == this) {
                      continue;
                  }
@@ -645,7 +646,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
                  if (tracker != null) { // dumb plugins... move on...
                      tracker.updatePlayer(this);
                  }
-@@ -2509,10 +2880,65 @@ public class ServerPlayer extends Player {
+@@ -2509,10 +2881,65 @@ public class ServerPlayer extends Player {
              }
  
          }
@@ -653,8 +654,8 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
 +        this.incrementChunksNewlyTrackedOrSeenThisTick();
 +        return true;
 +
-+    }
-+
+     }
+ 
 +    public void tickAttemptToTrackOrSeePlannedChunks() {
 +
 +        {
@@ -692,8 +693,8 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
 +
 +        }
 +
-     }
- 
++    }
++
 +    // Note that this will execute untracking or unseeing actions even if the chunk was not tracked or seen
      public void untrackOrUnseeChunk(ChunkPos chunkPos, boolean concernsTracking) {
  
@@ -711,7 +712,7 @@ index 3fcdbc2ec4b85950ed165145612b3339c21240b2..e5a1560ea80958f9d0642b29e5480b9a
          if (this.isAlive()) {
              if (!concernsTracking) {
                  this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
-@@ -2528,13 +2954,36 @@ public class ServerPlayer extends Player {
+@@ -2528,13 +2955,36 @@ public class ServerPlayer extends Player {
  
      }
  
