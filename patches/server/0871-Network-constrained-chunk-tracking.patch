@@ -230,24 +230,6 @@ index 26fb337dc13885ddd9e2c1ab4e1759f11c2cc584..4eba1c29957d8237ae45d01d656db751
      public PoiManager getPoiManager() {
          return this.poiManager;
      }
-diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
-index ca8314fc7d35d2fdb6d0a9019ef358f4e70da453..981a78752e48bfe7d27b7ecebed3292955aac424 100644
---- a/src/main/java/net/minecraft/server/level/DistanceManager.java
-+++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
-@@ -774,9 +774,10 @@ public abstract class DistanceManager {
-             boolean withinSomeViewDistance = withinViewDistance;
-             for (PlayerTicketTracker otherTracker : DistanceManager.this.getPlayerTicketManagers()) {
-                 if (otherTracker != tracker) {
--                    minDistance = Math.min(distance, otherTracker.getLevel(pos));
--                    oldWithinSomeViewDistance |= otherTracker.haveTicketFor(distance);
--                    withinSomeViewDistance |= otherTracker.haveTicketFor(distance);
-+                    int otherTrackerDistance = otherTracker.getLevel(pos);
-+                    minDistance = Math.min(minDistance, otherTracker.getLevel(pos));
-+                    oldWithinSomeViewDistance |= otherTracker.haveTicketFor(otherTrackerDistance);
-+                    withinSomeViewDistance |= otherTracker.haveTicketFor(otherTrackerDistance);
-                 }
-             }
-             this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb0415cbede6 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
