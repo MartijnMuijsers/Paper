@@ -4,6 +4,72 @@ Date: Wed, 26 Jan 2022 01:10:39 +0100
 Subject: [PATCH] Add utility method to sort chunks by distance
 
 
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 0a04980a8015fe08907a040f0f3ff537267bd462..0b09b59f019ebe181ff0a9a6a8092f5b4f0ae78c 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -397,6 +397,61 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+     // Paper end
+ 
++    // Martijn start - sort chunks by distance
++
++    public static void evaluateSpiral(int initialX, int initialZ, int inclusiveDistance, BiConsumer<Integer, Integer> consumer) {
++        int x = initialX;
++        int z = initialZ;
++        // All inclusive
++        int minX = initialX - inclusiveDistance;
++        int minZ = initialZ - inclusiveDistance;
++        int maxX = initialX + inclusiveDistance;
++        int maxZ = initialZ + inclusiveDistance;
++        int dx = 0;
++        int dz = 1;
++        int t = 1;
++        int ct = 0;
++        while (true) {
++            if (x < minX || x > maxX || z < minZ || z > maxZ) {
++                break;
++            }
++            consumer.accept(x, z);
++            x += dx;
++            z += dz;
++            ct++;
++            if (ct == t) {
++                ct = 0;
++                if (dz > 0) {
++                    dx = 1;
++                    dz = 0;
++                } else if (dx > 0) {
++                    dx = 0;
++                    dz = -1;
++                    t++;
++                } else if (dz < 0) {
++                    dx = -1;
++                    dz = 0;
++                } else {
++                    dx = 0;
++                    dz = 1;
++                    t++;
++                }
++            }
++        }
++    }
++
++    public Stream<ChunkHolder> getChunkHoldersSortedBySquaredPythagoreanDistanceToClosestPlayer(Stream<ChunkHolder> chunkHolders) {
++        return chunkHolders
++            .map(holder -> new ObjectObjectImmutablePair<>(holder, holder.getWorld().players
++                .stream()
++                .map(player -> player.getSquaredPythagoreanDistanceToChunk(holder.getPos().longKey))
++                .min(Long::compare).orElse(null)))
++            .sorted(Comparator.comparingLong(Pair::second))
++            .map(Pair::first);
++    }
++
++    // Martijn end - sort chunks by distance
++
+     boolean unloadingPlayerChunk = false; // Paper - do not allow ticket level changes while unloading chunks
+     public ChunkMap(ServerLevel world, LevelStorageSource.LevelStorageAccess session, DataFixer dataFixer, StructureManager structureManager, Executor executor, BlockableEventLoop<Runnable> mainThreadExecutor, LightChunkGetter chunkProvider, ChunkGenerator chunkGenerator, ChunkProgressListener worldGenerationProgressListener, ChunkStatusUpdateListener chunkStatusChangeListener, Supplier<DimensionDataStorage> persistentStateManagerFactory, int viewDistance, boolean dsync) {
+         super(session.getDimensionPath(world.dimension()).resolve("region"), dataFixer, dsync);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 index 09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058..ecc30a97d5788f3c33ab79d9c3d1fce52614c96a 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
