@@ -5,10 +5,10 @@ Subject: [PATCH] Add more packet types that are flushed without delay
 
 
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 6782643d04bf1efba4c5e2e99b56dfcf0843381c..850abfb5dade859d22dfc0e5162bd8d157943b92 100644
+index 1b62ca915a94258e94fadda0b59336cb14b265b0..34b2e749656f888ca49c44d05f9b5f9ffdcca642 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
-@@ -379,7 +379,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -380,7 +380,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
@@ -20,7 +20,7 @@ index 6782643d04bf1efba4c5e2e99b56dfcf0843381c..850abfb5dade859d22dfc0e5162bd8d1
 +            || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
 +            || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
 +            ; // no delay for certain packets
-+        // Martijn end
++        // Martijn end - more packets without delay
          // Paper end - add flush parameter
          ConnectionProtocol enumprotocol = ConnectionProtocol.getProtocolForPacket(packet);
          ConnectionProtocol enumprotocol1 = this.getCurrentProtocol();
