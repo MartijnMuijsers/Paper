@@ -6,7 +6,7 @@ Subject: [PATCH] Utility methods for getting the distance between a player and
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index c032aec0e35f1be6ef967577f47dbc4a304515b7..09a7cb5632ad2cb0b9dde94f6d7ed7d4eb9c4058 100644
+index 805e7060b49cc521f01c558e72da3d01276f147a..80b0a25b0f69ff3093d979960ab32021e1dea731 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -392,6 +392,36 @@ public class ServerPlayer extends Player {
