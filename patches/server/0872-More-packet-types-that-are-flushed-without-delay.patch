@@ -5,10 +5,10 @@ Subject: [PATCH] More packet types that are flushed without delay
 
 
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 1b62ca915a94258e94fadda0b59336cb14b265b0..34b2e749656f888ca49c44d05f9b5f9ffdcca642 100644
+index 2684bcd62109ed4b7b85c8e8346cb7e64333e378..f8a895405545b8761f998083189f6521f4237694 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
-@@ -380,7 +380,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -402,7 +402,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
