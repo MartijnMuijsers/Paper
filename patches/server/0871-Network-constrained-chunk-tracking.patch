@@ -5,10 +5,10 @@ Subject: [PATCH] Network-constrained chunk tracking
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index e24f9cfcd9ae7a58d72ceb55326a22401a759521..329b04f999d78505edc26fd1d05292cb39051807 100644
+index 5f32e124048856147f75d2475d0a38ef9ea0faa5..f545ea0140542e87ef5c61884e36203617e14470 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -112,6 +112,15 @@ public class PaperConfig {
+@@ -127,6 +127,15 @@ public class PaperConfig {
  
      // Martijn end - survival debug stick
  
@@ -865,7 +865,7 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
          return this.lastSectionPos;
      }
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index a9e39b3559fdc9fb0dd2f599f85643a27b784b5e..fa033e9ff389be130309aa5925652660db16ddc4 100644
+index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..a2df911fd3c7042d79d6322c6aa62c77071ccb24 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -145,6 +145,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -876,25 +876,7 @@ index a9e39b3559fdc9fb0dd2f599f85643a27b784b5e..fa033e9ff389be130309aa5925652660
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.HitResult;
-@@ -361,10 +362,13 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
-         long elapsedTime = currentTime - this.keepAliveTime;
- 
-         if (this.keepAlivePending) {
--            if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
--                ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
--                this.disconnect(new TranslatableComponent("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
--            }
-+            // Martijn start - no disconnect on late or wrong keepalive
-+            // Do not disconnect on late receival of keepalive, or when keepalive challenge is wrong
-+//            if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
-+//                ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
-+//                this.disconnect(new TranslatableComponent("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
-+//            }
-+            // Martijn end - no disconnect on late or wrong keepalive
-         } else {
-             if (elapsedTime >= PaperConfig.keepaliveSendInterval) { // Martijn - configurable keepalive
-                 this.keepAlivePending = true;
-@@ -2002,6 +2006,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -2006,6 +2007,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      }
  
@@ -909,7 +891,7 @@ index a9e39b3559fdc9fb0dd2f599f85643a27b784b5e..fa033e9ff389be130309aa5925652660
      @Override
      public void send(Packet<?> packet) {
          this.send(packet, (GenericFutureListener) null);
-@@ -3102,18 +3114,56 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3106,11 +3115,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      @Override
      public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
@@ -955,19 +937,4 @@ index a9e39b3559fdc9fb0dd2f599f85643a27b784b5e..fa033e9ff389be130309aa5925652660
 +
              this.keepAlivePending = false;
          } else if (!this.isSingleplayerOwner()) {
--            // Paper start - This needs to be handled on the main thread for plugins
--            server.submit(() -> {
--            this.disconnect(new TranslatableComponent("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
--            });
--            // Paper end
-+            // Martijn start - no disconnect on late or wrong keepalive
-+            // Do not disconnect on late receival of keepalive, or when keepalive challenge is wrong
-+//            // Paper start - This needs to be handled on the main thread for plugins
-+//            server.submit(() -> {
-+//            this.disconnect(new TranslatableComponent("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
-+//            });
-+//            // Paper end
-+            // Martijn end - no disconnect on late or wrong keepalive
-         }
- 
-     }
+             // Martijn start - no disconnect on late or wrong keepalive
