@@ -231,10 +231,10 @@ index 26fb337dc13885ddd9e2c1ab4e1759f11c2cc584..4eba1c29957d8237ae45d01d656db751
          return this.poiManager;
      }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb0415cbede6 100644
+index 70260a4874e3acae517872e9951e14c6b88d3967..81ad10318c81f6b90394380927ecd4a4dea09cbc 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -533,6 +533,309 @@ public class ServerPlayer extends Player {
+@@ -541,6 +541,309 @@ public class ServerPlayer extends Player {
      public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
      // Paper end
  
@@ -544,7 +544,7 @@ index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb04
      // CraftBukkit start
      public String displayName;
      public net.kyori.adventure.text.Component adventure$displayName; // Paper
-@@ -557,6 +860,11 @@ public class ServerPlayer extends Player {
+@@ -565,6 +868,11 @@ public class ServerPlayer extends Player {
  
      public ServerPlayer(MinecraftServer server, ServerLevel world, GameProfile profile) {
          super(world, world.getSharedSpawnPos(), world.getSharedSpawnAngle(), profile);
@@ -556,7 +556,7 @@ index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb04
          this.chatVisibility = ChatVisiblity.FULL;
          this.canChatColor = true;
          this.lastActionTime = Util.getMillis();
-@@ -908,6 +1216,11 @@ public class ServerPlayer extends Player {
+@@ -916,6 +1224,11 @@ public class ServerPlayer extends Player {
      // CraftBukkit start - World fallback code, either respawn location or global spawn
      public void spawnIn(Level world) {
          this.level = world;
@@ -568,7 +568,7 @@ index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb04
          if (world == null) {
              this.unsetRemoved();
              Vec3 position = null;
-@@ -1512,6 +1825,9 @@ public class ServerPlayer extends Player {
+@@ -1520,6 +1833,9 @@ public class ServerPlayer extends Player {
  
                  // CraftBukkit end
                  this.setLevel(worldserver);
@@ -578,7 +578,7 @@ index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb04
                  worldserver.addDuringPortalTeleport(this);
                  this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
                  this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
-@@ -2532,25 +2848,91 @@ public class ServerPlayer extends Player {
+@@ -2540,25 +2856,91 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -677,7 +677,7 @@ index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb04
              List<Entity> list = Lists.newArrayList();
              List<Entity> list1 = Lists.newArrayList();
              // Paper start - optimise entity tracker
-@@ -2561,7 +2943,7 @@ public class ServerPlayer extends Player {
+@@ -2569,7 +2951,7 @@ public class ServerPlayer extends Player {
                  if (entity == this) {
                      continue;
                  }
@@ -686,7 +686,7 @@ index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb04
                  if (tracker != null) { // dumb plugins... move on...
                      tracker.updatePlayer(this);
                  }
-@@ -2601,10 +2983,66 @@ public class ServerPlayer extends Player {
+@@ -2609,10 +2991,66 @@ public class ServerPlayer extends Player {
              }
  
          }
@@ -753,7 +753,7 @@ index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb04
          if (this.isAlive()) {
              if (!concernsTracking) {
                  this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
-@@ -2620,13 +3058,36 @@ public class ServerPlayer extends Player {
+@@ -2628,13 +3066,36 @@ public class ServerPlayer extends Player {
  
      }
  
