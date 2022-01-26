@@ -116,7 +116,7 @@ index d271871563fa883efb77b35ec3b1dfbba87f0b62..980d91a34f886b8833ff693289ec0443
  
      private static final class ChunkSaveDebug {
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc10041372dae7 100644
+index 0b09b59f019ebe181ff0a9a6a8092f5b4f0ae78c..494b4896c4b158cf7ff035d16a233662c0c213cc 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -156,7 +156,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
@@ -149,7 +149,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
          }
          // Paper end - use distance map to optimise entity tracker
          this.playerChunkTickRangeMap.update(player, chunkX, chunkZ, DistanceManager.MOB_SPAWN_RANGE); // Paper - optimise ChunkMap#anyPlayerCloseEnoughForSpawning
-@@ -442,7 +445,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -497,7 +500,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
          this.distanceManager = new ChunkMap.ChunkDistanceManager(executor, mainThreadExecutor);
          this.overworldDataStorage = persistentStateManagerFactory;
          this.poiManager = new PoiManager(path.resolve("poi"), dataFixer, dsync, world);
@@ -158,7 +158,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
          // Paper start
          this.dataRegionManager = new io.papermc.paper.chunk.SingleThreadChunkRegionManager(this.level, 2, (1.0 / 3.0), 1, 6, "Data", DataRegionData::new, DataRegionSectionData::new);
          this.regionManagers.add(this.dataRegionManager);
-@@ -689,11 +692,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -744,11 +747,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      }
  
      // Paper start
@@ -174,7 +174,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
      // Paper end
  
      private CompletableFuture<Either<List<ChunkAccess>, ChunkHolder.ChunkLoadingFailure>> getChunkRangeFuture(ChunkPos centerChunk, int margin, IntFunction<ChunkStatus> distanceToStatus) {
-@@ -1396,7 +1399,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1451,7 +1454,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                  this.tickingGenerated.getAndIncrement();
                  MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject = new MutableObject<>(); // Paper - Anti-Xray - Bypass
  
@@ -183,7 +183,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
                      this.playerLoadedChunk(entityplayer, mutableobject, chunk);
                  });
              });
-@@ -1548,32 +1551,48 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1603,32 +1606,48 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
          }
      }
  
@@ -250,7 +250,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
  
      protected void updateChunkTracking(ServerPlayer player, ChunkPos pos, MutableObject<java.util.Map<Object, ClientboundLevelChunkWithLightPacket>> mutableobject, boolean oldWithinViewDistance, boolean newWithinViewDistance) { // Paper - Anti-Xray - Bypass
          if (player.level == this.level) {
-@@ -1840,14 +1859,17 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1895,14 +1914,17 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  
              this.playerMap.removePlayer(sectionposition.chunk().toLong(), player);
              if (!flag2) {
@@ -272,7 +272,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
                      ChunkPos chunkcoordintpair = new ChunkPos(k, l);
  
                      this.updateChunkTracking(player, chunkcoordintpair, new MutableObject(), !added, added);
-@@ -1881,7 +1903,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1936,7 +1958,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
          if (flag2 || flag != flag1) {
              this.updatePlayerPos(player);
              if (!flag) {
@@ -281,7 +281,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
              }
  
              if (!flag1) {
-@@ -1906,16 +1928,21 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1961,16 +1983,21 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
          int k1;
          int l1;
  
@@ -310,7 +310,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
  
                      this.updateChunkTracking(player, new ChunkPos(k2, l2), new MutableObject(), flag3, flag4);
                  }
-@@ -1924,9 +1951,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1979,9 +2006,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
              boolean flag5;
              boolean flag6;
  
@@ -325,7 +325,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
                          flag5 = true;
                          flag6 = false;
                          this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), true, false);
-@@ -1934,9 +1963,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -1989,9 +2018,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                  }
              }
  
@@ -340,7 +340,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
                          flag5 = false;
                          flag6 = true;
                          this.updateChunkTracking(player, new ChunkPos(k1, l1), new MutableObject(), false, true);
-@@ -1950,16 +1981,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2005,16 +2036,15 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      }
  
      @Override
@@ -359,7 +359,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
                  builder.add(entityplayer);
              }
          }
-@@ -1967,6 +1997,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2022,6 +2052,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
          return builder.build();
      }
  
@@ -374,7 +374,7 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..01457ea0c7867b1680e2c9f4e6dc1004
      public void addEntity(Entity entity) {
          org.spigotmc.AsyncCatcher.catchOp("entity track"); // Spigot
          // Paper start - ignore and warn about illegal addEntity calls instead of crashing server
-@@ -2333,7 +2371,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2388,7 +2426,7 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                  double vec3d_dx = player.getX() - this.entity.getX();
                  double vec3d_dz = player.getZ() - this.entity.getZ();
                  // Paper end - remove allocation of Vec3D here
