@@ -76,18 +76,34 @@ index 660c8fe4c8b2a459d738754e624fdd6cd59f7792..62744fbded0d6863b20ed6e12903ce7d
      private void zombiesTargetTurtleEggs() {
          zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
 diff --git a/src/main/java/net/minecraft/server/level/ChunkHolder.java b/src/main/java/net/minecraft/server/level/ChunkHolder.java
-index 980d91a34f886b8833ff693289ec0443b5bd4d95..5576427bb2b76b4fc7c5a9c72f67d8be8e7490d1 100644
+index 980d91a34f886b8833ff693289ec0443b5bd4d95..3f27b48f0ec29e2d7659a50f05f517ca130ae270 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkHolder.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkHolder.java
-@@ -343,7 +343,7 @@ public class ChunkHolder {
+@@ -36,6 +36,7 @@ import net.minecraft.world.level.chunk.ProtoChunk;
+ import net.minecraft.world.level.lighting.LevelLightEngine;
+ // CraftBukkit start
+ import net.minecraft.server.MinecraftServer;
++import org.bukkit.Chunk;
+ // CraftBukkit end
  
-     public void broadcast(Packet<?> packet, boolean onlyOnWatchDistanceEdge) {
-         this.playerProvider.getPlayersNearChunkForSending(this.pos, onlyOnWatchDistanceEdge).forEach((entityplayer) -> { // Martijn - per-player send distance
--            entityplayer.connection.send(packet);
-+            entityplayer.connection.sendIfTracking(this.getTickingChunk(), packet); // Martijn - network-constrained chunk tracking
-         });
+ public class ChunkHolder {
+@@ -341,11 +342,15 @@ public class ChunkHolder {
+ 
      }
  
++    // Martijn start - network-constrained chunk tracking
+     public void broadcast(Packet<?> packet, boolean onlyOnWatchDistanceEdge) {
++        LevelChunk chunk = this.getTickingChunk(); // Will be null if not present
++        if (chunk == null) return;
+         this.playerProvider.getPlayersNearChunkForSending(this.pos, onlyOnWatchDistanceEdge).forEach((entityplayer) -> { // Martijn - per-player send distance
+-            entityplayer.connection.send(packet);
++            entityplayer.connection.sendIfTracking(chunk, packet);
+         });
+     }
++    // Martijn end - network-constrained chunk tracking
+ 
+     public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
+         int i = targetStatus.getIndex();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
 index 397f2b75d7cbf564ab450ba8be8576f3e5507ae5..9cceddf21c8bb271f0bd9f72876b8f5a1baa3ba6 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
@@ -883,7 +899,7 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
          return this.lastSectionPos;
      }
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..a2df911fd3c7042d79d6322c6aa62c77071ccb24 100644
+index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..442fe814414ecff4b383f9d0d69e722fb0878758 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -145,6 +145,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -894,12 +910,13 @@ index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..a2df911fd3c7042d79d6322c6aa62c77
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.HitResult;
-@@ -2006,6 +2007,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -2006,6 +2007,15 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      }
  
 +    // Martijn start - network-constrained chunk tracking
 +    public void sendIfTracking(LevelChunk chunk, Packet<?> packet) {
++        if (chunk == null) return;
 +        if (this.getPlayer().isTracking(chunk)) {
 +            this.send(packet);
 +        }
@@ -909,7 +926,7 @@ index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..a2df911fd3c7042d79d6322c6aa62c77
      @Override
      public void send(Packet<?> packet) {
          this.send(packet, (GenericFutureListener) null);
-@@ -3106,11 +3115,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3106,11 +3116,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      @Override
      public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
