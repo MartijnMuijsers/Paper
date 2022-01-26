@@ -1017,7 +1017,7 @@ index 176babda1914b65ec4d05812ce1a8b1d7f558dc9..26fb337dc13885ddd9e2c1ab4e1759f1
                  double d2 = d0 * d0;
                  boolean flag = d1 <= d2 && this.entity.broadcastToPlayer(player);
 diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
-index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f3e592196 100644
+index 1744f4983b24a87f3861ebd5d68120cfce904934..fe6589d87632263ed50163ae3dc2aa42a1ae7035 100644
 --- a/src/main/java/net/minecraft/server/level/DistanceManager.java
 +++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
 @@ -1,9 +1,12 @@
@@ -1069,7 +1069,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
      private final TickingTracker tickingTicketsTracker = new TickingTracker();
 -    private final DistanceManager.PlayerTicketTracker playerTicketManager = new DistanceManager.PlayerTicketTracker(33);
 +    // Martijn start - per-player load distance
-+    private final Object playerTicketManagerLock = new Object();
++//    private final Object playerTicketManagerLock = new Object();
 +    private static final int maxPlayerTrackerViewDistance = 33;
 +    public final boolean perPlayerLoadViewDistance;
 +    private final @Nullable Map<UUID, PlayerTicketTracker> playerTicketManagers;
@@ -1085,20 +1085,20 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
          this.chunkMap = chunkMap; // Paper
 +        // Martijn start - per-player load distance
 +        this.perPlayerLoadViewDistance = this.chunkMap.level.paperConfig.getPerPlayerLoadViewDistance();
-+        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
 +            this.playerTicketManagers = this.perPlayerLoadViewDistance ? new HashMap<>(1) : null;
 +            this.sharedPlayerTicketManager = this.perPlayerLoadViewDistance ? null : createNewPlayerTicketManager();
 +            this.combinedPlayerTicketManager = new CombinedPlayerTicketTracker();
-+        }
++//        }
 +        // Martijn end - per-player load distance
-+    }
-+
+     }
+ 
 +    // Martijn start - per-player load distance
 +
 +    private @NotNull Iterable<@NotNull DistanceManager.PlayerTicketTracker> getPlayerTicketManagers() {
-+        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
 +            return this.perPlayerLoadViewDistance ? this.playerTicketManagers.values() : Collections.singletonList(this.sharedPlayerTicketManager);
-+        }
++//        }
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker createNewPlayerTicketManager() {
@@ -1106,25 +1106,25 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker getOrCreatePlayerTicketManager(ServerPlayer player) {
-+        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
 +            return this.perPlayerLoadViewDistance ? this.playerTicketManagers.computeIfAbsent(player.getUUID(), it -> {
 +                DistanceManager.PlayerTicketTracker tracker = this.createNewPlayerTicketManager();
 +                tracker.updateViewDistanceByPlayerLoadDistance(player);
 +                return tracker;
 +            }) : this.sharedPlayerTicketManager;
-+        }
++//        }
 +    }
 +
 +    private @NotNull DistanceManager.PlayerTicketTracker getPlayerTicketManagerIfExists(ServerPlayer player) {
-+        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
 +            return this.perPlayerLoadViewDistance ? this.playerTicketManagers.get(player.getUUID()) : this.sharedPlayerTicketManager;
-+        }
-     }
- 
++//        }
++    }
++
 +    private void removePlayerTicketManager(ServerPlayer player) {
-+        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
 +            if (this.perPlayerLoadViewDistance) this.playerTicketManagers.remove(player.getUUID());
-+        }
++//        }
 +    }
 +
 +    // Martijn end - per-player load distance
@@ -1138,7 +1138,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
          org.spigotmc.AsyncCatcher.catchOp("DistanceManagerTick"); // Paper
 -        this.playerTicketManager.runAllUpdates();
 +        // Martijn - per-player load distance
-+        synchronized (this.playerTicketManagerLock) {
++//        synchronized (this.playerTicketManagerLock) {
 +            List<PlayerTicketTracker> playerTicketTrackers = new ArrayList<>();
 +            this.getPlayerTicketManagers().forEach(playerTicketTrackers::add);
 +            playerTicketTrackers.forEach(it -> it.runAllUpdates());
@@ -1154,7 +1154,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
 +                    playerTicketManagers.remove(playerTicketTracerUUID);
 +                }
 +            }
-+        }
++//        }
 +        // Martijn end - per-player load distance
          int i = Integer.MAX_VALUE - this.ticketTracker.runDistanceUpdates(Integer.MAX_VALUE);
          boolean flag = i != 0;
@@ -1216,17 +1216,17 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
              //this.f.update(i, Integer.MAX_VALUE, false); // Paper - no longer used
 -            this.playerTicketManager.update(i, Integer.MAX_VALUE, false);
 +            // Martijn start - per-player load distance
-+            synchronized (this.playerTicketManagerLock) {
++//            synchronized (this.playerTicketManagerLock) {
 +                DistanceManager.PlayerTicketTracker playerTicketManager = this.getPlayerTicketManagerIfExists(player);
 +                if (playerTicketManager != null) {
 +                    playerTicketManager.update(i, Integer.MAX_VALUE, false);
 +                }
-+            }
++//            }
 +            // Martijn end - per-player load distance
              this.tickingTicketsTracker.removeTicket(TicketType.PLAYER, chunkcoordintpair, this.getPlayerTicketLevel(), chunkcoordintpair);
          }
  
-@@ -451,10 +554,22 @@ public abstract class DistanceManager {
+@@ -451,9 +554,21 @@ public abstract class DistanceManager {
          return arraysetsorted != null && !arraysetsorted.isEmpty() ? ((Ticket) arraysetsorted.first()).toString() : "no_ticket";
      }
  
@@ -1238,31 +1238,30 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
 +            throw new IllegalStateException("Cannot call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance when using per-player load distances, call updatePlayerTicketsByPlayerLoadDistance instead");
 +        }
 +        this.sharedPlayerTicketManager.updateViewDistanceByWorldViewDistance(worldViewDistance);
-     }
- 
++    }
++
 +    protected void updatePlayerTicketsByPlayerLoadDistance(ServerPlayer player) {
 +        if (!this.perPlayerLoadViewDistance) {
 +            throw new IllegalStateException("Cannot call updatePlayerTicketsByPlayerLoadDistance when not using per-player load distances, call updatePlayerTicketsForAllPlayersInWorldByWorldViewDistance instead");
 +        }
 +        this.getOrCreatePlayerTicketManager(player).updateViewDistanceByPlayerLoadDistance(player);
-+    }
+     }
 +    // Martijn end - per-player load distance
-+
+ 
      public void updateSimulationDistance(int simulationDistance) {
          if (simulationDistance != this.simulationDistance) {
-             this.simulationDistance = simulationDistance;
 @@ -670,37 +785,39 @@ public abstract class DistanceManager {
          }
      }
  
 -    private class PlayerTicketTracker extends DistanceManager.FixedPlayerDistanceChunkTracker {
-+    // Martijn start - per-player load distance
-+    private class CombinedPlayerTicketTracker {
- 
+-
 -        private int viewDistance = 0;
 -        private final Long2IntMap queueLevels = Long2IntMaps.synchronize(new Long2IntOpenHashMap());
 -        private final LongSet toUpdate = new LongOpenHashSet();
--
++    // Martijn start - per-player load distance
++    private class CombinedPlayerTicketTracker {
+ 
 -        protected PlayerTicketTracker(int i) {
 -            super(i);
 -            this.queueLevels.defaultReturnValue(i + 2);
@@ -1296,7 +1295,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
 +            int minDistance = distance;
 +            boolean oldWithinSomeViewDistance = oldWithinViewDistance;
 +            boolean withinSomeViewDistance = withinViewDistance;
-+            synchronized (DistanceManager.this.playerTicketManagerLock) {
++//            synchronized (DistanceManager.this.playerTicketManagerLock) {
 +                for (PlayerTicketTracker otherTracker : DistanceManager.this.getPlayerTicketManagers()) {
 +                    if (otherTracker != tracker) {
 +                        int otherTrackerDistance = otherTracker.getLevel(pos);
@@ -1305,7 +1304,7 @@ index 1744f4983b24a87f3861ebd5d68120cfce904934..a35a9dc400d7f4cef7eac544ee8d129f
 +                        withinSomeViewDistance |= otherTracker.haveTicketFor(otherTrackerDistance);
 +                    }
 +                }
-+            }
++//            }
 +            this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
          }
  
