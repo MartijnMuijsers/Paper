@@ -5,10 +5,10 @@ Subject: [PATCH] Network-constrained chunk tracking
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 0a36ae64a8d50f19587c90ac22681199a9fec773..871e9043117641f50db8e64a8eb68558b2057b0c 100644
+index e24f9cfcd9ae7a58d72ceb55326a22401a759521..329b04f999d78505edc26fd1d05292cb39051807 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -103,6 +103,15 @@ public class PaperConfig {
+@@ -112,6 +112,15 @@ public class PaperConfig {
  
      // Martijn end - survival debug stick
  
@@ -865,10 +865,10 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8d8188cb446c8f92b5fe9a3015986b53
          return this.lastSectionPos;
      }
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 5c9310fe424943a7256f6f77c414147384bad0aa..846323d056974e8661ed358b7f1c20548aa4e982 100644
+index a9e39b3559fdc9fb0dd2f599f85643a27b784b5e..fa033e9ff389be130309aa5925652660db16ddc4 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -144,6 +144,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
+@@ -145,6 +145,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
  import net.minecraft.world.level.block.entity.StructureBlockEntity;
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
@@ -876,7 +876,7 @@ index 5c9310fe424943a7256f6f77c414147384bad0aa..846323d056974e8661ed358b7f1c2054
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.HitResult;
-@@ -360,12 +361,15 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -361,10 +362,13 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
          long elapsedTime = currentTime - this.keepAliveTime;
  
          if (this.keepAlivePending) {
@@ -892,12 +892,9 @@ index 5c9310fe424943a7256f6f77c414147384bad0aa..846323d056974e8661ed358b7f1c2054
 +//            }
 +            // Martijn end - no disconnect on late or wrong keepalive
          } else {
--            if (elapsedTime >= 15000L) { // 15 seconds
-+            if (elapsedTime >= 5000L) { // 5 seconds // Martijn - send keepalive more often
+             if (elapsedTime >= PaperConfig.keepaliveSendInterval) { // Martijn - configurable keepalive
                  this.keepAlivePending = true;
-                 this.keepAliveTime = currentTime;
-                 this.keepAliveChallenge = currentTime;
-@@ -2001,6 +2005,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -2002,6 +2006,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      }
  
@@ -912,7 +909,7 @@ index 5c9310fe424943a7256f6f77c414147384bad0aa..846323d056974e8661ed358b7f1c2054
      @Override
      public void send(Packet<?> packet) {
          this.send(packet, (GenericFutureListener) null);
-@@ -3101,18 +3113,56 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3102,18 +3114,56 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      @Override
      public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
