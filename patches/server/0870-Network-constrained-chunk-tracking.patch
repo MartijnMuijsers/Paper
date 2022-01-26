@@ -380,7 +380,7 @@ index 494b4896c4b158cf7ff035d16a233662c0c213cc..235f4811818d8c885c8683b8f19694d2
      public PoiManager getPoiManager() {
          return this.poiManager;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8df409b7b08a801cdc200b56279974fddb83f278 100644
+index 3dc7491c85e446a1d474c1b8f6c4d02390369097..e0f2dbab190d4c4637b3936e7524c213aef20b42 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -317,6 +317,237 @@ public class ServerPlayer extends Player {
@@ -574,8 +574,8 @@ index 3dc7491c85e446a1d474c1b8f6c4d02390369097..8df409b7b08a801cdc200b56279974fd
 +        }
 +
 +        int manhattanDistance = this.getManhattanDistanceToChunk(chunkKey);
-+        // Do not track if the Manhattan distance is greather than their client view distance or the world view distance
-+        if (manhattanDistance > this.getSendViewDistance()) {
++        // Do not track if the Manhattan distance is much greater than the send view distance (+2 because this is also what is normally used for the inclusive square area in which chunks can potentially be tracked)
++        if (manhattanDistance > this.getSendViewDistance() + 2) {
 +            return false;
 +        }
 +
