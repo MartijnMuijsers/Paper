@@ -1171,7 +1171,7 @@ index 9a07ccbd12675e501a9aebf89ab85adf6fb658ba..1f0ba4a15d15ea570dfb22cf73f7999d
  
      public void setSimulationDistance(int simulationDistance) {
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..b445a68145e6c99f671efdcaa1538d28b2412d6d 100644
+index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..13ec07191062545a2e4f406707449b5429aca2c9 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -18,6 +18,7 @@ import java.util.Optional;
@@ -1182,7 +1182,7 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..b445a68145e6c99f671efdcaa1538d28
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  
-@@ -184,11 +185,125 @@ import org.bukkit.event.player.PlayerPortalEvent;
+@@ -184,11 +185,118 @@ import org.bukkit.event.player.PlayerPortalEvent;
  import org.bukkit.event.player.PlayerTeleportEvent;
  import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
  import org.bukkit.inventory.MainHand;
@@ -1224,14 +1224,7 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..b445a68145e6c99f671efdcaa1538d28
 +    }
 +
 +    public final int getSeeViewDistance() {
-+        return getSeeViewDistance(true);
-+    }
-+
-+    private final int getSeeViewDistance(boolean limitByLoadViewDistanceAlready) {
 +        int seeViewDistance = this.getWorldSeeViewDistance();
-+        if (limitByLoadViewDistanceAlready) {
-+            seeViewDistance = Math.min(seeViewDistance, getLoadViewDistance() - 1);
-+        }
 +        if (getLevel().paperConfig.getPerPlayerSeeViewDistance()) {
 +            if (getLevel().paperConfig.getMaxSeeViewDistance() != -1) {
 +                seeViewDistance = Math.min(seeViewDistance, getLevel().paperConfig.getMaxSeeViewDistance());
@@ -1251,7 +1244,7 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..b445a68145e6c99f671efdcaa1538d28
 +                loadViewDistance = Math.min(loadViewDistance, getLevel().paperConfig.getMaxLoadViewDistance());
 +            }
 +            if (getLevel().paperConfig.getLimitLoadViewDistanceBySeeViewDistance()) {
-+                loadViewDistance = Math.min(loadViewDistance, this.getSeeViewDistance(false) + 1);
++                loadViewDistance = Math.min(loadViewDistance, this.getSeeViewDistance() + 1);
 +            }
 +            if (getLevel().paperConfig.getLimitLoadViewDistanceByClientViewDistance()) {
 +                loadViewDistance = Math.min(loadViewDistance, this.getBukkitEntity().getClientViewDistance() + 1);
@@ -1309,7 +1302,7 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..b445a68145e6c99f671efdcaa1538d28
  
      private static final Logger LOGGER = LogManager.getLogger();
      public long lastSave = MinecraftServer.currentTick; // Paper
-@@ -1992,6 +2107,11 @@ public class ServerPlayer extends Player {
+@@ -1992,6 +2100,11 @@ public class ServerPlayer extends Player {
          this.connection.connection.channel.attr(PaperAdventure.LOCALE_ATTRIBUTE).set(this.adventure$locale);
          // Paper end
          this.clientViewDistance = packet.viewDistance;
@@ -1321,7 +1314,7 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..b445a68145e6c99f671efdcaa1538d28
          // CraftBukkit end
          this.chatVisibility = packet.chatVisibility();
          this.canChatColor = packet.chatColors();
-@@ -2251,27 +2371,102 @@ public class ServerPlayer extends Player {
+@@ -2251,27 +2364,102 @@ public class ServerPlayer extends Player {
  
      }
  
