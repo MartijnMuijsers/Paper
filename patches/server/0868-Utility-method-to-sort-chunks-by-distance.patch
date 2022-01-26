@@ -5,10 +5,10 @@ Subject: [PATCH] Utility method to sort chunks by distance
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 0a04980a8015fe08907a040f0f3ff537267bd462..0b09b59f019ebe181ff0a9a6a8092f5b4f0ae78c 100644
+index 0a04980a8015fe08907a040f0f3ff537267bd462..176babda1914b65ec4d05812ce1a8b1d7f558dc9 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
-@@ -397,6 +397,61 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -397,6 +397,63 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      }
      // Paper end
  
@@ -60,7 +60,9 @@ index 0a04980a8015fe08907a040f0f3ff537267bd462..0b09b59f019ebe181ff0a9a6a8092f5b
 +            .map(holder -> new ObjectObjectImmutablePair<>(holder, holder.getWorld().players
 +                .stream()
 +                .map(player -> player.getSquaredPythagoreanDistanceToChunk(holder.getPos().longKey))
-+                .min(Long::compare).orElse(null)))
++                .min(Long::compare)
++                .orElse(0L) // Happens in case there are no players in the world
++            ))
 +            .sorted(Comparator.comparingLong(Pair::second))
 +            .map(Pair::first);
 +    }
