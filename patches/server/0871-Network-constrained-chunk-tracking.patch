@@ -47,7 +47,7 @@ index 43bdbc81fa60d233ea8b1ecd97740fcb314fba57..ae9033bfe35259a1cc3aebc2f10d4aab
          getSeeViewDistance = Timings.ofSafe("Get see view distance");
          getLoadViewDistance = Timings.ofSafe("Get load view distance");
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 868067ab2f33ec29e533bc661b80dfc0e1149906..4829ecad255b29cf062c2ac17d0ec6b8f65b4b90 100644
+index c3a9a04867d56d853e31620b6b4ef5ac19aaa8cd..56c88b650c600f69def76f1e9167416b20834e6c 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -187,6 +187,15 @@ public class PaperConfig {
@@ -129,7 +129,7 @@ index e8aec6972def3c6e4f7daedcc387d48c1f34be6e..edca32e3a8f2a14d076a558e77bc7311
      public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
          int i = targetStatus.getIndex();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 7b35a7b6c386d9d0358418e8bc1a77697813c0d8..fecc9e937a4d88f18d611dc9b12f2ac01f005d2b 100644
+index 26fb337dc13885ddd9e2c1ab4e1759f11c2cc584..4eba1c29957d8237ae45d01d656db751c2f105c1 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -29,7 +29,7 @@ import java.io.IOException;
@@ -190,7 +190,7 @@ index 7b35a7b6c386d9d0358418e8bc1a77697813c0d8..fecc9e937a4d88f18d611dc9b12f2ac0
 -
          for (boolean track : new boolean[] {true, false}) {
  
-             int viewDistance = (track ? player.getTrackViewDistance() : player.getSeeViewDistance()) + 1;
+             int viewDistance = (track ? player.getCachedTrackViewDistance() : player.getCachedSeeViewDistance()) + 1;
 @@ -2096,6 +2093,9 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
                          }
                      }
@@ -231,7 +231,7 @@ index 7b35a7b6c386d9d0358418e8bc1a77697813c0d8..fecc9e937a4d88f18d611dc9b12f2ac0
          return this.poiManager;
      }
 diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
-index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cbfafb419d 100644
+index ca8314fc7d35d2fdb6d0a9019ef358f4e70da453..981a78752e48bfe7d27b7ecebed3292955aac424 100644
 --- a/src/main/java/net/minecraft/server/level/DistanceManager.java
 +++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
 @@ -774,9 +774,10 @@ public abstract class DistanceManager {
@@ -249,10 +249,10 @@ index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cb
              }
              this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b7c2f99af 100644
+index ff8721306ad6df68e76e53113a72bd3f0ca5f733..d53026939a4c7bbf919000b9bad9fb0415cbede6 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -468,6 +468,309 @@ public class ServerPlayer extends Player {
+@@ -533,6 +533,309 @@ public class ServerPlayer extends Player {
      public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
      // Paper end
  
@@ -512,7 +512,7 @@ index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b
 +
 +        int manhattanDistance = this.getManhattanDistanceToChunk(chunkKey);
 +        // Do not track or see if the Manhattan distance is much greater than the respective view distance (+2 because this is also what is normally used for the inclusive square area in which chunks can potentially be tracked or seen)
-+        if (manhattanDistance > (concernsTracking ? this.getTrackViewDistance() : this.getSeeViewDistance()) + 2) {
++        if (manhattanDistance > (concernsTracking ? this.getCachedTrackViewDistance() : this.getCachedSeeViewDistance()) + 2) {
 +            return false;
 +        }
 +
@@ -562,7 +562,7 @@ index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b
      // CraftBukkit start
      public String displayName;
      public net.kyori.adventure.text.Component adventure$displayName; // Paper
-@@ -492,6 +795,11 @@ public class ServerPlayer extends Player {
+@@ -557,6 +860,11 @@ public class ServerPlayer extends Player {
  
      public ServerPlayer(MinecraftServer server, ServerLevel world, GameProfile profile) {
          super(world, world.getSharedSpawnPos(), world.getSharedSpawnAngle(), profile);
@@ -574,7 +574,7 @@ index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b
          this.chatVisibility = ChatVisiblity.FULL;
          this.canChatColor = true;
          this.lastActionTime = Util.getMillis();
-@@ -843,6 +1151,11 @@ public class ServerPlayer extends Player {
+@@ -908,6 +1216,11 @@ public class ServerPlayer extends Player {
      // CraftBukkit start - World fallback code, either respawn location or global spawn
      public void spawnIn(Level world) {
          this.level = world;
@@ -586,7 +586,7 @@ index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b
          if (world == null) {
              this.unsetRemoved();
              Vec3 position = null;
-@@ -1447,6 +1760,9 @@ public class ServerPlayer extends Player {
+@@ -1512,6 +1825,9 @@ public class ServerPlayer extends Player {
  
                  // CraftBukkit end
                  this.setLevel(worldserver);
@@ -596,7 +596,7 @@ index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b
                  worldserver.addDuringPortalTeleport(this);
                  this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
                  this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
-@@ -2467,25 +2783,91 @@ public class ServerPlayer extends Player {
+@@ -2532,25 +2848,91 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -695,7 +695,7 @@ index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b
              List<Entity> list = Lists.newArrayList();
              List<Entity> list1 = Lists.newArrayList();
              // Paper start - optimise entity tracker
-@@ -2496,7 +2878,7 @@ public class ServerPlayer extends Player {
+@@ -2561,7 +2943,7 @@ public class ServerPlayer extends Player {
                  if (entity == this) {
                      continue;
                  }
@@ -704,7 +704,7 @@ index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b
                  if (tracker != null) { // dumb plugins... move on...
                      tracker.updatePlayer(this);
                  }
-@@ -2536,10 +2918,66 @@ public class ServerPlayer extends Player {
+@@ -2601,10 +2983,66 @@ public class ServerPlayer extends Player {
              }
  
          }
@@ -771,7 +771,7 @@ index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b
          if (this.isAlive()) {
              if (!concernsTracking) {
                  this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
-@@ -2555,13 +2993,36 @@ public class ServerPlayer extends Player {
+@@ -2620,13 +3058,36 @@ public class ServerPlayer extends Player {
  
      }
  
