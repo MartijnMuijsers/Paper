@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
 Date: Wed, 26 Jan 2022 01:10:39 +0100
-Subject: [PATCH] Add utility method to sort chunks by distance
+Subject: [PATCH] Utility method to sort chunks by distance
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java

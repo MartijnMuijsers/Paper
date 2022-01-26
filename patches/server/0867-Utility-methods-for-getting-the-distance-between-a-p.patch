@@ -1,8 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
 Date: Mon, 17 Jan 2022 12:37:38 +0100
-Subject: [PATCH] Add utility methods for getting the distance between a player
- and a chunk
+Subject: [PATCH] Utility methods for getting the distance between a player and
+ a chunk
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
