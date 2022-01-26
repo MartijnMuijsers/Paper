@@ -48,7 +48,7 @@ index 49263fd7e2527192e5d47fa769fa8dc9cddeea00..87d8f6947e682f8a17429d802a2d38d3
  
      /**
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..ef1e9c6a4f858504451a631e63854b19cb867340 100644
+index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..57f9976da6b91470e81dda368470870176bc9922 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -14,6 +14,7 @@ import java.util.Map;
@@ -59,7 +59,7 @@ index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..ef1e9c6a4f858504451a631e63854b19
  import org.spigotmc.SpigotWorldConfig;
  
  import static com.destroystokyo.paper.PaperConfig.log;
-@@ -67,6 +68,114 @@ public class PaperWorldConfig {
+@@ -67,6 +68,165 @@ public class PaperWorldConfig {
          }
      }
  
@@ -71,6 +71,23 @@ index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..ef1e9c6a4f858504451a631e63854b19
 +    }
 +    public boolean getPerPlayerTrackViewDistance() {
 +        return this.perPlayerTrackViewDistance;
++    }
++
++    /**
++     * This is only used if perPlayerTrackViewDistance is true
++     * -1 indicates no limit (it is still limited by the Bukkit world view distance)
++     * Valid values are -1 or an integer in the range [2, 32]
++     */
++    private int maxTrackViewDistance = -1;
++    private void maxTrackViewDistance() {
++        this.maxTrackViewDistance = getInt("view-distances.track-view-distance.max", this.maxTrackViewDistance);
++    }
++    public int getMaxTrackViewDistance() {
++        return this.maxTrackViewDistance;
++    }
++    public void setMaxTrackViewDistance(int maxTrackViewDistance) {
++        this.maxTrackViewDistance = maxTrackViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().trackViewDistanceMayHaveChanged());
 +    }
 +
 +    private boolean limitTrackViewDistanceByClientViewDistance = false;
@@ -97,6 +114,23 @@ index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..ef1e9c6a4f858504451a631e63854b19
 +        return this.perPlayerSeeViewDistance;
 +    }
 +
++    /**
++     * This is only used if perPlayerSeeViewDistance is true
++     * -1 indicates no limit (it is still limited by the Bukkit world view distance)
++     * Valid values are -1 or an integer in the range [2, 32]
++     */
++    private int maxSeeViewDistance = -1;
++    private void maxSeeViewDistance() {
++        this.maxSeeViewDistance = getInt("view-distances.see-view-distance.max", this.maxSeeViewDistance);
++    }
++    public int getMaxSeeViewDistance() {
++        return this.maxSeeViewDistance;
++    }
++    public void setMaxSeeViewDistance(int maxSeeViewDistance) {
++        this.maxSeeViewDistance = maxSeeViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().seeViewDistanceMayHaveChanged());
++    }
++
 +    private boolean limitSeeViewDistanceByClientViewDistance = false;
 +    private void limitSeeViewDistanceByClientViewDistance() {
 +        setLimitSeeViewDistanceByClientViewDistance(getBoolean("view-distances.see-view-distance.limit-by-client-view-distance", this.limitSeeViewDistanceByClientViewDistance));
@@ -119,6 +153,23 @@ index d7dcf36c8c972e30320c56e447822cf26f6d5fb3..ef1e9c6a4f858504451a631e63854b19
 +    }
 +    public boolean getPerPlayerLoadViewDistance() {
 +        return this.perPlayerLoadViewDistance;
++    }
++
++    /**
++     * This is only used if perPlayerLoadViewDistance is true
++     * -1 indicates no limit (it is still limited by the Bukkit world view distance)
++     * Valid values are -1 or an integer in the range [3, 33]
++     */
++    private int maxLoadViewDistance = -1;
++    private void maxLoadViewDistance() {
++        this.maxLoadViewDistance = getInt("view-distances.load-view-distance.max", this.maxLoadViewDistance);
++    }
++    public int getMaxLoadViewDistance() {
++        return this.maxLoadViewDistance;
++    }
++    public void setMaxLoadViewDistance(int maxLoadViewDistance) {
++        this.maxLoadViewDistance = maxLoadViewDistance;
++        Bukkit.getOnlinePlayers().forEach(player -> ((CraftPlayer) player).getHandle().loadViewDistanceMayHaveChanged());
 +    }
 +
 +    private boolean limitLoadViewDistanceBySeeViewDistance = false;
@@ -1120,7 +1171,7 @@ index 9a07ccbd12675e501a9aebf89ab85adf6fb658ba..1f0ba4a15d15ea570dfb22cf73f7999d
  
      public void setSimulationDistance(int simulationDistance) {
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..4e600dfb242930c506a3a1c2e935d4e1247e5484 100644
+index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..b445a68145e6c99f671efdcaa1538d28b2412d6d 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -18,6 +18,7 @@ import java.util.Optional;
@@ -1131,7 +1182,7 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..4e600dfb242930c506a3a1c2e935d4e1
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  
-@@ -184,11 +185,105 @@ import org.bukkit.event.player.PlayerPortalEvent;
+@@ -184,11 +185,125 @@ import org.bukkit.event.player.PlayerPortalEvent;
  import org.bukkit.event.player.PlayerTeleportEvent;
  import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
  import org.bukkit.inventory.MainHand;
@@ -1158,35 +1209,55 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..4e600dfb242930c506a3a1c2e935d4e1
 +    private Integer lastProcessedLoadViewDistance = null;
 +
 +    public final int getTrackViewDistance() {
-+        int trackViewDistance = Math.min(getWorldTrackViewDistance(), getSeeViewDistance());
++        int trackViewDistance = getWorldTrackViewDistance();
++        trackViewDistance = Math.min(trackViewDistance, getSeeViewDistance());
 +        if (getLevel().paperConfig.getPerPlayerTrackViewDistance()) {
++            if (getLevel().paperConfig.getMaxTrackViewDistance() != -1) {
++                trackViewDistance = Math.min(trackViewDistance, getLevel().paperConfig.getMaxTrackViewDistance());
++            }
 +            if (getLevel().paperConfig.getLimitTrackViewDistanceByClientViewDistance()) {
 +                trackViewDistance = Math.min(trackViewDistance, getBukkitEntity().getClientViewDistance());
 +            }
 +        }
++        trackViewDistance = Mth.clamp(trackViewDistance, 2, 32);
 +        return trackViewDistance;
 +    }
 +
 +    public final int getSeeViewDistance() {
++        return getSeeViewDistance(true);
++    }
++
++    private final int getSeeViewDistance(boolean limitByLoadViewDistanceAlready) {
 +        int seeViewDistance = this.getWorldSeeViewDistance();
++        if (limitByLoadViewDistanceAlready) {
++            seeViewDistance = Math.min(seeViewDistance, getLoadViewDistance() - 1);
++        }
 +        if (getLevel().paperConfig.getPerPlayerSeeViewDistance()) {
++            if (getLevel().paperConfig.getMaxSeeViewDistance() != -1) {
++                seeViewDistance = Math.min(seeViewDistance, getLevel().paperConfig.getMaxSeeViewDistance());
++            }
 +            if (getLevel().paperConfig.getLimitSeeViewDistanceByClientViewDistance()) {
 +                seeViewDistance = Math.min(seeViewDistance, getBukkitEntity().getClientViewDistance());
 +            }
 +        }
++        seeViewDistance = Mth.clamp(seeViewDistance, 2, 32);
 +        return seeViewDistance;
 +    }
 +
 +    public final int getLoadViewDistance() {
 +        int loadViewDistance = this.getWorldLoadViewDistance();
-+        if (getLevel().paperConfig.getLimitLoadViewDistanceBySeeViewDistance()) {
-+            loadViewDistance = Math.min(loadViewDistance, this.getSeeViewDistance() + 1);
-+        }
 +        if (getLevel().paperConfig.getPerPlayerLoadViewDistance()) {
++            if (getLevel().paperConfig.getMaxLoadViewDistance() != -1) {
++                loadViewDistance = Math.min(loadViewDistance, getLevel().paperConfig.getMaxLoadViewDistance());
++            }
++            if (getLevel().paperConfig.getLimitLoadViewDistanceBySeeViewDistance()) {
++                loadViewDistance = Math.min(loadViewDistance, this.getSeeViewDistance(false) + 1);
++            }
 +            if (getLevel().paperConfig.getLimitLoadViewDistanceByClientViewDistance()) {
 +                loadViewDistance = Math.min(loadViewDistance, this.getBukkitEntity().getClientViewDistance() + 1);
 +            }
 +        }
++        loadViewDistance = Mth.clamp(loadViewDistance, 3, 33);
 +        return loadViewDistance;
 +    }
 +
@@ -1238,7 +1309,7 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..4e600dfb242930c506a3a1c2e935d4e1
  
      private static final Logger LOGGER = LogManager.getLogger();
      public long lastSave = MinecraftServer.currentTick; // Paper
-@@ -1992,6 +2087,11 @@ public class ServerPlayer extends Player {
+@@ -1992,6 +2107,11 @@ public class ServerPlayer extends Player {
          this.connection.connection.channel.attr(PaperAdventure.LOCALE_ATTRIBUTE).set(this.adventure$locale);
          // Paper end
          this.clientViewDistance = packet.viewDistance;
@@ -1250,7 +1321,7 @@ index ecc30a97d5788f3c33ab79d9c3d1fce52614c96a..4e600dfb242930c506a3a1c2e935d4e1
          // CraftBukkit end
          this.chatVisibility = packet.chatVisibility();
          this.canChatColor = packet.chatColors();
-@@ -2251,27 +2351,102 @@ public class ServerPlayer extends Player {
+@@ -2251,27 +2371,102 @@ public class ServerPlayer extends Player {
  
      }
  

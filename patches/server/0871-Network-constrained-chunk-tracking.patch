@@ -25,10 +25,10 @@ index 87d8f6947e682f8a17429d802a2d38d344066d3d..1a724964069fc030b50707f2428ef75f
      private static void playerIpAddresses() {
          logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index ef1e9c6a4f858504451a631e63854b19cb867340..0cccfb79f06bf12a6c06ade253c5b70b568fee55 100644
+index 57f9976da6b91470e81dda368470870176bc9922..9112d1a764d8661e68e2db39ade6e1cc990434b8 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-@@ -176,6 +176,25 @@ public class PaperWorldConfig {
+@@ -227,6 +227,25 @@ public class PaperWorldConfig {
  
      // Martijn end - sort chunks by distance
  
@@ -198,10 +198,10 @@ index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cb
              }
              this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 4e600dfb242930c506a3a1c2e935d4e1247e5484..98c72af8bec9fc0385e64389d83003ff129ae749 100644
+index b445a68145e6c99f671efdcaa1538d28b2412d6d..13bcb2ec455f6e411df7063f7f251cd276d5c079 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -352,6 +352,282 @@ public class ServerPlayer extends Player {
+@@ -372,6 +372,282 @@ public class ServerPlayer extends Player {
      public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
      // Paper end
  
@@ -484,7 +484,7 @@ index 4e600dfb242930c506a3a1c2e935d4e1247e5484..98c72af8bec9fc0385e64389d83003ff
      // CraftBukkit start
      public String displayName;
      public net.kyori.adventure.text.Component adventure$displayName; // Paper
-@@ -376,6 +652,11 @@ public class ServerPlayer extends Player {
+@@ -396,6 +672,11 @@ public class ServerPlayer extends Player {
  
      public ServerPlayer(MinecraftServer server, ServerLevel world, GameProfile profile) {
          super(world, world.getSharedSpawnPos(), world.getSharedSpawnAngle(), profile);
@@ -496,7 +496,7 @@ index 4e600dfb242930c506a3a1c2e935d4e1247e5484..98c72af8bec9fc0385e64389d83003ff
          this.chatVisibility = ChatVisiblity.FULL;
          this.canChatColor = true;
          this.lastActionTime = Util.getMillis();
-@@ -727,6 +1008,11 @@ public class ServerPlayer extends Player {
+@@ -747,6 +1028,11 @@ public class ServerPlayer extends Player {
      // CraftBukkit start - World fallback code, either respawn location or global spawn
      public void spawnIn(Level world) {
          this.level = world;
@@ -508,7 +508,7 @@ index 4e600dfb242930c506a3a1c2e935d4e1247e5484..98c72af8bec9fc0385e64389d83003ff
          if (world == null) {
              this.unsetRemoved();
              Vec3 position = null;
-@@ -1331,6 +1617,9 @@ public class ServerPlayer extends Player {
+@@ -1351,6 +1637,9 @@ public class ServerPlayer extends Player {
  
                  // CraftBukkit end
                  this.setLevel(worldserver);
@@ -518,7 +518,7 @@ index 4e600dfb242930c506a3a1c2e935d4e1247e5484..98c72af8bec9fc0385e64389d83003ff
                  worldserver.addDuringPortalTeleport(this);
                  this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
                  this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
-@@ -2351,25 +2640,81 @@ public class ServerPlayer extends Player {
+@@ -2371,25 +2660,81 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -607,7 +607,7 @@ index 4e600dfb242930c506a3a1c2e935d4e1247e5484..98c72af8bec9fc0385e64389d83003ff
              List<Entity> list = Lists.newArrayList();
              List<Entity> list1 = Lists.newArrayList();
              // Paper start - optimise entity tracker
-@@ -2380,7 +2725,7 @@ public class ServerPlayer extends Player {
+@@ -2400,7 +2745,7 @@ public class ServerPlayer extends Player {
                  if (entity == this) {
                      continue;
                  }
@@ -616,7 +616,7 @@ index 4e600dfb242930c506a3a1c2e935d4e1247e5484..98c72af8bec9fc0385e64389d83003ff
                  if (tracker != null) { // dumb plugins... move on...
                      tracker.updatePlayer(this);
                  }
-@@ -2420,10 +2765,64 @@ public class ServerPlayer extends Player {
+@@ -2440,10 +2785,64 @@ public class ServerPlayer extends Player {
              }
  
          }
@@ -681,7 +681,7 @@ index 4e600dfb242930c506a3a1c2e935d4e1247e5484..98c72af8bec9fc0385e64389d83003ff
          if (this.isAlive()) {
              if (!concernsTracking) {
                  this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
-@@ -2439,13 +2838,36 @@ public class ServerPlayer extends Player {
+@@ -2459,13 +2858,36 @@ public class ServerPlayer extends Player {
  
      }
  
