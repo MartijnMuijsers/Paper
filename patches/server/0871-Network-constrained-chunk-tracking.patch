@@ -4,6 +4,48 @@ Date: Wed, 26 Jan 2022 01:21:31 +0100
 Subject: [PATCH] Network-constrained chunk tracking
 
 
+diff --git a/src/main/java/co/aikar/timings/WorldTimingsHandler.java b/src/main/java/co/aikar/timings/WorldTimingsHandler.java
+index 43bdbc81fa60d233ea8b1ecd97740fcb314fba57..ae9033bfe35259a1cc3aebc2f10d4aab55867bc2 100644
+--- a/src/main/java/co/aikar/timings/WorldTimingsHandler.java
++++ b/src/main/java/co/aikar/timings/WorldTimingsHandler.java
+@@ -45,7 +45,9 @@ public class WorldTimingsHandler {
+     public final Timing countNaturalMobs;
+ 
+     // Martijn start
++    public final Timing tickAttemptTrackOrSeePlannedChunks;
+     public final Timing getPlayersNearChunkForSending;
++    public final Timing sendPacketIfTrackingChunk;
+     public final Timing chunkMapPlayerMove;
+     public final Timing chunkMapPlayerMoveUpdatePos;
+     public final Timing chunkMapPlayerMoveUpdateDistanceManager;
+@@ -53,6 +55,8 @@ public class WorldTimingsHandler {
+     public final Timing chunkMapUpdatePlayerMaps;
+     public final Timing chunkMapPlayerMoveUpdateChunkTrackingOrSeeing;
+     public final Timing chunkMapPlayerMoveSortChunksForTrackAndSee;
++    public final Timing playerActuallyTrackOrSeeChunk;
++    public final Timing playerPlanToTrackOrSeeChunk;
+     public final Timing getTrackViewDistance;
+     public final Timing getSeeViewDistance;
+     public final Timing getLoadViewDistance;
+@@ -137,7 +141,9 @@ public class WorldTimingsHandler {
+         countNaturalMobs = Timings.ofSafe(name + "Count natural mobs");
+ 
+         // Martijn start
++        tickAttemptTrackOrSeePlannedChunks = Timings.ofSafe("Tick attempt track or see planned chunks");
+         getPlayersNearChunkForSending = Timings.ofSafe("Get players near chunk for sending");
++        sendPacketIfTrackingChunk = Timings.ofSafe("Send packet if tracking chunk");
+         chunkMapPlayerMove = Timings.ofSafe("Chunk map player move");
+         chunkMapPlayerMoveUpdatePos = Timings.ofSafe("Chunk map player move - update pos");
+         chunkMapPlayerMoveUpdateDistanceManager = Timings.ofSafe("Chunk map player move - update distance manager");
+@@ -145,6 +151,8 @@ public class WorldTimingsHandler {
+         chunkMapUpdatePlayerMaps = Timings.ofSafe("Chunk map update player maps");
+         chunkMapPlayerMoveUpdateChunkTrackingOrSeeing = Timings.ofSafe("Chunk map player move - update chunk tracking or seeing");
+         chunkMapPlayerMoveSortChunksForTrackAndSee = Timings.ofSafe("Chunk map player move - sort chunks for track and see");
++        playerActuallyTrackOrSeeChunk = Timings.ofSafe("Player actually track or see chunk");
++        playerPlanToTrackOrSeeChunk = Timings.ofSafe("Player plan to track or see chunk");
+         getTrackViewDistance = Timings.ofSafe("Get track view distance");
+         getSeeViewDistance = Timings.ofSafe("Get see view distance");
+         getLoadViewDistance = Timings.ofSafe("Get load view distance");
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 index 868067ab2f33ec29e533bc661b80dfc0e1149906..4829ecad255b29cf062c2ac17d0ec6b8f65b4b90 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
@@ -87,7 +129,7 @@ index e8aec6972def3c6e4f7daedcc387d48c1f34be6e..edca32e3a8f2a14d076a558e77bc7311
      public CompletableFuture<Either<ChunkAccess, ChunkHolder.ChunkLoadingFailure>> getOrScheduleFuture(ChunkStatus targetStatus, ChunkMap chunkStorage) {
          int i = targetStatus.getIndex();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
-index 3deab3fec1f10f42e1f69f16eb09f3103ccb8b6d..359508b18261b26b1054febe13ea9d2920912e1e 100644
+index 3deab3fec1f10f42e1f69f16eb09f3103ccb8b6d..2e9bd1529eac765bbe97b5f3f326a550c5128d22 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
 +++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
 @@ -29,7 +29,7 @@ import java.io.IOException;
@@ -159,18 +201,20 @@ index 3deab3fec1f10f42e1f69f16eb09f3103ccb8b6d..359508b18261b26b1054febe13ea9d29
              }
  
          }
-@@ -2237,6 +2237,10 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2237,6 +2237,12 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
      // Paper end - optimised tracker
  
      protected void tick() {
 +        // Martijn start - network-constrained chunk tracking
 +        this.level.players.forEach(ServerPlayer::resetChunksNewlyTrackedOrSeenThisTick);
++        level.timings.tickAttemptTrackOrSeePlannedChunks.startTiming();
 +        attemptToTrackOrSeePlannedChunksForAllPlayers();
++        level.timings.tickAttemptTrackOrSeePlannedChunks.stopTiming();
 +        // Martijn end - network-constrained chunk tracking
          // Paper start - optimized tracker
          if (true) {
              this.processTrackQueue();
-@@ -2367,6 +2371,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+@@ -2367,6 +2373,14 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
  //
  //    }
  
@@ -204,7 +248,7 @@ index 9ee2441cb104d5a8fab62b6c94eca1d1d4631540..7d2289cb28f6b5937cbb746aa4c0e9cb
              }
              this.onCombinedPlayerTicketTrackerLevelChange(pos, minDistance, oldWithinSomeViewDistance, withinSomeViewDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890ec446a37 100644
+index f3cdc324942565400121d69048d27b7befed7893..bc3808af9d4ecfc880b535c96924cd5b7c2f99af 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -468,6 +468,309 @@ public class ServerPlayer extends Player {
@@ -551,7 +595,7 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
                  worldserver.addDuringPortalTeleport(this);
                  this.connection.teleport(exit); // CraftBukkit - use internal teleport without event
                  this.connection.resetPosition(); // CraftBukkit - sync position after changing it (from PortalTravelAgent#findAndteleport)
-@@ -2467,25 +2783,81 @@ public class ServerPlayer extends Player {
+@@ -2467,25 +2783,91 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -562,6 +606,8 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
 +    public void planToTrackOrSeeChunk(LevelChunk chunk, boolean concernsTracking) {
  
 -        this.connection.send(chunkDataPacket);
++        chunk.level.timings.playerPlanToTrackOrSeeChunk.startTiming();
++
 +        UUID levelUUID = chunk.level.uuid;
 +        ChunkPos chunkPos = chunk.getPos();
 +
@@ -573,7 +619,10 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
 +                trackOrSeeInstantly = true;
 +            } else {
 +                trackOrSeeInstantly = false;
-+                if (this.isTrackingOrSeeing(levelUUID, chunkPos.longKey, concernsTracking)) return;
++                if (this.isTrackingOrSeeing(levelUUID, chunkPos.longKey, concernsTracking)) {
++                    chunk.level.timings.playerPlanToTrackOrSeeChunk.stopTiming();
++                    return;
++                }
 +                this.addPlannedToTrackOrSee(levelUUID, chunkPos.longKey, concernsTracking);
 +            }
 +        }
@@ -581,6 +630,8 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
 +        if (trackOrSeeInstantly) {
 +            this.actuallyTrackOrSeeChunk(chunk, concernsTracking);
 +        }
++
++        chunk.level.timings.playerPlanToTrackOrSeeChunk.stopTiming();
 +
 +    }
 +    // Note: does nothing if the chunk is already tracked or seen
@@ -591,6 +642,8 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
 +    // Note: does nothing if the chunk is already tracked or seen
 +    private boolean actuallyTrackOrSeeChunk(LevelChunk chunk, Supplier<Packet<?>> chunkInitializationPacketSupplier, boolean concernsTracking) {
 +
++        chunk.level.timings.playerActuallyTrackOrSeeChunk.startTiming();
++
 +        UUID levelUUID = chunk.level.uuid;
 +        ChunkMap chunkMap = this.getLevel().getChunkSource().chunkMap;
 +        ChunkPos chunkPos = chunk.getPos();
@@ -600,6 +653,7 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
 +
 +            // This is important: when already tracked or seen, do nothing
 +            if (this.isTrackingOrSeeing(levelUUID, chunkPos.longKey, concernsTracking)) {
++                chunk.level.timings.playerActuallyTrackOrSeeChunk.stopTiming();
 +                return false;
 +            }
 +
@@ -640,7 +694,7 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
              List<Entity> list = Lists.newArrayList();
              List<Entity> list1 = Lists.newArrayList();
              // Paper start - optimise entity tracker
-@@ -2496,7 +2868,7 @@ public class ServerPlayer extends Player {
+@@ -2496,7 +2878,7 @@ public class ServerPlayer extends Player {
                  if (entity == this) {
                      continue;
                  }
@@ -649,16 +703,17 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
                  if (tracker != null) { // dumb plugins... move on...
                      tracker.updatePlayer(this);
                  }
-@@ -2536,10 +2908,65 @@ public class ServerPlayer extends Player {
+@@ -2536,10 +2918,66 @@ public class ServerPlayer extends Player {
              }
  
          }
 +
 +        this.incrementChunksNewlyTrackedOrSeenThisTick();
++        chunk.level.timings.playerActuallyTrackOrSeeChunk.stopTiming();
 +        return true;
 +
-     }
- 
++    }
++
 +    public void tickAttemptToTrackOrSeePlannedChunks() {
 +
 +        {
@@ -696,8 +751,8 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
 +
 +        }
 +
-+    }
-+
+     }
+ 
 +    // Note that this will execute untracking or unseeing actions even if the chunk was not tracked or seen
      public void untrackOrUnseeChunk(ChunkPos chunkPos, boolean concernsTracking) {
  
@@ -715,7 +770,7 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
          if (this.isAlive()) {
              if (!concernsTracking) {
                  this.connection.send(new ClientboundForgetLevelChunkPacket(chunkPos.x, chunkPos.z));
-@@ -2555,13 +2982,36 @@ public class ServerPlayer extends Player {
+@@ -2555,13 +2993,36 @@ public class ServerPlayer extends Player {
  
      }
  
@@ -755,7 +810,7 @@ index f3cdc324942565400121d69048d27b7befed7893..87f66c0492302a694e11e54cda08c890
      public SectionPos getLastSectionPos() {
          return this.lastSectionPos;
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..44a22539de85e5703c3abfb294e005093d053aa4 100644
+index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..c4edbb9fb7419ded624d94e614f93e745dd203a8 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -145,6 +145,7 @@ import net.minecraft.world.level.block.entity.SignBlockEntity;
@@ -766,23 +821,25 @@ index 2b1c0e420bcf665c6d58d8690cb91c885f3268ec..44a22539de85e5703c3abfb294e00509
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.HitResult;
-@@ -2006,6 +2007,15 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -2006,6 +2007,17 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      }
  
 +    // Martijn start - network-constrained chunk tracking
 +    public void sendIfTracking(LevelChunk chunk, Packet<?> packet) {
 +        if (chunk == null) return;
++        chunk.level.timings.sendPacketIfTrackingChunk.startTiming();
 +        if (this.getPlayer().isTrackingOrSeeingNonSync(chunk, true)) {
 +            this.send(packet);
 +        }
++        chunk.level.timings.sendPacketIfTrackingChunk.stopTiming();
 +    }
 +    // Martijn end - network-constrained chunk tracking
 +
      @Override
      public void send(Packet<?> packet) {
          this.send(packet, (GenericFutureListener) null);
-@@ -3106,11 +3116,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3106,11 +3118,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      @Override
      public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
