@@ -1,14 +1,14 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Kevin Raneri <kevin.raneri@gmail.com>
 Date: Tue, 9 Nov 2021 13:53:53 -0500
-Subject: [PATCH] Pufferfish Config and Command
+Subject: [PATCH] Pufferfish - Pufferfish Config and Command
 
 
 diff --git a/build.gradle.kts b/build.gradle.kts
-index db4fd49b4a94b3f6553ecce9b6430d7da9b3d081..60733ba2b06a5c0e5ea855b704f72d76d286bab6 100644
+index dd8f449dddbe0838835ae8f8d5033aa422db403d..9185f5a1d1571fa90ed0f75f9b56eb2511ab0268 100644
 --- a/build.gradle.kts
 +++ b/build.gradle.kts
-@@ -46,6 +46,13 @@ dependencies {
+@@ -42,6 +42,13 @@ dependencies {
      }
      // Paper end
  
@@ -252,7 +252,7 @@ index 0000000000000000000000000000000000000000..deb52c185705c4b4186c7bae02f2a827
 +	
 +}
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index e28e09aae1d95d9bed50a137e999e6d457e62478..340204ef44bf5e4f1b91808d90abc29217cfafde 100644
+index 257c94f7c1cb00c9a91ab82e311dfd8eca29c538..f723445ac4745742ffe528d189b0145120777d9e 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -235,6 +235,8 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
