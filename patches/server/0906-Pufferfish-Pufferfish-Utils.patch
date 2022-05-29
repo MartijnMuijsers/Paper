@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Kevin Raneri <kevin.raneri@gmail.com>
 Date: Tue, 9 Nov 2021 23:36:56 -0500
-Subject: [PATCH] (Pufferfish) Pufferfish Utils
+Subject: [PATCH] Pufferfish Utils
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java b/src/main/java/com/destroystokyo/paper/util/misc/AreaMap.java
