@@ -1,11 +1,11 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Paul <paul@technove.co>
 Date: Tue, 6 Jul 2021 17:51:18 -0500
-Subject: [PATCH] Ignore lookups if closed
+Subject: [PATCH] Pufferfish - Ignore lookups if closed
 
 
 diff --git a/src/main/java/org/bukkit/plugin/java/PluginClassLoader.java b/src/main/java/org/bukkit/plugin/java/PluginClassLoader.java
-index 3f00149a9635447fdd247c1d780f59e1952d165e..c67e91316f35750b18e082746206a01e783f1740 100644
+index 6453595cc78143369171589ce2b713f703f6d7be..dc76cdbe93a0229a8ff552e4048613e3d8e050ce 100644
 --- a/src/main/java/org/bukkit/plugin/java/PluginClassLoader.java
 +++ b/src/main/java/org/bukkit/plugin/java/PluginClassLoader.java
 @@ -46,6 +46,8 @@ public final class PluginClassLoader extends URLClassLoader { // Spigot

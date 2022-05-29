@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Kevin Raneri <kevin.raneri@gmail.com>
 Date: Tue, 8 Feb 2022 12:52:25 -0500
-Subject: [PATCH] Add SIMD utilities
+Subject: [PATCH] Pufferfish - Add SIMD utilities
 
 The utilities added in this patch are not intended to be used by plugins
 and API spec stability is NOT guaranteed. If you use this in plugins,

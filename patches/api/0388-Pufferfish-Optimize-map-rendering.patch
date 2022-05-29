@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Kevin Raneri <kevin.raneri@gmail.com>
 Date: Tue, 8 Feb 2022 12:53:02 -0500
-Subject: [PATCH] Optimize map rendering
+Subject: [PATCH] Pufferfish - Optimize map rendering
 
 This patch does not add any API that should be used by plugins. Any
 classes and methods added by this patch should NOT be used in plugins.

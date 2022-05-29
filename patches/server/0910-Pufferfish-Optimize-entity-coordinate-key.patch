@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Kevin Raneri <kevin.raneri@gmail.com>
 Date: Tue, 9 Nov 2021 14:33:16 -0500
-Subject: [PATCH] Optimize entity coordinate key
+Subject: [PATCH] Pufferfish - Optimize entity coordinate key
 
 When executing getCoordinateKey for entities (a hotpath), the JVM is
 required to repeatedly cast doubles to longs. The performance impact of
@@ -24,7 +24,7 @@ index 6aec679e75aa6655b47a552db011924ea3a6c922..e8e49e1bdf1ff4ea60a4feb6ec52d999
  
      public static long getCoordinateKey(final ChunkPos pair) {
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 49cf3601df7b145d49b1fe9a71ba0bc60c5394b3..7673774f9af410f30099a8d442966eabe6b9d304 100644
+index 86a2eddf344503cbe75a5243a114f6fe1578185f..1d352ffd64930c7d134db4aa525bdd114f059b70 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
 @@ -230,7 +230,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
