@@ -1,0 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 18 Jan 2022 14:09:32 +0100
+Subject: [PATCH] Do not relocate corrupted chunks
+
+
+diff --git a/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java b/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
+index 887b3bc6370d23d2ff38e8fdbe286d678b035cc7..f14d3f21bb2b45f80e2257c75f90a1527570dfa9 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
++++ b/src/main/java/net/minecraft/world/level/chunk/storage/ChunkSerializer.java
+@@ -150,7 +150,10 @@ public class ChunkSerializer {
+         ChunkPos chunkcoordintpair1 = new ChunkPos(nbt.getInt("xPos"), nbt.getInt("zPos")); // Paper - diff on change, see ChunkSerializer#getChunkCoordinate
+ 
+         if (!Objects.equals(chunkPos, chunkcoordintpair1)) {
+-            ChunkSerializer.LOGGER.error("Chunk file at {} is in the wrong location; relocating. (Expected {}, got {})", new Object[]{chunkPos, chunkPos, chunkcoordintpair1});
++            // Martijn start - do not relocate corrupted chunks
++            ChunkSerializer.LOGGER.error("Chunk file at {} is in the wrong location; stopping the server. (Expected {}, got {})", new Object[]{chunkPos, chunkPos, chunkcoordintpair1});
++            System.exit(1);
++            // Martijn end - do not relocate corrupted chunks
+         }
+ 
+         UpgradeData chunkconverter = nbt.contains("UpgradeData", 10) ? new UpgradeData(nbt.getCompound("UpgradeData"), world) : UpgradeData.EMPTY;
