@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 17 Jan 2022 12:27:24 +0100
+Subject: [PATCH] More packet types that are flushed without delay
+
+
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index fdd8188e2a054059b27d94134e79de14ce8dbf32..31a46b28b8ac746542237a7bdbaae7bb81d75581 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -414,7 +414,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
+         this.packetWrites.getAndIncrement(); // must be befeore using canFlush
+         boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
+-        final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket; // no delay for certain packets
++        // Martijn start - more packets without delay
++        final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
++            ; // no delay for certain packets
++        // Martijn end - more packets without delay
+         // Paper end - add flush parameter
+         ConnectionProtocol enumprotocol = ConnectionProtocol.getProtocolForPacket(packet);
+         ConnectionProtocol enumprotocol1 = this.getCurrentProtocol();
