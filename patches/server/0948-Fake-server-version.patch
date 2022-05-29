@@ -1,0 +1,58 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 28 Jan 2022 20:56:43 +0100
+Subject: [PATCH] Fake server version
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index fafbebbb5e8c1a381b673f97f1fa210687b52823..2e7d990e7f8c9f832b2b11f70ac1c5b36a3c1002 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -91,6 +91,21 @@ public class PaperConfig {
+         }
+     }
+ 
++    // Martijn start - configurable server version
++
++    /**
++     * "none" disables this feature
++     */
++    private static String fakeServerVersion = "none";
++    private static void fakeServerVersion() {
++        fakeServerVersion = getString("settings.fake-server-version", fakeServerVersion);
++        if (!fakeServerVersion.equalsIgnoreCase("none")) {
++            ((org.bukkit.craftbukkit.CraftServer) Bukkit.getServer()).setVersion(fakeServerVersion);
++        }
++    }
++
++    // Martijn end - configurable server version
++
+     public static boolean logPlayerIpAddresses = true;
+     private static void playerIpAddresses() {
+         logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index c73f4da90f3eb584158a0c20b5c58b7a3b30d676..ad99bf6e470b1c01424c86ff44c19a4762c86cae 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -250,7 +250,7 @@ import javax.annotation.Nonnull; // Paper
+ 
+ public final class CraftServer implements Server {
+     private final String serverName = "Paper"; // Paper
+-    private final String serverVersion;
++    private String serverVersion; // Martijn - configurable server version
+     private final String bukkitVersion = Versioning.getBukkitVersion();
+     private final Logger logger = Logger.getLogger("Minecraft");
+     private final ServicesManager servicesManager = new SimpleServicesManager();
+@@ -573,6 +573,12 @@ public final class CraftServer implements Server {
+         return this.serverVersion + " (MC: " + this.console.getServerVersion() + ")";
+     }
+ 
++    // Martijn start - configurable server version
++    public void setVersion(String version) {
++        this.serverVersion = version;
++    }
++    // Martijn end - configurable server version
++
+     @Override
+     public String getBukkitVersion() {
+         return this.bukkitVersion;
