@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kevin Raneri <kevin.raneri@gmail.com>
+Date: Sat, 11 Dec 2021 22:20:45 -0500
+Subject: [PATCH] Pufferfish - Throttle goal selector during inactive ticking
+
+
+diff --git a/src/main/java/gg/pufferfish/pufferfish/PufferfishConfig.java b/src/main/java/gg/pufferfish/pufferfish/PufferfishConfig.java
+index 39f1a66ba906c8bd2647993df4072d4772ac840d..9cf4e42d1fb0c4286e523e490f1cf44004c497cb 100644
+--- a/src/main/java/gg/pufferfish/pufferfish/PufferfishConfig.java
++++ b/src/main/java/gg/pufferfish/pufferfish/PufferfishConfig.java
+@@ -161,14 +161,14 @@ public class PufferfishConfig {
+ 		}
+ 	}
+ 
+-    public static boolean enableSuffocationOptimization;
+-    private static void suffocationOptimization() {
+-        enableSuffocationOptimization = getBoolean("enable-suffocation-optimization", true,
+-            "Optimizes the suffocation check by selectively skipping",
+-            "the check in a way that still appears vanilla. This should",
+-            "be left enabled on most servers, but is provided as a",
+-            "configuration option if the vanilla deviation is undesirable.");
+-    }
++	public static boolean enableSuffocationOptimization;
++	private static void suffocationOptimization() {
++		enableSuffocationOptimization = getBoolean("enable-suffocation-optimization", true,
++			"Optimizes the suffocation check by selectively skipping",
++			"the check in a way that still appears vanilla. This should",
++			"be left enabled on most servers, but is provided as a",
++			"configuration option if the vanilla deviation is undesirable.");
++	}
+ 	
+ 	public static boolean enableAsyncMobSpawning;
+ 	public static boolean asyncMobSpawningInitialized;
+@@ -187,15 +187,21 @@ public class PufferfishConfig {
+ 		}
+ 	}
+ 	
+-    public static int maxProjectileLoadsPerTick;
+-    public static int maxProjectileLoadsPerProjectile;
+-    private static void projectileLoading() {
+-        maxProjectileLoadsPerTick = getInt("projectile.max-loads-per-tick", 10, "Controls how many chunks are allowed", "to be sync loaded by projectiles in a tick.");
+-        maxProjectileLoadsPerProjectile = getInt("projectile.max-loads-per-projectile", 10, "Controls how many chunks a projectile", "can load in its lifetime before it gets", "automatically removed.");
+-
+-        setComment("projectile", "Optimizes projectile settings");
+-    }
++	public static int maxProjectileLoadsPerTick;
++	public static int maxProjectileLoadsPerProjectile;
++	private static void projectileLoading() {
++		maxProjectileLoadsPerTick = getInt("projectile.max-loads-per-tick", 10, "Controls how many chunks are allowed", "to be sync loaded by projectiles in a tick.");
++		maxProjectileLoadsPerProjectile = getInt("projectile.max-loads-per-projectile", 10, "Controls how many chunks a projectile", "can load in its lifetime before it gets", "automatically removed.");
+ 
++		setComment("projectile", "Optimizes projectile settings");
++	}
++	
++	public static boolean throttleInactiveGoalSelectorTick;
++	private static void inactiveGoalSelectorThrottle() {
++		getBoolean("inactive-goal-selector-throttle", "inactive-goal-selector-disable", true,
++			"Throttles the AI goal selector in entity inactive ticks.",
++			"This can improve performance by a few percent, but has minor gameplay implications.");
++	}
+ 
+ }
+ 
