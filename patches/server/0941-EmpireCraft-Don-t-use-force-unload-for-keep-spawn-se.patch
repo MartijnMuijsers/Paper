@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Aikar <aikar@aikar.co>
+Date: Thu, 9 Jun 2016 00:57:38 -0400
+Subject: [PATCH] EmpireCraft - Don't use force unload for keep spawn setting
+ change
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index b6770f6dbd88990151513c44259d926381983cff..ebc9fc46eed80b9d9d3b5e0fd13efc78dde302df 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -409,7 +409,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+     @Override
+     public boolean unloadChunk(int x, int z) {
+-        return this.unloadChunk(x, z, true);
++        return this.unloadChunkRequest(x, z); // Paper
+     }
+ 
+     @Override
