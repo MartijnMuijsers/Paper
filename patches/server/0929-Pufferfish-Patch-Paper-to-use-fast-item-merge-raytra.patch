@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paul Sauve <paul@technove.co>
+Date: Tue, 1 Jun 2021 18:06:29 -0500
+Subject: [PATCH] Pufferfish - Patch Paper to use fast item merge raytracing
+
+
+diff --git a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
+index 336d753bbd836e2a08207c5e3d41acbe2b72543f..dae989bf664b9ab29d13825d5fce32e19852259e 100644
+--- a/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
++++ b/src/main/java/net/minecraft/world/entity/item/ItemEntity.java
+@@ -243,10 +243,16 @@ public class ItemEntity extends Entity {
+                 if (entityitem.isMergable()) {
+                     // Paper Start - Fix items merging through walls
+                         if (this.level.paperConfig.fixItemsMergingThroughWalls) {
++                            // Pufferfish start - skip the allocations
++                            /*
+                             net.minecraft.world.level.ClipContext rayTrace = new net.minecraft.world.level.ClipContext(this.position(), entityitem.position(),
+                                 net.minecraft.world.level.ClipContext.Block.COLLIDER, net.minecraft.world.level.ClipContext.Fluid.NONE, this);
+                             net.minecraft.world.phys.BlockHitResult rayTraceResult = level.clip(rayTrace);
+                             if (rayTraceResult.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK) continue;
++                             */
++                            if (level.rayTraceDirect(this.position(), entityitem.position(), net.minecraft.world.phys.shapes.CollisionContext.of(this)) ==
++                                net.minecraft.world.phys.HitResult.Type.BLOCK) continue;
++                            // Pufferfish end
+                         }
+                     // Paper End
+                     this.tryToMerge(entityitem);
