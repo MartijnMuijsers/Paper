@@ -1,0 +1,23 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 7 Jun 2022 00:40:07 +0200
+Subject: [PATCH] More items placeable on head
+
+
+diff --git a/src/main/java/net/minecraft/world/entity/LivingEntity.java b/src/main/java/net/minecraft/world/entity/LivingEntity.java
+index b43aead7ecf3b18ef0cd8ac9d8ae9afdd173b93f..964ef308524158ddc850526df08b3c9719f5d1d4 100644
+--- a/src/main/java/net/minecraft/world/entity/LivingEntity.java
++++ b/src/main/java/net/minecraft/world/entity/LivingEntity.java
+@@ -4280,7 +4280,11 @@ public abstract class LivingEntity extends Entity {
+ 
+     public static EquipmentSlot getEquipmentSlotForItem(ItemStack stack) {
+         Item item = stack.getItem();
+-
++        // Martijn start - more items placeable on head
++        if (stack.is(ItemTags.BANNERS)) {
++            return EquipmentSlot.HEAD;
++        }
++        // Martijn end - more items placeable on head
+         return !stack.is(Items.CARVED_PUMPKIN) && (!(item instanceof BlockItem) || !(((BlockItem) item).getBlock() instanceof AbstractSkullBlock)) ? (item instanceof ArmorItem ? ((ArmorItem) item).getSlot() : (stack.is(Items.ELYTRA) ? EquipmentSlot.CHEST : (stack.is(Items.SHIELD) ? EquipmentSlot.OFFHAND : EquipmentSlot.MAINHAND))) : EquipmentSlot.HEAD;
+     }
+ 
