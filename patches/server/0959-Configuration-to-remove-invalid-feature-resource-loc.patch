@@ -26,10 +26,10 @@ index f2660f4d5f798832fc44941929d1f9d1b5ce2b91..16b8db81e21037e85f275272c5191bcf
  
      public static boolean logUnrecognizedRecipes = true;
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 7574ace34eab00f7dc5f72b52191a706bc5ab646..bd0e49dcec479f44f68a284fa38336dae5003b90 100644
+index fe6cf3787b9e4240d95f905fbc5969aded7652d0..d5bd021423fc06ad30b77659854ce58e0c9a9497 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-@@ -1083,7 +1083,11 @@ public class PaperWorldConfig {
+@@ -1092,7 +1092,11 @@ public class PaperWorldConfig {
  
              final net.minecraft.resources.ResourceLocation location = new net.minecraft.resources.ResourceLocation(key);
              if (!registry.containsKey(location)) {
