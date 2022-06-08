@@ -5,10 +5,10 @@ Subject: [PATCH] Network-constrained chunk sending
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 8a05fdb6f643796d1a97f662f936254a046154cd..7ebdd751d383cadc39d5ff15ea90d9d6008ab87c 100644
+index 0936b3fdeec3198b72eefd12ff4dfac5c79b54eb..d7f02cc4bc333b78b2f4254a07e9b4a443ba3b85 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -230,6 +230,32 @@ public class PaperConfig {
+@@ -239,6 +239,32 @@ public class PaperConfig {
  
      // Martijn end - survival debug stick
  
@@ -42,7 +42,7 @@ index 8a05fdb6f643796d1a97f662f936254a046154cd..7ebdd751d383cadc39d5ff15ea90d9d6
      private static void playerIpAddresses() {
          logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index ff332a4518c39dea74c3ff2f7aebd2e10f59c348..442b53944e207aabdb5ebc0edc20eda07d850f1e 100644
+index 575b2c1eb57e4eeec7e8c620bb49cfbb9975de96..55de8f1afd137c009c53b1060df7866f4577a329 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -243,6 +243,20 @@ public class PaperWorldConfig {

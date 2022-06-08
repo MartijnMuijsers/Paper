@@ -76,7 +76,7 @@ index fe79c0add4f7cb18d487c5bb9415c40c5b551ea2..dc4f52c99466302345f2818c12d07607
          miscMobSpawning = Timings.ofSafe(name + "Mob spawning - Misc");
  
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 436aaf8e6d6bdf81f88058e607444b234756b737..8a05fdb6f643796d1a97f662f936254a046154cd 100644
+index 61262e8113cc0bbb6a7bb22bf64d99d6f0add521..0936b3fdeec3198b72eefd12ff4dfac5c79b54eb 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -19,6 +19,7 @@ import java.util.regex.Pattern;
@@ -95,7 +95,7 @@ index 436aaf8e6d6bdf81f88058e607444b234756b737..8a05fdb6f643796d1a97f662f936254a
  import org.spigotmc.SpigotConfig;
  import org.spigotmc.WatchdogThread;
  
-@@ -131,6 +133,64 @@ public class PaperConfig {
+@@ -140,6 +142,64 @@ public class PaperConfig {
  
      // Martijn end - configurable proportion of skipped active entities
  
@@ -161,7 +161,7 @@ index 436aaf8e6d6bdf81f88058e607444b234756b737..8a05fdb6f643796d1a97f662f936254a
  
      /**
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index fba36a0fd7036ba516e14c8d3521b470b0df17d1..ff332a4518c39dea74c3ff2f7aebd2e10f59c348 100644
+index 6fb0b8f3f1046c3563300b4bd25e9addd475ea4e..575b2c1eb57e4eeec7e8c620bb49cfbb9975de96 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -14,6 +14,7 @@ import java.util.Map;
