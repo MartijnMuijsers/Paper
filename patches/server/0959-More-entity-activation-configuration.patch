@@ -5,10 +5,10 @@ Subject: [PATCH] More entity activation configuration
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index f2660f4d5f798832fc44941929d1f9d1b5ce2b91..436aaf8e6d6bdf81f88058e607444b234756b737 100644
+index 16b8db81e21037e85f275272c5191bcfd9e3d428..61262e8113cc0bbb6a7bb22bf64d99d6f0add521 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -115,6 +115,22 @@ public class PaperConfig {
+@@ -124,6 +124,22 @@ public class PaperConfig {
  
      // Martijn end - configurable server version
  
