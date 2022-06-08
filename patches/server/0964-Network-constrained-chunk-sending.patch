@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
-Date: Thu, 27 Jan 2022 23:20:09 +0100
+Date: Thu, 9 Jun 2022 00:49:35 +0200
 Subject: [PATCH] Network-constrained chunk sending
 
 
@@ -42,7 +42,7 @@ index 0936b3fdeec3198b72eefd12ff4dfac5c79b54eb..d7f02cc4bc333b78b2f4254a07e9b4a4
      private static void playerIpAddresses() {
          logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 575b2c1eb57e4eeec7e8c620bb49cfbb9975de96..55de8f1afd137c009c53b1060df7866f4577a329 100644
+index 413a155c080aa7c3199ae487c65cde110a051d15..69787ed452e04e56632236f7fb5ed2bdb4ffd4c4 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -243,6 +243,20 @@ public class PaperWorldConfig {
@@ -63,6 +63,15 @@ index 575b2c1eb57e4eeec7e8c620bb49cfbb9975de96..55de8f1afd137c009c53b1060df7866f
 +
 +    // Martijn end - network-constrained chunk sending
 +
+     // Martijn start - zombies can call for reinforcements on all difficulties
+ 
+     public boolean zombieReinforcementsOnAllDifficulties = false;
+@@ -251,7 +265,7 @@ public class PaperWorldConfig {
+     }
+ 
+     // Martijn end - zombies can call for reinforcements on all difficulties
+-
++    
      public boolean zombiesTargetTurtleEggs = true;
      private void zombiesTargetTurtleEggs() {
          zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);

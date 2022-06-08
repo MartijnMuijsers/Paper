@@ -4,8 +4,28 @@ Date: Wed, 19 Jan 2022 19:48:22 +0100
 Subject: [PATCH] Zombies can call for reinforcements on all difficulties
 
 
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index fba36a0fd7036ba516e14c8d3521b470b0df17d1..7574ace34eab00f7dc5f72b52191a706bc5ab646 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -72,6 +72,15 @@ public class PaperWorldConfig {
+         }
+     }
+ 
++    // Martijn start - zombies can call for reinforcements on all difficulties
++
++    public boolean zombieReinforcementsOnAllDifficulties = false;
++    private void zombieReinforcementsOnAllDifficulties() {
++        zombieReinforcementsOnAllDifficulties = getBoolean("zombie-reinforcements-on-all-difficulties", zombieReinforcementsOnAllDifficulties);
++    }
++
++    // Martijn end - zombies can call for reinforcements on all difficulties
++
+     public boolean zombiesTargetTurtleEggs = true;
+     private void zombiesTargetTurtleEggs() {
+         zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
 diff --git a/src/main/java/net/minecraft/world/entity/monster/Zombie.java b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
-index cd88413f30632307faba63572915656b6a8469f7..1370da197c3c14d59b8e0b138b886076b16313ec 100644
+index cd88413f30632307faba63572915656b6a8469f7..73fb2f5ebd49294e9befeaa17a07db1d1111fa29 100644
 --- a/src/main/java/net/minecraft/world/entity/monster/Zombie.java
 +++ b/src/main/java/net/minecraft/world/entity/monster/Zombie.java
 @@ -326,7 +326,7 @@ public class Zombie extends Monster {
@@ -13,7 +33,7 @@ index cd88413f30632307faba63572915656b6a8469f7..1370da197c3c14d59b8e0b138b886076
              }
  
 -            if (entityliving != null && this.level.getDifficulty() == Difficulty.HARD && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) {
-+            if (entityliving != null && this.level.getDifficulty() != Difficulty.PEACEFUL && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) { // Martijn - Zombies can call for reinforcements on all difficulties
++            if (entityliving != null && (this.level.getDifficulty() == Difficulty.HARD || (this.level.getDifficulty() != Difficulty.PEACEFUL && this.level.paperConfig.zombieReinforcementsOnAllDifficulties)) && (double) this.random.nextFloat() < this.getAttributeValue(Attributes.SPAWN_REINFORCEMENTS_CHANCE) && this.level.getGameRules().getBoolean(GameRules.RULE_DOMOBSPAWNING)) { // Martijn - zombies can call for reinforcements on all difficulties
                  int i = Mth.floor(this.getX());
                  int j = Mth.floor(this.getY());
                  int k = Mth.floor(this.getZ());

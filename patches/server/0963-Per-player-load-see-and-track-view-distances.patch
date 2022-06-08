@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
-Date: Thu, 27 Jan 2022 00:10:19 +0100
+Date: Thu, 9 Jun 2022 00:49:06 +0200
 Subject: [PATCH] Per-player load, see and track view distances
 
 
@@ -161,7 +161,7 @@ index 61262e8113cc0bbb6a7bb22bf64d99d6f0add521..0936b3fdeec3198b72eefd12ff4dfac5
  
      /**
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 6fb0b8f3f1046c3563300b4bd25e9addd475ea4e..575b2c1eb57e4eeec7e8c620bb49cfbb9975de96 100644
+index bd0e49dcec479f44f68a284fa38336dae5003b90..413a155c080aa7c3199ae487c65cde110a051d15 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -14,6 +14,7 @@ import java.util.Map;
@@ -346,9 +346,9 @@ index 6fb0b8f3f1046c3563300b4bd25e9addd475ea4e..575b2c1eb57e4eeec7e8c620bb49cfbb
 +
 +    // Martijn end - sort chunks by distance
 +
-     public boolean zombiesTargetTurtleEggs = true;
-     private void zombiesTargetTurtleEggs() {
-         zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
+     // Martijn start - zombies can call for reinforcements on all difficulties
+ 
+     public boolean zombieReinforcementsOnAllDifficulties = false;
 diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
 index 12bcf96ec1ba4314c7ea2eab9f3d140559f1dc08..d6008e88f0bf3152daf109d886e54cd26ce38b1f 100644
 --- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
