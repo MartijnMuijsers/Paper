@@ -6,7 +6,7 @@ Subject: [PATCH] Configuration to remove invalid feature resource location
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 130ee2fa488444cafa0ce5d7aca72f0e02c45b72..58fa84f0c09176964f324fd97fca3f6f5c975590 100644
+index c62b2faab5570b050eeb56cff5a33137ed760cca..eb7b90752bd05c7db6218119a2e1b99722fa62cf 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -93,6 +93,15 @@ public class PaperConfig {

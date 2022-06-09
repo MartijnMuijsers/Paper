@@ -5,12 +5,12 @@ Subject: [PATCH] Configurable keepalive mechanics
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 20900bea17719e43ca8232ebe3388ddc2bf00db4..9423b6021b04b9281ec9b792b8174f21c8b363c5 100644
+index b389f6d77ca02452e2563d09651d067b29656eff..a41744ce6362395dd47cd9fe1ccc677d2b2bdd40 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -149,6 +149,33 @@ public class PaperConfig {
+@@ -163,6 +163,33 @@ public class PaperConfig {
  
-     // Martijn end - configurable server version
+     // Martijn end - hide plugins
  
 +    // Martijn start - configurable keepalive
 +

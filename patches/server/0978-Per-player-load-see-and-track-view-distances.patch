@@ -76,7 +76,7 @@ index fe79c0add4f7cb18d487c5bb9415c40c5b551ea2..dc4f52c99466302345f2818c12d07607
          miscMobSpawning = Timings.ofSafe(name + "Mob spawning - Misc");
  
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index c8b5a4264ec7d44ab9646b297933dfc2b8e34ba7..6a0db9fa0ba7c1a663772109ba42136686d8da91 100644
+index 6a64f6db27f83b719a1094dc938db750596005e8..c298bc30e698567bb7e200c9c8ed588b7a6d37b3 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -19,6 +19,7 @@ import java.util.regex.Pattern;
@@ -87,7 +87,7 @@ index c8b5a4264ec7d44ab9646b297933dfc2b8e34ba7..6a0db9fa0ba7c1a663772109ba421366
  import org.bukkit.Bukkit;
  import org.bukkit.ChatColor;
  import org.bukkit.command.Command;
-@@ -183,6 +184,64 @@ public class PaperConfig {
+@@ -197,6 +198,64 @@ public class PaperConfig {
  
      // Martijn end - configurable proportion of skipped active entities
  
