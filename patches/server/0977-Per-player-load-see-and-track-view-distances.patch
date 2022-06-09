@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
-Date: Thu, 9 Jun 2022 21:14:10 +0200
+Date: Fri, 10 Jun 2022 00:26:10 +0200
 Subject: [PATCH] Per-player load, see and track view distances
 
 
@@ -76,7 +76,7 @@ index fe79c0add4f7cb18d487c5bb9415c40c5b551ea2..dc4f52c99466302345f2818c12d07607
          miscMobSpawning = Timings.ofSafe(name + "Mob spawning - Misc");
  
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 37dd99417a795581191c9714287e7a399ef231e9..dd719391461d0a7744ab27f8d321c0392e533513 100644
+index c8b5a4264ec7d44ab9646b297933dfc2b8e34ba7..6a0db9fa0ba7c1a663772109ba42136686d8da91 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
 @@ -19,6 +19,7 @@ import java.util.regex.Pattern;
@@ -87,15 +87,7 @@ index 37dd99417a795581191c9714287e7a399ef231e9..dd719391461d0a7744ab27f8d321c039
  import org.bukkit.Bukkit;
  import org.bukkit.ChatColor;
  import org.bukkit.command.Command;
-@@ -27,6 +28,7 @@ import org.bukkit.configuration.InvalidConfigurationException;
- import org.bukkit.configuration.file.YamlConfiguration;
- import co.aikar.timings.Timings;
- import co.aikar.timings.TimingsManager;
-+import org.bukkit.craftbukkit.entity.CraftPlayer;
- import org.spigotmc.SpigotConfig;
- import org.spigotmc.WatchdogThread;
- 
-@@ -140,6 +142,64 @@ public class PaperConfig {
+@@ -183,6 +184,64 @@ public class PaperConfig {
  
      // Martijn end - configurable proportion of skipped active entities
  

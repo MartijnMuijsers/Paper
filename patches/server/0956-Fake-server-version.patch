@@ -5,24 +5,74 @@ Subject: [PATCH] Fake server version
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 8379c6313f06ab3eeaf02bad41d8b835d50e093f..cc2d8d3b7201d47b07ed9d024ee0944fa849399c 100644
+index 8379c6313f06ab3eeaf02bad41d8b835d50e093f..20900bea17719e43ca8232ebe3388ddc2bf00db4 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -91,6 +91,21 @@ public class PaperConfig {
+@@ -27,6 +27,8 @@ import org.bukkit.configuration.InvalidConfigurationException;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ import co.aikar.timings.Timings;
+ import co.aikar.timings.TimingsManager;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.jetbrains.annotations.Nullable;
+ import org.spigotmc.SpigotConfig;
+ import org.spigotmc.WatchdogThread;
+ 
+@@ -91,6 +93,62 @@ public class PaperConfig {
          }
      }
  
 +    // Martijn start - configurable server version
 +
 +    /**
++     * This is the release version Paper identifies itself as (as seen on the Paper downloads page)
++     * Example: "git-Paper-379" (the examples for the other configuration settings below match this version)
++     *
 +     * "none" disables this feature
 +     */
-+    private static String fakeServerVersion = "none";
-+    private static void fakeServerVersion() {
-+        fakeServerVersion = getString("settings.fake-server-version", fakeServerVersion);
-+        if (!fakeServerVersion.equalsIgnoreCase("none")) {
-+            ((org.bukkit.craftbukkit.CraftServer) Bukkit.getServer()).setVersion(fakeServerVersion);
++    private static String fakeServerVersionGitPaperVersion = "none";
++    private static void fakeServerVersionGitPaperVersion() {
++        fakeServerVersionGitPaperVersion = getString("settings.fake-version.git-paper-version", fakeServerVersionGitPaperVersion);
++        if (!fakeServerVersionGitPaperVersion.equalsIgnoreCase("none")) {
++            ((org.bukkit.craftbukkit.CraftServer) Bukkit.getServer()).setVersion(fakeServerVersionGitPaperVersion);
 +        }
++    }
++
++    /**
++     * This is the short hash of the Git commit and the branch
++     * (the hash can be seen on the Paper downloads page, and the branch that we wish to show is probably always master,
++     * however, if the branch is "master" or "main" it is not shown at all (see Bukkit.getVersionMessage()))
++     * Example: "276d830" (matches Paper version git-Paper-379)
++     * (Another example just to show what it looks like when the branch is not "master" or "main": "d6eda26 on dev/martijn/1.18-perf1")
++     *
++     * "none" disables this feature
++     */
++    private static String fakeServerVersionGitCommit = "none";
++    private static void fakeServerVersionGitCommit() {
++        fakeServerVersionGitCommit = getString("settings.fake-version.git-commit", fakeServerVersionGitCommit);
++        if (!fakeServerVersionGitCommit.equalsIgnoreCase("none")) {
++            ((org.bukkit.craftbukkit.CraftServer) Bukkit.getServer()).setFakeVersionGitCommit(fakeServerVersionGitCommit);
++        }
++    }
++
++    /**
++     * Whether to always display "Error obtaining version information" instead of
++     * "You are running the latest version", "Unknown version" or "You are ... version(s) behind"
++     */
++    public static boolean alwaysShowErrorObtainingVersionInformation = false;
++    private static void alwaysShowErrorObtainingVersionInformation() {
++        alwaysShowErrorObtainingVersionInformation = getBoolean("settings.fake-version.always-show-error-obtaining-version-information", alwaysShowErrorObtainingVersionInformation);
++    }
++
++    /**
++     * This is the previous release version Paper identifies itself as: this is the same as fakeServerVersionGitPaperVersion,
++     * except it identifies the supposed previous version of the server rather than the current one
++     * Example: "git-Paper-375" (which would be a few versions before "git-Paper-379")
++     *
++     * "none" disables this feature
++     */
++    public static String fakeServerVersionPreviousGitPaperVersion = "none";
++    private static void fakeServerVersionPreviousGitPaperVersion() {
++        fakeServerVersionPreviousGitPaperVersion = getString("settings.fake-version.previous-git-paper-version", fakeServerVersionPreviousGitPaperVersion);
 +    }
 +
 +    // Martijn end - configurable server version
@@ -30,26 +80,91 @@ index 8379c6313f06ab3eeaf02bad41d8b835d50e093f..cc2d8d3b7201d47b07ed9d024ee0944f
      public static boolean logPlayerIpAddresses = true;
      private static void playerIpAddresses() {
          logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
+diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
+index bf42969859545a8a520923ef1836ffa4a5cc24a0..48e011330ea69627d4f448ffbbd93ad1238913d2 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
++++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
+@@ -63,7 +63,11 @@ public class PaperVersionFetcher implements VersionFetcher {
+             versionInfo = versionInfo.replace("\"", "");
+             distance = fetchDistanceFromGitHub(repo, branch, versionInfo);
+         }
+-
++        // Martijn start - configurable server version
++        if (PaperConfig.alwaysShowErrorObtainingVersionInformation) {
++            distance = -1;
++        }
++        // Martijn end - configurable server version
+         switch (distance) {
+             case -1:
+                 return Component.text("Error obtaining version information", NamedTextColor.YELLOW);
+@@ -134,15 +138,23 @@ public class PaperVersionFetcher implements VersionFetcher {
+ 
+     @Nullable
+     private Component getHistory() {
+-        final VersionHistoryManager.VersionData data = VersionHistoryManager.INSTANCE.getVersionData();
+-        if (data == null) {
+-            return null;
+-        }
++        // Martijn start - configurable server version
++        String oldVersion;
++        String fakeVersion = PaperConfig.fakeServerVersionPreviousGitPaperVersion;
++        if (!fakeVersion.equalsIgnoreCase("none")) {
++            oldVersion = fakeVersion;
++        } else {
++            final VersionHistoryManager.VersionData data = VersionHistoryManager.INSTANCE.getVersionData();
++            if (data == null) {
++                return null;
++            }
+ 
+-        final String oldVersion = data.getOldVersion();
+-        if (oldVersion == null) {
+-            return null;
++            oldVersion = data.getOldVersion();
++            if (oldVersion == null) {
++                return null;
++            }
+         }
++        // Martijn end - configurable server version
+ 
+         return Component.text("Previous version: " + oldVersion, NamedTextColor.GRAY, TextDecoration.ITALIC);
+     }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 4cb5df90ab015fa59db4c3f035b7321695d0cda9..a6d35af46021c33d1e225baabbbd9144a3707a8a 100644
+index 4cb5df90ab015fa59db4c3f035b7321695d0cda9..15e126c107b9260e0365f133e496cb328dfdad10 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-@@ -250,7 +250,7 @@ import javax.annotation.Nonnull; // Paper
+@@ -1,5 +1,6 @@
+ package org.bukkit.craftbukkit;
+ 
++import com.destroystokyo.paper.PaperConfig;
+ import com.google.common.base.Charsets;
+ import com.google.common.base.Function;
+ import com.google.common.base.Preconditions;
+@@ -250,7 +251,8 @@ import javax.annotation.Nonnull; // Paper
  
  public final class CraftServer implements Server {
      private final String serverName = "Paper"; // Paper
 -    private final String serverVersion;
 +    private String serverVersion; // Martijn - configurable server version
++    private String fakeVersionGitCommit; // Martijn - configurable server version
      private final String bukkitVersion = Versioning.getBukkitVersion();
      private final Logger logger = Logger.getLogger("Minecraft");
      private final ServicesManager servicesManager = new SimpleServicesManager();
-@@ -573,6 +573,12 @@ public final class CraftServer implements Server {
+@@ -573,6 +575,21 @@ public final class CraftServer implements Server {
          return this.serverVersion + " (MC: " + this.console.getServerVersion() + ")";
      }
  
 +    // Martijn start - configurable server version
 +    public void setVersion(String version) {
 +        this.serverVersion = version;
++    }
++
++    @Override
++    public String getFakeVersionGitCommit() {
++        return this.fakeVersionGitCommit;
++    }
++
++    public void setFakeVersionGitCommit(String fakeVersionGitCommit) {
++        this.fakeVersionGitCommit = fakeVersionGitCommit;
 +    }
 +    // Martijn end - configurable server version
 +

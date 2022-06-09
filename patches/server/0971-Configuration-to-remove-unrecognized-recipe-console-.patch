@@ -5,10 +5,10 @@ Subject: [PATCH] Configuration to remove unrecognized recipe console logs
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 2c39a225bb2b170f0c7f9f3340ba94e427904a0d..3482f5a61db1b65fd2fd01cb98d52384b0f10dab 100644
+index ae5513e7b4a0d8c7a6650e5db2bf0c7a4482fadc..130ee2fa488444cafa0ce5d7aca72f0e02c45b72 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -91,6 +91,15 @@ public class PaperConfig {
+@@ -93,6 +93,15 @@ public class PaperConfig {
          }
      }
  

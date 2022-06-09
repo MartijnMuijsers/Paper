@@ -5,10 +5,10 @@ Subject: [PATCH] Survival-compatible debug stick
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-index 01234d1c64b1cc4152b4017f0667147a6a8f4ad6..2c39a225bb2b170f0c7f9f3340ba94e427904a0d 100644
+index 9423b6021b04b9281ec9b792b8174f21c8b363c5..ae5513e7b4a0d8c7a6650e5db2bf0c7a4482fadc 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
-@@ -133,6 +133,18 @@ public class PaperConfig {
+@@ -176,6 +176,18 @@ public class PaperConfig {
  
      // Martijn end - configurable keepalive
  
