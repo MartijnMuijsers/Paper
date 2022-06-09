@@ -107,7 +107,7 @@ index dc2eed0d00a6bd41fb26e7d9aeba7a6315040f17..797672bdad1745eba537f5b1ae3db4d2
      public ChunkMap(ServerLevel world, LevelStorageSource.LevelStorageAccess session, DataFixer dataFixer, StructureManager structureManager, Executor executor, BlockableEventLoop<Runnable> mainThreadExecutor, LightChunkGetter chunkProvider, ChunkGenerator chunkGenerator, ChunkProgressListener worldGenerationProgressListener, ChunkStatusUpdateListener chunkStatusChangeListener, Supplier<DimensionDataStorage> persistentStateManagerFactory, int viewDistance, boolean dsync) {
          super(session.getDimensionPath(world.dimension()).resolve("region"), dataFixer, dsync);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 80e0e67a52d47b0406f5571baf7bbabb6d569d84..6efe4ccdfc6ca148ae1cb96a5cdf723a3882fd60 100644
+index c9a398974767e8c6ffc6d7ceb63b22617a425965..c21f66c3acef6d855c3e9e24322921674d8be99a 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -376,6 +376,24 @@ public class ServerPlayer extends Player {

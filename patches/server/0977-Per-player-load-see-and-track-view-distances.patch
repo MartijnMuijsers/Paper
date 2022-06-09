@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
-Date: Thu, 9 Jun 2022 00:49:06 +0200
+Date: Thu, 9 Jun 2022 21:14:10 +0200
 Subject: [PATCH] Per-player load, see and track view distances
 
 
@@ -1619,7 +1619,7 @@ index b42e32bd1a6a669f498b577ec04661c4ba651198..04329f3651a1f0464f85a42bc44239ec
      public void setSimulationDistance(int simulationDistance) {
          this.distanceManager.updateSimulationDistance(simulationDistance);
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 6efe4ccdfc6ca148ae1cb96a5cdf723a3882fd60..8efa634ca8121c7f6da7a6e9b575f6cd126dd6dd 100644
+index c21f66c3acef6d855c3e9e24322921674d8be99a..b59e5906f88bc864053c3e37ff1208207c5564e0 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -8,8 +8,6 @@ import com.mojang.datafixers.util.Either;
@@ -1960,7 +1960,7 @@ index 6efe4ccdfc6ca148ae1cb96a5cdf723a3882fd60..8efa634ca8121c7f6da7a6e9b575f6cd
 @@ -1952,6 +2210,11 @@ public class ServerPlayer extends Player {
          this.connection.connection.channel.attr(PaperAdventure.LOCALE_ATTRIBUTE).set(this.adventure$locale);
          // Paper end
-         this.clientViewDistance = packet.viewDistance;
+         this.clientViewDistance = packet.getAcceptableViewDistance(); // Martijn - do not use invalid client view distance
 +        // Martijn start - per-player view distance
 +        this.trackViewDistanceMayHaveChanged();
 +        this.seeViewDistanceMayHaveChanged();

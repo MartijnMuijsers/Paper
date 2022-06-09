@@ -43,7 +43,7 @@ index cc2d8d3b7201d47b07ed9d024ee0944fa849399c..01234d1c64b1cc4152b4017f0667147a
      private static void playerIpAddresses() {
          logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 846270328c55bd2ea698e124d21d0ae7052c4e31..2f5ca4157f8c01d475188f165d259ac1105dfbf9 100644
+index dfce52638f6e159c82df9768965f33b81ac9e934..4ca3b8e827dd5ab5c6c10b5ea26ffdf6ae7715c6 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -1,5 +1,6 @@

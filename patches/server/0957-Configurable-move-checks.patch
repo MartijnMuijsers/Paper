@@ -5,7 +5,7 @@ Subject: [PATCH] Configurable move checks
 
 
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 79e4af264c72a465817148004fe694bc6226654e..846270328c55bd2ea698e124d21d0ae7052c4e31 100644
+index 4717bbedd99ee1919c9a6d864fd18f03e0b8935b..dfce52638f6e159c82df9768965f33b81ac9e934 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -586,7 +586,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser

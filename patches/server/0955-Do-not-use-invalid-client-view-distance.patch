@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
-Date: Tue, 7 Jun 2022 12:14:35 +0200
+Date: Thu, 9 Jun 2022 21:13:19 +0200
 Subject: [PATCH] Do not use invalid client view distance
 
 
@@ -33,10 +33,10 @@ index 177306cc9c6092a9da9c4889ff9e7ca620a5ec8f..974896bfddb8dbb9be2459deb6e4303f
          this(buf.readUtf(16), buf.readByte(), buf.readEnum(ChatVisiblity.class), buf.readBoolean(), buf.readUnsignedByte(), buf.readEnum(HumanoidArm.class), buf.readBoolean(), buf.readBoolean());
      }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 5b3602ae99715b728d9b22f116b70973cec8254b..b04dc93bfa7a0e824908148b34302ece7136ec7d 100644
+index a6edf5117d4ae03d8294e7bb74dd2d77048895a5..0760c5bbe6bb8583264d2bc00870e21ff05581b4 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -2289,23 +2289,23 @@ public class ServerPlayer extends Player {
+@@ -1887,23 +1887,23 @@ public class ServerPlayer extends Player {
      public String locale = null; // CraftBukkit - add, lowercase // Paper - default to null
      public java.util.Locale adventure$locale = java.util.Locale.US; // Paper
      public void updateOptions(ServerboundClientInformationPacket packet) {
@@ -63,14 +63,14 @@ index 5b3602ae99715b728d9b22f116b70973cec8254b..b04dc93bfa7a0e824908148b34302ece
          // Paper end
 -        this.clientViewDistance = packet.viewDistance;
 +        this.clientViewDistance = packet.getAcceptableViewDistance(); // Martijn - do not use invalid client view distance
-         // Martijn start - per-player view distance
-         this.trackViewDistanceMayHaveChanged();
-         this.seeViewDistanceMayHaveChanged();
+         // CraftBukkit end
+         this.chatVisibility = packet.chatVisibility();
+         this.canChatColor = packet.chatColors();
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index f1a798b6522ca98cea3ed62752721e94d3430e9e..264190faaa57e13c78c162e9c411c73c44765974 100644
+index 79e4af264c72a465817148004fe694bc6226654e..4717bbedd99ee1919c9a6d864fd18f03e0b8935b 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -3218,9 +3218,9 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3173,9 +3173,9 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
          PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
          // Paper start - do not accept invalid information
          if (packet.viewDistance() < 0) {

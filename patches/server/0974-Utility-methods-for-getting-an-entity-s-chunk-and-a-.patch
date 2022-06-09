@@ -6,7 +6,7 @@ Subject: [PATCH] Utility methods for getting an entity's chunk and a player's
 
 
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index a6edf5117d4ae03d8294e7bb74dd2d77048895a5..80e0e67a52d47b0406f5571baf7bbabb6d569d84 100644
+index 0760c5bbe6bb8583264d2bc00870e21ff05581b4..c9a398974767e8c6ffc6d7ceb63b22617a425965 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -1,12 +1,17 @@

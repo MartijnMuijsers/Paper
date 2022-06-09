@@ -227,7 +227,7 @@ index d6008e88f0bf3152daf109d886e54cd26ce38b1f..4496beee666835e978918b2b75cf7980
              if (
                  // has view distance stayed the same?
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 8efa634ca8121c7f6da7a6e9b575f6cd126dd6dd..5b3602ae99715b728d9b22f116b70973cec8254b 100644
+index b59e5906f88bc864053c3e37ff1208207c5564e0..b04dc93bfa7a0e824908148b34302ece7136ec7d 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -8,6 +8,7 @@ import com.mojang.datafixers.util.Either;
@@ -356,7 +356,7 @@ index 8efa634ca8121c7f6da7a6e9b575f6cd126dd6dd..5b3602ae99715b728d9b22f116b70973
  
      public void untrackChunk(ChunkPos chunkPos, boolean concernsTracking) {
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 2f5ca4157f8c01d475188f165d259ac1105dfbf9..f1a798b6522ca98cea3ed62752721e94d3430e9e 100644
+index 4ca3b8e827dd5ab5c6c10b5ea26ffdf6ae7715c6..264190faaa57e13c78c162e9c411c73c44765974 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -3141,11 +3141,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
