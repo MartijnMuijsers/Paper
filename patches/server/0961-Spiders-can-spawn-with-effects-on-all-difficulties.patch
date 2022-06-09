@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 9 Jun 2022 02:18:14 +0200
+Subject: [PATCH] Spiders can spawn with effects on all difficulties
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index 578a4f1ab29fdfde6d2cfdf09177db0c28a0721f..0937711fb18a2e02e13816c0158931b428927c45 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -130,6 +130,15 @@ public class PaperWorldConfig {
+ 
+     // Martijn end - minimum health after starving
+ 
++    // Martijn start - spiders can spawn with effects on all difficulties
++
++    public boolean spidersWithEffectsOnAllDifficulties = false;
++    private void spidersWithEffectsOnAllDifficulties() {
++        spidersWithEffectsOnAllDifficulties = getBoolean("spiders-with-effects-on-all-difficulties", spidersWithEffectsOnAllDifficulties);
++    }
++
++    // Martijn end - spiders can spawn with effects on all difficulties
++
+     public boolean zombiesTargetTurtleEggs = true;
+     private void zombiesTargetTurtleEggs() {
+         zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
+diff --git a/src/main/java/net/minecraft/world/entity/monster/Spider.java b/src/main/java/net/minecraft/world/entity/monster/Spider.java
+index 05b6c07c0705c7d8741c77baa87982e8e278dc97..d6de161c107a2216fcb15ed008ab1e9a7103ad75 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/Spider.java
++++ b/src/main/java/net/minecraft/world/entity/monster/Spider.java
+@@ -167,7 +167,7 @@ public class Spider extends Monster {
+ 
+         if (object == null) {
+             object = new Spider.SpiderEffectsGroupData();
+-            if (world.getDifficulty() == Difficulty.HARD && world.getRandom().nextFloat() < 0.1F * difficulty.getSpecialMultiplier()) {
++            if (((world.getDifficulty() != Difficulty.PEACEFUL && world.getLevel().paperConfig.spidersWithEffectsOnAllDifficulties) || world.getDifficulty() == Difficulty.HARD) && world.getRandom().nextFloat() < 0.1F * difficulty.getSpecialMultiplier()) { // Martijn - spiders can spawn with effects on all difficulties
+                 ((Spider.SpiderEffectsGroupData) object).setRandomEffect(world.getRandom());
+             }
+         }
