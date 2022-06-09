@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 9 Jun 2022 02:09:22 +0200
+Subject: [PATCH] Minimum health after starving
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index 4e7759dc76eb7dba3da176cf6142ad6f95ed15a1..578a4f1ab29fdfde6d2cfdf09177db0c28a0721f 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -117,6 +117,19 @@ public class PaperWorldConfig {
+ 
+     // Martijn end - configurable lightning fire
+ 
++    // Martijn start - minimum health after starving
++
++    /**
++     * -1 indicates no minimum (it may still be limited by the difficulty)
++     * Valid values are -1 or a nonnegative floating-point number
++     */
++    public float minimumHealthAfterStarving = -1f;
++    private void minimumHealthAfterStarving() {
++        minimumHealthAfterStarving = getFloat("minimum-health-after-starving", minimumHealthAfterStarving);
++    }
++
++    // Martijn end - minimum health after starving
++
+     public boolean zombiesTargetTurtleEggs = true;
+     private void zombiesTargetTurtleEggs() {
+         zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
+diff --git a/src/main/java/net/minecraft/world/food/FoodData.java b/src/main/java/net/minecraft/world/food/FoodData.java
+index 2934b6de1f1fb914a532ee20184df99d1acd8e65..63cda8d598307385373dd87aeb8bafccd1c036f0 100644
+--- a/src/main/java/net/minecraft/world/food/FoodData.java
++++ b/src/main/java/net/minecraft/world/food/FoodData.java
+@@ -100,7 +100,7 @@ public class FoodData {
+         } else if (this.foodLevel <= 0) {
+             ++this.tickTimer;
+             if (this.tickTimer >= this.starvationRate) { // CraftBukkit - add regen rate manipulation
+-                if (player.getHealth() > 10.0F || enumdifficulty == Difficulty.HARD || player.getHealth() > 1.0F && enumdifficulty == Difficulty.NORMAL) {
++                if ((player.level.paperConfig.minimumHealthAfterStarving < 0.0F || player.getHealth() > player.level.paperConfig.minimumHealthAfterStarving) && (player.getHealth() > 10.0F || enumdifficulty == Difficulty.HARD || player.getHealth() > 1.0F && enumdifficulty == Difficulty.NORMAL)) { // Martijn - minimum health after starving
+                     player.hurt(DamageSource.STARVE, 1.0F);
+                 }
+ 

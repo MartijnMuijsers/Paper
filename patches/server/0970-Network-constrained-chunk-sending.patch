@@ -42,7 +42,7 @@ index 0936b3fdeec3198b72eefd12ff4dfac5c79b54eb..d7f02cc4bc333b78b2f4254a07e9b4a4
      private static void playerIpAddresses() {
          logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 337febe90b2380398fe24e7a9972574244c6d8bd..faa6f2467fb1a9e41119000627caea336e72f19e 100644
+index e468eb7d4f7e8410ce1ab3eaf35c41a3bf593b46..1a1e37508797b83f18e466ee14e3468cb99b489c 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -243,6 +243,20 @@ public class PaperWorldConfig {

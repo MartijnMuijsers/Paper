@@ -161,7 +161,7 @@ index 61262e8113cc0bbb6a7bb22bf64d99d6f0add521..0936b3fdeec3198b72eefd12ff4dfac5
  
      /**
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index d5bd021423fc06ad30b77659854ce58e0c9a9497..337febe90b2380398fe24e7a9972574244c6d8bd 100644
+index 0f483fdebb4ca51f10bd9462c78cb0bca3ddc832..e468eb7d4f7e8410ce1ab3eaf35c41a3bf593b46 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -14,6 +14,7 @@ import java.util.Map;
