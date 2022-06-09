@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 8 Jun 2022 22:45:37 +0200
+Subject: [PATCH] Configuration to remove invalid feature resource location
+ console logs
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index 3482f5a61db1b65fd2fd01cb98d52384b0f10dab..8dd31bac7988d783279602333bd6a3bac8af9191 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -91,6 +91,15 @@ public class PaperConfig {
+         }
+     }
+ 
++    // Martijn start - remove invalid feature resource location console logs
++
++    public static boolean logInvalidFeatureResourceLocations = true;
++    private static void logInvalidFeatureResourceLocations() {
++        logInvalidFeatureResourceLocations = getBoolean("settings.log-invalid-feature-resource-locations", logInvalidFeatureResourceLocations);
++    }
++
++    // Martijn end - remove invalid feature resource location console logs
++
+     // Martijn start - remove unrecognized recipe console logs
+ 
+     public static boolean logUnrecognizedRecipes = true;
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index 8876f1d3060381413f06b62d754194de821c8d9e..a21e9348503ef2c7b290c944e8767f279d0d5a70 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -1162,7 +1162,11 @@ public class PaperWorldConfig {
+ 
+             final net.minecraft.resources.ResourceLocation location = new net.minecraft.resources.ResourceLocation(key);
+             if (!registry.containsKey(location)) {
+-                logError("Invalid feature resource location: " + location);
++                // Martijn start - remove invalid feature resource location console logs
++                if (PaperConfig.logInvalidFeatureResourceLocations) {
++                    logError("Invalid feature resource location: " + location);
++                }
++                // Martijn end - remove invalid feature resource location console logs
+                 continue;
+             }
+ 

@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 9 Jun 2022 01:59:50 +0200
+Subject: [PATCH] Configuration for whether lightning spawns fire
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index f5b47e2cfc20e4781eb3210e98fd36d30e8c5308..04dd1e7cf8ee3721660b7c39149d92afab2f8278 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -113,6 +113,15 @@ public class PaperWorldConfig {
+ 
+     // Martijn end - wither effect from wither skulls on easy difficulty
+ 
++    // Martijn start - configurable lightning fire
++
++    public boolean lightningSpawnsFire = true;
++    private void lightningSpawnsFire() {
++        lightningSpawnsFire = getBoolean("lightning-spawns-fire", lightningSpawnsFire);
++    }
++
++    // Martijn end - configurable lightning fire
++
+     public boolean zombiesTargetTurtleEggs = true;
+     private void zombiesTargetTurtleEggs() {
+         zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
+diff --git a/src/main/java/net/minecraft/world/entity/LightningBolt.java b/src/main/java/net/minecraft/world/entity/LightningBolt.java
+index 359c78b4f98c38c81af27a2c4cf0939da51e5a0b..6c83ae9764946f0dae0128d3f1b9d8abd0f47ce4 100644
+--- a/src/main/java/net/minecraft/world/entity/LightningBolt.java
++++ b/src/main/java/net/minecraft/world/entity/LightningBolt.java
+@@ -164,7 +164,7 @@ public class LightningBolt extends Entity {
+     }
+ 
+     private void spawnFire(int spreadAttempts) {
+-        if (!this.visualOnly && !this.level.isClientSide && this.level.getGameRules().getBoolean(GameRules.RULE_DOFIRETICK)) {
++        if (this.level.paperConfig.lightningSpawnsFire && !this.visualOnly && !this.level.isClientSide && this.level.getGameRules().getBoolean(GameRules.RULE_DOFIRETICK)) { // Martijn - configurable lightning fire
+             BlockPos blockposition = this.blockPosition();
+             BlockState iblockdata = BaseFireBlock.getState(this.level, blockposition);
+ 
