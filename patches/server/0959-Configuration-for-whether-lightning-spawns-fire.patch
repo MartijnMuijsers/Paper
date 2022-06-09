@@ -5,12 +5,12 @@ Subject: [PATCH] Configuration for whether lightning spawns fire
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 1e4eae4ae07fed630c4d9c6681dd3972e2ca6dc0..4e7759dc76eb7dba3da176cf6142ad6f95ed15a1 100644
+index 3f999625176b455474d1bcc89911113855abae0b..4ce70539082f1c8fe5e91c64a9c5848bce730266 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -108,6 +108,15 @@ public class PaperWorldConfig {
  
-     // Martijn end - wither effect from the wither on easy difficulty
+     // Martijn end - wither effect from wither skulls on easy difficulty
  
 +    // Martijn start - configurable lightning fire
 +

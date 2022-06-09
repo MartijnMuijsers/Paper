@@ -1,31 +1,31 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
 Date: Thu, 9 Jun 2022 01:59:25 +0200
-Subject: [PATCH] Withers can give the wither effect on easy difficulty
+Subject: [PATCH] Wither skulls can give the wither effect on easy difficulty
 
 
 diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
-index 5705af5bb77ae12c84f8129783687f6c63ac7e05..1e4eae4ae07fed630c4d9c6681dd3972e2ca6dc0 100644
+index 5705af5bb77ae12c84f8129783687f6c63ac7e05..3f999625176b455474d1bcc89911113855abae0b 100644
 --- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 +++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
 @@ -99,6 +99,15 @@ public class PaperWorldConfig {
  
      // Martijn end - cave spiders have poison on easy difficulty
  
-+    // Martijn start - wither effect from the wither on easy difficulty
++    // Martijn start - wither effect from wither skulls on easy difficulty
 +
-+    public boolean witherEffectFromTheWitherOnEasyDifficulty = false;
-+    private void witherEffectFromTheWitherOnEasyDifficulty() {
-+        witherEffectFromTheWitherOnEasyDifficulty = getBoolean("wither-effect-from-the-wither-on-easy-difficulty", witherEffectFromTheWitherOnEasyDifficulty);
++    public boolean witherEffectFromWitherSkullsOnEasyDifficulty = false;
++    private void witherEffectFromWitherSkullsOnEasyDifficulty() {
++        witherEffectFromWitherSkullsOnEasyDifficulty = getBoolean("wither-effect-from-wither-skulls-on-easy-difficulty", witherEffectFromWitherSkullsOnEasyDifficulty);
 +    }
 +
-+    // Martijn end - wither effect from the wither on easy difficulty
++    // Martijn end - wither effect from wither skulls on easy difficulty
 +
      public boolean zombiesTargetTurtleEggs = true;
      private void zombiesTargetTurtleEggs() {
          zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
 diff --git a/src/main/java/net/minecraft/world/entity/projectile/WitherSkull.java b/src/main/java/net/minecraft/world/entity/projectile/WitherSkull.java
-index 2867e841e73a3edfdeb83af9d96e0d0cd4116a68..79e77876cbf3c98f7383e17d75a66c6c7170181e 100644
+index 2867e841e73a3edfdeb83af9d96e0d0cd4116a68..261464c3aa542b0aef7eafdda97a38ae899ce873 100644
 --- a/src/main/java/net/minecraft/world/entity/projectile/WitherSkull.java
 +++ b/src/main/java/net/minecraft/world/entity/projectile/WitherSkull.java
 @@ -75,7 +75,7 @@ public class WitherSkull extends AbstractHurtingProjectile {
@@ -33,7 +33,7 @@ index 2867e841e73a3edfdeb83af9d96e0d0cd4116a68..79e77876cbf3c98f7383e17d75a66c6c
                  byte b0 = 0;
  
 -                if (this.level.getDifficulty() == Difficulty.NORMAL) {
-+                if (this.level.getDifficulty() == Difficulty.NORMAL || (this.level.getDifficulty() == Difficulty.EASY && this.level.paperConfig.witherEffectFromTheWitherOnEasyDifficulty)) { // Martijn - wither effect from the wither on easy difficulty
++                if (this.level.getDifficulty() == Difficulty.NORMAL || (this.level.getDifficulty() == Difficulty.EASY && this.level.paperConfig.witherEffectFromWitherSkullsOnEasyDifficulty)) { // Martijn - wither effect from wither skulls on easy difficulty
                      b0 = 10;
                  } else if (this.level.getDifficulty() == Difficulty.HARD) {
                      b0 = 40;
