@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 9 Jun 2022 01:37:34 +0200
+Subject: [PATCH] Cave spiders can have poison on easy difficulty
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+index eb5f1938b6e478deff09ffec8c8ea7daf16c6cb9..1cd08708db287533061416dcfae4a98c95d4a2ba 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperWorldConfig.java
+@@ -95,6 +95,15 @@ public class PaperWorldConfig {
+ 
+     // Martijn end - raids are always hard
+ 
++    // Martijn start - cave spiders have poison on easy difficulty
++
++    public boolean caveSpidersHavePoisonOnEasyDifficulty = false;
++    private void caveSpidersHavePoisonOnEasyDifficulty() {
++        caveSpidersHavePoisonOnEasyDifficulty = getBoolean("cave-spiders-have-poison-on-easy-difficulty", caveSpidersHavePoisonOnEasyDifficulty);
++    }
++
++    // Martijn end - cave spiders have poison on easy difficulty
++
+     public boolean zombiesTargetTurtleEggs = true;
+     private void zombiesTargetTurtleEggs() {
+         zombiesTargetTurtleEggs = getBoolean("zombies-target-turtle-eggs", zombiesTargetTurtleEggs);
+diff --git a/src/main/java/net/minecraft/world/entity/monster/CaveSpider.java b/src/main/java/net/minecraft/world/entity/monster/CaveSpider.java
+index d980b906d9206560741576fa4153c57212f307a0..c513f7036fbaec0a750f3c3dded242927b01a3bb 100644
+--- a/src/main/java/net/minecraft/world/entity/monster/CaveSpider.java
++++ b/src/main/java/net/minecraft/world/entity/monster/CaveSpider.java
+@@ -34,7 +34,7 @@ public class CaveSpider extends Spider {
+             if (target instanceof LivingEntity) {
+                 byte b0 = 0;
+ 
+-                if (this.level.getDifficulty() == Difficulty.NORMAL) {
++                if (this.level.getDifficulty() == Difficulty.NORMAL || (this.level.getDifficulty() == Difficulty.EASY && this.level.paperConfig.caveSpidersHavePoisonOnEasyDifficulty)) { // Martijn - cave spiders have poison on easy difficulty
+                     b0 = 7;
+                 } else if (this.level.getDifficulty() == Difficulty.HARD) {
+                     b0 = 15;

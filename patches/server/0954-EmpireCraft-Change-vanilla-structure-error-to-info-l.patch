@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: chickeneer <emcchickeneer@gmail.com>
+Date: Sat, 7 Aug 2021 11:36:09 -0500
+Subject: [PATCH] EmpireCraft - Change vanilla structure error to info log
+ level
+
+
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/feature/StructureFeature.java b/src/main/java/net/minecraft/world/level/levelgen/feature/StructureFeature.java
+index 1e421570bce0fd7bcd80056ff51e8cb3ee0fae4f..30b6b26960bc85aec9be22dd9e2be7061a2ad0f8 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/feature/StructureFeature.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/feature/StructureFeature.java
+@@ -128,7 +128,7 @@ public class StructureFeature<C extends FeatureConfiguration> {
+ 
+                     return new StructureStart(configuredStructureFeature, chunkPos, i, piecesContainer);
+                 } catch (Exception var11) {
+-                    LOGGER.error("Failed Start with id {}", string, var11);
++                    LOGGER.info("Failed Start with id {}", string, var11); // EMC
+                     return null;
+                 }
+             }
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.java b/src/main/java/net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.java
+index 739b6a1d7a9e5945f43d16c7d92966071abacd97..c638139fa1b2ca37cfe053c9a37c2421b1c68fe6 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/PoolElementStructurePiece.java
+@@ -48,7 +48,7 @@ public class PoolElementStructurePiece extends StructurePiece {
+         this.position = new BlockPos(nbt.getInt("PosX"), nbt.getInt("PosY"), nbt.getInt("PosZ"));
+         this.groundLevelDelta = nbt.getInt("ground_level_delta");
+         DynamicOps<Tag> dynamicOps = RegistryOps.create(NbtOps.INSTANCE, context.registryAccess());
+-        this.element = StructurePoolElement.CODEC.parse(dynamicOps, nbt.getCompound("pool_element")).resultOrPartial(LOGGER::error).orElseThrow(() -> {
++        this.element = StructurePoolElement.CODEC.parse(dynamicOps, nbt.getCompound("pool_element")).resultOrPartial(LOGGER::info).orElseThrow(() -> { // EMC
+             return new IllegalStateException("Invalid pool element found");
+         });
+         this.rotation = Rotation.valueOf(nbt.getString("rotation"));

@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 10 Jun 2022 00:26:47 +0200
+Subject: [PATCH] Fake server version
+
+
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index a87399fa4838d4b2c1ff9cc35d433ae76cc149bf..9e423ca31350b711119cc90d94be1a793ca621df 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -120,7 +120,14 @@ public final class Bukkit {
+         if ("master".equals(gitBranch) || "main".equals(gitBranch)) {
+             branchMsg = "";  // Don't show branch on main/master
+         }
+-        return "This server is running " + getName() + " version " + getVersion() + " (Implementing API version " + getBukkitVersion() + ") (Git: " + gitCommit + branchMsg + ")";
++        // Martijn start - configurable server version
++        String gitCommitAndBranchMsg = gitCommit + branchMsg;
++        String fakeGitCommitAndBranchMsg = Bukkit.getServer().getFakeVersionGitCommit();
++        if (fakeGitCommitAndBranchMsg != null) {
++            gitCommitAndBranchMsg = fakeGitCommitAndBranchMsg;
++        }
++        return "This server is running " + getName() + " version " + getVersion() + " (Implementing API version " + getBukkitVersion() + ") (Git: " + gitCommitAndBranchMsg + ")";
++        // Martijn end - configurable server version
+         // Paper end
+     }
+ 
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 79b26045a68ebb9b01e5bd06abbccaaef5489777..c18e825686f671a0e6238f0befc0738a16ef42b9 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -104,6 +104,16 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+     @NotNull
+     public String getVersion();
+ 
++    // Martijn start - configurable server version
++    /**
++     * Gets a configured fake version Git commit and branch.
++     *
++     * @return the configured fake text, or null if no replacement was configured
++     */
++    @Nullable
++    public String getFakeVersionGitCommit();
++    // Martijn end - configurable server version
++
+     /**
+      * Gets the Bukkit version that this server is running.
+      *

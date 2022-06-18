@@ -1,0 +1,84 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 10 Jun 2022 01:30:18 +0200
+Subject: [PATCH] Hide plugins by permissions
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index 20900bea17719e43ca8232ebe3388ddc2bf00db4..b389f6d77ca02452e2563d09651d067b29656eff 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -149,6 +149,20 @@ public class PaperConfig {
+ 
+     // Martijn end - configurable server version
+ 
++    // Martijn start - hide plugins
++
++    public static boolean hidePlugins = false;
++    private static void hidePlugins() {
++        hidePlugins = getBoolean("settings.hide-plugins.enabled", hidePlugins);
++    }
++
++    public static boolean hideLegacyPluginAsterisk = false;
++    private static void hideLegacyPluginAsterisk() {
++        hideLegacyPluginAsterisk = getBoolean("settings.hide-plugins.hide-legacy-asterisk", hideLegacyPluginAsterisk);
++    }
++
++    // Martijn end - hide plugins
++
+     public static boolean logPlayerIpAddresses = true;
+     private static void playerIpAddresses() {
+         logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 15e126c107b9260e0365f133e496cb328dfdad10..e5b03f94152b83619a085300f0db82e48c0080e6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -602,6 +602,18 @@ public final class CraftServer implements Server {
+     }
+     // Paper end
+ 
++    // Martijn start - hide plugins
++    @Override
++    public boolean getHidePlugins() {
++        return PaperConfig.hidePlugins;
++    }
++
++    @Override
++    public boolean getHideLegacyPluginAsterisk() {
++        return PaperConfig.hideLegacyPluginAsterisk;
++    }
++    // Martijn end - hide plugins
++
+     @Override
+     public List<CraftPlayer> getOnlinePlayers() {
+         return this.playerView;
+diff --git a/src/main/java/org/bukkit/craftbukkit/help/SimpleHelpMap.java b/src/main/java/org/bukkit/craftbukkit/help/SimpleHelpMap.java
+index 40b66adcb5aac64212b1937dc506ebb60f2eed83..631d204bb9a320d757b04782154e2427240deed4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/help/SimpleHelpMap.java
++++ b/src/main/java/org/bukkit/craftbukkit/help/SimpleHelpMap.java
+@@ -11,6 +11,8 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.TreeMap;
+ import java.util.TreeSet;
++
++import org.bukkit.Bukkit;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.CommandExecutor;
+ import org.bukkit.command.MultipleCommandAlias;
+@@ -25,6 +27,7 @@ import org.bukkit.help.HelpTopic;
+ import org.bukkit.help.HelpTopicComparator;
+ import org.bukkit.help.HelpTopicFactory;
+ import org.bukkit.help.IndexHelpTopic;
++import org.bukkit.plugin.PluginBase;
+ 
+ /**
+  * Standard implementation of {@link HelpMap} for CraftBukkit servers.
+@@ -169,7 +172,7 @@ public class SimpleHelpMap implements HelpMap {
+         this.fillPluginIndexes(pluginIndexes, this.server.getCommandMap().getCommands());
+ 
+         for (Map.Entry<String, Set<HelpTopic>> entry : pluginIndexes.entrySet()) {
+-            this.addTopic(new IndexHelpTopic(entry.getKey(), "All commands for " + entry.getKey(), null, entry.getValue(), "Below is a list of all " + entry.getKey() + " commands:"));
++            this.addTopic(new IndexHelpTopic(entry.getKey(), "All commands for " + entry.getKey(), Bukkit.getServer().getHidePlugins() ? PluginBase.getSeePluginPermissionName(entry.getKey()) : null, entry.getValue(), "Below is a list of all " + entry.getKey() + " commands:")); // Martijn - hide plugins
+         }
+ 
+         // Amend help topics from the help.yml file

@@ -1,0 +1,137 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 26 Jan 2022 01:10:39 +0100
+Subject: [PATCH] Utility method to sort chunks by distance
+
+
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index dc2eed0d00a6bd41fb26e7d9aeba7a6315040f17..797672bdad1745eba537f5b1ae3db4d2d25457a8 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -15,6 +15,7 @@ import com.mojang.datafixers.util.Either;
+ import com.mojang.logging.LogUtils;
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.JsonOps;
++import it.unimi.dsi.fastutil.Pair;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+@@ -33,6 +34,7 @@ import java.io.Writer;
+ import java.nio.file.Path;
+ import java.util.ArrayList;
+ import java.util.BitSet;
++import java.util.Comparator;
+ import java.util.HashMap; // Paper
+ import java.util.Collection;
+ import java.util.Iterator;
+@@ -49,13 +51,17 @@ import java.util.concurrent.CompletionException;
+ import java.util.concurrent.CompletionStage;
+ import java.util.concurrent.Executor;
+ import java.util.concurrent.atomic.AtomicInteger;
++import java.util.function.BiConsumer;
+ import java.util.function.BooleanSupplier;
+ import java.util.function.Consumer;
+ import java.util.function.IntFunction;
+ import java.util.function.IntSupplier;
+ import java.util.function.Supplier;
+ import java.util.stream.Collectors;
++import java.util.stream.Stream;
+ import javax.annotation.Nullable;
++
++import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
+ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.ReportedException;
+@@ -406,6 +412,63 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     }
+     // Paper end
+ 
++    // Martijn start - sort chunks by distance
++
++    public static void evaluateSpiral(int initialX, int initialZ, int inclusiveDistance, BiConsumer<Integer, Integer> consumer) {
++        int x = initialX;
++        int z = initialZ;
++        // All inclusive
++        int minX = initialX - inclusiveDistance;
++        int minZ = initialZ - inclusiveDistance;
++        int maxX = initialX + inclusiveDistance;
++        int maxZ = initialZ + inclusiveDistance;
++        int dx = 0;
++        int dz = 1;
++        int t = 1;
++        int ct = 0;
++        while (true) {
++            if (x < minX || x > maxX || z < minZ || z > maxZ) {
++                break;
++            }
++            consumer.accept(x, z);
++            x += dx;
++            z += dz;
++            ct++;
++            if (ct == t) {
++                ct = 0;
++                if (dz > 0) {
++                    dx = 1;
++                    dz = 0;
++                } else if (dx > 0) {
++                    dx = 0;
++                    dz = -1;
++                    t++;
++                } else if (dz < 0) {
++                    dx = -1;
++                    dz = 0;
++                } else {
++                    dx = 0;
++                    dz = 1;
++                    t++;
++                }
++            }
++        }
++    }
++
++    public Stream<ChunkHolder> getChunkHoldersSortedBySquaredPythagoreanDistanceToClosestPlayer(Stream<ChunkHolder> chunkHolders) {
++        return chunkHolders
++            .map(holder -> new ObjectObjectImmutablePair<>(holder, holder.getWorld().players
++                .stream()
++                .map(player -> player.getSquaredPythagoreanDistanceToChunk(holder.getPos().longKey))
++                .min(Long::compare)
++                .orElse(0L) // Happens in case there are no players in the world
++            ))
++            .sorted(Comparator.comparingLong(Pair::second))
++            .map(Pair::first);
++    }
++
++    // Martijn end - sort chunks by distance
++
+     boolean unloadingPlayerChunk = false; // Paper - do not allow ticket level changes while unloading chunks
+     public ChunkMap(ServerLevel world, LevelStorageSource.LevelStorageAccess session, DataFixer dataFixer, StructureManager structureManager, Executor executor, BlockableEventLoop<Runnable> mainThreadExecutor, LightChunkGetter chunkProvider, ChunkGenerator chunkGenerator, ChunkProgressListener worldGenerationProgressListener, ChunkStatusUpdateListener chunkStatusChangeListener, Supplier<DimensionDataStorage> persistentStateManagerFactory, int viewDistance, boolean dsync) {
+         super(session.getDimensionPath(world.dimension()).resolve("region"), dataFixer, dsync);
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index c9a398974767e8c6ffc6d7ceb63b22617a425965..c21f66c3acef6d855c3e9e24322921674d8be99a 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -376,6 +376,24 @@ public class ServerPlayer extends Player {
+ 
+     // Martijn end - utility functions for getting the player's level UUID
+ 
++    // Martijn start - sorting chunks by distance
++
++    public Stream<ChunkHolder> getChunkHoldersSortedBySquaredPythagoreanDistance(Stream<ChunkHolder> chunkHolders) {
++        return chunkHolders
++            .map(holder -> new ObjectObjectImmutablePair<>(holder, this.getSquaredPythagoreanDistanceToChunk(holder.getPos().longKey)))
++            .sorted(Comparator.comparingLong(Pair::second))
++            .map(Pair::first);
++    }
++
++    public Stream<IntIntPair> getChunkCoordinatesSortedBySquaredPythagoreanDistance(Stream<IntIntPair> chunkCoordinates) {
++        return chunkCoordinates
++            .map(coordinates -> new ObjectObjectImmutablePair<>(coordinates, this.getSquaredPythagoreanDistanceToChunk(new ChunkPos(coordinates.first(), coordinates.second()).longKey)))
++            .sorted(Comparator.comparingLong(Pair::second))
++            .map(Pair::first);
++    }
++
++    // Martijn end - sorting chunks by distance
++
+     // Yes, this doesn't match Vanilla, but it's the best we can do for now.
+     // If this is an issue, PRs are welcome
+     public final BlockPos getSpawnPoint(ServerLevel worldserver) {
