@@ -5,10 +5,10 @@ Subject: [PATCH] Per-player load, see and track view distances
 
 
 diff --git a/src/main/java/org/bukkit/World.java b/src/main/java/org/bukkit/World.java
-index 7ad1cabe05277c1f3238da6e121c35d8a9f0d952..46b88883c688a664a2ba2b2acab61c6f1bfa60b6 100644
+index 70b3132d5810f276ba7341e1edd0e52c05190e63..2eb2945834441bf01d6a37c5a7f9f26fa15ee0b7 100644
 --- a/src/main/java/org/bukkit/World.java
 +++ b/src/main/java/org/bukkit/World.java
-@@ -3801,47 +3801,49 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
+@@ -3826,47 +3826,49 @@ public interface World extends RegionAccessor, WorldInfo, PluginMessageRecipient
       */
      void setSimulationDistance(int simulationDistance);
  

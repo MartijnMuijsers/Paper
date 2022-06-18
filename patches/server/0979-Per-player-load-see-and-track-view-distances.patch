@@ -2141,10 +2141,10 @@ index ec727ff5318f90e6241dc423a3156504c6e20c1d..fe603419cf414f2c9db863cce234ee90
                  // a player.
                  chunkProviderServer.mainThreadProcessor.execute(() -> {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 4cc826f18a69287ee907e3269471f6e8f2474d6f..ea874ec0634734d0f6106270a4d856783bd8b102 100644
+index 5aaa508d66e5103af3d22d862f37d9ac831c5de0..7bdcf18ee185276d8534707853caf54d5f4e1cd3 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -491,7 +491,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -542,7 +542,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
  
          playerChunk.getTickingChunkFuture().thenAccept(either -> {
              either.left().ifPresent(chunk -> {
@@ -2153,7 +2153,7 @@ index 4cc826f18a69287ee907e3269471f6e8f2474d6f..ea874ec0634734d0f6106270a4d85678
                  if (playersInRange.isEmpty()) return;
  
                  // Paper start - Anti-Xray - Bypass
-@@ -2224,7 +2224,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2275,7 +2275,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      // Spigot start
      @Override
      public int getViewDistance() {
@@ -2162,7 +2162,7 @@ index 4cc826f18a69287ee907e3269471f6e8f2474d6f..ea874ec0634734d0f6106270a4d85678
      }
  
      @Override
-@@ -2240,7 +2240,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2291,7 +2291,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
              throw new IllegalArgumentException("View distance " + viewDistance + " is out of range of [2, 32]");
          }
          net.minecraft.server.level.ChunkMap chunkMap = getHandle().getChunkSource().chunkMap;
@@ -2171,7 +2171,7 @@ index 4cc826f18a69287ee907e3269471f6e8f2474d6f..ea874ec0634734d0f6106270a4d85678
          // Paper end - replace old player chunk management
      }
  
-@@ -2256,25 +2256,27 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2307,25 +2307,27 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      }
      // Paper end - replace old player chunk management
  
