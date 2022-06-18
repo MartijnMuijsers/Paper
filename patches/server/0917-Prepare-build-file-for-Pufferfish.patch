@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sun, 19 Jun 2022 01:53:49 +0200
+Subject: [PATCH] Prepare build file for Pufferfish
+
+
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 68b8f275f9c9e77a949ca29749a05b469bcdb910..8ee862217e02556129dfc19127ec7190fa3e0150 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -8,6 +8,12 @@ plugins {
+     id("com.github.johnrengelman.shadow")
+ }
+ 
++// Pufferfish start
++repositories {
++    maven { url = uri("https://jitpack.io") }
++}
++// Pufferfish end
++
+ dependencies {
+     implementation(project(":paper-api"))
+     implementation(project(":paper-mojangapi"))
+@@ -26,6 +32,7 @@ dependencies {
+     // Paper end
+     implementation("org.apache.logging.log4j:log4j-iostreams:2.17.1") // Paper
+     implementation("org.apache.logging.log4j:log4j-slf4j18-impl:2.17.1") // Paper
++    implementation("io.sentry:sentry:5.4.0") // Pufferfish
+     implementation("org.ow2.asm:asm:9.3")
+     implementation("org.ow2.asm:asm-commons:9.3") // Paper - ASM event executor generation
+     implementation("org.spongepowered:configurate-yaml:4.1.2") // Paper - config files
