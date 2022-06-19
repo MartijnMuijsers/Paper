@@ -1,0 +1,942 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 28 Jan 2022 20:56:43 +0100
+Subject: [PATCH] Fake server version
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/PaperConfig.java b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+index ef41cf3a7d1e6f2bfe81e0fb865d2f969bbc77c1..ee79d9d5c62cd3bc6b8b1cfef0a6057768cd5983 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperConfig.java
++++ b/src/main/java/com/destroystokyo/paper/PaperConfig.java
+@@ -1,8 +1,763 @@
+ package com.destroystokyo.paper;
+ 
++import com.destroystokyo.paper.io.chunk.ChunkTaskManager;
++import com.google.common.base.Strings;
++import com.google.common.base.Throwables;
++
++import java.io.File;
++import java.io.IOException;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
++import java.lang.reflect.Modifier;
++import java.nio.charset.StandardCharsets;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.concurrent.TimeUnit;
++import java.util.logging.Level;
++import java.util.regex.Pattern;
++
++import com.google.common.collect.Lists;
++import net.minecraft.server.MinecraftServer;
++import org.bukkit.Bukkit;
++import org.bukkit.ChatColor;
++import org.bukkit.command.Command;
++import org.bukkit.configuration.ConfigurationSection;
++import org.bukkit.configuration.InvalidConfigurationException;
++import org.bukkit.configuration.file.YamlConfiguration;
++import co.aikar.timings.Timings;
++import co.aikar.timings.TimingsManager;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.jetbrains.annotations.Nullable;
++import org.spigotmc.SpigotConfig;
++import org.spigotmc.WatchdogThread;
++
+ /**
+  * @deprecated kept as a means to identify Paper in older plugins/PaperLib
+  */
+ @Deprecated(forRemoval = true)
+ public class PaperConfig {
++
++    private static File CONFIG_FILE;
++    private static final String HEADER = "This is the main configuration file for Paper.\n"
++            + "As you can see, there's tons to configure. Some options may impact gameplay, so use\n"
++            + "with caution, and make sure you know what each option does before configuring.\n"
++            + "\n"
++            + "If you need help with the configuration or have any questions related to Paper,\n"
++            + "join us in our Discord or IRC channel.\n"
++            + "\n"
++            + "Discord: https://discord.gg/papermc\n"
++            + "IRC: #paper @ irc.esper.net ( https://webchat.esper.net/?channels=paper ) \n"
++            + "Website: https://papermc.io/ \n"
++            + "Docs: https://docs.papermc.io/ \n";
++    /*========================================================================*/
++    public static YamlConfiguration config;
++    static int version;
++    static Map<String, Command> commands;
++    private static boolean verbose;
++    private static boolean fatalError;
++    /*========================================================================*/
++    private static boolean metricsStarted;
++
++    public static void init(File configFile) {
++        CONFIG_FILE = configFile;
++        config = new YamlConfiguration();
++        try {
++            config.load(CONFIG_FILE);
++        } catch (IOException ex) {
++        } catch (InvalidConfigurationException ex) {
++            Bukkit.getLogger().log(Level.SEVERE, "Could not load paper.yml, please correct your syntax errors", ex);
++            throw Throwables.propagate(ex);
++        }
++        config.options().header(HEADER);
++        config.options().copyDefaults(true);
++        verbose = getBoolean("verbose", false);
++
++        commands = new HashMap<String, Command>();
++        commands.put("paper", new PaperCommand("paper"));
++        commands.put("mspt", new MSPTCommand("mspt"));
++
++        version = getInt("config-version", 27);
++        set("config-version", 27);
++        readConfig(PaperConfig.class, null);
++    }
++
++    protected static void logError(String s) {
++        Bukkit.getLogger().severe(s);
++    }
++
++    protected static void fatal(String s) {
++        fatalError = true;
++        throw new RuntimeException("Fatal paper.yml config error: " + s);
++    }
++
++    protected static void log(String s) {
++        if (verbose) {
++            Bukkit.getLogger().info(s);
++        }
++    }
++
++    // Martijn start - configurable server version
++
++    /**
++     * This is the release version Paper identifies itself as (as seen on the Paper downloads page)
++     * Example: "git-Paper-379" (the examples for the other configuration settings below match this version)
++     *
++     * "none" disables this feature
++     */
++    private static String fakeServerVersionGitPaperVersion = "none";
++    private static void fakeServerVersionGitPaperVersion() {
++        fakeServerVersionGitPaperVersion = getString("settings.fake-version.git-paper-version", fakeServerVersionGitPaperVersion);
++        if (!fakeServerVersionGitPaperVersion.equalsIgnoreCase("none")) {
++            ((org.bukkit.craftbukkit.CraftServer) Bukkit.getServer()).setVersion(fakeServerVersionGitPaperVersion);
++        }
++    }
++
++    /**
++     * This is the short hash of the Git commit and the branch
++     * (the hash can be seen on the Paper downloads page, and the branch that we wish to show is probably always master,
++     * however, if the branch is "master" or "main" it is not shown at all (see Bukkit.getVersionMessage()))
++     * Example: "276d830" (matches Paper version git-Paper-379)
++     * (Another example just to show what it looks like when the branch is not "master" or "main": "d6eda26 on dev/martijn/1.18-perf1")
++     *
++     * "none" disables this feature
++     */
++    private static String fakeServerVersionGitCommit = "none";
++    private static void fakeServerVersionGitCommit() {
++        fakeServerVersionGitCommit = getString("settings.fake-version.git-commit", fakeServerVersionGitCommit);
++        if (!fakeServerVersionGitCommit.equalsIgnoreCase("none")) {
++            ((org.bukkit.craftbukkit.CraftServer) Bukkit.getServer()).setFakeVersionGitCommit(fakeServerVersionGitCommit);
++        }
++    }
++
++    /**
++     * Whether to always display "Error obtaining version information" instead of
++     * "You are running the latest version", "Unknown version" or "You are ... version(s) behind"
++     */
++    public static boolean alwaysShowErrorObtainingVersionInformation = false;
++    private static void alwaysShowErrorObtainingVersionInformation() {
++        alwaysShowErrorObtainingVersionInformation = getBoolean("settings.fake-version.always-show-error-obtaining-version-information", alwaysShowErrorObtainingVersionInformation);
++    }
++
++    /**
++     * This is the previous release version Paper identifies itself as: this is the same as fakeServerVersionGitPaperVersion,
++     * except it identifies the supposed previous version of the server rather than the current one
++     * Example: "git-Paper-375" (which would be a few versions before "git-Paper-379")
++     *
++     * "none" disables this feature
++     */
++    public static String fakeServerVersionPreviousGitPaperVersion = "none";
++    private static void fakeServerVersionPreviousGitPaperVersion() {
++        fakeServerVersionPreviousGitPaperVersion = getString("settings.fake-version.previous-git-paper-version", fakeServerVersionPreviousGitPaperVersion);
++    }
++
++    // Martijn end - configurable server version
++
++    public static boolean logPlayerIpAddresses = true;
++    private static void playerIpAddresses() {
++        logPlayerIpAddresses = getBoolean("settings.log-player-ip-addresses", logPlayerIpAddresses);
++    }
++
++    public static int maxJoinsPerTick;
++    private static void maxJoinsPerTick() {
++        maxJoinsPerTick = getInt("settings.max-joins-per-tick", 3);
++    }
++
++    public static boolean trackPluginScoreboards;
++    private static void trackPluginScoreboards() {
++        trackPluginScoreboards = getBoolean("settings.track-plugin-scoreboards", false);
++    }
++
++    public static boolean fixEntityPositionDesync = true;
++    private static void fixEntityPositionDesync() {
++        fixEntityPositionDesync = getBoolean("settings.fix-entity-position-desync", fixEntityPositionDesync);
++    }
++
++    public static boolean enableBrigadierConsoleHighlighting = true;
++    public static boolean enableBrigadierConsoleCompletions = true;
++    private static void consoleSettings() {
++        enableBrigadierConsoleHighlighting = getBoolean("settings.console.enable-brigadier-highlighting", enableBrigadierConsoleHighlighting);
++        enableBrigadierConsoleCompletions = getBoolean("settings.console.enable-brigadier-completions", enableBrigadierConsoleCompletions);
++    }
++
++    public static void registerCommands() {
++        for (Map.Entry<String, Command> entry : commands.entrySet()) {
++            MinecraftServer.getServer().server.getCommandMap().register(entry.getKey(), "Paper", entry.getValue());
++        }
++
++        if (!metricsStarted) {
++            Metrics.PaperMetrics.startMetrics();
++            metricsStarted = true;
++        }
++    }
++
++    static void readConfig(Class<?> clazz, Object instance) {
++        for (Method method : clazz.getDeclaredMethods()) {
++            if (Modifier.isPrivate(method.getModifiers())) {
++                if (method.getParameterTypes().length == 0 && method.getReturnType() == Void.TYPE) {
++                    try {
++                        method.setAccessible(true);
++                        method.invoke(instance);
++                    } catch (InvocationTargetException ex) {
++                        throw Throwables.propagate(ex.getCause());
++                    } catch (Exception ex) {
++                        Bukkit.getLogger().log(Level.SEVERE, "Error invoking " + method, ex);
++                    }
++                }
++            }
++        }
++        saveConfig();
++    }
++
++    static void saveConfig() {
++        try {
++            config.save(CONFIG_FILE);
++        } catch (IOException ex) {
++            Bukkit.getLogger().log(Level.SEVERE, "Could not save " + CONFIG_FILE, ex);
++        }
++    }
++
++    private static final Pattern SPACE = Pattern.compile(" ");
++    private static final Pattern NOT_NUMERIC = Pattern.compile("[^-\\d.]");
++    public static int getSeconds(String str) {
++        str = SPACE.matcher(str).replaceAll("");
++        final char unit = str.charAt(str.length() - 1);
++        str = NOT_NUMERIC.matcher(str).replaceAll("");
++        double num;
++        try {
++            num = Double.parseDouble(str);
++        } catch (Exception e) {
++            num = 0D;
++        }
++        switch (unit) {
++            case 'd': num *= (double) 60*60*24; break;
++            case 'h': num *= (double) 60*60; break;
++            case 'm': num *= (double) 60; break;
++            default: case 's': break;
++        }
++        return (int) num;
++    }
++
++    protected static String timeSummary(int seconds) {
++        String time = "";
++
++        if (seconds > 60 * 60 * 24) {
++            time += TimeUnit.SECONDS.toDays(seconds) + "d";
++            seconds %= 60 * 60 * 24;
++        }
++
++        if (seconds > 60 * 60) {
++            time += TimeUnit.SECONDS.toHours(seconds) + "h";
++            seconds %= 60 * 60;
++        }
++
++        if (seconds > 0) {
++            time += TimeUnit.SECONDS.toMinutes(seconds) + "m";
++        }
++        return time;
++    }
++
++    private static void set(String path, Object val) {
++        config.set(path, val);
++    }
++
++    private static boolean getBoolean(String path, boolean def) {
++        config.addDefault(path, def);
++        return config.getBoolean(path, config.getBoolean(path));
++    }
++
++    private static double getDouble(String path, double def) {
++        config.addDefault(path, def);
++        return config.getDouble(path, config.getDouble(path));
++    }
++
++    private static float getFloat(String path, float def) {
++        // TODO: Figure out why getFloat() always returns the default value.
++        return (float) getDouble(path, (double) def);
++    }
++
++    private static int getInt(String path, int def) {
++        config.addDefault(path, def);
++        return config.getInt(path, config.getInt(path));
++    }
++
++    private static <T> List getList(String path, T def) {
++        config.addDefault(path, def);
++        return (List<T>) config.getList(path, config.getList(path));
++    }
++
++    private static String getString(String path, String def) {
++        config.addDefault(path, def);
++        return config.getString(path, config.getString(path));
++    }
++
++    public static boolean useDisplayNameInQuit = false;
++    private static void useDisplayNameInQuit() {
++        if (version < 21) {
++            boolean oldValue = getBoolean("use-display-name-in-quit-message", useDisplayNameInQuit);
++            set("settings.use-display-name-in-quit-message", oldValue);
++        }
++        useDisplayNameInQuit = getBoolean("settings.use-display-name-in-quit-message", useDisplayNameInQuit);
++    }
++
++    public static String timingsServerName;
++    private static void timings() {
++        boolean timings = getBoolean("timings.enabled", true);
++        boolean verboseTimings = getBoolean("timings.verbose", true);
++        TimingsManager.url = getString("timings.url", "https://timings.aikar.co/");
++        if (!TimingsManager.url.endsWith("/")) {
++            TimingsManager.url += "/";
++        }
++        TimingsManager.privacy = getBoolean("timings.server-name-privacy", false);
++        TimingsManager.hiddenConfigs = getList("timings.hidden-config-entries", Lists.newArrayList("database", "settings.bungeecord-addresses", "settings.velocity-support.secret"));
++        if (!TimingsManager.hiddenConfigs.contains("settings.velocity-support.secret")) {
++            TimingsManager.hiddenConfigs.add("settings.velocity-support.secret");
++        }
++        int timingHistoryInterval = getInt("timings.history-interval", 300);
++        int timingHistoryLength = getInt("timings.history-length", 3600);
++        timingsServerName = getString("timings.server-name", "Unknown Server");
++
++
++        Timings.setVerboseTimingsEnabled(verboseTimings);
++        Timings.setTimingsEnabled(timings);
++        Timings.setHistoryInterval(timingHistoryInterval * 20);
++        Timings.setHistoryLength(timingHistoryLength * 20);
++
++        log("Timings: " + timings +
++                " - Url: " + TimingsManager.url +
++                " - Verbose: " + verboseTimings +
++                " - Interval: " + timeSummary(Timings.getHistoryInterval() / 20) +
++                " - Length: " + timeSummary(Timings.getHistoryLength() / 20) +
++                " - Server Name: " + timingsServerName);
++    }
++
++    public static boolean loadPermsBeforePlugins = true;
++    private static void loadPermsBeforePlugins() {
++        loadPermsBeforePlugins = getBoolean("settings.load-permissions-yml-before-plugins", true);
++    }
++
++    public static int regionFileCacheSize = 256;
++    private static void regionFileCacheSize() {
++        regionFileCacheSize = Math.max(getInt("settings.region-file-cache-size", 256), 4);
++    }
++
++    public static boolean enablePlayerCollisions = true;
++    private static void enablePlayerCollisions() {
++        enablePlayerCollisions = getBoolean("settings.enable-player-collisions", true);
++    }
++
++    public static boolean saveEmptyScoreboardTeams = false;
++    private static void saveEmptyScoreboardTeams() {
++        saveEmptyScoreboardTeams = getBoolean("settings.save-empty-scoreboard-teams", false);
++    }
++
++    public static boolean bungeeOnlineMode = true;
++    private static void bungeeOnlineMode() {
++        bungeeOnlineMode = getBoolean("settings.bungee-online-mode", true);
++    }
++
++    public static boolean isProxyOnlineMode() {
++        return Bukkit.getOnlineMode() || (SpigotConfig.bungee && bungeeOnlineMode) || (velocitySupport && velocityOnlineMode);
++    }
++
++    public static int packetInSpamThreshold = 300;
++    private static void packetInSpamThreshold() {
++        if (version < 11) {
++            int oldValue = getInt("settings.play-in-use-item-spam-threshold", 300);
++            set("settings.incoming-packet-spam-threshold", oldValue);
++        }
++        packetInSpamThreshold = getInt("settings.incoming-packet-spam-threshold", 300);
++    }
++
++    public static String flyingKickPlayerMessage = "Flying is not enabled on this server";
++    public static String flyingKickVehicleMessage = "Flying is not enabled on this server";
++    private static void flyingKickMessages() {
++        flyingKickPlayerMessage = getString("messages.kick.flying-player", flyingKickPlayerMessage);
++        flyingKickVehicleMessage = getString("messages.kick.flying-vehicle", flyingKickVehicleMessage);
++    }
++
++    public static boolean suggestPlayersWhenNullTabCompletions = true;
++    private static void suggestPlayersWhenNull() {
++        suggestPlayersWhenNullTabCompletions = getBoolean("settings.suggest-player-names-when-null-tab-completions", suggestPlayersWhenNullTabCompletions);
++    }
++
++    public static String authenticationServersDownKickMessage = ""; // empty = use translatable message
++    private static void authenticationServersDownKickMessage() {
++        authenticationServersDownKickMessage = Strings.emptyToNull(getString("messages.kick.authentication-servers-down", authenticationServersDownKickMessage));
++    }
++
++    public static String connectionThrottleKickMessage = "Connection throttled! Please wait before reconnecting.";
++    private static void connectionThrottleKickMessage() {
++        connectionThrottleKickMessage = getString("messages.kick.connection-throttle", connectionThrottleKickMessage);
++    }
++
++    public static String noPermissionMessage = "&cI'm sorry, but you do not have permission to perform this command. Please contact the server administrators if you believe that this is in error.";
++    private static void noPermissionMessage() {
++        noPermissionMessage = ChatColor.translateAlternateColorCodes('&', getString("messages.no-permission", noPermissionMessage));
++    }
++
++    private static void savePlayerData() {
++        Object val = config.get("settings.save-player-data");
++        if (val instanceof Boolean) {
++            SpigotConfig.disablePlayerDataSaving = !(Boolean) val;
++            SpigotConfig.config.set("players.disable-saving", SpigotConfig.disablePlayerDataSaving);
++            SpigotConfig.save();
++            config.set("settings.save-player-data", null);
++        }
++    }
++
++    private static void namedEntityDeaths() {
++        Object val = config.get("settings.log-named-entity-deaths");
++        if (val instanceof Boolean bool && !bool) {
++            SpigotConfig.logNamedDeaths = false;
++            SpigotConfig.config.set("settings.log-named-deaths", false);
++            SpigotConfig.save();
++        }
++    }
++
++    public static boolean useAlternativeLuckFormula = false;
++    private static void useAlternativeLuckFormula() {
++        useAlternativeLuckFormula = getBoolean("settings.use-alternative-luck-formula", false);
++        if (useAlternativeLuckFormula) {
++            Bukkit.getLogger().log(Level.INFO, "Using Aikar's Alternative Luck Formula to apply Luck attribute to all loot pool calculations. See https://luckformula.emc.gs");
++        }
++    }
++
++    public static int watchdogPrintEarlyWarningEvery = 5000;
++    public static int watchdogPrintEarlyWarningDelay = 10000;
++    private static void watchdogEarlyWarning() {
++        watchdogPrintEarlyWarningEvery = getInt("settings.watchdog.early-warning-every", 5000);
++        watchdogPrintEarlyWarningDelay = getInt("settings.watchdog.early-warning-delay", 10000);
++        WatchdogThread.doStart(SpigotConfig.timeoutTime, SpigotConfig.restartOnCrash );
++    }
++
++    public static int tabSpamIncrement = 1;
++    public static int tabSpamLimit = 500;
++    private static void tabSpamLimiters() {
++        tabSpamIncrement = getInt("settings.spam-limiter.tab-spam-increment", tabSpamIncrement);
++        // Older versions used a smaller limit, which is too low for 1.13, we'll bump this up if default
++        if (version < 14) {
++            if (tabSpamIncrement == 10) {
++                set("settings.spam-limiter.tab-spam-increment", 2);
++                tabSpamIncrement = 2;
++            }
++        }
++        tabSpamLimit = getInt("settings.spam-limiter.tab-spam-limit", tabSpamLimit);
++    }
++
++    public static int autoRecipeIncrement = 1;
++    public static int autoRecipeLimit = 20;
++    private static void autoRecipieLimiters() {
++        autoRecipeIncrement = getInt("settings.spam-limiter.recipe-spam-increment", autoRecipeIncrement);
++        autoRecipeLimit = getInt("settings.spam-limiter.recipe-spam-limit", autoRecipeLimit);
++    }
++
++    public static boolean velocitySupport;
++    public static boolean velocityOnlineMode;
++    public static byte[] velocitySecretKey;
++    private static void velocitySupport() {
++        velocitySupport = getBoolean("settings.velocity-support.enabled", false);
++        velocityOnlineMode = getBoolean("settings.velocity-support.online-mode", false);
++        String secret = getString("settings.velocity-support.secret", "");
++        if (velocitySupport && secret.isEmpty()) {
++            fatal("Velocity support is enabled, but no secret key was specified. A secret key is required!");
++        } else {
++            velocitySecretKey = secret.getBytes(StandardCharsets.UTF_8);
++        }
++    }
++
++    public static int maxBookPageSize = 2560;
++    public static double maxBookTotalSizeMultiplier = 0.98D;
++    private static void maxBookSize() {
++        maxBookPageSize = Math.min(8192, getInt("settings.book-size.page-max", maxBookPageSize));
++        maxBookTotalSizeMultiplier = getDouble("settings.book-size.total-multiplier", maxBookTotalSizeMultiplier);
++    }
++
++    public static boolean asyncChunks = false;
++    private static void asyncChunks() {
++        ConfigurationSection section;
++        if (version < 15) {
++            section = config.createSection("settings.async-chunks");
++            section.set("threads", -1);
++        } else {
++            section = config.getConfigurationSection("settings.async-chunks");
++            if (section == null) {
++                section = config.createSection("settings.async-chunks");
++            }
++        }
++        // Clean up old configs
++        if (section.contains("load-threads")) {
++            if (!section.contains("threads")) {
++                section.set("threads", section.get("load-threads"));
++            }
++            section.set("load-threads", null);
++        }
++        section.set("generation", null);
++        section.set("enabled", null);
++        section.set("thread-per-world-generation", null);
++
++        int threads = getInt("settings.async-chunks.threads", -1);
++        int cpus = Runtime.getRuntime().availableProcessors() / 2;
++        if (threads <= 0) {
++            if (cpus <= 4) {
++                threads = cpus <= 2 ? 1 : 2;
++            } else {
++                threads = (int) Math.min(Integer.getInteger("paper.maxChunkThreads", 4), cpus / 2);
++            }
++        }
++        if (cpus == 1 && !Boolean.getBoolean("Paper.allowAsyncChunksSingleCore")) {
++            asyncChunks = false;
++        } else {
++            asyncChunks = true;
++        }
++
++        // Let Shared Host set some limits
++        String sharedHostThreads = System.getenv("PAPER_ASYNC_CHUNKS_SHARED_HOST_THREADS");
++        if (sharedHostThreads != null) {
++            try {
++                threads = Math.max(1, Math.min(threads, Integer.parseInt(sharedHostThreads)));
++            } catch (NumberFormatException ignored) {}
++        }
++
++        if (!asyncChunks) {
++            log("Async Chunks: Disabled - Chunks will be managed synchronously, and will cause tremendous lag.");
++        } else {
++            ChunkTaskManager.initGlobalLoadThreads(threads);
++            log("Async Chunks: Enabled - Chunks will be loaded much faster, without lag.");
++        }
++    }
++
++    public static boolean deobfuscateStacktraces = true;
++    public static boolean useRgbForNamedTextColors = true;
++    private static void loggerSettings() {
++        deobfuscateStacktraces = getBoolean("settings.loggers.deobfuscate-stacktraces", deobfuscateStacktraces);
++        useRgbForNamedTextColors = getBoolean("settings.loggers.use-rgb-for-named-text-colors", useRgbForNamedTextColors);
++    }
++
++    public static boolean allowBlockPermanentBreakingExploits = false;
++    private static void allowBlockPermanentBreakingExploits() {
++        if (config.contains("allow-perm-block-break-exploits")) {
++            allowBlockPermanentBreakingExploits = config.getBoolean("allow-perm-block-break-exploits", false);
++            config.set("allow-perm-block-break-exploits", null);
++        }
++
++        config.set("settings.unsupported-settings.allow-permanent-block-break-exploits-readme", "This setting controls if players should be able to break bedrock, end portals and other intended to be permanent blocks.");
++        allowBlockPermanentBreakingExploits = getBoolean("settings.unsupported-settings.allow-permanent-block-break-exploits", allowBlockPermanentBreakingExploits);
++    }
++
++    public static boolean consoleHasAllPermissions = false;
++    private static void consoleHasAllPermissions() {
++        consoleHasAllPermissions = getBoolean("settings.console-has-all-permissions", consoleHasAllPermissions);
++    }
++
++    public static boolean allowPistonDuplication;
++    private static void allowPistonDuplication() {
++        config.set("settings.unsupported-settings.allow-piston-duplication-readme", "This setting controls if player should be able to use TNT duplication, but this also allows duplicating carpet, rails and potentially other items");
++        allowPistonDuplication = getBoolean("settings.unsupported-settings.allow-piston-duplication", config.getBoolean("settings.unsupported-settings.allow-tnt-duplication", false));
++        set("settings.unsupported-settings.allow-tnt-duplication", null);
++    }
++
++    public static boolean performUsernameValidation;
++    private static void performUsernameValidation() {
++        performUsernameValidation = getBoolean("settings.unsupported-settings.perform-username-validation", true);
++    }
++
++
++    public static int playerAutoSaveRate = -1;
++    public static int maxPlayerAutoSavePerTick = 10;
++    private static void playerAutoSaveRate() {
++        playerAutoSaveRate = getInt("settings.player-auto-save-rate", -1);
++        maxPlayerAutoSavePerTick = getInt("settings.max-player-auto-save-per-tick", -1);
++        if (maxPlayerAutoSavePerTick == -1) { // -1 Automatic / "Recommended"
++            // 10 should be safe for everyone unless you mass spamming player auto save
++            maxPlayerAutoSavePerTick = (playerAutoSaveRate == -1 || playerAutoSaveRate > 100) ? 10 : 20;
++        }
++    }
++
++    public static boolean allowHeadlessPistons;
++    private static void allowHeadlessPistons() {
++        config.set("settings.unsupported-settings.allow-headless-pistons-readme", "This setting controls if players should be able to create headless pistons.");
++        allowHeadlessPistons = getBoolean("settings.unsupported-settings.allow-headless-pistons", false);
++    }
++
++    public static int itemValidationDisplayNameLength = 8192;
++    public static int itemValidationLocNameLength = 8192;
++    public static int itemValidationLoreLineLength = 8192;
++    public static int itemValidationBookTitleLength = 8192;
++    public static int itemValidationBookAuthorLength = 8192;
++    public static int itemValidationBookPageLength = 16384;
++    private static void itemValidationSettings() {
++        itemValidationDisplayNameLength = getInt("settings.item-validation.display-name", itemValidationDisplayNameLength);
++        itemValidationLocNameLength = getInt("settings.item-validation.loc-name", itemValidationLocNameLength);
++        itemValidationLoreLineLength = getInt("settings.item-validation.lore-line", itemValidationLoreLineLength);
++        itemValidationBookTitleLength = getInt("settings.item-validation.book.title", itemValidationBookTitleLength);
++        itemValidationBookAuthorLength = getInt("settings.item-validation.book.author", itemValidationBookAuthorLength);
++        itemValidationBookPageLength = getInt("settings.item-validation.book.page", itemValidationBookPageLength);
++    }
++
++    public static boolean fixTargetSelectorTagCompletion = true;
++    private static void fixTargetSelectorTagCompletion() {
++        fixTargetSelectorTagCompletion = getBoolean("settings.fix-target-selector-tag-completion", fixTargetSelectorTagCompletion);
++    }
++
++    public static final class PacketLimit {
++        public final double packetLimitInterval;
++        public final double maxPacketRate;
++        public final ViolateAction violateAction;
++
++        public PacketLimit(final double packetLimitInterval, final double maxPacketRate, final ViolateAction violateAction) {
++            this.packetLimitInterval = packetLimitInterval;
++            this.maxPacketRate = maxPacketRate;
++            this.violateAction = violateAction;
++        }
++
++        public static enum ViolateAction {
++            KICK, DROP;
++        }
++    }
++
++    public static String kickMessage;
++    public static PacketLimit allPacketsLimit;
++    public static java.util.Map<Class<? extends net.minecraft.network.protocol.Packet<?>>, PacketLimit> packetSpecificLimits = new java.util.HashMap<>();
++
++    private static void packetLimiter() {
++        packetSpecificLimits.clear();
++        kickMessage = org.bukkit.ChatColor.translateAlternateColorCodes('&', getString("settings.packet-limiter.kick-message", "&cSent too many packets"));
++        allPacketsLimit = new PacketLimit(
++            getDouble("settings.packet-limiter.limits.all.interval", 7.0),
++            getDouble("settings.packet-limiter.limits.all.max-packet-rate", 500.0),
++            PacketLimit.ViolateAction.KICK
++        );
++        if (allPacketsLimit.maxPacketRate <= 0.0 || allPacketsLimit.packetLimitInterval <= 0.0) {
++            allPacketsLimit = null;
++        }
++        final ConfigurationSection section = config.getConfigurationSection("settings.packet-limiter.limits");
++
++        // add default packets
++
++        // auto recipe limiting
++        getDouble("settings.packet-limiter.limits." +
++            "PacketPlayInAutoRecipe" + ".interval", 4.0);
++        getDouble("settings.packet-limiter.limits." +
++            "PacketPlayInAutoRecipe" + ".max-packet-rate", 5.0);
++        getString("settings.packet-limiter.limits." +
++            "PacketPlayInAutoRecipe" + ".action", PacketLimit.ViolateAction.DROP.name());
++
++        final Map<String, String> mojangToSpigot = new HashMap<>();
++        final Map<String, io.papermc.paper.util.ObfHelper.ClassMapping> maps = io.papermc.paper.util.ObfHelper.INSTANCE.mappingsByObfName();
++        if (maps != null) {
++            maps.forEach((spigotName, classMapping) ->
++                mojangToSpigot.put(classMapping.mojangName(), classMapping.obfName()));
++        }
++
++        for (final String packetClassName : section.getKeys(false)) {
++            if (packetClassName.equals("all")) {
++                continue;
++            }
++            Class<?> packetClazz = null;
++
++            for (final String subpackage : List.of("game", "handshake", "login", "status")) {
++                final String fullName = "net.minecraft.network.protocol." + subpackage + "." + packetClassName;
++                try {
++                    packetClazz = Class.forName(fullName);
++                    break;
++                } catch (final ClassNotFoundException ex) {
++                    try {
++                        final String spigot = mojangToSpigot.get(fullName);
++                        if (spigot != null) {
++                            packetClazz = Class.forName(spigot);
++                        }
++                    } catch (final ClassNotFoundException ignore) {}
++                }
++            }
++
++            if (packetClazz == null || !net.minecraft.network.protocol.Packet.class.isAssignableFrom(packetClazz)) {
++                MinecraftServer.LOGGER.warn("Packet '" + packetClassName + "' does not exist, cannot limit it! Please update paper.yml");
++                continue;
++            }
++
++            if (!(section.get(packetClassName.concat(".interval")) instanceof Number) || !(section.get(packetClassName.concat(".max-packet-rate")) instanceof Number)) {
++                throw new RuntimeException("Packet limit setting " + packetClassName + " is missing interval or max-packet-rate!");
++            }
++
++            final String actionString = section.getString(packetClassName.concat(".action"), "KICK");
++            PacketLimit.ViolateAction action = PacketLimit.ViolateAction.KICK;
++            for (PacketLimit.ViolateAction test : PacketLimit.ViolateAction.values()) {
++                if (actionString.equalsIgnoreCase(test.name())) {
++                    action = test;
++                    break;
++                }
++            }
++
++            final double interval = section.getDouble(packetClassName.concat(".interval"));
++            final double rate = section.getDouble(packetClassName.concat(".max-packet-rate"));
++
++            if (interval > 0.0 && rate > 0.0) {
++                packetSpecificLimits.put((Class)packetClazz, new PacketLimit(interval, rate, action));
++            }
++        }
++    }
++
++    public static boolean lagCompensateBlockBreaking;
++
++    private static void lagCompensateBlockBreaking() {
++        lagCompensateBlockBreaking = getBoolean("settings.lag-compensate-block-breaking", true);
++    }
++
++    public static boolean sendFullPosForHardCollidingEntities;
++
++    private static void sendFullPosForHardCollidingEntities() {
++        sendFullPosForHardCollidingEntities = getBoolean("settings.send-full-pos-for-hard-colliding-entities", true);
++    }
++
++    public static boolean timeCommandAffectsAllWorlds = false; // See https://hub.spigotmc.org/stash/projects/SPIGOT/repos/craftbukkit/commits/aeaeb359317e6ba25b7c45cf6d70ff945a3777cf
++    private static void timeCommandAffectsAllWorlds() {
++        timeCommandAffectsAllWorlds = getBoolean("settings.time-command-affects-all-worlds", timeCommandAffectsAllWorlds);
++    }
++
++
++    public static int playerMinChunkLoadRadius;
++    public static boolean playerAutoConfigureSendViewDistance;
++    public static int playerMaxConcurrentChunkSends;
++    public static double playerTargetChunkSendRate;
++    public static double globalMaxChunkSendRate;
++    public static boolean playerFrustumPrioritisation;
++    public static double globalMaxChunkLoadRate;
++    public static double playerMaxConcurrentChunkLoads;
++    public static double globalMaxConcurrentChunkLoads;
++    public static double playerMaxChunkLoadRate;
++
++    private static void newPlayerChunkManagement() {
++        playerMinChunkLoadRadius = getInt("settings.chunk-loading.min-load-radius", 2);
++        playerMaxConcurrentChunkSends = getInt("settings.chunk-loading.max-concurrent-sends", 2);
++        playerAutoConfigureSendViewDistance = getBoolean("settings.chunk-loading.autoconfig-send-distance", true);
++        playerTargetChunkSendRate = getDouble("settings.chunk-loading.target-player-chunk-send-rate", 100.0);
++        globalMaxChunkSendRate = getDouble("settings.chunk-loading.global-max-chunk-send-rate", -1.0);
++        playerFrustumPrioritisation = getBoolean("settings.chunk-loading.enable-frustum-priority", false);
++        globalMaxChunkLoadRate = getDouble("settings.chunk-loading.global-max-chunk-load-rate", -1.0);
++        if (version < 23 && globalMaxChunkLoadRate == 300.0) {
++            set("settings.chunk-loading.global-max-chunk-load-rate", globalMaxChunkLoadRate = -1.0);
++        }
++        playerMaxConcurrentChunkLoads = getDouble("settings.chunk-loading.player-max-concurrent-loads", 20.0);
++        if (version < 25 && playerMaxConcurrentChunkLoads == 4.0) {
++            set("settings.chunk-loading.player-max-concurrent-loads", playerMaxConcurrentChunkLoads = 20.0);
++        }
++        globalMaxConcurrentChunkLoads = getDouble("settings.chunk-loading.global-max-concurrent-loads", 500.0);
++        playerMaxChunkLoadRate = getDouble("settings.chunk-loading.player-max-chunk-load-rate", -1.0);
++    }
++
++    public static boolean useDimensionTypeForCustomSpawners;
++    private static void useDimensionTypeForCustomSpawners() {
++        useDimensionTypeForCustomSpawners = getBoolean("settings.use-dimension-type-for-custom-spawners", false);
++    }
++
++    public static boolean useProxyProtocol;
++    private static void useProxyProtocol() {
++        useProxyProtocol = getBoolean("settings.proxy-protocol", false);
++    }
++
++    public static boolean resolveSelectorsInBooks;
++    private static void resolveSelectorsInBooks() {
++        resolveSelectorsInBooks = getBoolean("settings.resolve-selectors-in-books", false);
++    }
+ }
+diff --git a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
+index bf42969859545a8a520923ef1836ffa4a5cc24a0..aee05d70c781b30654d1672599413f30eead2da8 100644
+--- a/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
++++ b/src/main/java/com/destroystokyo/paper/PaperVersionFetcher.java
+@@ -4,6 +4,7 @@ import com.destroystokyo.paper.util.VersionFetcher;
+ import com.google.common.base.Charsets;
+ import com.google.common.io.Resources;
+ import com.google.gson.*;
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import net.kyori.adventure.text.Component;
+ import net.kyori.adventure.text.event.ClickEvent;
+ import net.kyori.adventure.text.format.NamedTextColor;
+@@ -63,7 +64,11 @@ public class PaperVersionFetcher implements VersionFetcher {
+             versionInfo = versionInfo.replace("\"", "");
+             distance = fetchDistanceFromGitHub(repo, branch, versionInfo);
+         }
+-
++        // Martijn start - configurable server version
++        if (GlobalConfiguration.get().fakeVersion.alwaysShowErrorObtainingVersionInformation) {
++            distance = -1;
++        }
++        // Martijn end - configurable server version
+         switch (distance) {
+             case -1:
+                 return Component.text("Error obtaining version information", NamedTextColor.YELLOW);
+@@ -134,15 +139,23 @@ public class PaperVersionFetcher implements VersionFetcher {
+ 
+     @Nullable
+     private Component getHistory() {
+-        final VersionHistoryManager.VersionData data = VersionHistoryManager.INSTANCE.getVersionData();
+-        if (data == null) {
+-            return null;
+-        }
++        // Martijn start - configurable server version
++        String oldVersion;
++        String fakeVersion = GlobalConfiguration.get().fakeVersion.previousGitPaperVersion;
++        if (!fakeVersion.equalsIgnoreCase("none")) {
++            oldVersion = fakeVersion;
++        } else {
++            final VersionHistoryManager.VersionData data = VersionHistoryManager.INSTANCE.getVersionData();
++            if (data == null) {
++                return null;
++            }
+ 
+-        final String oldVersion = data.getOldVersion();
+-        if (oldVersion == null) {
+-            return null;
++            oldVersion = data.getOldVersion();
++            if (oldVersion == null) {
++                return null;
++            }
+         }
++        // Martijn end - configurable server version
+ 
+         return Component.text("Previous version: " + oldVersion, NamedTextColor.GRAY, TextDecoration.ITALIC);
+     }
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index 456595e4b7e0c7f50617aa2694b0d2dfc368ab81..eff740230beacfbf629eb00ddac2ac5106487d31 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -8,6 +8,7 @@ import net.kyori.adventure.text.Component;
+ import net.kyori.adventure.text.format.NamedTextColor;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ServerboundPlaceRecipePacket;
++import org.bukkit.Bukkit;
+ import org.checkerframework.checker.nullness.qual.Nullable;
+ import org.spongepowered.configurate.objectmapping.ConfigSerializable;
+ import org.spongepowered.configurate.objectmapping.meta.Comment;
+@@ -32,6 +33,56 @@ public class GlobalConfiguration extends ConfigurationPart {
+     @Setting(Configuration.VERSION_FIELD)
+     public int version = CURRENT_VERSION;
+ 
++    // Martijn start - configurable server version
++
++    public FakeVersion fakeVersion;
++
++    public class FakeVersion extends ConfigurationPart.Post {
++
++        /**
++         * This is the release version Paper identifies itself as (as seen on the Paper downloads page)
++         * Example: "git-Paper-379" (the examples for the other configuration settings below match this version)
++         *
++         * "none" disables this feature
++         */
++        public String gitPaperVersion = "none";
++
++        /**
++         * This is the short hash of the Git commit and the branch
++         * (the hash can be seen on the Paper downloads page, and the branch that we wish to show is probably always master,
++         * however, if the branch is "master" or "main" it is not shown at all (see Bukkit.getVersionMessage()))
++         * Example: "276d830" (matches Paper version git-Paper-379)
++         * (Another example just to show what it looks like when the branch is not "master" or "main": "d6eda26 on dev/martijn/1.18-perf1")
++         *
++         * "none" disables this feature
++         */
++        public String gitCommit = "none";
++
++        /**
++         * Whether to always display "Error obtaining version information" instead of
++         * "You are running the latest version", "Unknown version" or "You are ... version(s) behind"
++         */
++        public boolean alwaysShowErrorObtainingVersionInformation = false;
++
++        /**
++         * This is the previous release version Paper identifies itself as: this is the same as fakeServerVersionGitPaperVersion,
++         * except it identifies the supposed previous version of the server rather than the current one
++         * Example: "git-Paper-375" (which would be a few versions before "git-Paper-379")
++         *
++         * "none" disables this feature
++         */
++        public String previousGitPaperVersion = "none";
++
++        @Override
++        public void postProcess() {
++            ((org.bukkit.craftbukkit.CraftServer) Bukkit.getServer()).setVersion(gitPaperVersion);
++            ((org.bukkit.craftbukkit.CraftServer) Bukkit.getServer()).setFakeVersionGitCommit(gitCommit);
++        }
++
++    }
++
++    // Martijn end - configurable server version
++
+     public Messages messages;
+ 
+     public class Messages extends ConfigurationPart {
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 1ef4e5d9e51152c2d7c1066f6f85fd3c574dfa44..a6cf13f8bbf7352e8ee6bf1a424be3057f781cc4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.craftbukkit;
+ 
++import com.destroystokyo.paper.PaperConfig;
+ import com.google.common.base.Charsets;
+ import com.google.common.base.Function;
+ import com.google.common.base.Preconditions;
+@@ -244,7 +245,8 @@ import javax.annotation.Nonnull; // Paper
+ 
+ public final class CraftServer implements Server {
+     private final String serverName = "Paper"; // Paper
+-    private final String serverVersion;
++    private String serverVersion; // Martijn - configurable server version
++    private String fakeVersionGitCommit; // Martijn - configurable server version
+     private final String bukkitVersion = Versioning.getBukkitVersion();
+     private final Logger logger = Logger.getLogger("Minecraft");
+     private final ServicesManager servicesManager = new SimpleServicesManager();
+@@ -567,6 +569,21 @@ public final class CraftServer implements Server {
+         return this.serverVersion + " (MC: " + this.console.getServerVersion() + ")";
+     }
+ 
++    // Martijn start - configurable server version
++    public void setVersion(String version) {
++        this.serverVersion = version;
++    }
++
++    @Override
++    public String getFakeVersionGitCommit() {
++        return this.fakeVersionGitCommit;
++    }
++
++    public void setFakeVersionGitCommit(String fakeVersionGitCommit) {
++        this.fakeVersionGitCommit = fakeVersionGitCommit;
++    }
++    // Martijn end - configurable server version
++
+     @Override
+     public String getBukkitVersion() {
+         return this.bukkitVersion;
