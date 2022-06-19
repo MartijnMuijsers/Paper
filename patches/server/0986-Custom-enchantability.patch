@@ -422,10 +422,10 @@ index 22925b2f44fc510832ef07290d3109f0394f7d30..10c7456080465ff775356805ff3b439e
                      if (power >= enchantment.getMinCost(i) && power <= enchantment.getMaxCost(i)) {
                          list.add(new EnchantmentInstance(enchantment, i));
 diff --git a/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java b/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
-index 1367908a54e1c1703d14b3c25852da5ec1b02019..3144385090c84083cdc2f01d8b7a1b97be8d369e 100644
+index 1367908a54e1c1703d14b3c25852da5ec1b02019..cf553ca68342fc11bd3bea9a51863701e3169ab9 100644
 --- a/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
 +++ b/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
-@@ -1,7 +1,11 @@
+@@ -1,35 +1,156 @@
  package net.minecraft.world.item.enchantment;
  
  import net.minecraft.core.Registry;
@@ -437,7 +437,64 @@ index 1367908a54e1c1703d14b3c25852da5ec1b02019..3144385090c84083cdc2f01d8b7a1b97
  
  public class Enchantments {
  
-@@ -19,17 +23,92 @@ public class Enchantments {
+     private static final EquipmentSlot[] ARMOR_SLOTS = new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+-    public static final Enchantment ALL_DAMAGE_PROTECTION = Enchantments.register("protection", new ProtectionEnchantment(Enchantment.Rarity.COMMON, ProtectionEnchantment.Type.ALL, Enchantments.ARMOR_SLOTS));
+-    public static final Enchantment FIRE_PROTECTION = Enchantments.register("fire_protection", new ProtectionEnchantment(Enchantment.Rarity.UNCOMMON, ProtectionEnchantment.Type.FIRE, Enchantments.ARMOR_SLOTS));
++    // Martijn start - custom enchantability
++    private static final EquipmentSlot[] ARMOR_AND_OFFHAND_SLOTS = new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET, EquipmentSlot.OFFHAND};
++    public static final Enchantment ALL_DAMAGE_PROTECTION = Enchantments.register("protection", new ProtectionEnchantment(Enchantment.Rarity.COMMON, ProtectionEnchantment.Type.ALL, Enchantments.ARMOR_AND_OFFHAND_SLOTS) {
++        @Override
++        public boolean canEnchant(ItemStack stack, EnchantmentSource source) {
++            return super.canEnchant(stack, source) ||
++                // Can be added to elytras and shields via the enchanting table or anvil (or command)
++                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(Items.ELYTRA) || stack.is(Items.SHIELD)));
++        }
++    });
++    public static final Enchantment FIRE_PROTECTION = Enchantments.register("fire_protection", new ProtectionEnchantment(Enchantment.Rarity.UNCOMMON, ProtectionEnchantment.Type.FIRE, Enchantments.ARMOR_AND_OFFHAND_SLOTS) {
++        @Override
++        public boolean canEnchant(ItemStack stack, EnchantmentSource source) {
++            return super.canEnchant(stack, source) ||
++                // Can be added to elytras and shields via the enchanting table or anvil (or command)
++                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(Items.ELYTRA) || stack.is(Items.SHIELD)));
++        }
++    });
++    // Martijn end - custom enchantability
+     public static final Enchantment FALL_PROTECTION = Enchantments.register("feather_falling", new ProtectionEnchantment(Enchantment.Rarity.UNCOMMON, ProtectionEnchantment.Type.FALL, Enchantments.ARMOR_SLOTS));
+-    public static final Enchantment BLAST_PROTECTION = Enchantments.register("blast_protection", new ProtectionEnchantment(Enchantment.Rarity.RARE, ProtectionEnchantment.Type.EXPLOSION, Enchantments.ARMOR_SLOTS));
+-    public static final Enchantment PROJECTILE_PROTECTION = Enchantments.register("projectile_protection", new ProtectionEnchantment(Enchantment.Rarity.UNCOMMON, ProtectionEnchantment.Type.PROJECTILE, Enchantments.ARMOR_SLOTS));
++    // Martijn start - custom enchantability
++    public static final Enchantment BLAST_PROTECTION = Enchantments.register("blast_protection", new ProtectionEnchantment(Enchantment.Rarity.RARE, ProtectionEnchantment.Type.EXPLOSION, Enchantments.ARMOR_AND_OFFHAND_SLOTS) {
++        @Override
++        public boolean canEnchant(ItemStack stack, EnchantmentSource source) {
++            return super.canEnchant(stack, source) ||
++                // Can be added to elytras and shields via the enchanting table or anvil (or command)
++                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(Items.ELYTRA) || stack.is(Items.SHIELD)));
++        }
++    });
++    public static final Enchantment PROJECTILE_PROTECTION = Enchantments.register("projectile_protection", new ProtectionEnchantment(Enchantment.Rarity.UNCOMMON, ProtectionEnchantment.Type.PROJECTILE, Enchantments.ARMOR_AND_OFFHAND_SLOTS) {
++        @Override
++        public boolean canEnchant(ItemStack stack, EnchantmentSource source) {
++            return super.canEnchant(stack, source) ||
++                // Can be added to elytras and shields via the enchanting table or anvil (or command)
++                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(Items.ELYTRA) || stack.is(Items.SHIELD)));
++        }
++    });
++    // Martijn end - custom enchantability
+     public static final Enchantment RESPIRATION = Enchantments.register("respiration", new OxygenEnchantment(Enchantment.Rarity.RARE, Enchantments.ARMOR_SLOTS));
+     public static final Enchantment AQUA_AFFINITY = Enchantments.register("aqua_affinity", new WaterWorkerEnchantment(Enchantment.Rarity.RARE, Enchantments.ARMOR_SLOTS));
+-    public static final Enchantment THORNS = Enchantments.register("thorns", new ThornsEnchantment(Enchantment.Rarity.VERY_RARE, Enchantments.ARMOR_SLOTS));
++    // Martijn start - custom enchantability
++    public static final Enchantment THORNS = Enchantments.register("thorns", new ThornsEnchantment(Enchantment.Rarity.VERY_RARE, Enchantments.ARMOR_AND_OFFHAND_SLOTS) {
++        @Override
++        public boolean canEnchant(ItemStack stack, EnchantmentSource source) {
++            return super.canEnchant(stack, source) ||
++                // Can be added to elytras and shields via the enchanting table or anvil (or command)
++                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(Items.ELYTRA) || stack.is(Items.SHIELD)));
++        }
++    });
++    // Martijn end - custom enchantability
+     public static final Enchantment DEPTH_STRIDER = Enchantments.register("depth_strider", new WaterWalkerEnchantment(Enchantment.Rarity.RARE, Enchantments.ARMOR_SLOTS));
+     public static final Enchantment FROST_WALKER = Enchantments.register("frost_walker", new FrostWalkerEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.FEET}));
      public static final Enchantment BINDING_CURSE = Enchantments.register("binding_curse", new BindingCurseEnchantment(Enchantment.Rarity.VERY_RARE, Enchantments.ARMOR_SLOTS));
      public static final Enchantment SOUL_SPEED = Enchantments.register("soul_speed", new SoulSpeedEnchantment(Enchantment.Rarity.VERY_RARE, new EquipmentSlot[]{EquipmentSlot.FEET}));
      public static final Enchantment SWIFT_SNEAK = Enchantments.register("swift_sneak", new SwiftSneakEnchantment(Enchantment.Rarity.VERY_RARE, new EquipmentSlot[]{EquipmentSlot.LEGS}));
