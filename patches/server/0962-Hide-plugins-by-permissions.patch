@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 10 Jun 2022 01:30:18 +0200
+Subject: [PATCH] Hide plugins by permissions
+
+
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index eff740230beacfbf629eb00ddac2ac5106487d31..ea51679296d72ffa38d4c3aca3c823c9fd1c8a24 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -83,6 +83,17 @@ public class GlobalConfiguration extends ConfigurationPart {
+ 
+     // Martijn end - configurable server version
+ 
++    // Martijn start - hide plugins
++
++    public HidePlugins hidePlugins;
++
++    public class HidePlugins extends ConfigurationPart {
++        public boolean enabled = false;
++        public boolean hideLegacyAsterisk = false;
++    }
++
++    // Martijn end - hide plugins
++
+     public Messages messages;
+ 
+     public class Messages extends ConfigurationPart {
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index a6cf13f8bbf7352e8ee6bf1a424be3057f781cc4..3e0b9a2e579f1aa10188348f190ce642b31fec08 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -17,6 +17,7 @@ import com.mojang.serialization.Lifecycle;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.ByteBufOutputStream;
+ import io.netty.buffer.Unpooled;
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+ import java.awt.image.BufferedImage;
+ import java.io.File;
+@@ -596,6 +597,18 @@ public final class CraftServer implements Server {
+     }
+     // Paper end
+ 
++    // Martijn start - hide plugins
++    @Override
++    public boolean getHidePlugins() {
++        return GlobalConfiguration.get().hidePlugins.enabled;
++    }
++
++    @Override
++    public boolean getHideLegacyPluginAsterisk() {
++        return GlobalConfiguration.get().hidePlugins.hideLegacyAsterisk;
++    }
++    // Martijn end - hide plugins
++
+     @Override
+     public List<CraftPlayer> getOnlinePlayers() {
+         return this.playerView;
+diff --git a/src/main/java/org/bukkit/craftbukkit/help/SimpleHelpMap.java b/src/main/java/org/bukkit/craftbukkit/help/SimpleHelpMap.java
+index 40b66adcb5aac64212b1937dc506ebb60f2eed83..631d204bb9a320d757b04782154e2427240deed4 100644
+--- a/src/main/java/org/bukkit/craftbukkit/help/SimpleHelpMap.java
++++ b/src/main/java/org/bukkit/craftbukkit/help/SimpleHelpMap.java
+@@ -11,6 +11,8 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.TreeMap;
+ import java.util.TreeSet;
++
++import org.bukkit.Bukkit;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.CommandExecutor;
+ import org.bukkit.command.MultipleCommandAlias;
+@@ -25,6 +27,7 @@ import org.bukkit.help.HelpTopic;
+ import org.bukkit.help.HelpTopicComparator;
+ import org.bukkit.help.HelpTopicFactory;
+ import org.bukkit.help.IndexHelpTopic;
++import org.bukkit.plugin.PluginBase;
+ 
+ /**
+  * Standard implementation of {@link HelpMap} for CraftBukkit servers.
+@@ -169,7 +172,7 @@ public class SimpleHelpMap implements HelpMap {
+         this.fillPluginIndexes(pluginIndexes, this.server.getCommandMap().getCommands());
+ 
+         for (Map.Entry<String, Set<HelpTopic>> entry : pluginIndexes.entrySet()) {
+-            this.addTopic(new IndexHelpTopic(entry.getKey(), "All commands for " + entry.getKey(), null, entry.getValue(), "Below is a list of all " + entry.getKey() + " commands:"));
++            this.addTopic(new IndexHelpTopic(entry.getKey(), "All commands for " + entry.getKey(), Bukkit.getServer().getHidePlugins() ? PluginBase.getSeePluginPermissionName(entry.getKey()) : null, entry.getValue(), "Below is a list of all " + entry.getKey() + " commands:")); // Martijn - hide plugins
+         }
+ 
+         // Amend help topics from the help.yml file
