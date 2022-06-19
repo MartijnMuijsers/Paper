@@ -422,10 +422,10 @@ index 22925b2f44fc510832ef07290d3109f0394f7d30..10c7456080465ff775356805ff3b439e
                      if (power >= enchantment.getMinCost(i) && power <= enchantment.getMaxCost(i)) {
                          list.add(new EnchantmentInstance(enchantment, i));
 diff --git a/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java b/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
-index 1367908a54e1c1703d14b3c25852da5ec1b02019..cf553ca68342fc11bd3bea9a51863701e3169ab9 100644
+index 1367908a54e1c1703d14b3c25852da5ec1b02019..32e15976da1415354515c51f46540c9362c4c93b 100644
 --- a/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
 +++ b/src/main/java/net/minecraft/world/item/enchantment/Enchantments.java
-@@ -1,35 +1,156 @@
+@@ -1,43 +1,234 @@
  package net.minecraft.world.item.enchantment;
  
  import net.minecraft.core.Registry;
@@ -512,6 +512,14 @@ index 1367908a54e1c1703d14b3c25852da5ec1b02019..cf553ca68342fc11bd3bea9a51863701
 +                // Can be added to pickaxes, shovels and hoes via the enchanting table or anvil (or command)
 +                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(ItemTags.PICKAXES) || stack.is(ItemTags.SHOVELS) || stack.is(ItemTags.HOES)));
 +        }
++        @Override
++        public boolean checkCompatibility(Enchantment other) {
++            // Incompatible with Impaling
++            if (other == Enchantments.IMPALING) {
++                return false;
++            }
++            return super.checkCompatibility(other);
++        }
 +    });
 +    public static final Enchantment SMITE = Enchantments.register("smite", new DamageEnchantment(Enchantment.Rarity.UNCOMMON, 1, new EquipmentSlot[]{EquipmentSlot.MAINHAND}) {
 +        @Override
@@ -520,6 +528,14 @@ index 1367908a54e1c1703d14b3c25852da5ec1b02019..cf553ca68342fc11bd3bea9a51863701
 +                // Can be added to pickaxes, shovels and hoes via the enchanting table or anvil (or command)
 +                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(ItemTags.PICKAXES) || stack.is(ItemTags.SHOVELS) || stack.is(ItemTags.HOES)));
 +        }
++        @Override
++        public boolean checkCompatibility(Enchantment other) {
++            // Incompatible with Impaling
++            if (other == Enchantments.IMPALING) {
++                return false;
++            }
++            return super.checkCompatibility(other);
++        }
 +    });
 +    public static final Enchantment BANE_OF_ARTHROPODS = Enchantments.register("bane_of_arthropods", new DamageEnchantment(Enchantment.Rarity.UNCOMMON, 2, new EquipmentSlot[]{EquipmentSlot.MAINHAND}) {
 +        @Override
@@ -527,6 +543,14 @@ index 1367908a54e1c1703d14b3c25852da5ec1b02019..cf553ca68342fc11bd3bea9a51863701
 +            return super.canEnchant(stack, source) ||
 +                // Can be added to pickaxes, shovels and hoes via the enchanting table or anvil (or command)
 +                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(ItemTags.PICKAXES) || stack.is(ItemTags.SHOVELS) || stack.is(ItemTags.HOES)));
++        }
++        @Override
++        public boolean checkCompatibility(Enchantment other) {
++            // Incompatible with Impaling
++            if (other == Enchantments.IMPALING) {
++                return false;
++            }
++            return super.checkCompatibility(other);
 +        }
 +    });
 +    public static final Enchantment KNOCKBACK = Enchantments.register("knockback", new KnockbackEnchantment(Enchantment.Rarity.UNCOMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}) {
@@ -558,6 +582,14 @@ index 1367908a54e1c1703d14b3c25852da5ec1b02019..cf553ca68342fc11bd3bea9a51863701
 +                // Can be added to tridents, bows, crossbows, pickaxes, shovels and hoes via the enchanting table or anvil (or command)
 +                ((source == EnchantmentSource.ENCHANTING_TABLE || source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && (stack.is(Items.TRIDENT) || stack.is(Items.BOW) || stack.is(Items.CROSSBOW) || stack.is(ItemTags.PICKAXES) || stack.is(ItemTags.SHOVELS) || stack.is(ItemTags.HOES)));
 +        }
++        @Override
++        public boolean checkCompatibility(Enchantment other) {
++            // Compatible with Silk Touch and Fortune
++            if (other == Enchantments.SILK_TOUCH || other == Enchantments.BLOCK_FORTUNE) {
++                return true;
++            }
++            return super.checkCompatibility(other);
++        }
 +    });
 +    // Martijn end - custom enchantability
      public static final Enchantment SWEEPING_EDGE = Enchantments.register("sweeping", new SweepingEdgeEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
@@ -579,6 +611,14 @@ index 1367908a54e1c1703d14b3c25852da5ec1b02019..cf553ca68342fc11bd3bea9a51863701
 +                // Can be added to swords via the anvil (or command)
 +                ((source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && stack.is(ItemTags.SWORDS));
 +        }
++        @Override
++        public boolean checkCompatibility(Enchantment other) {
++            // Compatible with Looting and Luck of the Sea
++            if (other == Enchantments.MOB_LOOTING || other == Enchantments.FISHING_LUCK) {
++                return true;
++            }
++            return super.checkCompatibility(other);
++        }
 +    });
 +    // Martijn end - custom enchantability
      public static final Enchantment UNBREAKING = Enchantments.register("unbreaking", new DigDurabilityEnchantment(Enchantment.Rarity.UNCOMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
@@ -591,11 +631,51 @@ index 1367908a54e1c1703d14b3c25852da5ec1b02019..cf553ca68342fc11bd3bea9a51863701
 +                // Can be added to swords via the anvil (or command)
 +                ((source == EnchantmentSource.ANVIL || source == EnchantmentSource.ENCHANT_COMMAND) && stack.is(ItemTags.SWORDS));
 +        }
++        @Override
++        public boolean checkCompatibility(Enchantment other) {
++            // Compatible with Looting and Luck of the Sea
++            if (other == Enchantments.MOB_LOOTING || other == Enchantments.FISHING_LUCK) {
++                return true;
++            }
++            return super.checkCompatibility(other);
++        }
 +    });
 +    // Martijn end - custom enchantability
      public static final Enchantment POWER_ARROWS = Enchantments.register("power", new ArrowDamageEnchantment(Enchantment.Rarity.COMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
      public static final Enchantment PUNCH_ARROWS = Enchantments.register("punch", new ArrowKnockbackEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
      public static final Enchantment FLAMING_ARROWS = Enchantments.register("flame", new ArrowFireEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+     public static final Enchantment INFINITY_ARROWS = Enchantments.register("infinity", new ArrowInfiniteEnchantment(Enchantment.Rarity.VERY_RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+-    public static final Enchantment FISHING_LUCK = Enchantments.register("luck_of_the_sea", new LootBonusEnchantment(Enchantment.Rarity.RARE, EnchantmentCategory.FISHING_ROD, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
++    // Martijn start - custom enchantability
++    public static final Enchantment FISHING_LUCK = Enchantments.register("luck_of_the_sea", new LootBonusEnchantment(Enchantment.Rarity.RARE, EnchantmentCategory.FISHING_ROD, new EquipmentSlot[]{EquipmentSlot.MAINHAND}) {
++        @Override
++        public boolean checkCompatibility(Enchantment other) {
++            // Compatible with Silk Touch and Fortune
++            if (other == Enchantments.SILK_TOUCH || other == Enchantments.BLOCK_FORTUNE) {
++                return true;
++            }
++            return super.checkCompatibility(other);
++        }
++    });
++    // Martijn end - custom enchantability
+     public static final Enchantment FISHING_SPEED = Enchantments.register("lure", new FishingSpeedEnchantment(Enchantment.Rarity.RARE, EnchantmentCategory.FISHING_ROD, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+     public static final Enchantment LOYALTY = Enchantments.register("loyalty", new TridentLoyaltyEnchantment(Enchantment.Rarity.UNCOMMON, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+-    public static final Enchantment IMPALING = Enchantments.register("impaling", new TridentImpalerEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
++    // Martijn start - custom enchantability
++    public static final Enchantment IMPALING = Enchantments.register("impaling", new TridentImpalerEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}) {
++        @Override
++        public boolean checkCompatibility(Enchantment other) {
++            // Incompatible with Sharpness, Smite and Bane of Arthropods
++            if (other == Enchantments.SHARPNESS || other == Enchantments.SMITE || other == Enchantments.BANE_OF_ARTHROPODS) {
++                return false;
++            }
++            return super.checkCompatibility(other);
++        }
++    });
++    // Martijn end - custom enchantability
+     public static final Enchantment RIPTIDE = Enchantments.register("riptide", new TridentRiptideEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+     public static final Enchantment CHANNELING = Enchantments.register("channeling", new TridentChannelingEnchantment(Enchantment.Rarity.VERY_RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
+     public static final Enchantment MULTISHOT = Enchantments.register("multishot", new MultiShotEnchantment(Enchantment.Rarity.RARE, new EquipmentSlot[]{EquipmentSlot.MAINHAND}));
 diff --git a/src/main/java/net/minecraft/world/item/enchantment/ThornsEnchantment.java b/src/main/java/net/minecraft/world/item/enchantment/ThornsEnchantment.java
 index 97f61bfdf39def907d7d3686914189f7545937ef..38c15510fe81df10eb4718f43f8084657b2b699b 100644
 --- a/src/main/java/net/minecraft/world/item/enchantment/ThornsEnchantment.java
