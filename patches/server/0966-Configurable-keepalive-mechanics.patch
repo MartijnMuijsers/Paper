@@ -39,7 +39,7 @@ index ea51679296d72ffa38d4c3aca3c823c9fd1c8a24..b0f80405e6a2eb33a89b9f3236c5920f
  
      public class Messages extends ConfigurationPart {
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 87ac0249b71e7761ad52abcc154460e7b647e2a9..f48ad54b5fa75b7a507c56869bd70ec7904999e2 100644
+index 87ac0249b71e7761ad52abcc154460e7b647e2a9..eae057b98eee0514733b43624b435156f9bb78c9 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -1,5 +1,6 @@
@@ -68,7 +68,7 @@ index 87ac0249b71e7761ad52abcc154460e7b647e2a9..f48ad54b5fa75b7a507c56869bd70ec7
 +            if (GlobalConfiguration.get().keepalive.kick.lateResponse) {
 +                if (!this.processedDisconnect && elapsedTime >= KEEPALIVE_LIMIT) { // check keepalive limit, don't fire if already disconnected
 +                    ServerGamePacketListenerImpl.LOGGER.warn("{} was kicked due to keepalive timeout!", this.player.getScoreboardName()); // more info
-+                    this.disconnect(Component.translatable("disconnect.timeout", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
++                    this.disconnect(Component.translatable("disconnect.timeout"), org.bukkit.event.player.PlayerKickEvent.Cause.TIMEOUT); // Paper - kick event cause
 +                }
              }
 +            // Martijn end - no disconnect on late or wrong keepalive
@@ -78,6 +78,31 @@ index 87ac0249b71e7761ad52abcc154460e7b647e2a9..f48ad54b5fa75b7a507c56869bd70ec7
                  this.keepAlivePending = true;
                  this.keepAliveTime = currentTime;
                  this.keepAliveChallenge = currentTime;
+@@ -831,13 +837,13 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+         // PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel()); // Paper - run this async
+         // CraftBukkit start
+         if (this.chatSpamTickCount.addAndGet(io.papermc.paper.configuration.GlobalConfiguration.get().spamLimiter.tabSpamIncrement) > io.papermc.paper.configuration.GlobalConfiguration.get().spamLimiter.tabSpamLimit && !this.server.getPlayerList().isOp(this.player.getGameProfile())) { // Paper start - split and make configurable
+-            server.scheduleOnMain(() -> this.disconnect(Component.translatable("disconnect.spam", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause
++            server.scheduleOnMain(() -> this.disconnect(Component.translatable("disconnect.spam"), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause
+             return;
+         }
+         // Paper start
+         String str = packet.getCommand(); int index = -1;
+         if (str.length() > 64 && ((index = str.indexOf(' ')) == -1 || index >= 64)) {
+-            server.scheduleOnMain(() -> this.disconnect(Component.translatable("disconnect.spam", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause
++            server.scheduleOnMain(() -> this.disconnect(Component.translatable("disconnect.spam"), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause
+             return;
+         }
+         // Paper end
+@@ -3138,7 +3144,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+         // Paper start
+         if (!org.bukkit.Bukkit.isPrimaryThread()) {
+             if (recipeSpamPackets.addAndGet(io.papermc.paper.configuration.GlobalConfiguration.get().spamLimiter.recipeSpamIncrement) > io.papermc.paper.configuration.GlobalConfiguration.get().spamLimiter.recipeSpamLimit) {
+-                server.scheduleOnMain(() -> this.disconnect(net.minecraft.network.chat.Component.translatable("disconnect.spam", new Object[0]), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause
++                server.scheduleOnMain(() -> this.disconnect(net.minecraft.network.chat.Component.translatable("disconnect.spam"), org.bukkit.event.player.PlayerKickEvent.Cause.SPAM)); // Paper - kick event cause
+                 return;
+             }
+         }
 @@ -3332,11 +3338,16 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
              this.player.latency = (this.player.latency * 3 + i) / 4;
              this.keepAlivePending = false;
