@@ -1,0 +1,125 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kevin Raneri <kevin.raneri@gmail.com>
+Date: Sat, 11 Dec 2021 22:20:45 -0500
+Subject: [PATCH] Throttle goal selector during inactive ticking
+
+
+diff --git a/src/main/java/gg/pufferfish/pufferfish/PufferfishConfig.java b/src/main/java/gg/pufferfish/pufferfish/PufferfishConfig.java
+index 0e6f4ff02e6b058772fe16ec323e7a4f160132a6..0df1c3bd6bef7eacff7b44fb08704fe6eea5eaea 100644
+--- a/src/main/java/gg/pufferfish/pufferfish/PufferfishConfig.java
++++ b/src/main/java/gg/pufferfish/pufferfish/PufferfishConfig.java
+@@ -196,6 +196,75 @@ public class PufferfishConfig {
+         setComment("projectile", "Optimizes projectile settings");
+     }
+ 
++    public static boolean dearEnabled;
++    public static int startDistance;
++    public static int startDistanceSquared;
++    public static int maximumActivationPrio;
++    public static int activationDistanceMod;
++
++    private static void dynamicActivationOfBrains() throws IOException {
++        dearEnabled = getBoolean("dab.enabled", "activation-range.enabled", true);
++        startDistance = getInt("dab.start-distance", "activation-range.start-distance", 12,
++                "This value determines how far away an entity has to be",
++                "from the player to start being effected by DEAR.");
++        startDistanceSquared = startDistance * startDistance;
++        maximumActivationPrio = getInt("dab.max-tick-freq", "activation-range.max-tick-freq", 20,
++                "This value defines how often in ticks, the furthest entity",
++                "will get their pathfinders and behaviors ticked. 20 = 1s");
++        activationDistanceMod = getInt("dab.activation-dist-mod", "activation-range.activation-dist-mod", 8,
++                "This value defines how much distance modifies an entity's",
++                "tick frequency. freq = (distanceToPlayer^2) / (2^value)",
++                "If you want further away entities to tick less often, use 7.",
++                "If you want further away entities to tick more often, try 9.");
++
++        for (EntityType<?> entityType : Registry.ENTITY_TYPE) {
++            entityType.dabEnabled = true; // reset all, before setting the ones to true
++        }
++        getStringList("dab.blacklisted-entities", "activation-range.blacklisted-entities", Collections.emptyList(), "A list of entities to ignore for activation")
++                .forEach(name -> EntityType.byString(name).ifPresentOrElse(entityType -> {
++                    entityType.dabEnabled = false;
++                }, () -> MinecraftServer.LOGGER.warn("Unknown entity \"" + name + "\"")));
++
++        setComment("dab", "Optimizes entity brains when", "they're far away from the player");
++    }
++    
++    public static boolean throttleInactiveGoalSelectorTick;
++	private static void inactiveGoalSelectorThrottle() {
++		getBoolean("inactive-goal-selector-throttle", "inactive-goal-selector-disable", true,
++				"Throttles the AI goal selector in entity inactive ticks.",
++				"This can improve performance by a few percent, but has minor gameplay implications.");
++	}
++
++    public static URI profileWebUrl;
++    private static void profilerOptions() {
++        profileWebUrl = URI.create(getString("flare.url", "https://flare.airplane.gg", "Sets the server to use for profiles."));
++
++        setComment("flare", "Configures Flare, the built-in profiler");
++    }
++
++
++    public static String accessToken;
++    private static void airplaneWebServices() {
++        accessToken = getString("web-services.token", "");
++        // todo lookup token (off-thread) and let users know if their token is valid
++        if (accessToken.length() > 0) {
++            gg.pufferfish.pufferfish.flare.FlareSetup.init(); // Pufferfish
++            SimpleCommandMap commandMap = MinecraftServer.getServer().server.getCommandMap();
++            if (commandMap.getCommand("flare") == null) {
++                commandMap.register("flare", "Pufferfish", new FlareCommand());
++            }
++        }
++
++        setComment("web-services", "Options for connecting to Pufferfish/Airplane's online utilities");
++
++    }
++
++
++    public static boolean disableMethodProfiler;
++    private static void miscSettings() {
++        disableMethodProfiler = getBoolean("misc.disable-method-profiler", true);
++        setComment("misc", "Settings for things that don't belong elsewhere");
++    }
+ 
+ }
+ 
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index 17ffe53d07346422ba58c9e4d0d6d0eab4aef8b7..bde23b86e9b6272839a4ca37416a3a01aa741e1e 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -413,14 +413,11 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+         return this.originWorld;
+     }
+     // Paper end
+-<<<<<<< HEAD
+-=======
++
+     // Pufferfish start
+     public int activatedPriority = gg.pufferfish.pufferfish.PufferfishConfig.maximumActivationPrio; // golf score
+     public final BlockPos.MutableBlockPos cachedBlockPos = new BlockPos.MutableBlockPos(); // used where needed
+     // Pufferfish end
+-    
+->>>>>>> 184ba44e9b... Reduce entity allocations
+     public float getBukkitYaw() {
+         return this.yRot;
+     }
+diff --git a/src/main/java/net/minecraft/world/entity/Mob.java b/src/main/java/net/minecraft/world/entity/Mob.java
+index 3646b969fa51b9683ab4137e530c3a6f6fc6c465..6bdc1951ba4fca154bc5e35b224b2555ba2c957c 100644
+--- a/src/main/java/net/minecraft/world/entity/Mob.java
++++ b/src/main/java/net/minecraft/world/entity/Mob.java
+@@ -210,11 +210,13 @@ public abstract class Mob extends LivingEntity {
+         return this.lookControl;
+     }
+ 
++    int _pufferfish_inactiveTickDisableCounter = 0; // Pufferfish - throttle inactive goal selector ticking
+     // Paper start
+     @Override
+     public void inactiveTick() {
+         super.inactiveTick();
+-        if (this.goalSelector.inactiveTick()) {
++        boolean isThrottled = gg.pufferfish.pufferfish.PufferfishConfig.throttleInactiveGoalSelectorTick && _pufferfish_inactiveTickDisableCounter++ % 20 != 0; // Pufferfish - throttle inactive goal selector ticking
++        if (this.goalSelector.inactiveTick(this.activatedPriority, true) && !isThrottled) { // Pufferfish - pass activated priroity // Pufferfish - throttle inactive goal selector ticking
+             this.goalSelector.tick();
+         }
+         if (this.targetSelector.inactiveTick()) {
