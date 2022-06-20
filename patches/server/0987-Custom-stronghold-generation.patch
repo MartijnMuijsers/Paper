@@ -1,0 +1,110 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 20 Jun 2022 01:43:25 +0200
+Subject: [PATCH] Custom stronghold generation
+
+
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index 63b344c7bf67bc236f88639ed6bee7d2c451761d..15c909bf9bc194cfb714070d886a69f1f9dc57e3 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -260,6 +260,31 @@ public class GlobalConfiguration extends ConfigurationPart {
+ 
+     // Martijn end - network-constrained chunk sending
+ 
++    // Martijn start - custom strongholds
++
++    public CustomStrongholds customStrongholds;
++
++    public class CustomStrongholds extends ConfigurationPart {
++
++        public float moveToSurfaceChance = 0.2f;
++
++        public PotentialExtraIncreasedY potentialExtraIncreasedY;
++
++        public class PotentialExtraIncreasedY extends ConfigurationPart {
++
++            public int badlands = 16;
++            public int plateau = 18;
++            public int windswept = 12;
++            public int mountain = 10;
++            public int hill = 5;
++            public int all = 0;
++
++        }
++
++    }
++
++    // Martijn end - custom strongholds
++
+     public Messages messages;
+ 
+     public class Messages extends ConfigurationPart {
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
+index f0bc479d3dfb4df09c61f6bc87f4a124e39c352d..1ce35e02e4fe72658332f36d74573db1a21a5d6c 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
+@@ -3,10 +3,19 @@ package net.minecraft.world.level.levelgen.structure.structures;
+ import com.mojang.serialization.Codec;
+ import java.util.List;
+ import java.util.Optional;
++import java.util.Random;
++
++import io.papermc.paper.configuration.GlobalConfiguration;
++import net.minecraft.tags.BiomeTags;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.level.biome.Biome;
++import net.minecraft.world.level.biome.Biomes;
++import net.minecraft.world.level.levelgen.WorldgenRandom;
+ import net.minecraft.world.level.levelgen.structure.Structure;
+ import net.minecraft.world.level.levelgen.structure.StructurePiece;
+ import net.minecraft.world.level.levelgen.structure.StructureType;
+ import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder;
++import org.bukkit.Bukkit;
+ 
+ public class StrongholdStructure extends Structure {
+     public static final Codec<StrongholdStructure> CODEC = simpleCodec(StrongholdStructure::new);
+@@ -41,6 +50,43 @@ public class StrongholdStructure extends Structure {
+                 structurePiece.addChildren(startPiece, collector, context.random());
+             }
+ 
++            // Martijn start - custom strongholds
++
++            // We determine a possible block amount to vertically raise the stronghold by
++            // (or null if we do not move this stronghold to the surface)
++            Integer potentialExtraIncreasedY = null;
++            RandomSource surfaceStrongholdRandom = context.random().fork();
++            if (surfaceStrongholdRandom.nextDouble() < GlobalConfiguration.get().customStrongholds.moveToSurfaceChance) {
++                // Only move strongholds to the surface in some biomes (particularly excluding otherworldly or watery biomes)
++                if (context.biomeSource().possibleBiomes().stream().noneMatch(holder -> holder.is(BiomeTags.IS_BEACH) || holder.is(BiomeTags.IS_OCEAN) || holder.is(BiomeTags.IS_DEEP_OCEAN) || holder.is(BiomeTags.IS_NETHER) || holder.is(BiomeTags.IS_END) || holder.is(BiomeTags.HAS_SHIPWRECK) || holder.is(BiomeTags.HAS_SHIPWRECK_BEACHED) || holder.is(BiomeTags.HAS_OCEAN_MONUMENT) || holder.is(BiomeTags.HAS_OCEAN_RUIN_COLD) || holder.is(BiomeTags.HAS_OCEAN_RUIN_WARM) || holder.is(BiomeTags.HAS_RUINED_PORTAL_OCEAN) || holder.is(BiomeTags.IS_RIVER))) {
++                    potentialExtraIncreasedY = GlobalConfiguration.get().customStrongholds.potentialExtraIncreasedY.all;
++                    if (context.biomeSource().possibleBiomes().stream().anyMatch(holder -> holder.is(Biomes.BADLANDS) || holder.is(Biomes.ERODED_BADLANDS) || holder.is(Biomes.WOODED_BADLANDS))) {
++                        potentialExtraIncreasedY = Math.max(potentialExtraIncreasedY, GlobalConfiguration.get().customStrongholds.potentialExtraIncreasedY.badlands);
++                    }
++                    if (context.biomeSource().possibleBiomes().stream().anyMatch(holder -> holder.is(Biomes.SAVANNA_PLATEAU))) {
++                        potentialExtraIncreasedY = Math.max(potentialExtraIncreasedY, GlobalConfiguration.get().customStrongholds.potentialExtraIncreasedY.plateau);
++                    }
++                    if (context.biomeSource().possibleBiomes().stream().anyMatch(holder -> holder.is(Biomes.WINDSWEPT_FOREST) || holder.is(Biomes.WINDSWEPT_HILLS) || holder.is(Biomes.WINDSWEPT_GRAVELLY_HILLS) || holder.is(Biomes.WINDSWEPT_SAVANNA))) {
++                        potentialExtraIncreasedY = Math.max(potentialExtraIncreasedY, GlobalConfiguration.get().customStrongholds.potentialExtraIncreasedY.windswept);
++                    }
++                    if (context.biomeSource().possibleBiomes().stream().anyMatch(holder -> holder.is(BiomeTags.IS_MOUNTAIN))) {
++                        potentialExtraIncreasedY = Math.max(potentialExtraIncreasedY, GlobalConfiguration.get().customStrongholds.potentialExtraIncreasedY.mountain);
++                    }
++                    if (context.biomeSource().possibleBiomes().stream().anyMatch(holder -> holder.is(BiomeTags.IS_HILL))) {
++                        potentialExtraIncreasedY = Math.max(potentialExtraIncreasedY, GlobalConfiguration.get().customStrongholds.potentialExtraIncreasedY.hill);
++                    }
++                }
++            }
++            if (potentialExtraIncreasedY != null) {
++                int extraIncreasedY = surfaceStrongholdRandom.nextInt(potentialExtraIncreasedY + 1);
++                Bukkit.getLogger().info("To create more surface strongholds, vertically offsetting stronghold at chunk " + context.chunkPos() + " by " + extraIncreasedY);
++                collector.offsetPiecesVertically(extraIncreasedY);
++            } else {
++                collector.moveBelowSeaLevel(context.chunkGenerator().getSeaLevel(), context.chunkGenerator().getMinY(), context.random(), 10);
++            }
++
++            // Martijn end - custom strongholds
++
+             collector.moveBelowSeaLevel(context.chunkGenerator().getSeaLevel(), context.chunkGenerator().getMinY(), context.random(), 10);
+         } while(collector.isEmpty() || startPiece.portalRoomPiece == null);
+ 
