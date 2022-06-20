@@ -5,7 +5,7 @@ Subject: [PATCH] Custom stronghold generation
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index 63b344c7bf67bc236f88639ed6bee7d2c451761d..fbddafba3d83c7abf729764ead7508c667f6aba9 100644
+index 63b344c7bf67bc236f88639ed6bee7d2c451761d..09e45b541d6a9d816667bc0410bbe343ffd11f2d 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 @@ -260,6 +260,33 @@ public class GlobalConfiguration extends ConfigurationPart {
@@ -18,19 +18,19 @@ index 63b344c7bf67bc236f88639ed6bee7d2c451761d..fbddafba3d83c7abf729764ead7508c6
 +
 +    public class CustomStrongholds extends ConfigurationPart {
 +
-+        public double moveToSurfaceChance = 0.2;
++        public double moveToSurfaceChance = 0;
 +
 +        public PotentialExtraIncreasedY potentialExtraIncreasedY;
 +
-+        public double ceilingBlockHoleChance = 0.25;
++        public double ceilingBlockHoleChance = 0;
 +
 +        public class PotentialExtraIncreasedY extends ConfigurationPart {
 +
-+            public int badlands = 16;
-+            public int plateau = 18;
-+            public int windswept = 12;
-+            public int mountain = 10;
-+            public int hill = 5;
++            public int badlands = 0;
++            public int plateau = 0;
++            public int windswept = 0;
++            public int mountain = 0;
++            public int hill = 0;
 +            public int all = 0;
 +
 +        }
