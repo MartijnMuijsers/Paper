@@ -5,10 +5,10 @@ Subject: [PATCH] Custom stronghold generation
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index 63b344c7bf67bc236f88639ed6bee7d2c451761d..15c909bf9bc194cfb714070d886a69f1f9dc57e3 100644
+index 63b344c7bf67bc236f88639ed6bee7d2c451761d..fbddafba3d83c7abf729764ead7508c667f6aba9 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -260,6 +260,31 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -260,6 +260,33 @@ public class GlobalConfiguration extends ConfigurationPart {
  
      // Martijn end - network-constrained chunk sending
  
@@ -18,9 +18,11 @@ index 63b344c7bf67bc236f88639ed6bee7d2c451761d..15c909bf9bc194cfb714070d886a69f1
 +
 +    public class CustomStrongholds extends ConfigurationPart {
 +
-+        public float moveToSurfaceChance = 0.2f;
++        public double moveToSurfaceChance = 0.2;
 +
 +        public PotentialExtraIncreasedY potentialExtraIncreasedY;
++
++        public double ceilingBlockHoleChance = 0.25;
 +
 +        public class PotentialExtraIncreasedY extends ConfigurationPart {
 +
@@ -40,8 +42,158 @@ index 63b344c7bf67bc236f88639ed6bee7d2c451761d..15c909bf9bc194cfb714070d886a69f1
      public Messages messages;
  
      public class Messages extends ConfigurationPart {
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
+index eb0ad03943c9afb22907f984cbc923453c820d40..dba3e948bacc9506c3d39b0fe56bcdbd97b44fdb 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
+@@ -6,6 +6,8 @@ import java.util.List;
+ import java.util.Set;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.core.Registry;
+@@ -269,6 +271,33 @@ public abstract class StructurePiece {
+         this.generateBox(world, box, fillBox.minX(), fillBox.minY(), fillBox.minZ(), fillBox.maxX(), fillBox.maxY(), fillBox.maxZ(), cantReplaceAir, random, randomizer);
+     }
+ 
++    // Martijn end - custom strongholds - strongholds with partially open ceiling
++
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
++        for(int i = minY; i <= maxY; ++i) {
++            for(int j = minX; j <= maxX; ++j) {
++                for(int k = minZ; k <= maxZ; ++k) {
++                    if (!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) {
++                        randomizer.next(random, j, i, k, i == minY || i == maxY || j == minX || j == maxX || k == minZ || k == maxZ);
++                        BlockState newState = randomizer.getNext();
++                        // If the block on top is actually air, there is a chance we use air
++                        if (world.getBlockState(this.getWorldPos(j, i + 1, k)).isAir() && random.nextDouble() < GlobalConfiguration.get().customStrongholds.ceilingBlockHoleChance) {
++                            newState = Blocks.CAVE_AIR.defaultBlockState();
++                        }
++                        this.placeBlock(world, newState, j, i, k, box);
++                    }
++                }
++            }
++        }
++
++    }
++
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
++        this.generateBoxWithPartiallyOpenCeiling(world, box, fillBox.minX(), fillBox.minY(), fillBox.minZ(), fillBox.maxX(), fillBox.maxY(), fillBox.maxZ(), cantReplaceAir, random, randomizer);
++    }
++
++    // Martijn end - custom strongholds - strongholds with partially open ceiling
++
+     protected void generateMaybeBox(WorldGenLevel world, BoundingBox box, RandomSource random, float blockChance, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean stayBelowSeaLevel) {
+         for(int i = minY; i <= maxY; ++i) {
+             for(int j = minX; j <= maxX; ++j) {
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
+index 0a17765680e28961ac7bf5cb04cf52d8dba86eb0..c9ac75ff433efd3b54868b62bce3168dbcdfa6b2 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
+@@ -207,7 +207,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 4, 4, 6, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 6, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 6);
+             this.generateBox(world, chunkBox, 3, 1, 2, 3, 1, 4, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICKS.defaultBlockState(), false);
+@@ -367,7 +367,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 9, 8, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 9, 8, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 4, 3, 0);
+             if (this.leftLow) {
+                 this.generateBox(world, chunkBox, 0, 3, 1, 0, 5, 3, CAVE_AIR, CAVE_AIR, false);
+@@ -432,7 +432,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 4, 4, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             Direction direction = this.getOrientation();
+             if (direction != Direction.NORTH && direction != Direction.EAST) {
+@@ -488,7 +488,7 @@ public class StrongholdPieces {
+                 i = 6;
+             }
+ 
+-            this.generateBox(world, chunkBox, 0, 0, 0, 13, i - 1, 14, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 13, i - 1, 14, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 4, 1, 0);
+             this.generateMaybeBox(world, chunkBox, random, 0.07F, 2, 1, 1, 11, 4, 13, Blocks.COBWEB.defaultBlockState(), Blocks.COBWEB.defaultBlockState(), false, false);
+             int j = 1;
+@@ -646,7 +646,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 10, 7, 15, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 10, 7, 15, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.GRATES, 4, 1, 0);
+             int i = 6;
+             this.generateBox(world, chunkBox, 1, i, 1, 1, i, 14, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+@@ -761,7 +761,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 8, 4, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 8, 4, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             this.generateBox(world, chunkBox, 1, 1, 10, 3, 3, 10, CAVE_AIR, CAVE_AIR, false);
+             this.generateBox(world, chunkBox, 4, 1, 1, 4, 3, 1, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+@@ -818,7 +818,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 4, 4, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             Direction direction = this.getOrientation();
+             if (direction != Direction.NORTH && direction != Direction.EAST) {
+@@ -868,7 +868,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 10, 6, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 10, 6, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 4, 1, 0);
+             this.generateBox(world, chunkBox, 4, 1, 10, 6, 3, 10, CAVE_AIR, CAVE_AIR, false);
+             this.generateBox(world, chunkBox, 0, 1, 4, 0, 3, 6, CAVE_AIR, CAVE_AIR, false);
+@@ -1028,7 +1028,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 4, 10, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 10, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 7, 0);
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 4);
+             this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 2, 6, 1, chunkBox);
+@@ -1119,7 +1119,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 4, 4, 6, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 6, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 6);
+             BlockState blockState = Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.EAST);
+@@ -1166,7 +1166,7 @@ public class StrongholdPieces {
+ 
+         @Override
+         public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBox(world, chunkBox, 0, 0, 0, 4, 10, 7, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 10, 7, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 7, 0);
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 7);
+             BlockState blockState = Blocks.COBBLESTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.SOUTH);
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
-index f0bc479d3dfb4df09c61f6bc87f4a124e39c352d..daaeca18bd954a3ef588b12d2eba6b49729e9f90 100644
+index f0bc479d3dfb4df09c61f6bc87f4a124e39c352d..10c81ebe7a6fe04784614c1df9cc454d2db33b90 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
 @@ -3,10 +3,27 @@ package net.minecraft.world.level.levelgen.structure.structures;
@@ -72,11 +224,11 @@ index f0bc479d3dfb4df09c61f6bc87f4a124e39c352d..daaeca18bd954a3ef588b12d2eba6b49
  
  public class StrongholdStructure extends Structure {
      public static final Codec<StrongholdStructure> CODEC = simpleCodec(StrongholdStructure::new);
-@@ -25,6 +42,47 @@ public class StrongholdStructure extends Structure {
+@@ -25,6 +42,44 @@ public class StrongholdStructure extends Structure {
      private static void generatePieces(StructurePiecesBuilder collector, Structure.GenerationContext context) {
          int i = 0;
  
-+        // Martijn start - custom strongholds
++        // Martijn start - custom strongholds - surface strongholds
 +
 +        // We determine a possible block amount to vertically raise the stronghold by
 +        // (or null if we do not move this stronghold to the surface)
@@ -110,33 +262,32 @@ index f0bc479d3dfb4df09c61f6bc87f4a124e39c352d..daaeca18bd954a3ef588b12d2eba6b49
 +                    }
 +                }
 +            }
-+            Bukkit.getLogger().info("Used stronghold biome: " + holder);
 +        }
 +
-+        Bukkit.getLogger().info("Extra y: " + potentialExtraIncreasedY);
-+
-+        // Martijn end - custom strongholds
++        // Martijn end - custom strongholds - surface strongholds
 +
          StrongholdPieces.StartPiece startPiece;
          do {
              collector.clear();
-@@ -41,7 +99,18 @@ public class StrongholdStructure extends Structure {
+@@ -41,9 +96,20 @@ public class StrongholdStructure extends Structure {
                  structurePiece.addChildren(startPiece, collector, context.random());
              }
  
 -            collector.moveBelowSeaLevel(context.chunkGenerator().getSeaLevel(), context.chunkGenerator().getMinY(), context.random(), 10);
-+            // Martijn start - custom strongholds
-+
-+            if (potentialExtraIncreasedY != null) {
-+                int extraIncreasedY = surfaceStrongholdRandom.nextInt(potentialExtraIncreasedY + 1);
-+                Bukkit.getLogger().info("To create more surface strongholds, vertically offsetting stronghold at chunk " + context.chunkPos() + " by " + extraIncreasedY);
-+                collector.offsetPiecesVertically(extraIncreasedY);
-+            } else {
-+                collector.moveBelowSeaLevel(context.chunkGenerator().getSeaLevel(), context.chunkGenerator().getMinY(), context.random(), 10);
-+            }
-+
-+            // Martijn end - custom strongholds
-+
          } while(collector.isEmpty() || startPiece.portalRoomPiece == null);
  
++        // Martijn start - custom strongholds - surface strongholds
++
++        if (potentialExtraIncreasedY != null) {
++            int extraIncreasedY = surfaceStrongholdRandom.nextInt(potentialExtraIncreasedY + 1);
++            Bukkit.getLogger().info("To create more surface strongholds, vertically offsetting stronghold at block " + context.chunkPos().getBlockX(2) + " , " + context.chunkPos().getBlockZ(2) + " by " + extraIncreasedY + " and not moving it downwards on purpose");
++            collector.offsetPiecesVertically(extraIncreasedY);
++        } else {
++            collector.moveBelowSeaLevel(context.chunkGenerator().getSeaLevel(), context.chunkGenerator().getMinY(), context.random(), 10);
++        }
++
++        // Martijn end - custom strongholds - surface strongholds
++
      }
+ 
+     @Override
