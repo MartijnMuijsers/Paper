@@ -1,0 +1,296 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 22 Jun 2022 22:48:08 +0200
+Subject: [PATCH] X
+
+
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index 09e45b541d6a9d816667bc0410bbe343ffd11f2d..1c9515874f9afe1475c17928b0729e2d0a6cd2b3 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -268,9 +268,15 @@ public class GlobalConfiguration extends ConfigurationPart {
+ 
+         public double moveToSurfaceChance = 0;
+ 
+-        public PotentialExtraIncreasedY potentialExtraIncreasedY;
++        public int getStrongholdStructureWeight() {
++            return 100 - getStrongholdSurfaceStructureWeight();
++        }
+ 
+-        public double ceilingBlockHoleChance = 0;
++        public int getStrongholdSurfaceStructureWeight() {
++            return Math.min(100, Math.max(0, (int) Math.round(moveToSurfaceChance * 100)));
++        }
++
++        public PotentialExtraIncreasedY potentialExtraIncreasedY;
+ 
+         public class PotentialExtraIncreasedY extends ConfigurationPart {
+ 
+@@ -283,6 +289,8 @@ public class GlobalConfiguration extends ConfigurationPart {
+ 
+         }
+ 
++        public double ceilingBlockHoleChance = 0;
++
+     }
+ 
+     // Martijn end - custom strongholds
+diff --git a/src/main/java/net/minecraft/data/advancements/StoryAdvancements.java b/src/main/java/net/minecraft/data/advancements/StoryAdvancements.java
+index 712e249ebe86d9adabf2bb816eea45543061efd3..bd7c476280c80d69f18a27be3ab732e28f005d2e 100644
+--- a/src/main/java/net/minecraft/data/advancements/StoryAdvancements.java
++++ b/src/main/java/net/minecraft/data/advancements/StoryAdvancements.java
+@@ -39,7 +39,7 @@ public class StoryAdvancements implements Consumer<Consumer<Advancement>> {
+         Advancement.Builder.advancement().parent(advancement6).display(Items.DIAMOND_CHESTPLATE, Component.translatable("advancements.story.shiny_gear.title"), Component.translatable("advancements.story.shiny_gear.description"), (ResourceLocation)null, FrameType.TASK, true, true, false).requirements(RequirementsStrategy.OR).addCriterion("diamond_helmet", InventoryChangeTrigger.TriggerInstance.hasItems(Items.DIAMOND_HELMET)).addCriterion("diamond_chestplate", InventoryChangeTrigger.TriggerInstance.hasItems(Items.DIAMOND_CHESTPLATE)).addCriterion("diamond_leggings", InventoryChangeTrigger.TriggerInstance.hasItems(Items.DIAMOND_LEGGINGS)).addCriterion("diamond_boots", InventoryChangeTrigger.TriggerInstance.hasItems(Items.DIAMOND_BOOTS)).save(consumer, "story/shiny_gear");
+         Advancement advancement10 = Advancement.Builder.advancement().parent(advancement9).display(Items.FLINT_AND_STEEL, Component.translatable("advancements.story.enter_the_nether.title"), Component.translatable("advancements.story.enter_the_nether.description"), (ResourceLocation)null, FrameType.TASK, true, true, false).addCriterion("entered_nether", ChangeDimensionTrigger.TriggerInstance.changedDimensionTo(Level.NETHER)).save(consumer, "story/enter_the_nether");
+         Advancement.Builder.advancement().parent(advancement10).display(Items.GOLDEN_APPLE, Component.translatable("advancements.story.cure_zombie_villager.title"), Component.translatable("advancements.story.cure_zombie_villager.description"), (ResourceLocation)null, FrameType.GOAL, true, true, false).addCriterion("cured_zombie", CuredZombieVillagerTrigger.TriggerInstance.curedZombieVillager()).save(consumer, "story/cure_zombie_villager");
+-        Advancement advancement11 = Advancement.Builder.advancement().parent(advancement10).display(Items.ENDER_EYE, Component.translatable("advancements.story.follow_ender_eye.title"), Component.translatable("advancements.story.follow_ender_eye.description"), (ResourceLocation)null, FrameType.TASK, true, true, false).addCriterion("in_stronghold", PlayerTrigger.TriggerInstance.located(LocationPredicate.inStructure(BuiltinStructures.STRONGHOLD))).save(consumer, "story/follow_ender_eye");
++        Advancement advancement11 = Advancement.Builder.advancement().parent(advancement10).display(Items.ENDER_EYE, Component.translatable("advancements.story.follow_ender_eye.title"), Component.translatable("advancements.story.follow_ender_eye.description"), (ResourceLocation)null, FrameType.TASK, true, true, false).requirements(RequirementsStrategy.OR).addCriterion("in_stronghold", PlayerTrigger.TriggerInstance.located(LocationPredicate.inStructure(BuiltinStructures.STRONGHOLD))).addCriterion("in_stronghold_surface", PlayerTrigger.TriggerInstance.located(LocationPredicate.inStructure(BuiltinStructures.STRONGHOLD_SURFACE))).save(consumer, "story/follow_ender_eye"); // Martijn - custom strongholds - surface strongholds
+         Advancement.Builder.advancement().parent(advancement11).display(Blocks.END_STONE, Component.translatable("advancements.story.enter_the_end.title"), Component.translatable("advancements.story.enter_the_end.description"), (ResourceLocation)null, FrameType.TASK, true, true, false).addCriterion("entered_end", ChangeDimensionTrigger.TriggerInstance.changedDimensionTo(Level.END)).save(consumer, "story/enter_the_end");
+     }
+ }
+diff --git a/src/main/java/net/minecraft/data/tags/BiomeTagsProvider.java b/src/main/java/net/minecraft/data/tags/BiomeTagsProvider.java
+index 417a289f4151fd21e1eb62087d267a8f79822934..1f6eaf89d2e1336471488e340610dd8a606863f5 100644
+--- a/src/main/java/net/minecraft/data/tags/BiomeTagsProvider.java
++++ b/src/main/java/net/minecraft/data/tags/BiomeTagsProvider.java
+@@ -63,6 +63,7 @@ public class BiomeTagsProvider extends TagsProvider<Biome> {
+         this.tag(BiomeTags.HAS_WOODLAND_MANSION).add(Biomes.DARK_FOREST);
+         this.tag(BiomeTags.STRONGHOLD_BIASED_TO).add(Biomes.PLAINS).add(Biomes.SUNFLOWER_PLAINS).add(Biomes.SNOWY_PLAINS).add(Biomes.ICE_SPIKES).add(Biomes.DESERT).add(Biomes.FOREST).add(Biomes.FLOWER_FOREST).add(Biomes.BIRCH_FOREST).add(Biomes.DARK_FOREST).add(Biomes.OLD_GROWTH_BIRCH_FOREST).add(Biomes.OLD_GROWTH_PINE_TAIGA).add(Biomes.OLD_GROWTH_SPRUCE_TAIGA).add(Biomes.TAIGA).add(Biomes.SNOWY_TAIGA).add(Biomes.SAVANNA).add(Biomes.SAVANNA_PLATEAU).add(Biomes.WINDSWEPT_HILLS).add(Biomes.WINDSWEPT_GRAVELLY_HILLS).add(Biomes.WINDSWEPT_FOREST).add(Biomes.WINDSWEPT_SAVANNA).add(Biomes.JUNGLE).add(Biomes.SPARSE_JUNGLE).add(Biomes.BAMBOO_JUNGLE).add(Biomes.BADLANDS).add(Biomes.ERODED_BADLANDS).add(Biomes.WOODED_BADLANDS).add(Biomes.MEADOW).add(Biomes.GROVE).add(Biomes.SNOWY_SLOPES).add(Biomes.FROZEN_PEAKS).add(Biomes.JAGGED_PEAKS).add(Biomes.STONY_PEAKS).add(Biomes.MUSHROOM_FIELDS).add(Biomes.DRIPSTONE_CAVES).add(Biomes.LUSH_CAVES);
+         this.tag(BiomeTags.HAS_STRONGHOLD).addTag(BiomeTags.IS_OVERWORLD);
++        this.tag(BiomeTags.HAS_STRONGHOLD_SURFACE).addTag(BiomeTags.STRONGHOLD_BIASED_TO); // Martijn - custom strongholds - surface strongholds
+         this.tag(BiomeTags.HAS_NETHER_FORTRESS).addTag(BiomeTags.IS_NETHER);
+         this.tag(BiomeTags.HAS_NETHER_FOSSIL).add(Biomes.SOUL_SAND_VALLEY);
+         this.tag(BiomeTags.HAS_BASTION_REMNANT).add(Biomes.CRIMSON_FOREST).add(Biomes.NETHER_WASTES).add(Biomes.SOUL_SAND_VALLEY).add(Biomes.WARPED_FOREST);
+diff --git a/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java b/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
+index 0e79ec93eb84cc1b62c4048c204b97c8020967bf..27474c606685760a7a7761e0096071a4e5738259 100644
+--- a/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
++++ b/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
+@@ -20,7 +20,7 @@ public class StructureTagsProvider extends TagsProvider<Structure> {
+         this.tag(StructureTags.RUINED_PORTAL).add(BuiltinStructures.RUINED_PORTAL_DESERT).add(BuiltinStructures.RUINED_PORTAL_JUNGLE).add(BuiltinStructures.RUINED_PORTAL_MOUNTAIN).add(BuiltinStructures.RUINED_PORTAL_NETHER).add(BuiltinStructures.RUINED_PORTAL_OCEAN).add(BuiltinStructures.RUINED_PORTAL_STANDARD).add(BuiltinStructures.RUINED_PORTAL_SWAMP);
+         this.tag(StructureTags.CATS_SPAWN_IN).add(BuiltinStructures.SWAMP_HUT);
+         this.tag(StructureTags.CATS_SPAWN_AS_BLACK).add(BuiltinStructures.SWAMP_HUT);
+-        this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(BuiltinStructures.STRONGHOLD);
++        this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(BuiltinStructures.STRONGHOLD).add(BuiltinStructures.STRONGHOLD_SURFACE); // Martijn - custom strongholds - surface strongholds
+         this.tag(StructureTags.DOLPHIN_LOCATED).addTag(StructureTags.OCEAN_RUIN).addTag(StructureTags.SHIPWRECK);
+         this.tag(StructureTags.ON_WOODLAND_EXPLORER_MAPS).add(BuiltinStructures.WOODLAND_MANSION);
+         this.tag(StructureTags.ON_OCEAN_EXPLORER_MAPS).add(BuiltinStructures.OCEAN_MONUMENT);
+diff --git a/src/main/java/net/minecraft/data/worldgen/StructureSets.java b/src/main/java/net/minecraft/data/worldgen/StructureSets.java
+index ef50bc6a61c074c9b9f6a12dc465d407aec95d19..57baaf5b25fe8a3b866687cbe2f454028f77e635 100644
+--- a/src/main/java/net/minecraft/data/worldgen/StructureSets.java
++++ b/src/main/java/net/minecraft/data/worldgen/StructureSets.java
+@@ -2,6 +2,8 @@ package net.minecraft.data.worldgen;
+ 
+ import java.util.List;
+ import java.util.Optional;
++
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import net.minecraft.core.Holder;
+ import net.minecraft.core.Registry;
+ import net.minecraft.core.Vec3i;
+@@ -34,7 +36,7 @@ public interface StructureSets {
+     Holder<StructureSet> NETHER_COMPLEXES = register(BuiltinStructureSets.NETHER_COMPLEXES, new StructureSet(List.of(StructureSet.entry(Structures.FORTRESS, 2), StructureSet.entry(Structures.BASTION_REMNANT, 3)), new RandomSpreadStructurePlacement(27, 4, RandomSpreadType.LINEAR, 30084232)));
+     Holder<StructureSet> NETHER_FOSSILS = register(BuiltinStructureSets.NETHER_FOSSILS, Structures.NETHER_FOSSIL, new RandomSpreadStructurePlacement(2, 1, RandomSpreadType.LINEAR, 14357921));
+     Holder<StructureSet> END_CITIES = register(BuiltinStructureSets.END_CITIES, Structures.END_CITY, new RandomSpreadStructurePlacement(20, 11, RandomSpreadType.TRIANGULAR, 10387313));
+-    Holder<StructureSet> STRONGHOLDS = register(BuiltinStructureSets.STRONGHOLDS, Structures.STRONGHOLD, new ConcentricRingsStructurePlacement(32, 3, 128, BuiltinRegistries.BIOME.getOrCreateTag(BiomeTags.STRONGHOLD_BIASED_TO)));
++    Holder<StructureSet> STRONGHOLDS = register(BuiltinStructureSets.STRONGHOLDS, new StructureSet(List.of(StructureSet.entry(Structures.STRONGHOLD, () -> GlobalConfiguration.get().customStrongholds.getStrongholdStructureWeight()), StructureSet.entry(Structures.STRONGHOLD_SURFACE, () -> GlobalConfiguration.get().customStrongholds.getStrongholdSurfaceStructureWeight())), new ConcentricRingsStructurePlacement(32, 3, 128, BuiltinRegistries.BIOME.getOrCreateTag(BiomeTags.STRONGHOLD_BIASED_TO)))); // Martijn - custom strongholds - surface strongholds
+ 
+     static Holder<StructureSet> bootstrap(Registry<StructureSet> registry) {
+         return registry.holders().iterator().next();
+diff --git a/src/main/java/net/minecraft/data/worldgen/Structures.java b/src/main/java/net/minecraft/data/worldgen/Structures.java
+index ae1d5d7f347491485a4101e81501213759e3cfa5..c49ba55cc657991e2aa28df4513f568c5535eda6 100644
+--- a/src/main/java/net/minecraft/data/worldgen/Structures.java
++++ b/src/main/java/net/minecraft/data/worldgen/Structures.java
+@@ -56,7 +56,10 @@ public class Structures {
+     public static final Holder<Structure> SHIPWRECK = register(BuiltinStructures.SHIPWRECK, new ShipwreckStructure(structure(BiomeTags.HAS_SHIPWRECK, TerrainAdjustment.NONE), false));
+     public static final Holder<Structure> SHIPWRECK_BEACHED = register(BuiltinStructures.SHIPWRECK_BEACHED, new ShipwreckStructure(structure(BiomeTags.HAS_SHIPWRECK_BEACHED, TerrainAdjustment.NONE), true));
+     public static final Holder<Structure> SWAMP_HUT = register(BuiltinStructures.SWAMP_HUT, new SwampHutStructure(structure(BiomeTags.HAS_SWAMP_HUT, Map.of(MobCategory.MONSTER, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.PIECE, WeightedRandomList.create(new MobSpawnSettings.SpawnerData(EntityType.WITCH, 1, 1, 1))), MobCategory.CREATURE, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.PIECE, WeightedRandomList.create(new MobSpawnSettings.SpawnerData(EntityType.CAT, 1, 1, 1)))), GenerationStep.Decoration.SURFACE_STRUCTURES, TerrainAdjustment.NONE)));
+-    public static final Holder<Structure> STRONGHOLD = register(BuiltinStructures.STRONGHOLD, new StrongholdStructure(structure(BiomeTags.HAS_STRONGHOLD, TerrainAdjustment.BURY)));
++    // Martijn start - custom strongholds - surface strongholds
++    public static final Holder<Structure> STRONGHOLD = register(BuiltinStructures.STRONGHOLD, new StrongholdStructure(structure(BiomeTags.HAS_STRONGHOLD, TerrainAdjustment.BURY), false));
++    public static final Holder<Structure> STRONGHOLD_SURFACE = register(BuiltinStructures.STRONGHOLD_SURFACE, new StrongholdStructure(structure(BiomeTags.HAS_STRONGHOLD_SURFACE, TerrainAdjustment.NONE), true));
++    // Martijn end - custom strongholds - surface strongholds
+     public static final Holder<Structure> OCEAN_MONUMENT = register(BuiltinStructures.OCEAN_MONUMENT, new OceanMonumentStructure(structure(BiomeTags.HAS_OCEAN_MONUMENT, Map.of(MobCategory.MONSTER, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, WeightedRandomList.create(new MobSpawnSettings.SpawnerData(EntityType.GUARDIAN, 1, 2, 4))), MobCategory.UNDERGROUND_WATER_CREATURE, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, MobSpawnSettings.EMPTY_MOB_LIST), MobCategory.AXOLOTLS, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, MobSpawnSettings.EMPTY_MOB_LIST)), GenerationStep.Decoration.SURFACE_STRUCTURES, TerrainAdjustment.NONE)));
+     public static final Holder<Structure> OCEAN_RUIN_COLD = register(BuiltinStructures.OCEAN_RUIN_COLD, new OceanRuinStructure(structure(BiomeTags.HAS_OCEAN_RUIN_COLD, TerrainAdjustment.NONE), OceanRuinStructure.Type.COLD, 0.3F, 0.9F));
+     public static final Holder<Structure> OCEAN_RUIN_WARM = register(BuiltinStructures.OCEAN_RUIN_WARM, new OceanRuinStructure(structure(BiomeTags.HAS_OCEAN_RUIN_WARM, TerrainAdjustment.NONE), OceanRuinStructure.Type.WARM, 0.3F, 0.9F));
+diff --git a/src/main/java/net/minecraft/tags/BiomeTags.java b/src/main/java/net/minecraft/tags/BiomeTags.java
+index 3aacefd7fca40d42b856e4a235b55c3b95d95bec..a6d6cf6156c5dc282d720fec657c561ea2a96d75 100644
+--- a/src/main/java/net/minecraft/tags/BiomeTags.java
++++ b/src/main/java/net/minecraft/tags/BiomeTags.java
+@@ -39,6 +39,7 @@ public class BiomeTags {
+     public static final TagKey<Biome> HAS_SHIPWRECK_BEACHED = create("has_structure/shipwreck_beached");
+     public static final TagKey<Biome> HAS_SHIPWRECK = create("has_structure/shipwreck");
+     public static final TagKey<Biome> HAS_STRONGHOLD = create("has_structure/stronghold");
++    public static final TagKey<Biome> HAS_STRONGHOLD_SURFACE = create("has_structure/stronghold"); // Martijn - custom strongholds - surface strongholds
+     public static final TagKey<Biome> HAS_SWAMP_HUT = create("has_structure/swamp_hut");
+     public static final TagKey<Biome> HAS_VILLAGE_DESERT = create("has_structure/village_desert");
+     public static final TagKey<Biome> HAS_VILLAGE_PLAINS = create("has_structure/village_plains");
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java b/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java
+index 3b6d54d18ff04e7bd70e789f8bcb98f943226f96..96ae4c606f2fb755d898d4cc2e6e178d89acf0e9 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java
+@@ -16,6 +16,7 @@ public interface BuiltinStructures {
+     ResourceKey<Structure> SHIPWRECK_BEACHED = createKey("shipwreck_beached");
+     ResourceKey<Structure> SWAMP_HUT = createKey("swamp_hut");
+     ResourceKey<Structure> STRONGHOLD = createKey("stronghold");
++    ResourceKey<Structure> STRONGHOLD_SURFACE = createKey("stronghold_surface"); // Martijn - custom strongholds - surface strongholds
+     ResourceKey<Structure> OCEAN_MONUMENT = createKey("monument");
+     ResourceKey<Structure> OCEAN_RUIN_COLD = createKey("ocean_ruin_cold");
+     ResourceKey<Structure> OCEAN_RUIN_WARM = createKey("ocean_ruin_warm");
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/StructureSet.java b/src/main/java/net/minecraft/world/level/levelgen/structure/StructureSet.java
+index a018fbc1d6d229c8cc00fdef0736310a8013098c..5b966d303f7ff53d5acddfc7e6cf60eeb32bca0a 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/StructureSet.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/StructureSet.java
+@@ -3,6 +3,8 @@ package net.minecraft.world.level.levelgen.structure;
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import java.util.List;
++import java.util.function.IntSupplier;
++
+ import net.minecraft.core.Holder;
+ import net.minecraft.core.Registry;
+ import net.minecraft.resources.RegistryFileCodec;
+@@ -19,6 +21,12 @@ public record StructureSet(List<StructureSet.StructureSelectionEntry> structures
+         this(List.of(new StructureSet.StructureSelectionEntry(structure, 1)), placement);
+     }
+ 
++    // Martijn start - custom strongholds - surface strongholds
++    public static StructureSet.StructureSelectionEntry entry(Holder<Structure> structure, IntSupplier weightSupplier) {
++        return new StructureSet.StructureSelectionEntry(structure, weightSupplier);
++    }
++    // Martijn end - custom strongholds - surface strongholds
++
+     public static StructureSet.StructureSelectionEntry entry(Holder<Structure> structure, int weight) {
+         return new StructureSet.StructureSelectionEntry(structure, weight);
+     }
+@@ -27,7 +35,15 @@ public record StructureSet(List<StructureSet.StructureSelectionEntry> structures
+         return new StructureSet.StructureSelectionEntry(structure, 1);
+     }
+ 
+-    public static record StructureSelectionEntry(Holder<Structure> structure, int weight) {
++    // Martijn start - custom strongholds - surface strongholds
++    public static record StructureSelectionEntry(Holder<Structure> structure, IntSupplier weightSupplier) {
++        public StructureSelectionEntry(Holder<Structure> structure, int weight) {
++            this(structure, () -> weight);
++        }
++        public int weight() {
++            return weightSupplier.getAsInt();
++        }
++        // Martijn end - custom strongholds - surface strongholds
+         public static final Codec<StructureSet.StructureSelectionEntry> CODEC = RecordCodecBuilder.create((instance) -> {
+             return instance.group(Structure.CODEC.fieldOf("structure").forGetter(StructureSet.StructureSelectionEntry::structure), ExtraCodecs.POSITIVE_INT.fieldOf("weight").forGetter(StructureSet.StructureSelectionEntry::weight)).apply(instance, StructureSet.StructureSelectionEntry::new);
+         });
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
+index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..446c4fca1bbf3c72d78707177424968c8121bdfe 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
+@@ -5,6 +5,7 @@ import java.util.List;
+ import java.util.Optional;
+ import java.util.Random;
+ 
++import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import io.papermc.paper.configuration.GlobalConfiguration;
+ import io.papermc.paper.world.structure.ConfiguredStructure;
+ import net.minecraft.core.BlockPos;
+@@ -12,6 +13,7 @@ import net.minecraft.core.Holder;
+ import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.tags.BiomeTags;
+ import net.minecraft.util.RandomSource;
++import net.minecraft.util.StringRepresentable;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LevelHeightAccessor;
+ import net.minecraft.world.level.biome.Biome;
+@@ -26,29 +28,45 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilde
+ import org.bukkit.Bukkit;
+ 
+ public class StrongholdStructure extends Structure {
+-    public static final Codec<StrongholdStructure> CODEC = simpleCodec(StrongholdStructure::new);
+ 
+-    public StrongholdStructure(Structure.StructureSettings config) {
++    // Martijn start - custom strongholds - surface strongholds
++
++    public static final Codec<StrongholdStructure> CODEC = RecordCodecBuilder.create(instance ->
++        instance.group(settingsCodec(instance), Codec.BOOL.optionalFieldOf("is_surface").forGetter(structure ->
++            Optional.of(structure.isSurface)
++        )).apply(instance, StrongholdStructure::new)
++    );
++
++    public final boolean isSurface;
++
++    public StrongholdStructure(Structure.StructureSettings config, Optional<Boolean> isSurface) {
++        this(config, isSurface.orElse(false));
++    }
++
++    public StrongholdStructure(Structure.StructureSettings config, boolean isSurface) {
+         super(config);
++        this.isSurface = isSurface;
+     }
+ 
++    // Martijn end - custom strongholds - surface strongholds
++
+     @Override
+     public Optional<Structure.GenerationStub> findGenerationPoint(Structure.GenerationContext context) {
+         return Optional.of(new Structure.GenerationStub(context.chunkPos().getWorldPosition(), (collector) -> {
+-            generatePieces(collector, context);
++            generatePieces(collector, context, this.isSurface); // Martijn - custom strongholds - surface strongholds
+         }));
+     }
+ 
+-    private static void generatePieces(StructurePiecesBuilder collector, Structure.GenerationContext context) {
++    private static void generatePieces(StructurePiecesBuilder collector, Structure.GenerationContext context, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+         int i = 0;
+ 
+         // Martijn start - custom strongholds - surface strongholds
+ 
+         // We determine a possible block amount to vertically raise the stronghold by
+         // (or null if we do not move this stronghold to the surface)
+-        Integer potentialExtraIncreasedY = null;
++        Integer potentialExtraIncreasedY = 0;
+         RandomSource surfaceStrongholdRandom = context.random().fork();
+-        if (surfaceStrongholdRandom.nextDouble() < GlobalConfiguration.get().customStrongholds.moveToSurfaceChance) {
++        if (isSurface/*surfaceStrongholdRandom.nextDouble() < GlobalConfiguration.get().customStrongholds.moveToSurfaceChance*/) {
+             Holder<Biome> holder = null;
+             try {
+                 BlockPos blockPos = context.chunkPos().getMiddleBlockPosition(context.chunkGenerator().getSeaLevel());
+@@ -100,7 +118,7 @@ public class StrongholdStructure extends Structure {
+ 
+         // Martijn start - custom strongholds - surface strongholds
+ 
+-        if (potentialExtraIncreasedY != null) {
++        if (isSurface/*potentialExtraIncreasedY != null*/) {
+             int extraIncreasedY = surfaceStrongholdRandom.nextInt(potentialExtraIncreasedY + 1);
+             Bukkit.getLogger().info("To create more surface strongholds, vertically offsetting stronghold at block " + context.chunkPos().getBlockX(2) + " , " + context.chunkPos().getBlockZ(2) + " by " + extraIncreasedY + " and not moving it downwards on purpose");
+             collector.offsetPiecesVertically(extraIncreasedY);
+@@ -112,8 +130,34 @@ public class StrongholdStructure extends Structure {
+ 
+     }
+ 
++    // Martijn start - custom strongholds - surface strongholds
++
+     @Override
+     public StructureType<?> type() {
+         return StructureType.STRONGHOLD;
+     }
++
++    public static enum Type implements StringRepresentable {
++        WARM("is_surface"),
++        COLD("cold");
++
++        public static final Codec<OceanRuinStructure.Type> CODEC = StringRepresentable.fromEnum(OceanRuinStructure.Type::values);
++        private final String name;
++
++        private Type(String name) {
++            this.name = name;
++        }
++
++        public String getName() {
++            return this.name;
++        }
++
++        @Override
++        public String getSerializedName() {
++            return this.name;
++        }
++    }
++
++    // Martijn end - custom strongholds - surface strongholds
++
+ }
