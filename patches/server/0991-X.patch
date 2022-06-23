@@ -74,7 +74,7 @@ index 0e79ec93eb84cc1b62c4048c204b97c8020967bf..27474c606685760a7a7761e0096071a4
          this.tag(StructureTags.ON_WOODLAND_EXPLORER_MAPS).add(BuiltinStructures.WOODLAND_MANSION);
          this.tag(StructureTags.ON_OCEAN_EXPLORER_MAPS).add(BuiltinStructures.OCEAN_MONUMENT);
 diff --git a/src/main/java/net/minecraft/data/worldgen/StructureSets.java b/src/main/java/net/minecraft/data/worldgen/StructureSets.java
-index ef50bc6a61c074c9b9f6a12dc465d407aec95d19..57baaf5b25fe8a3b866687cbe2f454028f77e635 100644
+index ef50bc6a61c074c9b9f6a12dc465d407aec95d19..dcba75636ffaf69f560e0682f3e399ef188a24f3 100644
 --- a/src/main/java/net/minecraft/data/worldgen/StructureSets.java
 +++ b/src/main/java/net/minecraft/data/worldgen/StructureSets.java
 @@ -2,6 +2,8 @@ package net.minecraft.data.worldgen;
@@ -91,7 +91,7 @@ index ef50bc6a61c074c9b9f6a12dc465d407aec95d19..57baaf5b25fe8a3b866687cbe2f45402
      Holder<StructureSet> NETHER_FOSSILS = register(BuiltinStructureSets.NETHER_FOSSILS, Structures.NETHER_FOSSIL, new RandomSpreadStructurePlacement(2, 1, RandomSpreadType.LINEAR, 14357921));
      Holder<StructureSet> END_CITIES = register(BuiltinStructureSets.END_CITIES, Structures.END_CITY, new RandomSpreadStructurePlacement(20, 11, RandomSpreadType.TRIANGULAR, 10387313));
 -    Holder<StructureSet> STRONGHOLDS = register(BuiltinStructureSets.STRONGHOLDS, Structures.STRONGHOLD, new ConcentricRingsStructurePlacement(32, 3, 128, BuiltinRegistries.BIOME.getOrCreateTag(BiomeTags.STRONGHOLD_BIASED_TO)));
-+    Holder<StructureSet> STRONGHOLDS = register(BuiltinStructureSets.STRONGHOLDS, new StructureSet(List.of(StructureSet.entry(Structures.STRONGHOLD, () -> GlobalConfiguration.get().customStrongholds.getStrongholdStructureWeight()), StructureSet.entry(Structures.STRONGHOLD_SURFACE, () -> GlobalConfiguration.get().customStrongholds.getStrongholdSurfaceStructureWeight())), new ConcentricRingsStructurePlacement(32, 3, 128, BuiltinRegistries.BIOME.getOrCreateTag(BiomeTags.STRONGHOLD_BIASED_TO)))); // Martijn - custom strongholds - surface strongholds
++    Holder<StructureSet> STRONGHOLDS = register(BuiltinStructureSets.STRONGHOLDS, new StructureSet(List.of(StructureSet.entry(Structures.STRONGHOLD, 1), StructureSet.entry(Structures.STRONGHOLD_SURFACE, 100)), new ConcentricRingsStructurePlacement(32, 3, 128, BuiltinRegistries.BIOME.getOrCreateTag(BiomeTags.STRONGHOLD_BIASED_TO)))); // Martijn - custom strongholds - surface strongholds
  
      static Holder<StructureSet> bootstrap(Registry<StructureSet> registry) {
          return registry.holders().iterator().next();
@@ -123,6 +123,96 @@ index 3aacefd7fca40d42b856e4a235b55c3b95d95bec..a6d6cf6156c5dc282d720fec657c561e
      public static final TagKey<Biome> HAS_SWAMP_HUT = create("has_structure/swamp_hut");
      public static final TagKey<Biome> HAS_VILLAGE_DESERT = create("has_structure/village_desert");
      public static final TagKey<Biome> HAS_VILLAGE_PLAINS = create("has_structure/village_plains");
+diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
+index 477f7db7d9f237a7b37610462c86b2a22c01c2a6..3db0baaeba47cce086f1b39025304744e0d134fc 100644
+--- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
++++ b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
+@@ -42,6 +42,7 @@ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.LevelAccessor;
+ import net.minecraft.world.level.LevelReader;
+ import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.EntityBlock;
+ import net.minecraft.world.level.block.Mirror;
+ import net.minecraft.world.level.block.RenderShape;
+@@ -678,14 +679,29 @@ public abstract class BlockBehaviour {
+ 
+     public abstract static class BlockStateBase extends StateHolder<Block, BlockState> {
+ 
+-        private final int lightEmission; public final int getEmittedLight() { return this.lightEmission; } // Paper - OBFHELPER
+-        private final boolean useShapeForLightOcclusion; public final boolean isTransparentOnSomeFaces() { return this.useShapeForLightOcclusion; } // Paper - OBFHELPER
++        private final int lightEmission;
++
++        public final int getEmittedLight() {
++            return this.lightEmission;
++        } // Paper - OBFHELPER
++
++        private final boolean useShapeForLightOcclusion;
++
++        public final boolean isTransparentOnSomeFaces() {
++            return this.useShapeForLightOcclusion;
++        } // Paper - OBFHELPER
++
+         private final boolean isAir;
+         private final Material material;
+         private final MaterialColor materialColor;
+         public final float destroySpeed;
+         private final boolean requiresCorrectToolForDrops;
+-        private final boolean canOcclude; public final boolean isOpaque() { return this.canOcclude; } // Paper - OBFHELPER
++        private final boolean canOcclude;
++
++        public final boolean isOpaque() {
++            return this.canOcclude;
++        } // Paper - OBFHELPER
++
+         private final BlockBehaviour.StatePredicate isRedstoneConductor;
+         private final BlockBehaviour.StatePredicate isSuffocating;
+         private final BlockBehaviour.StatePredicate isViewBlocking;
+@@ -715,20 +731,24 @@ public abstract class BlockBehaviour {
+             this.offsetType = (BlockBehaviour.OffsetType) blockbase_info.offsetType.apply(this.asState());
+             this.conditionallyFullOpaque = this.isOpaque() & this.isTransparentOnSomeFaces(); // Paper
+         }
++
+         // Paper start - impl cached craft block data, lazy load to fix issue with loading at the wrong time
+         private org.bukkit.craftbukkit.block.data.CraftBlockData cachedCraftBlockData;
+ 
+         public org.bukkit.craftbukkit.block.data.CraftBlockData createCraftBlockData() {
+-            if (cachedCraftBlockData == null) cachedCraftBlockData = org.bukkit.craftbukkit.block.data.CraftBlockData.createData(asState());
++            if (cachedCraftBlockData == null)
++                cachedCraftBlockData = org.bukkit.craftbukkit.block.data.CraftBlockData.createData(asState());
+             return (org.bukkit.craftbukkit.block.data.CraftBlockData) cachedCraftBlockData.clone();
+         }
+         // Paper end
+ 
+         // Paper start
+         protected boolean shapeExceedsCube = true;
++
+         public final boolean shapeExceedsCube() {
+             return this.shapeExceedsCube;
+         }
++
+         // Paper end
+         // Paper start
+         protected boolean isTicking;
+@@ -736,15 +756,18 @@ public abstract class BlockBehaviour {
+         // Paper end
+         // Paper start
+         protected int opacityIfCached = -1;
++
+         // ret -1 if opacity is dynamic, or -1 if the block is conditionally full opaque, else return opacity in [0, 15]
+         public final int getOpacityIfCached() {
+             return this.opacityIfCached;
+         }
+ 
+         protected final boolean conditionallyFullOpaque;
++
+         public final boolean isConditionallyFullOpaque() {
+             return this.conditionallyFullOpaque;
+         }
++
+         // Paper end
+         // Paper start
+         private long blockCollisionBehavior = io.papermc.paper.util.CollisionUtil.KNOWN_SPECIAL_BLOCK;
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java b/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java
 index 3b6d54d18ff04e7bd70e789f8bcb98f943226f96..96ae4c606f2fb755d898d4cc2e6e178d89acf0e9 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java
@@ -135,54 +225,1902 @@ index 3b6d54d18ff04e7bd70e789f8bcb98f943226f96..96ae4c606f2fb755d898d4cc2e6e178d
      ResourceKey<Structure> OCEAN_MONUMENT = createKey("monument");
      ResourceKey<Structure> OCEAN_RUIN_COLD = createKey("ocean_ruin_cold");
      ResourceKey<Structure> OCEAN_RUIN_WARM = createKey("ocean_ruin_warm");
-diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/StructureSet.java b/src/main/java/net/minecraft/world/level/levelgen/structure/StructureSet.java
-index a018fbc1d6d229c8cc00fdef0736310a8013098c..5b966d303f7ff53d5acddfc7e6cf60eeb32bca0a 100644
---- a/src/main/java/net/minecraft/world/level/levelgen/structure/StructureSet.java
-+++ b/src/main/java/net/minecraft/world/level/levelgen/structure/StructureSet.java
-@@ -3,6 +3,8 @@ package net.minecraft.world.level.levelgen.structure;
- import com.mojang.serialization.Codec;
- import com.mojang.serialization.codecs.RecordCodecBuilder;
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
+index dba3e948bacc9506c3d39b0fe56bcdbd97b44fdb..f167b566e7be4ce877820475ed43521ea64734a7 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
+@@ -3,6 +3,7 @@ package net.minecraft.world.level.levelgen.structure;
+ import com.google.common.collect.ImmutableSet;
+ import com.mojang.logging.LogUtils;
  import java.util.List;
-+import java.util.function.IntSupplier;
++import java.util.Optional;
+ import java.util.Set;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+@@ -31,6 +32,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.entity.ChestBlockEntity;
+ import net.minecraft.world.level.block.entity.DispenserBlockEntity;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+ import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.levelgen.Heightmap;
+ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
+@@ -52,7 +54,7 @@ public abstract class StructurePiece {
+     private Rotation rotation;
+     protected int genDepth;
+     private final StructurePieceType type;
+-    private static final Set<Block> SHAPE_CHECK_BLOCKS = ImmutableSet.<Block>builder().add(Blocks.NETHER_BRICK_FENCE).add(Blocks.TORCH).add(Blocks.WALL_TORCH).add(Blocks.OAK_FENCE).add(Blocks.SPRUCE_FENCE).add(Blocks.DARK_OAK_FENCE).add(Blocks.ACACIA_FENCE).add(Blocks.BIRCH_FENCE).add(Blocks.JUNGLE_FENCE).add(Blocks.LADDER).add(Blocks.IRON_BARS).build();
++    public static final Set<Block> SHAPE_CHECK_BLOCKS = ImmutableSet.<Block>builder().add(Blocks.NETHER_BRICK_FENCE).add(Blocks.TORCH).add(Blocks.WALL_TORCH).add(Blocks.OAK_FENCE).add(Blocks.SPRUCE_FENCE).add(Blocks.DARK_OAK_FENCE).add(Blocks.ACACIA_FENCE).add(Blocks.BIRCH_FENCE).add(Blocks.JUNGLE_FENCE).add(Blocks.LADDER).add(Blocks.IRON_BARS).build(); // Martijn - custom strongholds - surface strongholds
+ 
+     // Martijn start - structure API
+ 
+@@ -177,31 +179,294 @@ public abstract class StructurePiece {
+         }
+     }
+ 
++    // Martijn start - custom strongholds - conditional placements
 +
- import net.minecraft.core.Holder;
- import net.minecraft.core.Registry;
- import net.minecraft.resources.RegistryFileCodec;
-@@ -19,6 +21,12 @@ public record StructureSet(List<StructureSet.StructureSelectionEntry> structures
-         this(List.of(new StructureSet.StructureSelectionEntry(structure, 1)), placement);
++    public static final Direction[] besideOrAboveDirections = { Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH, Direction.UP };
++
++    public static final Direction[] besideDirections = { Direction.EAST, Direction.WEST, Direction.NORTH, Direction.SOUTH };
++
++    public static boolean countsAsSolid(BlockGetter world, BlockPos pos, Direction inDirection) {
++        return countsAsSolid(world, pos, world.getBlockState(pos), inDirection);
++    }
++
++    public static boolean countsAsSolid(BlockGetter world, BlockPos pos, BlockState block, Direction inDirection) {
++        return !block.isAir() && !block.getMaterial().isLiquid() && block.isFaceSturdy(world, pos, inDirection);
++    }
++
++    public static boolean hasRelativeSolid(BlockGetter world, BlockPos pos, Direction direction) {
++        return countsAsSolid(world, pos.relative(direction), direction.getOpposite());
++    }
++
++    public static boolean hasAnyRelativeSolid(BlockGetter world, BlockPos pos, Direction[] directions) {
++        for (Direction direction : directions) {
++            if (hasRelativeSolid(world, pos, direction)) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    public static boolean anyHasRelativeSolid(BlockGetter world, BlockPos[] poss, Direction direction) {
++        for (BlockPos pos : poss) {
++            if (hasRelativeSolid(world, pos, direction)) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    public static boolean anyHasAnyRelativeSolid(BlockGetter world, BlockPos[] poss, Direction[] directions) {
++        for (BlockPos pos : poss) {
++            if (hasAnyRelativeSolid(world, pos, directions)) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    public static @Nullable BlockState getRelativeLiquidDefaultBlockState(BlockGetter world, BlockPos pos, Direction direction) {
++        BlockState block = world.getBlockState(pos);
++        Optional<Boolean> blockWaterlogged = block.getOptionalValue(BlockStateProperties.WATERLOGGED);
++        if (!(block.getMaterial().isLiquid() || (blockWaterlogged.isPresent() && blockWaterlogged.get()))) {
++            BlockState relativeBlock = world.getBlockState(pos.relative(direction));
++            Optional<Boolean> relativeBlockWaterlogged = relativeBlock.getOptionalValue(BlockStateProperties.WATERLOGGED);
++            if (relativeBlock.getMaterial().isLiquid() || (relativeBlockWaterlogged.isPresent() && relativeBlockWaterlogged.get())) {
++                if (block.isAir()) {
++                    return Blocks.WATER.defaultBlockState();
++                } else if (blockWaterlogged.isPresent()) {
++                    block.getBlock().withPropertiesOf(block).setValue(BlockStateProperties.WATERLOGGED, true);
++                }
++            }
++        }
++        return null;
++    }
++
++    public static @Nullable BlockState getAnyRelativeLiquidDefaultBlockState(BlockGetter world, BlockPos pos, Direction[] directions) {
++        for (Direction direction : directions) {
++            @Nullable BlockState forDirection = getRelativeLiquidDefaultBlockState(world, pos, direction);
++            if (forDirection != null) {
++                return forDirection;
++            }
++        }
++        return null;
++    }
++
++    /**
++     * @param cantReplaceAir If true, the block will not be placed if the existing block is air.
++     * @param cantReplaceLiquid If true, the block will not be placed if the existing block is liquid.
++     * @param requireSolidBelow If true, the block will not be placed if the existing block below is air or liquid.
++     * @param requireSolidBelowOrBeside If true, the block will not be placed if among the existing blocks either below or horizontally besides this block, none are something other than air or liquid.
++     * @param requireSolidAdjacent If true, the block will not be placed if among the existing blocks adjacent to this block in any of the 6 orthogonal directions, none are something other than air or liquid.
++     */
++    protected boolean placeBlockConditionally(WorldGenLevel world, BlockState block, int x, int y, int z, BoundingBox box, boolean cantReplaceAir, boolean cantReplaceLiquid, boolean requireSolidBelow, boolean requireSolidBelowOrBeside, boolean requireSolidAdjacent) {
++
++        BlockPos pos = this.getWorldPos(x, y, z);
++
++        // If the block is air, we can always replace other air
++        if (block.isAir()) {
++            cantReplaceAir = false;
++        }
++
++        // If the block is air or liquid, it does not need any support
++        if (block.isAir() || block.getMaterial().isLiquid()) {
++            requireSolidBelow = false;
++            requireSolidBelowOrBeside = false;
++            requireSolidAdjacent = false;
++        }
++
++        // If we are trying to place air, but there is liquid above or beside, place that liquid type instead
++        if (block.isAir()) {
++            BlockState adjacentLiquidDefaultState = getAnyRelativeLiquidDefaultBlockState(world, pos, besideOrAboveDirections);
++            if (adjacentLiquidDefaultState != null) {
++                block = adjacentLiquidDefaultState;
++            }
++        }
++
++        // If we are trying to place a waterloggable block, and there is water above or beside, place the waterlogged version instead
++        Optional<Boolean> waterlogged = block.getOptionalValue(BlockStateProperties.WATERLOGGED);
++        if (waterlogged.isPresent() && !waterlogged.get()) {
++            BlockState blockAbove = world.getBlockState(pos.above());
++            Optional<Boolean> blockAboveWaterlogged = blockAbove.getOptionalValue(BlockStateProperties.WATERLOGGED);
++            if ((blockAboveWaterlogged.isPresent() && blockAboveWaterlogged.get()) || blockAbove.is(Blocks.WATER)) {
++                block = block.getBlock().withPropertiesOf(block).setValue(BlockStateProperties.WATERLOGGED, true);
++            }
++        }
++
++        // Check for illegal replacement of air
++        if (cantReplaceAir) {
++            if (world.getBlockState(pos).isAir()) {
++                return false;
++            }
++        }
++
++        // Check for illegal replacement of water
++        if (cantReplaceLiquid) {
++            if (world.getBlockState(pos).getMaterial().isLiquid()) {
++                return false;
++            }
++        }
++
++        // Check for missing support from surroundings
++        if (requireSolidBelow || requireSolidBelowOrBeside || requireSolidAdjacent) {
++            if (!hasRelativeSolid(world, pos, Direction.DOWN)) {
++                if (requireSolidBelow) {
++                    return false;
++                }
++                if (!hasAnyRelativeSolid(world, pos, besideDirections)) {
++                    if (requireSolidBelowOrBeside) {
++                        return false;
++                    }
++                    if (!hasRelativeSolid(world, pos, Direction.UP)) {
++                        return false;
++                    }
++                }
++            }
++        }
++
++        // We can place the block
++        return this.placeBlockUnconditionally(world, block, x, y, z, box);
++
++    }
++
++    /**
++     * The same as {@link StructurePiece#placeBlockConditionally(WorldGenLevel, BlockState, int, int, int, BoundingBox, boolean, boolean, boolean, boolean, boolean)},
++     * but requires no adjacent solid blocks.
++     */
++    protected boolean placeBlockConditionally(WorldGenLevel world, BlockState block, int x, int y, int z, BoundingBox box, boolean cantReplaceAir, boolean cantReplaceLiquid) {
++        return this.placeBlockConditionally(world, block, x, y, z, box, cantReplaceAir, cantReplaceLiquid, false, false, false);
++    }
++
++    protected boolean generateBoxConditionally(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, boolean cantReplaceLiquid, boolean requireSolidBelow, boolean requireSolidBelowOrBeside, boolean requireSolidAdjacent, RandomSource random, StructurePiece.BlockSelector randomizer) {
++
++        // Try placing blocks in the box repeatedly
++        boolean changesAtAll = false;
++        while (true) {
++            boolean changesThisCycle = false;
++            for (int i = minY; i <= maxY; ++i) {
++                for (int j = minX; j <= maxX; ++j) {
++                    for (int k = minZ; k <= maxZ; ++k) {
++                        if ((!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) && (!cantReplaceLiquid || !this.getBlock(world, j, i, k, box).getMaterial().isLiquid())) {
++                            randomizer.next(random, j, i, k, i == minY || i == maxY || j == minX || j == maxX || k == minZ || k == maxZ);
++                            changesThisCycle |= this.placeBlockConditionally(world, randomizer.getNext(), j, i, k, box, cantReplaceAir, cantReplaceLiquid, requireSolidBelow, requireSolidBelowOrBeside, requireSolidAdjacent);
++                        }
++                    }
++                }
++            }
++            changesAtAll |= changesThisCycle;
++            if (!changesThisCycle) {
++                break;
++            }
++        }
++        return changesAtAll;
++    }
++
++    /**
++     * @param cantReplaceAir If true, some block will not be placed if the existing block is air.
++     * @param cantReplaceLiquid If true, some block will not be placed if the existing block is liquid.
++     * @param requireSolidBelow If true, the box as a whole will not be generated if there is no existing block below any block in this box that is air or liquid.
++     * @param requireSolidBelowOrBeside If true, the box as a whole will not be generated if among the existing blocks either below or horizontally besides any block in this box, none are something other than air or liquid.
++     * @param requireSolidAdjacent If true, the box is a whole will not be generated if among the existing blocks adjacent to any block in this box in any of the 6 orthogonal directions, none are something other than air or liquid.
++     */
++    protected boolean generateBoxConditionally(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean cantReplaceLiquid, boolean requireSolidBelow, boolean requireSolidBelowOrBeside, boolean requireSolidAdjacent) {
++
++        // Try placing blocks in the box repeatedly
++        boolean changesAtAll = false;
++        while (true) {
++            boolean changesThisCycle = false;
++            for (int i = minY; i <= maxY; ++i) {
++                for (int j = minX; j <= maxX; ++j) {
++                    for (int k = minZ; k <= maxZ; ++k) {
++                        if ((!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) && (!cantReplaceLiquid || !this.getBlock(world, j, i, k, box).getMaterial().isLiquid())) {
++                            if (i != minY && i != maxY && j != minX && j != maxX && k != minZ && k != maxZ) {
++                                changesThisCycle |= this.placeBlockConditionally(world, inside, j, i, k, box, cantReplaceAir, cantReplaceLiquid, requireSolidBelow, requireSolidBelowOrBeside, requireSolidAdjacent); // Martijn - custom strongholds - surface strongholds
++                            } else {
++                                changesThisCycle |= this.placeBlockConditionally(world, outline, j, i, k, box, cantReplaceAir, cantReplaceLiquid, requireSolidBelow, requireSolidBelowOrBeside, requireSolidAdjacent); // Martijn - custom strongholds - surface strongholds
++                            }
++                        }
++                    }
++                }
++            }
++            changesAtAll |= changesThisCycle;
++            if (!changesThisCycle) {
++                break;
++            }
++        }
++        return changesAtAll;
++//
++//        // Check for missing support from surroundings
++//        if (requireSolidBelow || requireSolidBelowOrBeside || requireSolidAdjacent) {
++//            BlockPos[] poss = new BlockPos[(maxY - minY + 1) * (maxX - minX + 1) * (maxZ - minZ + 1)];
++//            int possIndex = 0;
++//            for(int i = minY; i <= maxY; ++i) {
++//                for (int j = minX; j <= maxX; ++j) {
++//                    for (int k = minZ; k <= maxZ; ++k) {
++//                        poss[possIndex] = this.getWorldPos(j, i, k);
++//                        possIndex++;
++//                    }
++//                }
++//            }
++//            if (!anyHasRelativeSolid(world, poss, Direction.DOWN)) {
++//                if (requireSolidBelow) {
++//                    return;
++//                }
++//                if (!anyHasAnyRelativeSolid(world, poss, besideDirections)) {
++//                    if (requireSolidBelowOrBeside) {
++//                        return;
++//                    }
++//                    if (!anyHasRelativeSolid(world, poss, Direction.UP)) {
++//                        return;
++//                    }
++//                }
++//            }
++//        }
++//
++//        // We can generate the box
++//        this.generateBox(world, box, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, cantReplaceAir, cantReplaceLiquid);
++
++    }
++
+     protected void placeBlock(WorldGenLevel world, BlockState block, int x, int y, int z, BoundingBox box) {
++        this.placeBlockUnconditionally(world, block, x, y, z, box);
++    }
++    // Martijn start - custom strongholds - surface strongholds
++    protected boolean placeBlockUnconditionally(WorldGenLevel world, BlockState block, int x, int y, int z, BoundingBox box) {
+         BlockPos blockPos = this.getWorldPos(x, y, z);
+         if (box.isInside(blockPos)) {
+             if (this.canBeReplaced(world, x, y, z, box)) {
+-                if (this.mirror != Mirror.NONE) {
+-                    block = block.mirror(this.mirror);
+-                }
++                return this.placeBlockUnconditionallyWorldCoordinates(world, block, blockPos, box);
++            }
++        }
++        return false;
++    }
++    protected boolean placeBlockUnconditionallyWorldCoordinates(WorldGenLevel world, BlockState block, BlockPos blockPos, BoundingBox box) {
++        // Martijn end - custom strongholds - conditional placements
++        if (box.isInside(blockPos)) {
++            if (this.mirror != Mirror.NONE) {
++                block = block.mirror(this.mirror);
++            }
+ 
+-                if (this.rotation != Rotation.NONE) {
+-                    block = block.rotate(this.rotation);
+-                }
++            if (this.rotation != Rotation.NONE) {
++                block = block.rotate(this.rotation);
++            }
+ 
+-                world.setBlock(blockPos, block, 2);
+-                FluidState fluidState = world.getFluidState(blockPos);
+-                if (!fluidState.isEmpty()) {
+-                    world.scheduleTick(blockPos, fluidState.getType(), 0);
+-                }
++            if (world.getBlockState(blockPos).equals(block)) {
++                return false;
++            }
+ 
+-                if (SHAPE_CHECK_BLOCKS.contains(block.getBlock())) {
+-                    world.getChunk(blockPos).markPosForPostprocessing(blockPos);
+-                }
++            world.setBlock(blockPos, block, 2);
++            FluidState fluidState = world.getFluidState(blockPos);
++            if (!fluidState.isEmpty()) {
++                world.scheduleTick(blockPos, fluidState.getType(), 0);
++            }
+ 
++            if (SHAPE_CHECK_BLOCKS.contains(block.getBlock())) {
++                world.getChunk(blockPos).markPosForPostprocessing(blockPos);
+             }
++            return true;
+         }
++        return false;
+     }
++    // Martijn end - custom strongholds - surface strongholds
+ 
+     protected boolean canBeReplaced(LevelReader world, int x, int y, int z, BoundingBox box) {
+         return true;
+@@ -220,6 +485,22 @@ public abstract class StructurePiece {
+             return blockPos.getY() < world.getHeight(Heightmap.Types.OCEAN_FLOOR_WG, blockPos.getX(), blockPos.getZ());
+         }
+     }
++    
++    // Martijn start - custom strongholds - surface strongholds
++
++    protected void generateAirBox(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceLiquid) {
++        for(int i = minY; i <= maxY; ++i) {
++            for(int j = minX; j <= maxX; ++j) {
++                for(int k = minZ; k <= maxZ; ++k) {
++                    if (!cantReplaceLiquid || !this.getBlock(world, j, i, k, bounds).getMaterial().isLiquid()) {
++                        this.placeBlock(world, Blocks.AIR.defaultBlockState(), j, i, k, bounds);
++                    }
++                }
++            }
++        }
++    }
++    
++    // Martijn end - custom strongholds - surface strongholds
+ 
+     protected void generateAirBox(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
+         for(int i = minY; i <= maxY; ++i) {
+@@ -232,15 +513,35 @@ public abstract class StructurePiece {
+ 
      }
  
 +    // Martijn start - custom strongholds - surface strongholds
-+    public static StructureSet.StructureSelectionEntry entry(Holder<Structure> structure, IntSupplier weightSupplier) {
-+        return new StructureSet.StructureSelectionEntry(structure, weightSupplier);
++
++    protected void generateBox(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean cantReplaceLiquid) {
++        for(int i = minY; i <= maxY; ++i) {
++            for(int j = minX; j <= maxX; ++j) {
++                for(int k = minZ; k <= maxZ; ++k) {
++                    if ((!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) && (!cantReplaceLiquid || !this.getBlock(world, j, i, k, box).getMaterial().isLiquid())) {
++                        if (i != minY && i != maxY && j != minX && j != maxX && k != minZ && k != maxZ) {
++                            this.placeBlockUnconditionally(world, inside, j, i, k, box); // Martijn - custom strongholds - surface strongholds
++                        } else {
++                            this.placeBlockUnconditionally(world, outline, j, i, k, box); // Martijn - custom strongholds - surface strongholds
++                        }
++                    }
++                }
++            }
++        }
++    }
++
++    // Martijn end - custom strongholds - surface strongholds
++
+     protected void generateBox(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir) {
+         for(int i = minY; i <= maxY; ++i) {
+             for(int j = minX; j <= maxX; ++j) {
+                 for(int k = minZ; k <= maxZ; ++k) {
+                     if (!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) {
+                         if (i != minY && i != maxY && j != minX && j != maxX && k != minZ && k != maxZ) {
+-                            this.placeBlock(world, inside, j, i, k, box);
++                            this.placeBlockUnconditionally(world, inside, j, i, k, box); // Martijn - custom strongholds - surface strongholds
+                         } else {
+-                            this.placeBlock(world, outline, j, i, k, box);
++                            this.placeBlockUnconditionally(world, outline, j, i, k, box); // Martijn - custom strongholds - surface strongholds
+                         }
+                     }
+                 }
+@@ -249,10 +550,35 @@ public abstract class StructurePiece {
+ 
+     }
+ 
++    // Martijn start - custom strongholds - surface strongholds
++
++    protected void generateBox(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean cantReplaceLiquid) {
++        this.generateBox(world, box, fillBox.minX(), fillBox.minY(), fillBox.minZ(), fillBox.maxX(), fillBox.maxY(), fillBox.maxZ(), outline, inside, cantReplaceAir, cantReplaceLiquid);
++    }
++
++    // Martijn end - custom strongholds - surface strongholds
++
+     protected void generateBox(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, BlockState outline, BlockState inside, boolean cantReplaceAir) {
+         this.generateBox(world, box, fillBox.minX(), fillBox.minY(), fillBox.minZ(), fillBox.maxX(), fillBox.maxY(), fillBox.maxZ(), outline, inside, cantReplaceAir);
+     }
+ 
++    // Martijn start - custom strongholds - surface strongholds
++
++    protected void generateBox(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, boolean cantReplaceLiquid, RandomSource random, StructurePiece.BlockSelector randomizer) {
++        for(int i = minY; i <= maxY; ++i) {
++            for(int j = minX; j <= maxX; ++j) {
++                for(int k = minZ; k <= maxZ; ++k) {
++                    if ((!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) && (!cantReplaceLiquid || !this.getBlock(world, j, i, k, box).getMaterial().isLiquid())) {
++                        randomizer.next(random, j, i, k, i == minY || i == maxY || j == minX || j == maxX || k == minZ || k == maxZ);
++                        this.placeBlock(world, randomizer.getNext(), j, i, k, box);
++                    }
++                }
++            }
++        }
++    }
++
++    // Martijn end - custom strongholds - surface strongholds
++
+     protected void generateBox(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
+         for(int i = minY; i <= maxY; ++i) {
+             for(int j = minX; j <= maxX; ++j) {
+@@ -267,36 +593,91 @@ public abstract class StructurePiece {
+ 
+     }
+ 
++    // Martijn start - custom strongholds - surface strongholds
++
++    protected void generateBox(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, boolean cantReplaceLiquid, RandomSource random, StructurePiece.BlockSelector randomizer) {
++        this.generateBox(world, box, fillBox.minX(), fillBox.minY(), fillBox.minZ(), fillBox.maxX(), fillBox.maxY(), fillBox.maxZ(), cantReplaceAir, cantReplaceLiquid, random, randomizer);
++    }
++
++    // Martijn end - custom strongholds - surface strongholds
++
+     protected void generateBox(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
+         this.generateBox(world, box, fillBox.minX(), fillBox.minY(), fillBox.minZ(), fillBox.maxX(), fillBox.maxY(), fillBox.maxZ(), cantReplaceAir, random, randomizer);
+     }
+ 
+-    // Martijn end - custom strongholds - strongholds with partially open ceiling
++    // Martijn start - custom strongholds - surface strongholds
+ 
+-    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
++    // Martijn start - custom strongholds - holes in stronghold parts
++
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, boolean cantReplaceLiquid, RandomSource random, StructurePiece.BlockSelector randomizer, BlockState newAir) {
+         for(int i = minY; i <= maxY; ++i) {
+             for(int j = minX; j <= maxX; ++j) {
+                 for(int k = minZ; k <= maxZ; ++k) {
+-                    if (!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) {
++                    if ((!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) && (!cantReplaceLiquid || !this.getBlock(world, j, i, k, box).getMaterial().isLiquid())) {
+                         randomizer.next(random, j, i, k, i == minY || i == maxY || j == minX || j == maxX || k == minZ || k == maxZ);
+                         BlockState newState = randomizer.getNext();
+                         // If the block on top is actually air, there is a chance we use air
+                         if (world.getBlockState(this.getWorldPos(j, i + 1, k)).isAir() && random.nextDouble() < GlobalConfiguration.get().customStrongholds.ceilingBlockHoleChance) {
+-                            newState = Blocks.CAVE_AIR.defaultBlockState();
++                            newState = newAir;
+                         }
+-                        this.placeBlock(world, newState, j, i, k, box);
++                        // If the block on top is actually water, there is a chance we use water
++                        if (world.getBlockState(this.getWorldPos(j, i + 1, k)).getMaterial().isLiquid() && random.nextDouble() < GlobalConfiguration.get().customStrongholds.ceilingBlockHoleChance) {
++                            newState = Blocks.WATER.defaultBlockState();
++                        }
++                        this.placeBlockUnconditionally(world, newState, j, i, k, box);
+                     }
+                 }
+             }
+         }
++    }
+ 
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer, BlockState newAir) {
++        generateBoxWithPartiallyOpenCeiling(world, box, minX, minY, minZ, maxX, maxY, maxZ, cantReplaceAir, false, random, randomizer, newAir);
++    }
++
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, boolean cantReplaceLiquid, RandomSource random, StructurePiece.BlockSelector randomizer, BlockState newAir) {
++        this.generateBoxWithPartiallyOpenCeiling(world, box, fillBox.minX(), fillBox.minY(), fillBox.minZ(), fillBox.maxX(), fillBox.maxY(), fillBox.maxZ(), cantReplaceAir, cantReplaceLiquid, random, randomizer, newAir);
++    }
++
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer, BlockState newAir) {
++        this.generateBoxWithPartiallyOpenCeiling(world, box, fillBox, cantReplaceAir, false, random, randomizer, newAir);
++    }
++
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, boolean cantReplaceLiquid, RandomSource random, StructurePiece.BlockSelector randomizer) {
++        this.generateBoxWithPartiallyOpenCeiling(world, box, minX, minY, minZ, maxX, maxY, maxZ, cantReplaceAir, cantReplaceLiquid, random, randomizer, Blocks.CAVE_AIR.defaultBlockState());
++    }
++
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
++        this.generateBoxWithPartiallyOpenCeiling(world, box, minX, minY, minZ, maxX, maxY, maxZ, cantReplaceAir, random, randomizer, Blocks.CAVE_AIR.defaultBlockState());
++    }
++
++    protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, boolean cantReplaceLiquid, RandomSource random, StructurePiece.BlockSelector randomizer) {
++        this.generateBoxWithPartiallyOpenCeiling(world, box, fillBox, cantReplaceAir, cantReplaceLiquid, random, randomizer, Blocks.CAVE_AIR.defaultBlockState());
+     }
+ 
+     protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
+-        this.generateBoxWithPartiallyOpenCeiling(world, box, fillBox.minX(), fillBox.minY(), fillBox.minZ(), fillBox.maxX(), fillBox.maxY(), fillBox.maxZ(), cantReplaceAir, random, randomizer);
++        this.generateBoxWithPartiallyOpenCeiling(world, box, fillBox, cantReplaceAir, random, randomizer, Blocks.CAVE_AIR.defaultBlockState());
++    }
++
++    // Martijn end - custom strongholds - holes in stronghold parts
++
++    protected void generateMaybeBox(WorldGenLevel world, BoundingBox box, RandomSource random, float blockChance, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean cantReplaceLiquid, boolean stayBelowSeaLevel) {
++        for(int i = minY; i <= maxY; ++i) {
++            for(int j = minX; j <= maxX; ++j) {
++                for(int k = minZ; k <= maxZ; ++k) {
++                    if (!(random.nextFloat() > blockChance) && (!cantReplaceAir || !this.getBlock(world, j, i, k, box).isAir()) && (!cantReplaceLiquid || !this.getBlock(world, j, i, k, box).getMaterial().isLiquid()) && (!stayBelowSeaLevel || this.isInterior(world, j, i, k, box))) {
++                        if (i != minY && i != maxY && j != minX && j != maxX && k != minZ && k != maxZ) {
++                            this.placeBlock(world, inside, j, i, k, box);
++                        } else {
++                            this.placeBlock(world, outline, j, i, k, box);
++                        }
++                    }
++                }
++            }
++        }
+     }
+ 
+-    // Martijn end - custom strongholds - strongholds with partially open ceiling
++    // Martijn end - custom strongholds - surface strongholds
+ 
+     protected void generateMaybeBox(WorldGenLevel world, BoundingBox box, RandomSource random, float blockChance, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean stayBelowSeaLevel) {
+         for(int i = minY; i <= maxY; ++i) {
+@@ -322,7 +703,9 @@ public abstract class StructurePiece {
+ 
+     }
+ 
+-    protected void generateUpperHalfSphere(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState block, boolean cantReplaceAir) {
++    // Martijn start - custom strongholds - surface strongholds
++
++    protected void generateUpperHalfSphere(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState block, boolean cantReplaceAir, boolean cantReplaceLiquid) {
+         float f = (float)(maxX - minX + 1);
+         float g = (float)(maxY - minY + 1);
+         float h = (float)(maxZ - minZ + 1);
+@@ -337,7 +720,7 @@ public abstract class StructurePiece {
+ 
+                 for(int o = minZ; o <= maxZ; ++o) {
+                     float p = ((float)o - j) / (h * 0.5F);
+-                    if (!cantReplaceAir || !this.getBlock(world, m, k, o, bounds).isAir()) {
++                    if ((!cantReplaceAir || !this.getBlock(world, m, k, o, bounds).isAir()) && (!cantReplaceLiquid || !this.getBlock(world, m, k, o, bounds).getMaterial().isLiquid())) {
+                         float q = n * n + l * l + p * p;
+                         if (q <= 1.05F) {
+                             this.placeBlock(world, block, m, k, o, bounds);
+@@ -349,6 +732,12 @@ public abstract class StructurePiece {
+ 
+     }
+ 
++    protected void generateUpperHalfSphere(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState block, boolean cantReplaceAir) {
++        generateUpperHalfSphere(world, bounds, minX, minY, minZ, maxX, maxY, maxZ, block, cantReplaceAir, false);
++    }
++
++    // Martijn end - custom strongholds - surface strongholds
++
+     protected void fillColumnDown(WorldGenLevel world, BlockState state, int x, int y, int z, BoundingBox box) {
+         BlockPos.MutableBlockPos mutableBlockPos = this.getWorldPos(x, y, z);
+         if (box.isInside(mutableBlockPos)) {
+@@ -368,6 +757,14 @@ public abstract class StructurePiece {
+         return this.createChest(world, boundingBox, random, this.getWorldPos(x, y, z), lootTableId, (BlockState)null);
+     }
+ 
++    // Martijn start - custom strongholds - surface strongholds
++
++    protected boolean createChest(WorldGenLevel world, BoundingBox boundingBox, RandomSource random, int x, int y, int z, ResourceLocation lootTableId, boolean requireSolidBelow) {
++        return this.createChest(world, boundingBox, random, this.getWorldPos(x, y, z), lootTableId, (BlockState)null, requireSolidBelow);
++    }
++
++    // Martijn end - custom strongholds - surface strongholds
++
+     public static BlockState reorient(BlockGetter world, BlockPos pos, BlockState state) {
+         Direction direction = null;
+ 
+@@ -413,7 +810,13 @@ public abstract class StructurePiece {
+     }
+ 
+     protected boolean createChest(ServerLevelAccessor world, BoundingBox boundingBox, RandomSource random, BlockPos pos, ResourceLocation lootTableId, @Nullable BlockState block) {
+-        if (boundingBox.isInside(pos) && !world.getBlockState(pos).is(Blocks.CHEST)) {
++        // Martijn start - custom strongholds - surface strongholds
++        return this.createChest(world, boundingBox, random, pos, lootTableId, block, false);
++    }
++
++    protected boolean createChest(ServerLevelAccessor world, BoundingBox boundingBox, RandomSource random, BlockPos pos, ResourceLocation lootTableId, @Nullable BlockState block, boolean requireSolidBelow) {
++        if (boundingBox.isInside(pos) && !world.getBlockState(pos).is(Blocks.CHEST) && (!requireSolidBelow || hasRelativeSolid(world, pos, Direction.DOWN))) {
++            // Martijn end - custom strongholds - surface strongholds
+             if (block == null) {
+                 block = reorient(world, pos, Blocks.CHEST.defaultBlockState());
+             }
+@@ -449,6 +852,23 @@ public abstract class StructurePiece {
+         this.boundingBox.move(x, y, z);
+     }
+ 
++    // Martijn start - custom strongholds - surface strongholds
++
++    public void replace(WorldGenLevel world, BoundingBox boundingBox, Block oldBlock, BlockState newBlock) {
++        for (int x = boundingBox.minX(); x <= boundingBox.maxX(); x++) {
++            for (int y = boundingBox.minY(); y <= boundingBox.maxY(); y++) {
++                for (int z = boundingBox.minZ(); z <= boundingBox.maxZ(); z++) {
++                    BlockPos pos = new BlockPos(x, y, z);
++                    if (world.getBlockState(pos).is(oldBlock)) {
++                        this.placeBlockUnconditionallyWorldCoordinates(world, newBlock, pos, boundingBox);
++                    }
++                }
++            }
++        }
++    }
++
++    // Martijn end - custom strongholds - surface strongholds
++
+     public static BoundingBox createBoundingBox(Stream<StructurePiece> pieces) {
+         return BoundingBox.encapsulatingBoxes(pieces.map(StructurePiece::getBoundingBox)::iterator).orElseThrow(() -> {
+             return new IllegalStateException("Unable to calculate boundingbox without pieces");
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
+index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51ee05899ae 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
+@@ -2,15 +2,20 @@ package net.minecraft.world.level.levelgen.structure.structures;
+ 
+ import com.google.common.collect.Lists;
+ import java.util.List;
++import java.util.Optional;
+ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Direction;
+ import net.minecraft.nbt.CompoundTag;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.tags.BlockTags;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.level.ChunkPos;
++import net.minecraft.world.level.ServerLevelAccessor;
+ import net.minecraft.world.level.StructureManager;
+ import net.minecraft.world.level.WorldGenLevel;
++import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.ButtonBlock;
+ import net.minecraft.world.level.block.DoorBlock;
+@@ -24,6 +29,7 @@ import net.minecraft.world.level.block.WallTorchBlock;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.entity.SpawnerBlockEntity;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+ import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
+ import net.minecraft.world.level.block.state.properties.SlabType;
+ import net.minecraft.world.level.chunk.ChunkGenerator;
+@@ -32,12 +38,15 @@ import net.minecraft.world.level.levelgen.structure.StructurePiece;
+ import net.minecraft.world.level.levelgen.structure.StructurePieceAccessor;
+ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
+ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
++import net.minecraft.world.level.material.FluidState;
+ import net.minecraft.world.level.storage.loot.BuiltInLootTables;
++import org.bukkit.Bukkit;
++import org.bukkit.Tag;
+ 
+ public class StrongholdPieces {
+     private static final int SMALL_DOOR_WIDTH = 3;
+     private static final int SMALL_DOOR_HEIGHT = 3;
+-    private static final int MAX_DEPTH = 50;
++    private static final int MAX_DEPTH = 60; // Martijn - custom strongholds - strongholds can reach lower
+     private static final int LOWEST_Y_POSITION = 10;
+     private static final boolean CHECK_AIR = true;
+     public static final int MAGIC_START_Y = 64;
+@@ -56,6 +65,7 @@ public class StrongholdPieces {
+     static Class<? extends StrongholdPieces.StrongholdPiece> imposedPiece;
+     private static int totalWeight;
+     static final StrongholdPieces.SmoothStoneSelector SMOOTH_STONE_SELECTOR = new StrongholdPieces.SmoothStoneSelector();
++    static final StrongholdPieces.SmoothStoneSelectorOrTemporary SMOOTH_STONE_SELECTOR_OR_TEMPORARY = new StrongholdPieces.SmoothStoneSelectorOrTemporary(); // Martijn - custom strongholds - surface strongholds
+ 
+     public static void resetPieces() {
+         currentPieces = Lists.newArrayList();
+@@ -83,41 +93,43 @@ public class StrongholdPieces {
+         return bl;
+     }
+ 
+-    private static StrongholdPieces.StrongholdPiece findAndCreatePieceFactory(Class<? extends StrongholdPieces.StrongholdPiece> pieceType, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, @Nullable Direction orientation, int chainLength) {
++    // Martijn start - custom strongholds - surface strongholds
++    private static StrongholdPieces.StrongholdPiece findAndCreatePieceFactory(Class<? extends StrongholdPieces.StrongholdPiece> pieceType, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, @Nullable Direction orientation, int chainLength, boolean isSurface) {
+         StrongholdPieces.StrongholdPiece strongholdPiece = null;
+         if (pieceType == StrongholdPieces.Straight.class) {
+-            strongholdPiece = StrongholdPieces.Straight.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.Straight.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.PrisonHall.class) {
+-            strongholdPiece = StrongholdPieces.PrisonHall.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.PrisonHall.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.LeftTurn.class) {
+-            strongholdPiece = StrongholdPieces.LeftTurn.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.LeftTurn.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.RightTurn.class) {
+-            strongholdPiece = StrongholdPieces.RightTurn.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.RightTurn.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.RoomCrossing.class) {
+-            strongholdPiece = StrongholdPieces.RoomCrossing.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.RoomCrossing.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.StraightStairsDown.class) {
+-            strongholdPiece = StrongholdPieces.StraightStairsDown.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.StraightStairsDown.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.StairsDown.class) {
+-            strongholdPiece = StrongholdPieces.StairsDown.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.StairsDown.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.FiveCrossing.class) {
+-            strongholdPiece = StrongholdPieces.FiveCrossing.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.FiveCrossing.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.ChestCorridor.class) {
+-            strongholdPiece = StrongholdPieces.ChestCorridor.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.ChestCorridor.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.Library.class) {
+-            strongholdPiece = StrongholdPieces.Library.createPiece(holder, random, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.Library.createPiece(holder, random, x, y, z, orientation, chainLength, isSurface);
+         } else if (pieceType == StrongholdPieces.PortalRoom.class) {
+-            strongholdPiece = StrongholdPieces.PortalRoom.createPiece(holder, x, y, z, orientation, chainLength);
++            strongholdPiece = StrongholdPieces.PortalRoom.createPiece(holder, x, y, z, orientation, chainLength, isSurface);
+         }
++        // Martijn end - custom strongholds - surface strongholds
+ 
+         return strongholdPiece;
+     }
+ 
+-    private static StrongholdPieces.StrongholdPiece generatePieceFromSmallDoor(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++    private static StrongholdPieces.StrongholdPiece generatePieceFromSmallDoor(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+         if (!updatePieceWeight()) {
+             return null;
+         } else {
+             if (imposedPiece != null) {
+-                StrongholdPieces.StrongholdPiece strongholdPiece = findAndCreatePieceFactory(imposedPiece, holder, random, x, y, z, orientation, chainLength);
++                StrongholdPieces.StrongholdPiece strongholdPiece = findAndCreatePieceFactory(imposedPiece, holder, random, x, y, z, orientation, chainLength, isSurface); // Martijn - custom strongholds - surface strongholds
+                 imposedPiece = null;
+                 if (strongholdPiece != null) {
+                     return strongholdPiece;
+@@ -137,7 +149,7 @@ public class StrongholdPieces {
+                             break;
+                         }
+ 
+-                        StrongholdPieces.StrongholdPiece strongholdPiece2 = findAndCreatePieceFactory(pieceWeight.pieceClass, holder, random, x, y, z, orientation, chainLength);
++                        StrongholdPieces.StrongholdPiece strongholdPiece2 = findAndCreatePieceFactory(pieceWeight.pieceClass, holder, random, x, y, z, orientation, chainLength, isSurface); // Martijn - custom strongholds - surface strongholds
+                         if (strongholdPiece2 != null) {
+                             ++pieceWeight.placeCount;
+                             start.previousPiece = pieceWeight;
+@@ -152,15 +164,15 @@ public class StrongholdPieces {
+             }
+ 
+             BoundingBox boundingBox = StrongholdPieces.FillerCorridor.findPieceBox(holder, random, x, y, z, orientation);
+-            return boundingBox != null && boundingBox.minY() > 1 ? new StrongholdPieces.FillerCorridor(chainLength, boundingBox, orientation) : null;
++            return boundingBox != null && boundingBox.minY() > 1 ? new StrongholdPieces.FillerCorridor(chainLength, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+     }
+ 
+-    static StructurePiece generateAndAddPiece(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, @Nullable Direction orientation, int chainLength) {
++    static StructurePiece generateAndAddPiece(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, @Nullable Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+         if (chainLength > 50) {
+             return null;
+         } else if (Math.abs(x - start.getBoundingBox().minX()) <= 112 && Math.abs(z - start.getBoundingBox().minZ()) <= 112) {
+-            StructurePiece structurePiece = generatePieceFromSmallDoor(start, holder, random, x, y, z, orientation, chainLength + 1);
++            StructurePiece structurePiece = generatePieceFromSmallDoor(start, holder, random, x, y, z, orientation, chainLength + 1, isSurface); // Martijn - custom strongholds - surface strongholds
+             if (structurePiece != null) {
+                 holder.addPiece(structurePiece);
+                 start.pendingChildren.add(structurePiece);
+@@ -178,8 +190,10 @@ public class StrongholdPieces {
+         private static final int DEPTH = 7;
+         private boolean hasPlacedChest;
+ 
+-        public ChestCorridor(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_CHEST_CORRIDOR, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public ChestCorridor(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_CHEST_CORRIDOR, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+         }
+@@ -200,17 +214,20 @@ public class StrongholdPieces {
+             this.generateSmallDoorChildForward((StrongholdPieces.StartPiece)start, holder, random, 1, 1);
+         }
+ 
+-        public static StrongholdPieces.ChestCorridor createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainlength) {
++        public static StrongholdPieces.ChestCorridor createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainlength, boolean isSurface) {// Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -1, -1, 0, 5, 5, 7, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.ChestCorridor(chainlength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.ChestCorridor(chainlength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 6, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 6, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 6);
+-            this.generateBox(world, chunkBox, 3, 1, 2, 3, 1, 4, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICKS.defaultBlockState(), false);
++            this.generateBox(world, chunkBox, 3, 1, 2, 3, 1, 4, Blocks.STONE_BRICKS.defaultBlockState(), Blocks.STONE_BRICKS.defaultBlockState(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+             this.placeBlock(world, Blocks.STONE_BRICK_SLAB.defaultBlockState(), 3, 1, 1, chunkBox);
+             this.placeBlock(world, Blocks.STONE_BRICK_SLAB.defaultBlockState(), 3, 1, 5, chunkBox);
+             this.placeBlock(world, Blocks.STONE_BRICK_SLAB.defaultBlockState(), 3, 2, 2, chunkBox);
+@@ -231,8 +248,10 @@ public class StrongholdPieces {
+     public static class FillerCorridor extends StrongholdPieces.StrongholdPiece {
+         private final int steps;
+ 
+-        public FillerCorridor(int chainLength, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_FILLER_CORRIDOR, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public FillerCorridor(int chainLength, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_FILLER_CORRIDOR, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.steps = orientation != Direction.NORTH && orientation != Direction.SOUTH ? boundingBox.getXSpan() : boundingBox.getZSpan();
+         }
+@@ -269,7 +288,10 @@ public class StrongholdPieces {
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
+             for(int i = 0; i < this.steps; ++i) {
+                 this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 0, 0, i, chunkBox);
+                 this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 1, 0, i, chunkBox);
+@@ -304,8 +326,10 @@ public class StrongholdPieces {
+         private final boolean rightLow;
+         private final boolean rightHigh;
+ 
+-        public FiveCrossing(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_FIVE_CROSSING, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public FiveCrossing(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_FIVE_CROSSING, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+             this.leftLow = random.nextBoolean();
+@@ -360,52 +384,59 @@ public class StrongholdPieces {
+ 
+         }
+ 
+-        public static StrongholdPieces.FiveCrossing createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.FiveCrossing createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -4, -3, 0, 10, 9, 11, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.FiveCrossing(chainLength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.FiveCrossing(chainLength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 9, 8, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 9, 8, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR_OR_TEMPORARY); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 4, 3, 0);
+             if (this.leftLow) {
+-                this.generateBox(world, chunkBox, 0, 3, 1, 0, 5, 3, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 0, 3, 1, 0, 5, 3, SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+             }
+ 
+             if (this.rightLow) {
+-                this.generateBox(world, chunkBox, 9, 3, 1, 9, 5, 3, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 9, 3, 1, 9, 5, 3, SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+             }
+ 
+             if (this.leftHigh) {
+-                this.generateBox(world, chunkBox, 0, 5, 7, 0, 7, 9, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 0, 5, 7, 0, 7, 9, SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+             }
+ 
+             if (this.rightHigh) {
+-                this.generateBox(world, chunkBox, 9, 5, 7, 9, 7, 9, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 9, 5, 7, 9, 7, 9, SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+             }
+ 
+-            this.generateBox(world, chunkBox, 5, 1, 10, 7, 3, 10, CAVE_AIR, CAVE_AIR, false);
+-            this.generateBox(world, chunkBox, 1, 2, 1, 8, 2, 6, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 4, 1, 5, 4, 4, 9, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 8, 1, 5, 8, 4, 9, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 1, 4, 7, 3, 4, 9, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 1, 3, 5, 3, 3, 6, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 1, 3, 4, 3, 3, 4, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), false);
+-            this.generateBox(world, chunkBox, 1, 4, 6, 3, 4, 6, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), false);
+-            this.generateBox(world, chunkBox, 5, 1, 7, 7, 1, 8, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 5, 1, 9, 7, 1, 9, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), false);
+-            this.generateBox(world, chunkBox, 5, 2, 7, 7, 2, 7, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), false);
+-            this.generateBox(world, chunkBox, 4, 5, 7, 4, 5, 9, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), false);
+-            this.generateBox(world, chunkBox, 8, 5, 7, 8, 5, 9, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), false);
+-            this.generateBox(world, chunkBox, 5, 5, 7, 7, 5, 9, Blocks.SMOOTH_STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.DOUBLE), Blocks.SMOOTH_STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.DOUBLE), false);
++            // Martijn start- custom strongholds - surface strongholds
++            this.generateBox(world, chunkBox, 5, 1, 10, 7, 3, 10, SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), SmoothStoneSelectorOrTemporary.TEMPORARY.defaultBlockState(), this.isSurface);
++            this.generateBoxConditionally(world, chunkBox, 1, 2, 1, 8, 2, 6, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxConditionally(world, chunkBox, 4, 1, 5, 4, 4, 9, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxConditionally(world, chunkBox, 8, 1, 5, 8, 4, 9, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxConditionally(world, chunkBox, 1, 4, 7, 3, 4, 9, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxConditionally(world, chunkBox, 1, 3, 5, 3, 3, 6, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxConditionally(world, chunkBox, 1, 3, 4, 3, 3, 4, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState());
++            this.generateBoxConditionally(world, chunkBox, 1, 4, 6, 3, 4, 6, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState());
++            this.generateBoxConditionally(world, chunkBox, 5, 1, 7, 7, 1, 8, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            this.generateBoxConditionally(world, chunkBox, 5, 1, 9, 7, 1, 9, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState());
++            this.generateBoxConditionally(world, chunkBox, 5, 2, 7, 7, 2, 7, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState());
++            this.generateBoxConditionally(world, chunkBox, 4, 5, 7, 4, 5, 9, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState());
++            this.generateBoxConditionally(world, chunkBox, 8, 5, 7, 8, 5, 9, Blocks.SMOOTH_STONE_SLAB.defaultBlockState(), Blocks.SMOOTH_STONE_SLAB.defaultBlockState());
++            this.generateBoxConditionally(world, chunkBox, 5, 5, 7, 7, 5, 9, Blocks.SMOOTH_STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.DOUBLE), Blocks.SMOOTH_STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.DOUBLE));
++            // Martijn end - custom strongholds - surface strongholds
+             this.placeBlock(world, Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.SOUTH), 6, 5, 6, chunkBox);
+         }
+     }
+ 
+     public static class LeftTurn extends StrongholdPieces.Turn {
+-        public LeftTurn(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_LEFT_TURN, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public LeftTurn(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_LEFT_TURN, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+         }
+@@ -425,20 +456,23 @@ public class StrongholdPieces {
+ 
+         }
+ 
+-        public static StrongholdPieces.LeftTurn createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.LeftTurn createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -1, -1, 0, 5, 5, 5, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.LeftTurn(chainLength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.LeftTurn(chainLength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             Direction direction = this.getOrientation();
+             if (direction != Direction.NORTH && direction != Direction.EAST) {
+-                this.generateBox(world, chunkBox, 4, 1, 1, 4, 3, 3, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 4, 1, 1, 4, 3, 3, CAVE_AIR, CAVE_AIR, this.isSurface); // Martijn - custom strongholds - surface strongholds
+             } else {
+-                this.generateBox(world, chunkBox, 0, 1, 1, 0, 3, 3, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 0, 1, 1, 0, 3, 3, CAVE_AIR, CAVE_AIR, this.isSurface); // Martijn - custom strongholds - surface strongholds
+             }
+ 
+         }
+@@ -451,8 +485,10 @@ public class StrongholdPieces {
+         protected static final int DEPTH = 15;
+         private final boolean isTall;
+ 
+-        public Library(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_LIBRARY, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public Library(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_LIBRARY, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+             this.isTall = boundingBox.getYSpan() > 6;
+@@ -469,7 +505,7 @@ public class StrongholdPieces {
+             nbt.putBoolean("Tall", this.isTall);
+         }
+ 
+-        public static StrongholdPieces.Library createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.Library createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -4, -1, 0, 14, 11, 15, orientation);
+             if (!isOkBox(boundingBox) || holder.findCollisionPiece(boundingBox) != null) {
+                 boundingBox = BoundingBox.orientBox(x, y, z, -4, -1, 0, 14, 6, 15, orientation);
+@@ -478,62 +514,67 @@ public class StrongholdPieces {
+                 }
+             }
+ 
+-            return new StrongholdPieces.Library(chainLength, random, boundingBox, orientation);
++            return new StrongholdPieces.Library(chainLength, random, boundingBox, orientation, isSurface); // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
+             int i = 11;
+             if (!this.isTall) {
+                 i = 6;
+             }
+ 
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 13, i - 1, 14, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 13, i - 1, 14, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR_OR_TEMPORARY); // Martijn - custom strongholds - holes in stronghold parts, surface strongholds
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 4, 1, 0);
+-            this.generateMaybeBox(world, chunkBox, random, 0.07F, 2, 1, 1, 11, 4, 13, Blocks.COBWEB.defaultBlockState(), Blocks.COBWEB.defaultBlockState(), false, false);
++            this.generateMaybeBox(world, chunkBox, random, 0.07F, 2, 1, 1, 11, 4, 13, Blocks.COBWEB.defaultBlockState(), Blocks.COBWEB.defaultBlockState(), this.isSurface, false); // Martijn - custom strongholds - surface strongholds
+             int j = 1;
+             int k = 12;
+ 
+             for(int l = 1; l <= 13; ++l) {
+                 if ((l - 1) % 4 == 0) {
+-                    this.generateBox(world, chunkBox, 1, 1, l, 1, 4, l, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), false);
+-                    this.generateBox(world, chunkBox, 12, 1, l, 12, 4, l, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), false);
++                    // Martijn start - custom strongholds - surface strongholds
++                    this.generateBox(world, chunkBox, 1, 1, l, 1, 4, l, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), this.isSurface);
++                    this.generateBox(world, chunkBox, 12, 1, l, 12, 4, l, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), this.isSurface);
++                    // Martijn end - custom strongholds - surface strongholds
+                     this.placeBlock(world, Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.EAST), 2, 3, l, chunkBox);
+                     this.placeBlock(world, Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.WEST), 11, 3, l, chunkBox);
+-                    if (this.isTall) {
+-                        this.generateBox(world, chunkBox, 1, 6, l, 1, 9, l, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), false);
+-                        this.generateBox(world, chunkBox, 12, 6, l, 12, 9, l, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), false);
+-                    }
+                 } else {
+-                    this.generateBox(world, chunkBox, 1, 1, l, 1, 4, l, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false);
+-                    this.generateBox(world, chunkBox, 12, 1, l, 12, 4, l, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false);
+-                    if (this.isTall) {
+-                        this.generateBox(world, chunkBox, 1, 6, l, 1, 9, l, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false);
+-                        this.generateBox(world, chunkBox, 12, 6, l, 12, 9, l, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false);
+-                    }
++                    // Martijn start - custom strongholds - surface strongholds
++                    this.generateBoxConditionally(world, chunkBox, 1, 1, l, 1, 4, l, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false, false, true, false, false);
++                    this.generateBoxConditionally(world, chunkBox, 12, 1, l, 12, 4, l, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false, false, true, false, false);
++                    // Martijn end - custom strongholds - surface strongholds
+                 }
+             }
+ 
+             for(int m = 3; m < 12; m += 2) {
+-                this.generateBox(world, chunkBox, 3, 1, m, 4, 3, m, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false);
+-                this.generateBox(world, chunkBox, 6, 1, m, 7, 3, m, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false);
+-                this.generateBox(world, chunkBox, 9, 1, m, 10, 3, m, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false);
++                // Martijn start - custom strongholds - surface strongholds
++                this.generateBoxConditionally(world, chunkBox, 3, 1, m, 4, 3, m, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false, false, true, false, false);
++                this.generateBoxConditionally(world, chunkBox, 6, 1, m, 7, 3, m, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false, false, true, false, false);
++                this.generateBoxConditionally(world, chunkBox, 9, 1, m, 10, 3, m, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false, false, true, false, false);
++                // Martijn end - custom strongholds - surface strongholds
+             }
+ 
+             if (this.isTall) {
+-                this.generateBox(world, chunkBox, 1, 5, 1, 3, 5, 13, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), false);
+-                this.generateBox(world, chunkBox, 10, 5, 1, 12, 5, 13, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), false);
+-                this.generateBox(world, chunkBox, 4, 5, 1, 9, 5, 2, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), false);
+-                this.generateBox(world, chunkBox, 4, 5, 12, 9, 5, 13, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), false);
++                // Martijn start - custom strongholds - surface strongholds
++                this.generateBox(world, chunkBox, 1, 5, 1, 3, 5, 13, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), this.isSurface);
++                this.generateBox(world, chunkBox, 10, 5, 1, 12, 5, 13, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), this.isSurface);
++                this.generateBox(world, chunkBox, 4, 5, 1, 9, 5, 2, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), this.isSurface);
++                this.generateBox(world, chunkBox, 4, 5, 12, 9, 5, 13, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), this.isSurface);
++                // Martijn end - custom strongholds - surface strongholds
+                 this.placeBlock(world, Blocks.OAK_PLANKS.defaultBlockState(), 9, 5, 11, chunkBox);
+                 this.placeBlock(world, Blocks.OAK_PLANKS.defaultBlockState(), 8, 5, 11, chunkBox);
+                 this.placeBlock(world, Blocks.OAK_PLANKS.defaultBlockState(), 9, 5, 10, chunkBox);
+                 BlockState blockState = Blocks.OAK_FENCE.defaultBlockState().setValue(FenceBlock.WEST, Boolean.valueOf(true)).setValue(FenceBlock.EAST, Boolean.valueOf(true));
+                 BlockState blockState2 = Blocks.OAK_FENCE.defaultBlockState().setValue(FenceBlock.NORTH, Boolean.valueOf(true)).setValue(FenceBlock.SOUTH, Boolean.valueOf(true));
+-                this.generateBox(world, chunkBox, 3, 6, 3, 3, 6, 11, blockState2, blockState2, false);
+-                this.generateBox(world, chunkBox, 10, 6, 3, 10, 6, 9, blockState2, blockState2, false);
+-                this.generateBox(world, chunkBox, 4, 6, 2, 9, 6, 2, blockState, blockState, false);
+-                this.generateBox(world, chunkBox, 4, 6, 12, 7, 6, 12, blockState, blockState, false);
++                // Martijn start - custom strongholds - surface strongholds
++                this.generateBox(world, chunkBox, 3, 6, 3, 3, 6, 11, blockState2, blockState2, this.isSurface);
++                this.generateBox(world, chunkBox, 10, 6, 3, 10, 6, 9, blockState2, blockState2, this.isSurface);
++                this.generateBox(world, chunkBox, 4, 6, 2, 9, 6, 2, blockState, blockState, this.isSurface);
++                this.generateBox(world, chunkBox, 4, 6, 12, 7, 6, 12, blockState, blockState, this.isSurface);
++                // Martijn end - custom strongholds - surface strongholds
+                 this.placeBlock(world, Blocks.OAK_FENCE.defaultBlockState().setValue(FenceBlock.NORTH, Boolean.valueOf(true)).setValue(FenceBlock.EAST, Boolean.valueOf(true)), 3, 6, 2, chunkBox);
+                 this.placeBlock(world, Blocks.OAK_FENCE.defaultBlockState().setValue(FenceBlock.SOUTH, Boolean.valueOf(true)).setValue(FenceBlock.EAST, Boolean.valueOf(true)), 3, 6, 12, chunkBox);
+                 this.placeBlock(world, Blocks.OAK_FENCE.defaultBlockState().setValue(FenceBlock.NORTH, Boolean.valueOf(true)).setValue(FenceBlock.WEST, Boolean.valueOf(true)), 10, 6, 2, chunkBox);
+@@ -577,6 +618,18 @@ public class StrongholdPieces {
+                 this.placeBlock(world, blockState7, 6, 8, 8, chunkBox);
+                 this.placeBlock(world, blockState7, 7, 8, 6, chunkBox);
+                 this.placeBlock(world, blockState7, 7, 8, 8, chunkBox);
++                // Martijn start - custom strongholds - surface strongholds
++                for(int l = 1; l <= 13; ++l) {
++                    if ((l - 1) % 4 == 0) {
++                        this.generateBox(world, chunkBox, 1, 6, l, 1, 9, l, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), this.isSurface);
++                        this.generateBox(world, chunkBox, 12, 6, l, 12, 9, l, Blocks.OAK_PLANKS.defaultBlockState(), Blocks.OAK_PLANKS.defaultBlockState(), this.isSurface);
++                    } else {
++                        // Martijn start - custom strongholds - surface strongholds
++                        this.generateBoxConditionally(world, chunkBox, 1, 6, l, 1, 9, l, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false, false, true, false, false);
++                        this.generateBoxConditionally(world, chunkBox, 12, 6, l, 12, 9, l, Blocks.BOOKSHELF.defaultBlockState(), Blocks.BOOKSHELF.defaultBlockState(), false, false, true, false, false);
++                    }
++                }
++                // Martijn end - custom strongholds - surface strongholds
+             }
+ 
+             this.createChest(world, chunkBox, random, 3, 3, 5, BuiltInLootTables.STRONGHOLD_LIBRARY);
+@@ -615,8 +668,10 @@ public class StrongholdPieces {
+         protected static final int DEPTH = 16;
+         private boolean hasPlacedSpawner;
+ 
+-        public PortalRoom(int chainLength, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_PORTAL_ROOM, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public PortalRoom(int chainLength, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_PORTAL_ROOM, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+         }
+ 
+@@ -639,14 +694,17 @@ public class StrongholdPieces {
+ 
+         }
+ 
+-        public static StrongholdPieces.PortalRoom createPiece(StructurePieceAccessor holder, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.PortalRoom createPiece(StructurePieceAccessor holder, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) {// Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -4, -1, 0, 11, 8, 16, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.PortalRoom(chainLength, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.PortalRoom(chainLength, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 10, 7, 15, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 10, 7, 15, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.GRATES, 4, 1, 0);
+             int i = 6;
+             this.generateBox(world, chunkBox, 1, i, 1, 1, i, 14, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+@@ -694,30 +752,32 @@ public class StrongholdPieces {
+                 bl &= bls[m];
+             }
+ 
+-            this.placeBlock(world, blockState4.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[0])), 4, 3, 8, chunkBox);
+-            this.placeBlock(world, blockState4.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[1])), 5, 3, 8, chunkBox);
+-            this.placeBlock(world, blockState4.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[2])), 6, 3, 8, chunkBox);
+-            this.placeBlock(world, blockState5.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[3])), 4, 3, 12, chunkBox);
+-            this.placeBlock(world, blockState5.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[4])), 5, 3, 12, chunkBox);
+-            this.placeBlock(world, blockState5.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[5])), 6, 3, 12, chunkBox);
+-            this.placeBlock(world, blockState6.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[6])), 3, 3, 9, chunkBox);
+-            this.placeBlock(world, blockState6.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[7])), 3, 3, 10, chunkBox);
+-            this.placeBlock(world, blockState6.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[8])), 3, 3, 11, chunkBox);
+-            this.placeBlock(world, blockState7.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[9])), 7, 3, 9, chunkBox);
+-            this.placeBlock(world, blockState7.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[10])), 7, 3, 10, chunkBox);
+-            this.placeBlock(world, blockState7.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[11])), 7, 3, 11, chunkBox);
++            // Martijn start - custom strongholds - conditional placements
++            this.placeBlockUnconditionally(world, blockState4.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[0])), 4, 3, 8, chunkBox);
++            this.placeBlockUnconditionally(world, blockState4.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[1])), 5, 3, 8, chunkBox);
++            this.placeBlockUnconditionally(world, blockState4.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[2])), 6, 3, 8, chunkBox);
++            this.placeBlockUnconditionally(world, blockState5.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[3])), 4, 3, 12, chunkBox);
++            this.placeBlockUnconditionally(world, blockState5.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[4])), 5, 3, 12, chunkBox);
++            this.placeBlockUnconditionally(world, blockState5.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[5])), 6, 3, 12, chunkBox);
++            this.placeBlockUnconditionally(world, blockState6.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[6])), 3, 3, 9, chunkBox);
++            this.placeBlockUnconditionally(world, blockState6.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[7])), 3, 3, 10, chunkBox);
++            this.placeBlockUnconditionally(world, blockState6.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[8])), 3, 3, 11, chunkBox);
++            this.placeBlockUnconditionally(world, blockState7.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[9])), 7, 3, 9, chunkBox);
++            this.placeBlockUnconditionally(world, blockState7.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[10])), 7, 3, 10, chunkBox);
++            this.placeBlockUnconditionally(world, blockState7.setValue(EndPortalFrameBlock.HAS_EYE, Boolean.valueOf(bls[11])), 7, 3, 11, chunkBox);
+             if (bl) {
+                 BlockState blockState8 = Blocks.END_PORTAL.defaultBlockState();
+-                this.placeBlock(world, blockState8, 4, 3, 9, chunkBox);
+-                this.placeBlock(world, blockState8, 5, 3, 9, chunkBox);
+-                this.placeBlock(world, blockState8, 6, 3, 9, chunkBox);
+-                this.placeBlock(world, blockState8, 4, 3, 10, chunkBox);
+-                this.placeBlock(world, blockState8, 5, 3, 10, chunkBox);
+-                this.placeBlock(world, blockState8, 6, 3, 10, chunkBox);
+-                this.placeBlock(world, blockState8, 4, 3, 11, chunkBox);
+-                this.placeBlock(world, blockState8, 5, 3, 11, chunkBox);
+-                this.placeBlock(world, blockState8, 6, 3, 11, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 4, 3, 9, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 5, 3, 9, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 6, 3, 9, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 4, 3, 10, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 5, 3, 10, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 6, 3, 10, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 4, 3, 11, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 5, 3, 11, chunkBox);
++                this.placeBlockUnconditionally(world, blockState8, 6, 3, 11, chunkBox);
+             }
++            // Martijn end - custom strongholds - conditional placements
+ 
+             if (!this.hasPlacedSpawner) {
+                 BlockPos blockPos = this.getWorldPos(5, 3, 6);
+@@ -739,8 +799,10 @@ public class StrongholdPieces {
+         protected static final int HEIGHT = 5;
+         protected static final int DEPTH = 11;
+ 
+-        public PrisonHall(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_PRISON_HALL, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public PrisonHall(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_PRISON_HALL, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+         }
+@@ -754,20 +816,25 @@ public class StrongholdPieces {
+             this.generateSmallDoorChildForward((StrongholdPieces.StartPiece)start, holder, random, 1, 1);
+         }
+ 
+-        public static StrongholdPieces.PrisonHall createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.PrisonHall createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) {// Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -1, -1, 0, 9, 5, 11, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.PrisonHall(chainLength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.PrisonHall(chainLength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 8, 4, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 8, 4, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR_OR_TEMPORARY); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             this.generateBox(world, chunkBox, 1, 1, 10, 3, 3, 10, CAVE_AIR, CAVE_AIR, false);
+-            this.generateBox(world, chunkBox, 4, 1, 1, 4, 3, 1, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 4, 1, 3, 4, 3, 3, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 4, 1, 7, 4, 3, 7, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
+-            this.generateBox(world, chunkBox, 4, 1, 9, 4, 3, 9, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
++            // Martijn start - custom strongholds - surface strongholds
++            this.generateBoxConditionally(world, chunkBox, 4, 1, 1, 4, 3, 1, random, StrongholdPieces.SMOOTH_STONE_SELECTOR_OR_TEMPORARY);
++            this.generateBoxConditionally(world, chunkBox, 4, 1, 3, 4, 3, 3, random, StrongholdPieces.SMOOTH_STONE_SELECTOR_OR_TEMPORARY);
++            this.generateBoxConditionally(world, chunkBox, 4, 1, 7, 4, 3, 7, random, StrongholdPieces.SMOOTH_STONE_SELECTOR_OR_TEMPORARY);
++            this.generateBoxConditionally(world, chunkBox, 4, 1, 9, 4, 3, 9, random, StrongholdPieces.SMOOTH_STONE_SELECTOR_OR_TEMPORARY);
++            // Martijn end - custom strongholds - surface strongholds
+ 
+             for(int i = 1; i <= 3; ++i) {
+                 this.placeBlock(world, Blocks.IRON_BARS.defaultBlockState().setValue(IronBarsBlock.NORTH, Boolean.valueOf(true)).setValue(IronBarsBlock.SOUTH, Boolean.valueOf(true)), 4, i, 4, chunkBox);
+@@ -790,8 +857,10 @@ public class StrongholdPieces {
+     }
+ 
+     public static class RightTurn extends StrongholdPieces.Turn {
+-        public RightTurn(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_RIGHT_TURN, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public RightTurn(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_RIGHT_TURN, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+         }
+@@ -811,20 +880,23 @@ public class StrongholdPieces {
+ 
+         }
+ 
+-        public static StrongholdPieces.RightTurn createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.RightTurn createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -1, -1, 0, 5, 5, 5, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.RightTurn(chainLength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.RightTurn(chainLength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             Direction direction = this.getOrientation();
+             if (direction != Direction.NORTH && direction != Direction.EAST) {
+-                this.generateBox(world, chunkBox, 0, 1, 1, 0, 3, 3, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 0, 1, 1, 0, 3, 3, CAVE_AIR, CAVE_AIR, this.isSurface); // Martijn - custom strongholds - surface strongholds
+             } else {
+-                this.generateBox(world, chunkBox, 4, 1, 1, 4, 3, 3, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 4, 1, 1, 4, 3, 3, CAVE_AIR, CAVE_AIR, this.isSurface); // Martijn - custom strongholds - surface strongholds
+             }
+ 
+         }
+@@ -836,8 +908,10 @@ public class StrongholdPieces {
+         protected static final int DEPTH = 11;
+         protected final int type;
+ 
+-        public RoomCrossing(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_ROOM_CROSSING, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public RoomCrossing(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_ROOM_CROSSING, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+             this.type = random.nextInt(5);
+@@ -861,18 +935,23 @@ public class StrongholdPieces {
+             this.generateSmallDoorChildRight((StrongholdPieces.StartPiece)start, holder, random, 1, 4);
+         }
+ 
+-        public static StrongholdPieces.RoomCrossing createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.RoomCrossing createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -4, -1, 0, 11, 7, 11, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.RoomCrossing(chainLength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.RoomCrossing(chainLength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 10, 6, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 10, 6, 10, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 4, 1, 0);
+-            this.generateBox(world, chunkBox, 4, 1, 10, 6, 3, 10, CAVE_AIR, CAVE_AIR, false);
+-            this.generateBox(world, chunkBox, 0, 1, 4, 0, 3, 6, CAVE_AIR, CAVE_AIR, false);
+-            this.generateBox(world, chunkBox, 10, 1, 4, 10, 3, 6, CAVE_AIR, CAVE_AIR, false);
++            // Martijn start - custom strongholds - surface strongholds
++            this.generateBox(world, chunkBox, 4, 1, 10, 6, 3, 10, CAVE_AIR, CAVE_AIR, this.isSurface);
++            this.generateBox(world, chunkBox, 0, 1, 4, 0, 3, 6, CAVE_AIR, CAVE_AIR, this.isSurface);
++            this.generateBox(world, chunkBox, 10, 1, 4, 10, 3, 6, CAVE_AIR, CAVE_AIR, this.isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             switch (this.type) {
+                 case 0:
+                     this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 5, 1, 5, chunkBox);
+@@ -977,21 +1056,49 @@ public class StrongholdPieces {
+         }
+     }
+ 
++    // Martijn start - custom strongholds - surface strongholds
++    static class SmoothStoneSelectorOrTemporary extends StructurePiece.BlockSelector {
++        public static final Block TEMPORARY = Blocks.LIGHT;
++        @Override
++        public void next(RandomSource random, int x, int y, int z, boolean placeBlock) {
++            if (placeBlock) {
++                float f = random.nextFloat();
++                if (f < 0.2F) {
++                    this.next = Blocks.CRACKED_STONE_BRICKS.defaultBlockState();
++                } else if (f < 0.5F) {
++                    this.next = Blocks.MOSSY_STONE_BRICKS.defaultBlockState();
++                } else if (f < 0.55F) {
++                    this.next = Blocks.INFESTED_STONE_BRICKS.defaultBlockState();
++                } else {
++                    this.next = Blocks.STONE_BRICKS.defaultBlockState();
++                }
++            } else {
++                this.next = TEMPORARY.defaultBlockState();
++            }
++
++        }
 +    }
 +    // Martijn end - custom strongholds - surface strongholds
 +
-     public static StructureSet.StructureSelectionEntry entry(Holder<Structure> structure, int weight) {
-         return new StructureSet.StructureSelectionEntry(structure, weight);
-     }
-@@ -27,7 +35,15 @@ public record StructureSet(List<StructureSet.StructureSelectionEntry> structures
-         return new StructureSet.StructureSelectionEntry(structure, 1);
+     public static class StairsDown extends StrongholdPieces.StrongholdPiece {
+         private static final int WIDTH = 5;
+         private static final int HEIGHT = 11;
+         private static final int DEPTH = 5;
+         private final boolean isSource;
+ 
+-        public StairsDown(StructurePieceType structurePieceType, int chainLength, int x, int z, Direction orientation) {
+-            super(structurePieceType, chainLength, makeBoundingBox(x, 64, z, orientation, 5, 11, 5));
++        // Martijn start - custom strongholds - surface strongholds
++        public StairsDown(StructurePieceType structurePieceType, int chainLength, int x, int z, Direction orientation, boolean isSurface) {
++            super(structurePieceType, chainLength, makeBoundingBox(x, 64, z, orientation, 5, 11, 5), isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.isSource = true;
+             this.setOrientation(orientation);
+             this.entryDoor = StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING;
+         }
+ 
+-        public StairsDown(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_STAIRS_DOWN, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public StairsDown(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_STAIRS_DOWN, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.isSource = false;
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+@@ -1021,14 +1128,17 @@ public class StrongholdPieces {
+             this.generateSmallDoorChildForward((StrongholdPieces.StartPiece)start, holder, random, 1, 1);
+         }
+ 
+-        public static StrongholdPieces.StairsDown createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.StairsDown createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -1, -7, 0, 5, 11, 5, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.StairsDown(chainLength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.StairsDown(chainLength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 10, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 10, 4, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 7, 0);
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 4);
+             this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 2, 6, 1, chunkBox);
+@@ -1057,8 +1167,10 @@ public class StrongholdPieces {
+         public StrongholdPieces.PortalRoom portalRoomPiece;
+         public final List<StructurePiece> pendingChildren = Lists.newArrayList();
+ 
+-        public StartPiece(RandomSource random, int i, int j) {
+-            super(StructurePieceType.STRONGHOLD_START, 0, i, j, getRandomHorizontalDirection(random));
++        // Martijn start - custom strongholds - surface strongholds
++        public StartPiece(RandomSource random, int i, int j, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_START, 0, i, j, getRandomHorizontalDirection(random), isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+         }
+ 
+         public StartPiece(CompoundTag nbt) {
+@@ -1078,8 +1190,10 @@ public class StrongholdPieces {
+         private final boolean leftChild;
+         private final boolean rightChild;
+ 
+-        public Straight(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_STRAIGHT, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public Straight(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_STRAIGHT, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+             this.leftChild = random.nextInt(2) == 0;
+@@ -1112,14 +1226,17 @@ public class StrongholdPieces {
+ 
+         }
+ 
+-        public static StrongholdPieces.Straight createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.Straight createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) {
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -1, -1, 0, 5, 5, 7, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.Straight(chainLength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.Straight(chainLength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 6, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 4, 6, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 6);
+             BlockState blockState = Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.EAST);
+@@ -1129,11 +1246,11 @@ public class StrongholdPieces {
+             this.maybeGenerateBlock(world, chunkBox, random, 0.1F, 1, 2, 5, blockState);
+             this.maybeGenerateBlock(world, chunkBox, random, 0.1F, 3, 2, 5, blockState2);
+             if (this.leftChild) {
+-                this.generateBox(world, chunkBox, 0, 1, 2, 0, 3, 4, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 0, 1, 2, 0, 3, 4, CAVE_AIR, CAVE_AIR, this.isSurface); // Martijn - custom strongholds - surface strongholds
+             }
+ 
+             if (this.rightChild) {
+-                this.generateBox(world, chunkBox, 4, 1, 2, 4, 3, 4, CAVE_AIR, CAVE_AIR, false);
++                this.generateBox(world, chunkBox, 4, 1, 2, 4, 3, 4, CAVE_AIR, CAVE_AIR, this.isSurface); // Martijn - custom strongholds - surface strongholds
+             }
+ 
+         }
+@@ -1144,8 +1261,10 @@ public class StrongholdPieces {
+         private static final int HEIGHT = 11;
+         private static final int DEPTH = 8;
+ 
+-        public StraightStairsDown(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation) {
+-            super(StructurePieceType.STRONGHOLD_STRAIGHT_STAIRS_DOWN, chainLength, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        public StraightStairsDown(int chainLength, RandomSource random, BoundingBox boundingBox, Direction orientation, boolean isSurface) {
++            super(StructurePieceType.STRONGHOLD_STRAIGHT_STAIRS_DOWN, chainLength, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+             this.setOrientation(orientation);
+             this.entryDoor = this.randomSmallDoor(random);
+         }
+@@ -1159,22 +1278,49 @@ public class StrongholdPieces {
+             this.generateSmallDoorChildForward((StrongholdPieces.StartPiece)start, holder, random, 1, 1);
+         }
+ 
+-        public static StrongholdPieces.StraightStairsDown createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
++        public static StrongholdPieces.StraightStairsDown createPiece(StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+             BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -1, -7, 0, 5, 11, 8, orientation);
+-            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.StraightStairsDown(chainLength, random, boundingBox, orientation) : null;
++            return isOkBox(boundingBox) && holder.findCollisionPiece(boundingBox) == null ? new StrongholdPieces.StraightStairsDown(chainLength, random, boundingBox, orientation, isSurface) : null; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+-        public void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
+-            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 10, 7, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - strongholds with partially open ceiling
++        // Martijn start - custom strongholds - surface strongholds
++        public void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            super.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            // Martijn end - custom strongholds - surface strongholds
++            this.generateBoxWithPartiallyOpenCeiling(world, chunkBox, 0, 0, 0, 4, 10, 7, true, random, StrongholdPieces.SMOOTH_STONE_SELECTOR); // Martijn - custom strongholds - holes in stronghold parts
+             this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 7, 0);
+             this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 7);
+-            BlockState blockState = Blocks.COBBLESTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.SOUTH);
++            // Martijn start - custom strongholds - stairs have more types
++            BlockState blockStateStairs1 = Blocks.COBBLESTONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.SOUTH);
++            BlockState blockStateStairs2 = Blocks.STONE_BRICK_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.SOUTH);
++            BlockState blockStateStairs3 = Blocks.STONE_STAIRS.defaultBlockState().setValue(StairBlock.FACING, Direction.SOUTH);
++            BlockState blockStateStairs4 = Blocks.COBBLESTONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM);
++            BlockState blockStateStairs5 = Blocks.STONE_BRICK_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM);
++            BlockState blockStateStairs6 = Blocks.STONE_SLAB.defaultBlockState().setValue(SlabBlock.TYPE, SlabType.BOTTOM);
++            // Martijn end - custom strongholds - stairs have more types
+ 
+             for(int i = 0; i < 6; ++i) {
+-                this.placeBlock(world, blockState, 1, 6 - i, 1 + i, chunkBox);
+-                this.placeBlock(world, blockState, 2, 6 - i, 1 + i, chunkBox);
+-                this.placeBlock(world, blockState, 3, 6 - i, 1 + i, chunkBox);
++                // Martijn start - custom strongholds - stairs have more types
++                for (int stairsX = 1; stairsX <= 3; stairsX++) {
++                    float f = random.nextFloat();
++                    BlockState stairsState;
++                    if (f < 0.55F) {
++                        stairsState = blockStateStairs1;
++                    } else if (f < 0.85F) {
++                        stairsState = blockStateStairs2;
++                    } else if (f < 0.9F) {
++                        stairsState = blockStateStairs3;
++                    } else if (f < 0.95F) {
++                        stairsState = blockStateStairs4;
++                    } else if (f < 0.975F) {
++                        stairsState = blockStateStairs5;
++                    } else {
++                        stairsState = blockStateStairs6;
++                    }
++                    this.placeBlock(world, stairsState, stairsX, 6 - i, 1 + i, chunkBox);
++                }
++                // Martijn end - custom strongholds - stairs have more types
+                 if (i < 5) {
+                     this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 1, 5 - i, 1 + i, chunkBox);
+                     this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 2, 5 - i, 1 + i, chunkBox);
+@@ -1187,25 +1333,153 @@ public class StrongholdPieces {
+ 
+     abstract static class StrongholdPiece extends StructurePiece {
+         protected StrongholdPieces.StrongholdPiece.SmallDoorType entryDoor = StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING;
++        protected boolean isSurface = false; // Martijn - custom strongholds - surface strongholds
+ 
+-        protected StrongholdPiece(StructurePieceType type, int length, BoundingBox boundingBox) {
++        protected StrongholdPiece(StructurePieceType type, int length, BoundingBox boundingBox, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
+             super(type, length, boundingBox);
++            this.isSurface = isSurface; // Martijn - custom strongholds - surface strongholds
+         }
+ 
+         public StrongholdPiece(StructurePieceType type, CompoundTag nbt) {
+             super(type, nbt);
+             this.entryDoor = StrongholdPieces.StrongholdPiece.SmallDoorType.valueOf(nbt.getString("EntryDoor"));
++            // Martijn start - custom strongholds - surface strongholds
++            if (nbt.contains("IsSurface")) {
++                this.isSurface = nbt.getBoolean("IsSurface");
++            }
++            // Martijn end - custom strongholds - surface strongholds
+         }
+ 
+         @Override
+         protected void addAdditionalSaveData(StructurePieceSerializationContext context, CompoundTag nbt) {
+             nbt.putString("EntryDoor", this.entryDoor.name());
++            nbt.putBoolean("IsSurface", this.isSurface); // Martijn - custom strongholds - surface strongholds
++        }
++
++        // Martijn start - custom strongholds - surface strongholds
++
++        @Override
++        protected void placeBlock(WorldGenLevel world, BlockState block, int x, int y, int z, BoundingBox box) {
++            if (this.isSurface) {
++                this.placeBlockConditionally(world, block, x, y, z, box);
++            } else {
++                super.placeBlock(world, block, x, y, z, box);
++            }
++        }
++
++        protected void placeBlockConditionally(WorldGenLevel world, BlockState block, int x, int y, int z, BoundingBox box) {
++            if (this.isSurface) {
++                this.placeBlockConditionally(world, block, x, y, z, box, false, false, false, false, true);
++            } else {
++                super.placeBlock(world, block, x, y, z, box);
++            }
++        }
++
++        protected void generateBoxConditionally(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean cantReplaceLiquid) {
++            if (this.isSurface) {
++                this.generateBoxConditionally(world, box, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, cantReplaceAir, cantReplaceLiquid, false, false, true);
++            } else {
++                super.generateBox(world, box, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, cantReplaceAir, cantReplaceLiquid);
++            }
++        }
++
++        protected void generateBoxConditionally(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir) {
++            this.generateBoxConditionally(world, box, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, cantReplaceAir, cantReplaceAir);
++        }
++
++        protected boolean generateBoxConditionally(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, RandomSource random, StructurePiece.BlockSelector randomizer) {
++            // Below is replaced with a dumber version because it seems that otherwise, the server gets stuck in CIRCULAR chunk dependency
++            //return this.generateBoxConditionally(world, box, minX, minY, minZ, maxX, maxY, maxZ, false, false, false, false, true, random, randomizer);
++            this.generateBox(world, box, minX, minY, minZ, maxX, maxY, maxZ, this.isSurface, this.isSurface, random, randomizer);
++            return true; // Meaningless
++        }
++
++        protected boolean generateBoxConditionally(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside) {
++            // Below is replaced with a dumber version because it seems that otherwise, the server gets stuck in CIRCULAR chunk dependency
++            //return this.generateBoxConditionally(world, box, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, false, false, false, false, true);
++            this.generateBox(world, box, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, this.isSurface, this.isSurface);
++            return true; // Meaningless
++        }
++
++        @Override
++        protected void generateAirBox(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
++            this.generateAirBox(world, bounds, minX, minY, minZ, maxX, maxY, maxZ, this.isSurface);
++        }
++
++        @Override
++        protected boolean createChest(WorldGenLevel world, BoundingBox boundingBox, RandomSource random, int x, int y, int z, ResourceLocation lootTableId) {
++            return this.createChest(world, boundingBox, random, x, y, z, lootTableId, true);
++        }
++
++        @Override
++        protected boolean createChest(ServerLevelAccessor world, BoundingBox boundingBox, RandomSource random, BlockPos pos, ResourceLocation lootTableId, @Nullable BlockState block) {
++            return this.createChest(world, boundingBox, random, pos, lootTableId, block, true);
++        }
++
++        // Martijn end - custom strongholds - surface strongholds
++
++        // Martijn start - custom strongholds - strongholds in water
++
++        @Override
++        protected void generateBox(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir) {
++            this.generateBox(world, box, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, cantReplaceAir, cantReplaceAir);
+         }
+ 
++        @Override
++        protected void generateBox(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, BlockState outline, BlockState inside, boolean cantReplaceAir) {
++            this.generateBox(world, box, fillBox, outline, inside, cantReplaceAir, cantReplaceAir);
++        }
++
++        @Override
++        protected void generateBox(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
++            this.generateBox(world, box, minX, minY, minZ, maxX, maxY, maxZ, cantReplaceAir, cantReplaceAir, random, randomizer);
++        }
++
++        @Override
++        protected void generateBox(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
++            this.generateBox(world, box, fillBox, cantReplaceAir, cantReplaceAir, random, randomizer);
++        }
++
++        // Martijn start - custom strongholds - holes in stronghold parts
++
++        @Override
++        protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer, BlockState newAir) {
++            this.generateBoxWithPartiallyOpenCeiling(world, box, minX, minY, minZ, maxX, maxY, maxZ, cantReplaceAir, cantReplaceAir, random, randomizer, newAir);
++        }
++
++        @Override
++        protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer, BlockState newAir) {
++            this.generateBoxWithPartiallyOpenCeiling(world, box, fillBox, cantReplaceAir, cantReplaceAir, random, randomizer, newAir);
++        }
++
++        @Override
++        protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
++            this.generateBoxWithPartiallyOpenCeiling(world, box, minX, minY, minZ, maxX, maxY, maxZ, cantReplaceAir, random, randomizer, Blocks.CAVE_AIR.defaultBlockState());
++        }
++
++        @Override
++        protected void generateBoxWithPartiallyOpenCeiling(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
++            this.generateBoxWithPartiallyOpenCeiling(world, box, fillBox, cantReplaceAir, random, randomizer, Blocks.CAVE_AIR.defaultBlockState());
++        }
++
++        // Martijn end - custom strongholds - holes in stronghold parts
++
++        @Override
++        protected void generateMaybeBox(WorldGenLevel world, BoundingBox box, RandomSource random, float blockChance, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean stayBelowSeaLevel) {
++            this.generateMaybeBox(world, box, random, blockChance, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, cantReplaceAir, cantReplaceAir, stayBelowSeaLevel);
++        }
++
++        @Override
++        protected void generateUpperHalfSphere(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState block, boolean cantReplaceAir) {
++            this.generateUpperHalfSphere(world, bounds, minX, minY, minZ, maxX, maxY, maxZ, block, cantReplaceAir, cantReplaceAir);
++        }
++
++        // Martijn end - custom strongholds - strongholds in water
++
+         protected void generateSmallDoor(WorldGenLevel world, RandomSource random, BoundingBox boundingBox, StrongholdPieces.StrongholdPiece.SmallDoorType type, int x, int y, int z) {
+             switch (type) {
+                 case OPENING:
+-                    this.generateBox(world, boundingBox, x, y, z, x + 3 - 1, y + 3 - 1, z, CAVE_AIR, CAVE_AIR, false);
++                    this.generateBox(world, boundingBox, x, y, z, x + 3 - 1, y + 3 - 1, z, CAVE_AIR, CAVE_AIR, this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     break;
+                 case WOOD_DOOR:
+                     this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), x, y, z, boundingBox);
+@@ -1267,13 +1541,13 @@ public class StrongholdPieces {
+             if (direction != null) {
+                 switch (direction) {
+                     case NORTH:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() - 1, direction, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() - 1, direction, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case SOUTH:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.maxZ() + 1, direction, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.maxZ() + 1, direction, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case WEST:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() - 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, direction, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() - 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, direction, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case EAST:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.maxX() + 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, direction, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.maxX() + 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, direction, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                 }
+             }
+ 
+@@ -1286,13 +1560,13 @@ public class StrongholdPieces {
+             if (direction != null) {
+                 switch (direction) {
+                     case NORTH:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() - 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, Direction.WEST, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() - 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, Direction.WEST, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case SOUTH:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() - 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, Direction.WEST, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() - 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, Direction.WEST, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case WEST:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() - 1, Direction.NORTH, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() - 1, Direction.NORTH, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case EAST:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() - 1, Direction.NORTH, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() - 1, Direction.NORTH, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                 }
+             }
+ 
+@@ -1305,13 +1579,13 @@ public class StrongholdPieces {
+             if (direction != null) {
+                 switch (direction) {
+                     case NORTH:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.maxX() + 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, Direction.EAST, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.maxX() + 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, Direction.EAST, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case SOUTH:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.maxX() + 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, Direction.EAST, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.maxX() + 1, this.boundingBox.minY() + heightOffset, this.boundingBox.minZ() + leftRightOffset, Direction.EAST, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case WEST:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.maxZ() + 1, Direction.SOUTH, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.maxZ() + 1, Direction.SOUTH, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                     case EAST:
+-                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.maxZ() + 1, Direction.SOUTH, this.getGenDepth());
++                        return StrongholdPieces.generateAndAddPiece(start, holder, random, this.boundingBox.minX() + leftRightOffset, this.boundingBox.minY() + heightOffset, this.boundingBox.maxZ() + 1, Direction.SOUTH, this.getGenDepth(), this.isSurface); // Martijn - custom strongholds - surface strongholds
+                 }
+             }
+ 
+@@ -1328,6 +1602,137 @@ public class StrongholdPieces {
+             GRATES,
+             IRON_DOOR;
+         }
++
++        // Martijn start - custom strongholds - surface strongholds
++
++        protected void strongholdPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {}
++
++        @Override
++        public final void postProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            this.strongholdPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++            this.postPostProcess(world, structureAccessor, chunkGenerator, random, chunkBox, chunkPos, pivot);
++        }
++
++        public final void postPostProcess(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox chunkBox, ChunkPos chunkPos, BlockPos pivot) {
++            // Replace temporary air-representing blocks by air
++            this.replace(world, chunkBox, SmoothStoneSelectorOrTemporary.TEMPORARY, Blocks.CAVE_AIR.defaultBlockState());
++            // Fix blocks being invalid in their location (for example grass unsupported by a block below)
++            for (int x = this.boundingBox.minX(); x <= this.boundingBox.maxX(); x++) {
++                for (int y = this.boundingBox.minY(); y <= this.boundingBox.maxY() + 4/* should need only 2 but taking 4 as extra margin just in case */; y++) {
++                    for (int z = this.boundingBox.minZ(); z <= this.boundingBox.maxZ(); z++) {
++                        BlockPos pos = new BlockPos(x, y, z);
++                        BlockState block = world.getBlockState(pos);
++                        BlockState newBlock = null;
++                        boolean isUnstableAndMustBeRemoved = false;
++                        if (y <= this.boundingBox.maxY()) {
++                            // Remove single door pieces
++                            if (block.is(BlockTags.DOORS)) {
++                                BlockState blockAbove = world.getBlockState(pos.above());
++                                if (!(world.getBlockState(pos.below()).is(BlockTags.DOORS) || blockAbove.is(BlockTags.DOORS))) {
++                                    Optional<Boolean> waterlogged = block.getOptionalValue(BlockStateProperties.WATERLOGGED);
++                                    Optional<Boolean> waterloggedAbove = blockAbove.getOptionalValue(BlockStateProperties.WATERLOGGED);
++                                    if ((waterlogged.isPresent() && waterlogged.get()) || blockAbove.is(Blocks.WATER) || (waterloggedAbove.isPresent() && waterloggedAbove.get())) {
++                                        newBlock = Blocks.WATER.defaultBlockState();
++                                    } else if (blockAbove.is(Blocks.LAVA)) {
++                                        newBlock = Blocks.LAVA.defaultBlockState();
++                                    } else {
++                                        newBlock = Blocks.CAVE_AIR.defaultBlockState();
++                                    }
++                                }
++                            }
++                        }
++                        // Fix floating grass and similar growth
++                        if (block.is(BlockTags.TALL_FLOWERS) || block.is(Blocks.TALL_GRASS) || block.is(Blocks.TALL_SEAGRASS) || block.is(Blocks.LARGE_FERN) || block.is(BlockTags.FLOWERS) || block.is(Blocks.GRASS) || block.is(Blocks.SEAGRASS) || block.is(Blocks.FERN) || block.is(Blocks.KELP_PLANT) || block.is(Blocks.KELP) || block.is(Blocks.RED_MUSHROOM) || block.is(Blocks.BROWN_MUSHROOM) || block.is(Blocks.DEAD_BUSH)) {
++                            if (!StructurePiece.hasRelativeSolid(world, pos, Direction.DOWN)) {
++                                isUnstableAndMustBeRemoved = true;
++                            }
++                        } else if (block.is(Blocks.VINE) || block.is(Blocks.GLOW_LICHEN) || block.is(Blocks.SCULK_VEIN)) {
++                            if (block.getValue(BlockStateProperties.UP) && !StructurePiece.hasRelativeSolid(world, pos, Direction.UP)) {
++                                isUnstableAndMustBeRemoved = true;
++                            } else if (block.getValue(BlockStateProperties.DOWN) && !StructurePiece.hasRelativeSolid(world, pos, Direction.DOWN)) {
++                                isUnstableAndMustBeRemoved = true;
++                            } else if (block.getValue(BlockStateProperties.EAST) && !StructurePiece.hasRelativeSolid(world, pos, Direction.EAST)) {
++                                isUnstableAndMustBeRemoved = true;
++                            } else if (block.getValue(BlockStateProperties.WEST) && !StructurePiece.hasRelativeSolid(world, pos, Direction.WEST)) {
++                                isUnstableAndMustBeRemoved = true;
++                            } else if (block.getValue(BlockStateProperties.NORTH) && !StructurePiece.hasRelativeSolid(world, pos, Direction.NORTH)) {
++                                isUnstableAndMustBeRemoved = true;
++                            } else if (block.getValue(BlockStateProperties.SOUTH) && !StructurePiece.hasRelativeSolid(world, pos, Direction.SOUTH)) {
++                                isUnstableAndMustBeRemoved = true;
++                            }
++                        }
++                        if (isUnstableAndMustBeRemoved) {
++                            BlockState blockAbove = world.getBlockState(pos.above());
++                            Optional<Boolean> waterlogged = block.getOptionalValue(BlockStateProperties.WATERLOGGED);
++                            Optional<Boolean> waterloggedAbove = blockAbove.getOptionalValue(BlockStateProperties.WATERLOGGED);
++                            if ((waterlogged.isPresent() && waterlogged.get()) || blockAbove.is(Blocks.WATER) || (waterloggedAbove.isPresent() && waterloggedAbove.get())) {
++                                newBlock = Blocks.WATER.defaultBlockState();
++                            } else if (blockAbove.is(Blocks.LAVA)) {
++                                newBlock = Blocks.LAVA.defaultBlockState();
++                            } else if (y > boundingBox.maxY()) {
++                                newBlock = Blocks.AIR.defaultBlockState();
++                            } else {
++                                newBlock = Blocks.CAVE_AIR.defaultBlockState();
++                            }
++                        }
++                        // Replace the state if needed
++                        if (newBlock != null) {
++                            world.setBlock(pos, newBlock, 2);
++                            FluidState fluidState = world.getFluidState(pos);
++                            if (!fluidState.isEmpty()) {
++                                world.scheduleTick(pos, fluidState.getType(), 0);
++                            }
++
++                            if (StructurePiece.SHAPE_CHECK_BLOCKS.contains(block.getBlock())) {
++                                world.getChunk(pos).markPosForPostprocessing(pos);
++                            }
++                        }
++                    }
++                }
++            }
++            this.spreadWater(); // Martijn - custom strongholds - strongholds in water
++        }
++
++        // Martijn end - custom strongholds - surface strongholds
++
++        // Martijn start - custom strongholds - strongholds in water
++
++        public void spreadWater() {
++            // Spread water horizontally and downwards
++            while (true) {
++                boolean changesThisCycle = false;
++                for (int x = this.boundingBox.minX(); x <= this.boundingBox.maxX(); x++) {
++                    for (int y = this.boundingBox.minY(); y <= this.boundingBox.maxY(); y++) {
++                        for (int z = this.boundingBox.minZ(); z <= this.boundingBox.maxZ(); z++) {
++                            BlockPos pos = new BlockPos(x, y, z);
++                            BlockState block = world.getBlockState(pos);
++                            Optional<Boolean> waterlogged = block.getOptionalValue(BlockStateProperties.WATERLOGGED);
++                            if (block.isAir() || (waterlogged.isPresent() && !waterlogged.get())) {
++                                BlockState newBlock = getAnyRelativeLiquidDefaultBlockState(world, pos, besideOrAboveDirections);
++                                if (newBlock != null && !newBlock.equals(block)) {
++                                    changesThisCycle = true;
++                                    world.setBlock(pos, newBlock, 2);
++                                    FluidState fluidState = world.getFluidState(pos);
++                                    if (!fluidState.isEmpty()) {
++                                        world.scheduleTick(pos, fluidState.getType(), 0);
++                                    }
++
++                                    if (StructurePiece.SHAPE_CHECK_BLOCKS.contains(block.getBlock())) {
++                                        world.getChunk(pos).markPosForPostprocessing(pos);
++                                    }
++                                }
++                            }
++                        }
++                    }
++                }
++                if (!changesThisCycle) {
++                    break;
++                }
++            }
++        }
++
++        // Martijn start - custom strongholds - strongholds in water
++
      }
  
--    public static record StructureSelectionEntry(Holder<Structure> structure, int weight) {
-+    // Martijn start - custom strongholds - surface strongholds
-+    public static record StructureSelectionEntry(Holder<Structure> structure, IntSupplier weightSupplier) {
-+        public StructureSelectionEntry(Holder<Structure> structure, int weight) {
-+            this(structure, () -> weight);
-+        }
-+        public int weight() {
-+            return weightSupplier.getAsInt();
-+        }
-+        // Martijn end - custom strongholds - surface strongholds
-         public static final Codec<StructureSet.StructureSelectionEntry> CODEC = RecordCodecBuilder.create((instance) -> {
-             return instance.group(Structure.CODEC.fieldOf("structure").forGetter(StructureSet.StructureSelectionEntry::structure), ExtraCodecs.POSITIVE_INT.fieldOf("weight").forGetter(StructureSet.StructureSelectionEntry::weight)).apply(instance, StructureSet.StructureSelectionEntry::new);
-         });
+     public abstract static class Turn extends StrongholdPieces.StrongholdPiece {
+@@ -1335,8 +1740,10 @@ public class StrongholdPieces {
+         protected static final int HEIGHT = 5;
+         protected static final int DEPTH = 5;
+ 
+-        protected Turn(StructurePieceType type, int length, BoundingBox boundingBox) {
+-            super(type, length, boundingBox);
++        // Martijn start - custom strongholds - surface strongholds
++        protected Turn(StructurePieceType type, int length, BoundingBox boundingBox, boolean isSurface) {
++            super(type, length, boundingBox, isSurface);
++            // Martijn end - custom strongholds - surface strongholds
+         }
+ 
+         public Turn(StructurePieceType type, CompoundTag nbt) {
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
-index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..446c4fca1bbf3c72d78707177424968c8121bdfe 100644
+index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..497e41b4ce6338e2a459a791dee8290871beff2a 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
-@@ -5,6 +5,7 @@ import java.util.List;
+@@ -1,10 +1,13 @@
+ package net.minecraft.world.level.levelgen.structure.structures;
+ 
+ import com.mojang.serialization.Codec;
++
++import java.util.ArrayList;
+ import java.util.List;
  import java.util.Optional;
  import java.util.Random;
  
@@ -190,7 +2128,7 @@ index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..446c4fca1bbf3c72d78707177424968c
  import io.papermc.paper.configuration.GlobalConfiguration;
  import io.papermc.paper.world.structure.ConfiguredStructure;
  import net.minecraft.core.BlockPos;
-@@ -12,6 +13,7 @@ import net.minecraft.core.Holder;
+@@ -12,6 +15,7 @@ import net.minecraft.core.Holder;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.tags.BiomeTags;
  import net.minecraft.util.RandomSource;
@@ -198,7 +2136,7 @@ index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..446c4fca1bbf3c72d78707177424968c
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelHeightAccessor;
  import net.minecraft.world.level.biome.Biome;
-@@ -26,29 +28,45 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilde
+@@ -26,29 +30,45 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilde
  import org.bukkit.Bukkit;
  
  public class StrongholdStructure extends Structure {
@@ -250,16 +2188,29 @@ index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..446c4fca1bbf3c72d78707177424968c
              Holder<Biome> holder = null;
              try {
                  BlockPos blockPos = context.chunkPos().getMiddleBlockPosition(context.chunkGenerator().getSeaLevel());
-@@ -100,7 +118,7 @@ public class StrongholdStructure extends Structure {
+@@ -85,7 +105,7 @@ public class StrongholdStructure extends Structure {
+             collector.clear();
+             context.random().setLargeFeatureSeed(context.seed() + (long)(i++), context.chunkPos().x, context.chunkPos().z);
+             StrongholdPieces.resetPieces();
+-            startPiece = new StrongholdPieces.StartPiece(context.random(), context.chunkPos().getBlockX(2), context.chunkPos().getBlockZ(2));
++            startPiece = new StrongholdPieces.StartPiece(context.random(), context.chunkPos().getBlockX(2), context.chunkPos().getBlockZ(2), isSurface);
+             collector.addPiece(startPiece);
+             startPiece.addChildren(startPiece, collector, context.random());
+             List<StructurePiece> list = startPiece.pendingChildren;
+@@ -100,8 +120,10 @@ public class StrongholdStructure extends Structure {
  
          // Martijn start - custom strongholds - surface strongholds
  
 -        if (potentialExtraIncreasedY != null) {
+-            int extraIncreasedY = surfaceStrongholdRandom.nextInt(potentialExtraIncreasedY + 1);
 +        if (isSurface/*potentialExtraIncreasedY != null*/) {
-             int extraIncreasedY = surfaceStrongholdRandom.nextInt(potentialExtraIncreasedY + 1);
++            int standardDecreasedY = 3; // TODO Make setting
++            int potentialExtraDecreasedY = 6; // TODO Make setting
++            int extraIncreasedY = surfaceStrongholdRandom.nextInt(potentialExtraIncreasedY + 1) - standardDecreasedY - surfaceStrongholdRandom.nextInt(potentialExtraDecreasedY + 1);
              Bukkit.getLogger().info("To create more surface strongholds, vertically offsetting stronghold at block " + context.chunkPos().getBlockX(2) + " , " + context.chunkPos().getBlockZ(2) + " by " + extraIncreasedY + " and not moving it downwards on purpose");
              collector.offsetPiecesVertically(extraIncreasedY);
-@@ -112,8 +130,34 @@ public class StrongholdStructure extends Structure {
+         } else {
+@@ -112,8 +134,34 @@ public class StrongholdStructure extends Structure {
  
      }
  
