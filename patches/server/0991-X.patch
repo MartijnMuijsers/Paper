@@ -111,6 +111,19 @@ index ae1d5d7f347491485a4101e81501213759e3cfa5..c49ba55cc657991e2aa28df4513f568c
      public static final Holder<Structure> OCEAN_MONUMENT = register(BuiltinStructures.OCEAN_MONUMENT, new OceanMonumentStructure(structure(BiomeTags.HAS_OCEAN_MONUMENT, Map.of(MobCategory.MONSTER, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, WeightedRandomList.create(new MobSpawnSettings.SpawnerData(EntityType.GUARDIAN, 1, 2, 4))), MobCategory.UNDERGROUND_WATER_CREATURE, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, MobSpawnSettings.EMPTY_MOB_LIST), MobCategory.AXOLOTLS, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, MobSpawnSettings.EMPTY_MOB_LIST)), GenerationStep.Decoration.SURFACE_STRUCTURES, TerrainAdjustment.NONE)));
      public static final Holder<Structure> OCEAN_RUIN_COLD = register(BuiltinStructures.OCEAN_RUIN_COLD, new OceanRuinStructure(structure(BiomeTags.HAS_OCEAN_RUIN_COLD, TerrainAdjustment.NONE), OceanRuinStructure.Type.COLD, 0.3F, 0.9F));
      public static final Holder<Structure> OCEAN_RUIN_WARM = register(BuiltinStructures.OCEAN_RUIN_WARM, new OceanRuinStructure(structure(BiomeTags.HAS_OCEAN_RUIN_WARM, TerrainAdjustment.NONE), OceanRuinStructure.Type.WARM, 0.3F, 0.9F));
+diff --git a/src/main/java/net/minecraft/server/level/WorldGenRegion.java b/src/main/java/net/minecraft/server/level/WorldGenRegion.java
+index f000c822ed4563b5b840936852bc7d8e030763e3..7aa5c20d52deb6a66fcf0dce0514f7d6013f0ea1 100644
+--- a/src/main/java/net/minecraft/server/level/WorldGenRegion.java
++++ b/src/main/java/net/minecraft/server/level/WorldGenRegion.java
+@@ -295,7 +295,7 @@ public class WorldGenRegion implements WorldGenLevel {
+         } else {
+             // Paper start
+             if (!hasSetFarWarned) {
+-            Util.logAndPauseIfInIde("Detected setBlock in a far chunk [" + i + ", " + j + "], pos: " + pos + ", status: " + this.generatingStatus + (this.currentlyGenerating == null ? "" : ", currently generating: " + (String) this.currentlyGenerating.get()));
++            Util.logAndPauseIfInIde("Detected setBlock in a far chunk [" + i + ", " + j + "], pos: " + pos + ", intended center chunk: [" + chunkcoordintpair.x + ", " + chunkcoordintpair.z + "], writeRadiusCutoff: " + this.writeRadiusCutoff + ", status: " + this.generatingStatus + (this.currentlyGenerating == null ? "" : ", currently generating: " + (String) this.currentlyGenerating.get())); // Martijn - custom strongholds - debug errors
+             hasSetFarWarned = true;
+             if (this.getServer() != null && this.getServer().isDebugging()) {
+                 io.papermc.paper.util.TraceUtil.dumpTraceForThread("far setBlock call");
 diff --git a/src/main/java/net/minecraft/tags/BiomeTags.java b/src/main/java/net/minecraft/tags/BiomeTags.java
 index 3aacefd7fca40d42b856e4a235b55c3b95d95bec..a6d6cf6156c5dc282d720fec657c561ea2a96d75 100644
 --- a/src/main/java/net/minecraft/tags/BiomeTags.java
@@ -213,6 +226,76 @@ index 477f7db7d9f237a7b37610462c86b2a22c01c2a6..3db0baaeba47cce086f1b39025304744
          // Paper end
          // Paper start
          private long blockCollisionBehavior = io.papermc.paper.util.CollisionUtil.KNOWN_SPECIAL_BLOCK;
+diff --git a/src/main/java/net/minecraft/world/level/chunk/ChunkStatus.java b/src/main/java/net/minecraft/world/level/chunk/ChunkStatus.java
+index e6240f891e396d91e31b02fdf3084be77e9d6697..313d541122dcd695ba1bd6170569f203d26ba051 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/ChunkStatus.java
++++ b/src/main/java/net/minecraft/world/level/chunk/ChunkStatus.java
+@@ -30,6 +30,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
+ public class ChunkStatus {
+ 
+     public static final int MAX_STRUCTURE_DISTANCE = 8;
++    public static final int CHUNK_STATUS_TASK_MARGIN = 12; // Vanilla is 8 // Martijn - custom strongholds - bigger strongholds
+     private static final EnumSet<Heightmap.Types> PRE_FEATURES = EnumSet.of(Heightmap.Types.OCEAN_FLOOR_WG, Heightmap.Types.WORLD_SURFACE_WG);
+     public static final EnumSet<Heightmap.Types> POST_FEATURES = EnumSet.of(Heightmap.Types.OCEAN_FLOOR, Heightmap.Types.WORLD_SURFACE, Heightmap.Types.MOTION_BLOCKING, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES);
+     private static final ChunkStatus.LoadingTask PASSTHROUGH_LOAD_TASK = (chunkstatus, worldserver, structuretemplatemanager, lightenginethreaded, function, ichunkaccess) -> {
+@@ -74,12 +75,12 @@ public class ChunkStatus {
+ 
+         return CompletableFuture.completedFuture(Either.left(ichunkaccess));
+     });
+-    public static final ChunkStatus STRUCTURE_REFERENCES = ChunkStatus.registerSimple("structure_references", ChunkStatus.STRUCTURE_STARTS, 8, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, worldserver, chunkgenerator, list, ichunkaccess) -> {
++    public static final ChunkStatus STRUCTURE_REFERENCES = ChunkStatus.registerSimple("structure_references", ChunkStatus.STRUCTURE_STARTS, CHUNK_STATUS_TASK_MARGIN, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, worldserver, chunkgenerator, list, ichunkaccess) -> { // Martijn - custom strongholds - bigger strongholds
+         WorldGenRegion regionlimitedworldaccess = new WorldGenRegion(worldserver, list, chunkstatus, -1);
+ 
+         chunkgenerator.createReferences(regionlimitedworldaccess, worldserver.structureManager().forWorldGenRegion(regionlimitedworldaccess), ichunkaccess);
+     });
+-    public static final ChunkStatus BIOMES = ChunkStatus.register("biomes", ChunkStatus.STRUCTURE_REFERENCES, 8, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, executor, worldserver, chunkgenerator, structuretemplatemanager, lightenginethreaded, function, list, ichunkaccess, flag) -> {
++    public static final ChunkStatus BIOMES = ChunkStatus.register("biomes", ChunkStatus.STRUCTURE_REFERENCES, CHUNK_STATUS_TASK_MARGIN, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, executor, worldserver, chunkgenerator, structuretemplatemanager, lightenginethreaded, function, list, ichunkaccess, flag) -> { // Martijn - custom strongholds - bigger strongholds
+         if (!flag && ichunkaccess.getStatus().isOrAfter(chunkstatus)) {
+             return CompletableFuture.completedFuture(Either.left(ichunkaccess));
+         } else {
+@@ -94,7 +95,7 @@ public class ChunkStatus {
+             });
+         }
+     });
+-    public static final ChunkStatus NOISE = ChunkStatus.register("noise", ChunkStatus.BIOMES, 8, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, executor, worldserver, chunkgenerator, structuretemplatemanager, lightenginethreaded, function, list, ichunkaccess, flag) -> {
++    public static final ChunkStatus NOISE = ChunkStatus.register("noise", ChunkStatus.BIOMES, CHUNK_STATUS_TASK_MARGIN, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, executor, worldserver, chunkgenerator, structuretemplatemanager, lightenginethreaded, function, list, ichunkaccess, flag) -> { // Martijn - custom strongholds - bigger strongholds
+         if (!flag && ichunkaccess.getStatus().isOrAfter(chunkstatus)) {
+             return CompletableFuture.completedFuture(Either.left(ichunkaccess));
+         } else {
+@@ -119,12 +120,12 @@ public class ChunkStatus {
+             });
+         }
+     });
+-    public static final ChunkStatus SURFACE = ChunkStatus.registerSimple("surface", ChunkStatus.NOISE, 8, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, worldserver, chunkgenerator, list, ichunkaccess) -> {
++    public static final ChunkStatus SURFACE = ChunkStatus.registerSimple("surface", ChunkStatus.NOISE, CHUNK_STATUS_TASK_MARGIN, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, worldserver, chunkgenerator, list, ichunkaccess) -> { // Martijn - custom strongholds - bigger strongholds
+         WorldGenRegion regionlimitedworldaccess = new WorldGenRegion(worldserver, list, chunkstatus, 0);
+ 
+         chunkgenerator.buildSurface(regionlimitedworldaccess, worldserver.structureManager().forWorldGenRegion(regionlimitedworldaccess), worldserver.getChunkSource().randomState(), ichunkaccess);
+     });
+-    public static final ChunkStatus CARVERS = ChunkStatus.registerSimple("carvers", ChunkStatus.SURFACE, 8, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, worldserver, chunkgenerator, list, ichunkaccess) -> {
++    public static final ChunkStatus CARVERS = ChunkStatus.registerSimple("carvers", ChunkStatus.SURFACE, CHUNK_STATUS_TASK_MARGIN, ChunkStatus.PRE_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, worldserver, chunkgenerator, list, ichunkaccess) -> { // Martijn - custom strongholds - bigger strongholds
+         WorldGenRegion regionlimitedworldaccess = new WorldGenRegion(worldserver, list, chunkstatus, 0);
+ 
+         if (ichunkaccess instanceof ProtoChunk) {
+@@ -135,15 +136,15 @@ public class ChunkStatus {
+ 
+         chunkgenerator.applyCarvers(regionlimitedworldaccess, worldserver.getSeed(), worldserver.getChunkSource().randomState(), worldserver.getBiomeManager(), worldserver.structureManager().forWorldGenRegion(regionlimitedworldaccess), ichunkaccess, GenerationStep.Carving.AIR);
+     });
+-    public static final ChunkStatus LIQUID_CARVERS = ChunkStatus.registerSimple("liquid_carvers", ChunkStatus.CARVERS, 8, ChunkStatus.POST_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, worldserver, chunkgenerator, list, ichunkaccess) -> {
++    public static final ChunkStatus LIQUID_CARVERS = ChunkStatus.registerSimple("liquid_carvers", ChunkStatus.CARVERS, CHUNK_STATUS_TASK_MARGIN, ChunkStatus.POST_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, worldserver, chunkgenerator, list, ichunkaccess) -> { // Martijn - custom strongholds - bigger strongholds
+     });
+-    public static final ChunkStatus FEATURES = ChunkStatus.register("features", ChunkStatus.LIQUID_CARVERS, 8, ChunkStatus.POST_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, executor, worldserver, chunkgenerator, structuretemplatemanager, lightenginethreaded, function, list, ichunkaccess, flag) -> {
++    public static final ChunkStatus FEATURES = ChunkStatus.register("features", ChunkStatus.LIQUID_CARVERS, CHUNK_STATUS_TASK_MARGIN, ChunkStatus.POST_FEATURES, ChunkStatus.ChunkType.PROTOCHUNK, (chunkstatus, executor, worldserver, chunkgenerator, structuretemplatemanager, lightenginethreaded, function, list, ichunkaccess, flag) -> { // Martijn start - custom strongholds - bigger strongholds
+         ProtoChunk protochunk = (ProtoChunk) ichunkaccess;
+ 
+         protochunk.setLightEngine(lightenginethreaded);
+         if (flag || !ichunkaccess.getStatus().isOrAfter(chunkstatus)) {
+             Heightmap.primeHeightmaps(ichunkaccess, EnumSet.of(Heightmap.Types.MOTION_BLOCKING, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Heightmap.Types.OCEAN_FLOOR, Heightmap.Types.WORLD_SURFACE));
+-            WorldGenRegion regionlimitedworldaccess = new WorldGenRegion(worldserver, list, chunkstatus, 1);
++            WorldGenRegion regionlimitedworldaccess = new WorldGenRegion(worldserver, list, chunkstatus, 6); // Default placementRadius is 1 // Martijn - custom strongholds - bigger strongholds
+ 
+             chunkgenerator.applyBiomeDecoration(regionlimitedworldaccess, ichunkaccess, worldserver.structureManager().forWorldGenRegion(regionlimitedworldaccess));
+             Blender.generateBorderTicks(regionlimitedworldaccess, ichunkaccess);
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java b/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java
 index 3b6d54d18ff04e7bd70e789f8bcb98f943226f96..96ae4c606f2fb755d898d4cc2e6e178d89acf0e9 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/BuiltinStructures.java
@@ -847,7 +930,7 @@ index dba3e948bacc9506c3d39b0fe56bcdbd97b44fdb..f167b566e7be4ce877820475ed43521e
          return BoundingBox.encapsulatingBoxes(pieces.map(StructurePiece::getBoundingBox)::iterator).orElseThrow(() -> {
              return new IllegalStateException("Unable to calculate boundingbox without pieces");
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
-index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51ee05899ae 100644
+index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a7a44a5e784214a05ee6b7210dfda81685cc673d 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdPieces.java
 @@ -2,15 +2,20 @@ package net.minecraft.world.level.levelgen.structure.structures;
@@ -879,7 +962,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
  import net.minecraft.world.level.block.state.properties.DoubleBlockHalf;
  import net.minecraft.world.level.block.state.properties.SlabType;
  import net.minecraft.world.level.chunk.ChunkGenerator;
-@@ -32,12 +38,15 @@ import net.minecraft.world.level.levelgen.structure.StructurePiece;
+@@ -32,30 +38,54 @@ import net.minecraft.world.level.levelgen.structure.StructurePiece;
  import net.minecraft.world.level.levelgen.structure.StructurePieceAccessor;
  import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
  import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
@@ -892,11 +975,48 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
      private static final int SMALL_DOOR_WIDTH = 3;
      private static final int SMALL_DOOR_HEIGHT = 3;
 -    private static final int MAX_DEPTH = 50;
-+    private static final int MAX_DEPTH = 60; // Martijn - custom strongholds - strongholds can reach lower
++    // Martijn - custom strongholds - strongholds can reach lower
++    private static final int MAX_DEPTH = 60;
++    private static final int MAX_DEPTH_SURFACE = 100;
++    // Martijn - custom strongholds - strongholds can reach lower
      private static final int LOWEST_Y_POSITION = 10;
      private static final boolean CHECK_AIR = true;
      public static final int MAGIC_START_Y = 64;
-@@ -56,6 +65,7 @@ public class StrongholdPieces {
+-    private static final StrongholdPieces.PieceWeight[] STRONGHOLD_PIECE_WEIGHTS = new StrongholdPieces.PieceWeight[]{new StrongholdPieces.PieceWeight(StrongholdPieces.Straight.class, 40, 0), new StrongholdPieces.PieceWeight(StrongholdPieces.PrisonHall.class, 5, 5), new StrongholdPieces.PieceWeight(StrongholdPieces.LeftTurn.class, 20, 0), new StrongholdPieces.PieceWeight(StrongholdPieces.RightTurn.class, 20, 0), new StrongholdPieces.PieceWeight(StrongholdPieces.RoomCrossing.class, 10, 6), new StrongholdPieces.PieceWeight(StrongholdPieces.StraightStairsDown.class, 5, 5), new StrongholdPieces.PieceWeight(StrongholdPieces.StairsDown.class, 5, 5), new StrongholdPieces.PieceWeight(StrongholdPieces.FiveCrossing.class, 5, 4), new StrongholdPieces.PieceWeight(StrongholdPieces.ChestCorridor.class, 5, 4), new StrongholdPieces.PieceWeight(StrongholdPieces.Library.class, 10, 2) {
++    // Martijn start - custom strongholds - bigger strongholds
++    public static final int MAX_CHAIN_LENGTH = 70; // Default is 50
++    public static final int MAX_PLANAR_DISTANCE = 140; // Default is 112
++    public static final int MINIMUM_LIBRARY_CHAIN_LENGTH = 5; // Default is 4
++    public static final int MINIMUM_PORTAL_ROOM_CHAIN_LENGTH = 6; // Default is 5
++    // Martijn start - custom strongholds - surface strongholds
++    public static final int MAX_CHAIN_LENGTH_SURFACE = 150;
++    public static final int MAX_PLANAR_DISTANCE_SURFACE = 160;
++    public static final int MINIMUM_LIBRARY_CHAIN_LENGTH_SURFACE = 7;
++    public static final int MINIMUM_PORTAL_ROOM_CHAIN_LENGTH_SURFACE = 9;
++    public static final double DEFAULT_MAX_PLACE_COUNT_SURFACE_FACTOR = 2.5; // 1.0 would mean: no difference between surface and non-surface
++    // Martijn end - custom strongholds - surface strongholds
++    // Martijn end - custom strongholds - bigger strongholds
++    private static final StrongholdPieces.PieceWeight[] STRONGHOLD_PIECE_WEIGHTS = new StrongholdPieces.PieceWeight[]{new StrongholdPieces.PieceWeight(StrongholdPieces.Straight.class, 40, 0), new StrongholdPieces.PieceWeight(StrongholdPieces.PrisonHall.class, 5, 5), new StrongholdPieces.PieceWeight(StrongholdPieces.LeftTurn.class, 20, 0), new StrongholdPieces.PieceWeight(StrongholdPieces.RightTurn.class, 20, 0), new StrongholdPieces.PieceWeight(StrongholdPieces.RoomCrossing.class, 10, 6), new StrongholdPieces.PieceWeight(StrongholdPieces.StraightStairsDown.class, 5, 10, 5, 0), new StrongholdPieces.PieceWeight(StrongholdPieces.StairsDown.class, 5, 8, 5, 0), new StrongholdPieces.PieceWeight(StrongholdPieces.FiveCrossing.class, 5, 4), new StrongholdPieces.PieceWeight(StrongholdPieces.ChestCorridor.class, 5, 5, 4, 6), new StrongholdPieces.PieceWeight(StrongholdPieces.Library.class, 10, 2, 10, 3) { // Martijn - custom strongholds - bigger strongholds, surface strongholds
+         @Override
+-        public boolean doPlace(int chainLength) {
+-            return super.doPlace(chainLength) && chainLength > 4;
++        // Martijn start - custom strongholds - surface strongholds, bigger strongholds
++        public boolean doPlace(int chainLength, boolean isSurface) {
++            return super.doPlace(chainLength, isSurface) && chainLength > (isSurface ? MINIMUM_LIBRARY_CHAIN_LENGTH_SURFACE : MINIMUM_LIBRARY_CHAIN_LENGTH);
++            // Martijn end - custom strongholds - surface strongholds, bigger strongholds
+         }
+-    }, new StrongholdPieces.PieceWeight(StrongholdPieces.PortalRoom.class, 20, 1) {
++    }, new StrongholdPieces.PieceWeight(StrongholdPieces.PortalRoom.class, 20, 20, 1, 1) {
+         @Override
+-        public boolean doPlace(int chainLength) {
+-            return super.doPlace(chainLength) && chainLength > 5;
++        // Martijn start - custom strongholds - surface strongholds, bigger strongholds
++        public boolean doPlace(int chainLength, boolean isSurface) {
++            return super.doPlace(chainLength, isSurface) && chainLength > (isSurface ? MINIMUM_PORTAL_ROOM_CHAIN_LENGTH_SURFACE : MINIMUM_PORTAL_ROOM_CHAIN_LENGTH);
++            // Martijn end - custom strongholds - surface strongholds, bigger strongholds
+         }
+     }};
+     private static List<StrongholdPieces.PieceWeight> currentPieces;
      static Class<? extends StrongholdPieces.StrongholdPiece> imposedPiece;
      private static int totalWeight;
      static final StrongholdPieces.SmoothStoneSelector SMOOTH_STONE_SELECTOR = new StrongholdPieces.SmoothStoneSelector();
@@ -904,7 +1024,25 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
  
      public static void resetPieces() {
          currentPieces = Lists.newArrayList();
-@@ -83,41 +93,43 @@ public class StrongholdPieces {
+@@ -68,56 +98,60 @@ public class StrongholdPieces {
+         imposedPiece = null;
+     }
+ 
+-    private static boolean updatePieceWeight() {
++    private static boolean updatePieceWeight(boolean isSurface) { // Martijn - custom strongholds - bigger strongholds, surface strongholds
+         boolean bl = false;
+         totalWeight = 0;
+ 
+         for(StrongholdPieces.PieceWeight pieceWeight : currentPieces) {
+-            if (pieceWeight.maxPlaceCount > 0 && pieceWeight.placeCount < pieceWeight.maxPlaceCount) {
++            if (pieceWeight.getEffectiveMaxPlaceCount(isSurface) > 0 && pieceWeight.placeCount < pieceWeight.getEffectiveMaxPlaceCount(isSurface)) { // Martijn - custom strongholds - bigger strongholds, surface strongholds
+                 bl = true;
+             }
+ 
+-            totalWeight += pieceWeight.weight;
++            totalWeight += pieceWeight.getEffectiveWeight(isSurface); // Martijn - custom strongholds - bigger strongholds, surface strongholds
+         }
+ 
          return bl;
      }
  
@@ -952,8 +1090,11 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
      }
  
 -    private static StrongholdPieces.StrongholdPiece generatePieceFromSmallDoor(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength) {
-+    private static StrongholdPieces.StrongholdPiece generatePieceFromSmallDoor(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
-         if (!updatePieceWeight()) {
+-        if (!updatePieceWeight()) {
++    // Martijn start - custom strongholds - surface strongholds
++    private static StrongholdPieces.StrongholdPiece generatePieceFromSmallDoor(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, Direction orientation, int chainLength, boolean isSurface) {
++        if (!updatePieceWeight(isSurface)) { // Martijn - custom strongholds - bigger strongholds
++            // Martijn end - custom strongholds - surface strongholds
              return null;
          } else {
              if (imposedPiece != null) {
@@ -962,7 +1103,15 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
                  imposedPiece = null;
                  if (strongholdPiece != null) {
                      return strongholdPiece;
-@@ -137,7 +149,7 @@ public class StrongholdPieces {
+@@ -131,17 +165,17 @@ public class StrongholdPieces {
+                 int j = random.nextInt(totalWeight);
+ 
+                 for(StrongholdPieces.PieceWeight pieceWeight : currentPieces) {
+-                    j -= pieceWeight.weight;
++                    j -= pieceWeight.getEffectiveWeight(isSurface); // Martijn - custom strongholds - bigger strongholds, surface strongholds
+                     if (j < 0) {
+-                        if (!pieceWeight.doPlace(chainLength) || pieceWeight == start.previousPiece) {
++                        if (!pieceWeight.doPlace(chainLength, isSurface) || pieceWeight == start.previousPiece) { // Martijn - custom strongholds - surface strongholds, bigger strongholds
                              break;
                          }
  
@@ -971,7 +1120,12 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
                          if (strongholdPiece2 != null) {
                              ++pieceWeight.placeCount;
                              start.previousPiece = pieceWeight;
-@@ -152,15 +164,15 @@ public class StrongholdPieces {
+-                            if (!pieceWeight.isValid()) {
++                            if (!pieceWeight.isValid(isSurface)) { // Martijn - custom strongholds - surface strongholds, bigger strongholds
+                                 currentPieces.remove(pieceWeight);
+                             }
+ 
+@@ -152,15 +186,15 @@ public class StrongholdPieces {
              }
  
              BoundingBox boundingBox = StrongholdPieces.FillerCorridor.findPieceBox(holder, random, x, y, z, orientation);
@@ -981,16 +1135,18 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
      }
  
 -    static StructurePiece generateAndAddPiece(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, @Nullable Direction orientation, int chainLength) {
+-        if (chainLength > 50) {
 +    static StructurePiece generateAndAddPiece(StrongholdPieces.StartPiece start, StructurePieceAccessor holder, RandomSource random, int x, int y, int z, @Nullable Direction orientation, int chainLength, boolean isSurface) { // Martijn - custom strongholds - surface strongholds
-         if (chainLength > 50) {
++        if (chainLength > (isSurface ? MAX_CHAIN_LENGTH_SURFACE : MAX_CHAIN_LENGTH)) { // Martijn - custom strongholds - bigger strongholds
              return null;
-         } else if (Math.abs(x - start.getBoundingBox().minX()) <= 112 && Math.abs(z - start.getBoundingBox().minZ()) <= 112) {
+-        } else if (Math.abs(x - start.getBoundingBox().minX()) <= 112 && Math.abs(z - start.getBoundingBox().minZ()) <= 112) {
 -            StructurePiece structurePiece = generatePieceFromSmallDoor(start, holder, random, x, y, z, orientation, chainLength + 1);
++        } else if (Math.abs(x - start.getBoundingBox().minX()) <= (isSurface ? MAX_PLANAR_DISTANCE_SURFACE : MAX_PLANAR_DISTANCE) && Math.abs(z - start.getBoundingBox().minZ()) <= (isSurface ? MAX_PLANAR_DISTANCE_SURFACE : MAX_PLANAR_DISTANCE)) { // Martijn - custom strongholds - bigger strongholds
 +            StructurePiece structurePiece = generatePieceFromSmallDoor(start, holder, random, x, y, z, orientation, chainLength + 1, isSurface); // Martijn - custom strongholds - surface strongholds
              if (structurePiece != null) {
                  holder.addPiece(structurePiece);
                  start.pendingChildren.add(structurePiece);
-@@ -178,8 +190,10 @@ public class StrongholdPieces {
+@@ -178,8 +212,10 @@ public class StrongholdPieces {
          private static final int DEPTH = 7;
          private boolean hasPlacedChest;
  
@@ -1003,7 +1159,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
          }
-@@ -200,17 +214,20 @@ public class StrongholdPieces {
+@@ -200,17 +236,20 @@ public class StrongholdPieces {
              this.generateSmallDoorChildForward((StrongholdPieces.StartPiece)start, holder, random, 1, 1);
          }
  
@@ -1029,7 +1185,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.placeBlock(world, Blocks.STONE_BRICK_SLAB.defaultBlockState(), 3, 1, 1, chunkBox);
              this.placeBlock(world, Blocks.STONE_BRICK_SLAB.defaultBlockState(), 3, 1, 5, chunkBox);
              this.placeBlock(world, Blocks.STONE_BRICK_SLAB.defaultBlockState(), 3, 2, 2, chunkBox);
-@@ -231,8 +248,10 @@ public class StrongholdPieces {
+@@ -231,8 +270,10 @@ public class StrongholdPieces {
      public static class FillerCorridor extends StrongholdPieces.StrongholdPiece {
          private final int steps;
  
@@ -1042,7 +1198,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.steps = orientation != Direction.NORTH && orientation != Direction.SOUTH ? boundingBox.getXSpan() : boundingBox.getZSpan();
          }
-@@ -269,7 +288,10 @@ public class StrongholdPieces {
+@@ -269,7 +310,10 @@ public class StrongholdPieces {
          }
  
          @Override
@@ -1054,7 +1210,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              for(int i = 0; i < this.steps; ++i) {
                  this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 0, 0, i, chunkBox);
                  this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 1, 0, i, chunkBox);
-@@ -304,8 +326,10 @@ public class StrongholdPieces {
+@@ -304,8 +348,10 @@ public class StrongholdPieces {
          private final boolean rightLow;
          private final boolean rightHigh;
  
@@ -1067,7 +1223,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
              this.leftLow = random.nextBoolean();
-@@ -360,52 +384,59 @@ public class StrongholdPieces {
+@@ -360,52 +406,59 @@ public class StrongholdPieces {
  
          }
  
@@ -1151,7 +1307,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
          }
-@@ -425,20 +456,23 @@ public class StrongholdPieces {
+@@ -425,20 +478,23 @@ public class StrongholdPieces {
  
          }
  
@@ -1181,7 +1337,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              }
  
          }
-@@ -451,8 +485,10 @@ public class StrongholdPieces {
+@@ -451,8 +507,10 @@ public class StrongholdPieces {
          protected static final int DEPTH = 15;
          private final boolean isTall;
  
@@ -1194,7 +1350,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
              this.isTall = boundingBox.getYSpan() > 6;
-@@ -469,7 +505,7 @@ public class StrongholdPieces {
+@@ -469,7 +527,7 @@ public class StrongholdPieces {
              nbt.putBoolean("Tall", this.isTall);
          }
  
@@ -1203,7 +1359,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              BoundingBox boundingBox = BoundingBox.orientBox(x, y, z, -4, -1, 0, 14, 11, 15, orientation);
              if (!isOkBox(boundingBox) || holder.findCollisionPiece(boundingBox) != null) {
                  boundingBox = BoundingBox.orientBox(x, y, z, -4, -1, 0, 14, 6, 15, orientation);
-@@ -478,62 +514,67 @@ public class StrongholdPieces {
+@@ -478,62 +536,67 @@ public class StrongholdPieces {
                  }
              }
  
@@ -1298,7 +1454,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
                  this.placeBlock(world, Blocks.OAK_FENCE.defaultBlockState().setValue(FenceBlock.NORTH, Boolean.valueOf(true)).setValue(FenceBlock.EAST, Boolean.valueOf(true)), 3, 6, 2, chunkBox);
                  this.placeBlock(world, Blocks.OAK_FENCE.defaultBlockState().setValue(FenceBlock.SOUTH, Boolean.valueOf(true)).setValue(FenceBlock.EAST, Boolean.valueOf(true)), 3, 6, 12, chunkBox);
                  this.placeBlock(world, Blocks.OAK_FENCE.defaultBlockState().setValue(FenceBlock.NORTH, Boolean.valueOf(true)).setValue(FenceBlock.WEST, Boolean.valueOf(true)), 10, 6, 2, chunkBox);
-@@ -577,6 +618,18 @@ public class StrongholdPieces {
+@@ -577,6 +640,18 @@ public class StrongholdPieces {
                  this.placeBlock(world, blockState7, 6, 8, 8, chunkBox);
                  this.placeBlock(world, blockState7, 7, 8, 6, chunkBox);
                  this.placeBlock(world, blockState7, 7, 8, 8, chunkBox);
@@ -1317,7 +1473,56 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              }
  
              this.createChest(world, chunkBox, random, 3, 3, 5, BuiltInLootTables.STRONGHOLD_LIBRARY);
-@@ -615,8 +668,10 @@ public class StrongholdPieces {
+@@ -593,19 +668,43 @@ public class StrongholdPieces {
+         public final int weight;
+         public int placeCount;
+         public final int maxPlaceCount;
++        // Martijn start - custom strongholds - surface strongholds, bigger strongholds
++        public final int weightSurface;
++        public final int maxPlaceCountSurface;
+ 
+-        public PieceWeight(Class<? extends StrongholdPieces.StrongholdPiece> pieceType, int weight, int limit) {
++        public int getEffectiveWeight(boolean isSurface) {
++            return isSurface ? weightSurface : weight;
++        }
++
++        public int getEffectiveMaxPlaceCount(boolean isSurface) {
++            return isSurface ? maxPlaceCountSurface : maxPlaceCount;
++        }
++
++        public PieceWeight(Class<? extends StrongholdPieces.StrongholdPiece> pieceType, int weight, int weightSurface, int limit, int limitSurface) {
++            // Martijn end - custom strongholds - surface strongholds, bigger strongholds
+             this.pieceClass = pieceType;
+             this.weight = weight;
+             this.maxPlaceCount = limit;
++            // Martijn start - custom strongholds - surface strongholds, bigger strongholds
++            this.weightSurface = weightSurface;
++            this.maxPlaceCountSurface = limitSurface;
++            // Martijn end - custom strongholds - surface strongholds, bigger strongholds
+         }
+ 
+-        public boolean doPlace(int chainLength) {
+-            return this.maxPlaceCount == 0 || this.placeCount < this.maxPlaceCount;
++        public PieceWeight(Class<? extends StrongholdPieces.StrongholdPiece> pieceType, int weight, int limit) {
++            this(pieceType, weight, weight, limit, limit == 0 ? 0 : (int) Math.ceil(limit * DEFAULT_MAX_PLACE_COUNT_SURFACE_FACTOR)); // Martijn - custom strongholds - surface strongholds, bigger strongholds
++        }
++
++        // Martijn start - custom strongholds - surface strongholds, bigger strongholds
++        public boolean doPlace(int chainLength, boolean isSurface) {
++            return this.getEffectiveMaxPlaceCount(isSurface) == 0 || this.placeCount < this.getEffectiveMaxPlaceCount(isSurface);
++            // Martijn end - custom strongholds - surface strongholds, bigger strongholds
+         }
+ 
+-        public boolean isValid() {
+-            return this.maxPlaceCount == 0 || this.placeCount < this.maxPlaceCount;
++        // Martijn start - custom strongholds - surface strongholds, bigger strongholds
++        public boolean isValid(boolean isSurface) {
++            return this.getEffectiveMaxPlaceCount(isSurface) == 0 || this.placeCount < this.getEffectiveMaxPlaceCount(isSurface);
++            // Martijn end - custom strongholds - surface strongholds, bigger strongholds
+         }
+     }
+ 
+@@ -615,8 +714,10 @@ public class StrongholdPieces {
          protected static final int DEPTH = 16;
          private boolean hasPlacedSpawner;
  
@@ -1330,7 +1535,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
          }
  
-@@ -639,14 +694,17 @@ public class StrongholdPieces {
+@@ -639,14 +740,17 @@ public class StrongholdPieces {
  
          }
  
@@ -1352,7 +1557,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.GRATES, 4, 1, 0);
              int i = 6;
              this.generateBox(world, chunkBox, 1, i, 1, 1, i, 14, false, random, StrongholdPieces.SMOOTH_STONE_SELECTOR);
-@@ -694,30 +752,32 @@ public class StrongholdPieces {
+@@ -694,30 +798,32 @@ public class StrongholdPieces {
                  bl &= bls[m];
              }
  
@@ -1406,7 +1611,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
  
              if (!this.hasPlacedSpawner) {
                  BlockPos blockPos = this.getWorldPos(5, 3, 6);
-@@ -739,8 +799,10 @@ public class StrongholdPieces {
+@@ -739,8 +845,10 @@ public class StrongholdPieces {
          protected static final int HEIGHT = 5;
          protected static final int DEPTH = 11;
  
@@ -1419,7 +1624,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
          }
-@@ -754,20 +816,25 @@ public class StrongholdPieces {
+@@ -754,20 +862,25 @@ public class StrongholdPieces {
              this.generateSmallDoorChildForward((StrongholdPieces.StartPiece)start, holder, random, 1, 1);
          }
  
@@ -1453,7 +1658,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
  
              for(int i = 1; i <= 3; ++i) {
                  this.placeBlock(world, Blocks.IRON_BARS.defaultBlockState().setValue(IronBarsBlock.NORTH, Boolean.valueOf(true)).setValue(IronBarsBlock.SOUTH, Boolean.valueOf(true)), 4, i, 4, chunkBox);
-@@ -790,8 +857,10 @@ public class StrongholdPieces {
+@@ -790,8 +903,10 @@ public class StrongholdPieces {
      }
  
      public static class RightTurn extends StrongholdPieces.Turn {
@@ -1466,7 +1671,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
          }
-@@ -811,20 +880,23 @@ public class StrongholdPieces {
+@@ -811,20 +926,23 @@ public class StrongholdPieces {
  
          }
  
@@ -1496,7 +1701,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              }
  
          }
-@@ -836,8 +908,10 @@ public class StrongholdPieces {
+@@ -836,8 +954,10 @@ public class StrongholdPieces {
          protected static final int DEPTH = 11;
          protected final int type;
  
@@ -1509,7 +1714,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
              this.type = random.nextInt(5);
-@@ -861,18 +935,23 @@ public class StrongholdPieces {
+@@ -861,18 +981,23 @@ public class StrongholdPieces {
              this.generateSmallDoorChildRight((StrongholdPieces.StartPiece)start, holder, random, 1, 4);
          }
  
@@ -1540,7 +1745,42 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              switch (this.type) {
                  case 0:
                      this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 5, 1, 5, chunkBox);
-@@ -977,21 +1056,49 @@ public class StrongholdPieces {
+@@ -902,7 +1027,7 @@ public class StrongholdPieces {
+                     this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 5, 1, 5, chunkBox);
+                     this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 5, 2, 5, chunkBox);
+                     this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 5, 3, 5, chunkBox);
+-                    this.placeBlock(world, Blocks.WATER.defaultBlockState(), 5, 4, 5, chunkBox);
++                    this.placeBlock(world, TEMPORARY_WATER.defaultBlockState(), 5, 4, 5, chunkBox); // Martijn - custom strongholds - strongholds in water
+                     break;
+                 case 2:
+                     for(int j = 1; j <= 9; ++j) {
+@@ -954,6 +1079,25 @@ public class StrongholdPieces {
+             }
+ 
+         }
++
++        // Martijn start - custom strongholds - strongholds in water
++
++        public static final Block TEMPORARY_WATER = Blocks.WARPED_WART_BLOCK;
++
++        @Override
++        public void spreadWater(WorldGenLevel world) {
++            BlockPos fountainWaterPos = this.getWorldPos(5, 4, 5);
++            if (world.getBlockState(fountainWaterPos).is(Blocks.WATER)) {
++                this.placeBlockUnconditionally(world, TEMPORARY_WATER.defaultBlockState(), 5, 4, 5, boundingBox);
++            }
++            super.spreadWater(world);
++            if (world.getBlockState(fountainWaterPos).is(TEMPORARY_WATER)) {
++                this.placeBlockUnconditionally(world, Blocks.WATER.defaultBlockState(), 5, 4, 5, boundingBox);
++            }
++        }
++
++        // Martijn end - custom strongholds - strongholds in water
++
+     }
+ 
+     static class SmoothStoneSelector extends StructurePiece.BlockSelector {
+@@ -977,21 +1121,49 @@ public class StrongholdPieces {
          }
      }
  
@@ -1594,7 +1834,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.isSource = false;
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
-@@ -1021,14 +1128,17 @@ public class StrongholdPieces {
+@@ -1021,14 +1193,17 @@ public class StrongholdPieces {
              this.generateSmallDoorChildForward((StrongholdPieces.StartPiece)start, holder, random, 1, 1);
          }
  
@@ -1616,7 +1856,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 7, 0);
              this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 4);
              this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 2, 6, 1, chunkBox);
-@@ -1057,8 +1167,10 @@ public class StrongholdPieces {
+@@ -1057,8 +1232,10 @@ public class StrongholdPieces {
          public StrongholdPieces.PortalRoom portalRoomPiece;
          public final List<StructurePiece> pendingChildren = Lists.newArrayList();
  
@@ -1629,7 +1869,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
          }
  
          public StartPiece(CompoundTag nbt) {
-@@ -1078,8 +1190,10 @@ public class StrongholdPieces {
+@@ -1078,8 +1255,10 @@ public class StrongholdPieces {
          private final boolean leftChild;
          private final boolean rightChild;
  
@@ -1642,7 +1882,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
              this.leftChild = random.nextInt(2) == 0;
-@@ -1112,14 +1226,17 @@ public class StrongholdPieces {
+@@ -1112,14 +1291,17 @@ public class StrongholdPieces {
  
          }
  
@@ -1664,7 +1904,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.generateSmallDoor(world, random, chunkBox, this.entryDoor, 1, 1, 0);
              this.generateSmallDoor(world, random, chunkBox, StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING, 1, 1, 6);
              BlockState blockState = Blocks.WALL_TORCH.defaultBlockState().setValue(WallTorchBlock.FACING, Direction.EAST);
-@@ -1129,11 +1246,11 @@ public class StrongholdPieces {
+@@ -1129,11 +1311,11 @@ public class StrongholdPieces {
              this.maybeGenerateBlock(world, chunkBox, random, 0.1F, 1, 2, 5, blockState);
              this.maybeGenerateBlock(world, chunkBox, random, 0.1F, 3, 2, 5, blockState2);
              if (this.leftChild) {
@@ -1678,7 +1918,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              }
  
          }
-@@ -1144,8 +1261,10 @@ public class StrongholdPieces {
+@@ -1144,8 +1326,10 @@ public class StrongholdPieces {
          private static final int HEIGHT = 11;
          private static final int DEPTH = 8;
  
@@ -1691,7 +1931,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
              this.setOrientation(orientation);
              this.entryDoor = this.randomSmallDoor(random);
          }
-@@ -1159,22 +1278,49 @@ public class StrongholdPieces {
+@@ -1159,22 +1343,49 @@ public class StrongholdPieces {
              this.generateSmallDoorChildForward((StrongholdPieces.StartPiece)start, holder, random, 1, 1);
          }
  
@@ -1749,7 +1989,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
                  if (i < 5) {
                      this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 1, 5 - i, 1 + i, chunkBox);
                      this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), 2, 5 - i, 1 + i, chunkBox);
-@@ -1187,25 +1333,153 @@ public class StrongholdPieces {
+@@ -1187,25 +1398,153 @@ public class StrongholdPieces {
  
      abstract static class StrongholdPiece extends StructurePiece {
          protected StrongholdPieces.StrongholdPiece.SmallDoorType entryDoor = StrongholdPieces.StrongholdPiece.SmallDoorType.OPENING;
@@ -1844,8 +2084,8 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
 +        @Override
 +        protected void generateBox(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir) {
 +            this.generateBox(world, box, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, cantReplaceAir, cantReplaceAir);
-         }
- 
++        }
++
 +        @Override
 +        protected void generateBox(WorldGenLevel world, BoundingBox box, BoundingBox fillBox, BlockState outline, BlockState inside, boolean cantReplaceAir) {
 +            this.generateBox(world, box, fillBox, outline, inside, cantReplaceAir, cantReplaceAir);
@@ -1888,8 +2128,8 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
 +        @Override
 +        protected void generateMaybeBox(WorldGenLevel world, BoundingBox box, RandomSource random, float blockChance, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean stayBelowSeaLevel) {
 +            this.generateMaybeBox(world, box, random, blockChance, minX, minY, minZ, maxX, maxY, maxZ, outline, inside, cantReplaceAir, cantReplaceAir, stayBelowSeaLevel);
-+        }
-+
+         }
+ 
 +        @Override
 +        protected void generateUpperHalfSphere(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState block, boolean cantReplaceAir) {
 +            this.generateUpperHalfSphere(world, bounds, minX, minY, minZ, maxX, maxY, maxZ, block, cantReplaceAir, cantReplaceAir);
@@ -1905,7 +2145,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
                      break;
                  case WOOD_DOOR:
                      this.placeBlock(world, Blocks.STONE_BRICKS.defaultBlockState(), x, y, z, boundingBox);
-@@ -1267,13 +1541,13 @@ public class StrongholdPieces {
+@@ -1267,13 +1606,13 @@ public class StrongholdPieces {
              if (direction != null) {
                  switch (direction) {
                      case NORTH:
@@ -1923,7 +2163,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
                  }
              }
  
-@@ -1286,13 +1560,13 @@ public class StrongholdPieces {
+@@ -1286,13 +1625,13 @@ public class StrongholdPieces {
              if (direction != null) {
                  switch (direction) {
                      case NORTH:
@@ -1941,7 +2181,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
                  }
              }
  
-@@ -1305,13 +1579,13 @@ public class StrongholdPieces {
+@@ -1305,13 +1644,13 @@ public class StrongholdPieces {
              if (direction != null) {
                  switch (direction) {
                      case NORTH:
@@ -1959,7 +2199,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
                  }
              }
  
-@@ -1328,6 +1602,137 @@ public class StrongholdPieces {
+@@ -1328,6 +1667,137 @@ public class StrongholdPieces {
              GRATES,
              IRON_DOOR;
          }
@@ -2051,14 +2291,14 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
 +                    }
 +                }
 +            }
-+            this.spreadWater(); // Martijn - custom strongholds - strongholds in water
++            this.spreadWater(world); // Martijn - custom strongholds - strongholds in water
 +        }
 +
 +        // Martijn end - custom strongholds - surface strongholds
 +
 +        // Martijn start - custom strongholds - strongholds in water
 +
-+        public void spreadWater() {
++        public void spreadWater(WorldGenLevel world) {
 +            // Spread water horizontally and downwards
 +            while (true) {
 +                boolean changesThisCycle = false;
@@ -2097,7 +2337,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
      }
  
      public abstract static class Turn extends StrongholdPieces.StrongholdPiece {
-@@ -1335,8 +1740,10 @@ public class StrongholdPieces {
+@@ -1335,8 +1805,10 @@ public class StrongholdPieces {
          protected static final int HEIGHT = 5;
          protected static final int DEPTH = 5;
  
@@ -2111,7 +2351,7 @@ index c9ac75ff433efd3b54868b62bce3168dbcdfa6b2..a0df7932a40cc61cd8419fabf451f51e
  
          public Turn(StructurePieceType type, CompoundTag nbt) {
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
-index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..497e41b4ce6338e2a459a791dee8290871beff2a 100644
+index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..0bc38473004fd91721484e188d2536ca0f0d3f6f 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/structure/structures/StrongholdStructure.java
 @@ -1,10 +1,13 @@
@@ -2128,15 +2368,28 @@ index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..497e41b4ce6338e2a459a791dee82908
  import io.papermc.paper.configuration.GlobalConfiguration;
  import io.papermc.paper.world.structure.ConfiguredStructure;
  import net.minecraft.core.BlockPos;
-@@ -12,6 +15,7 @@ import net.minecraft.core.Holder;
+@@ -12,43 +15,66 @@ import net.minecraft.core.Holder;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.tags.BiomeTags;
  import net.minecraft.util.RandomSource;
 +import net.minecraft.util.StringRepresentable;
++import net.minecraft.world.level.ChunkPos;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelHeightAccessor;
++import net.minecraft.world.level.StructureManager;
++import net.minecraft.world.level.WorldGenLevel;
  import net.minecraft.world.level.biome.Biome;
-@@ -26,29 +30,45 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilde
+ import net.minecraft.world.level.biome.BiomeSource;
+ import net.minecraft.world.level.biome.Biomes;
+ import net.minecraft.world.level.chunk.ChunkAccess;
++import net.minecraft.world.level.chunk.ChunkGenerator;
+ import net.minecraft.world.level.levelgen.WorldgenRandom;
++import net.minecraft.world.level.levelgen.structure.BoundingBox;
+ import net.minecraft.world.level.levelgen.structure.Structure;
+ import net.minecraft.world.level.levelgen.structure.StructurePiece;
+ import net.minecraft.world.level.levelgen.structure.StructureType;
++import net.minecraft.world.level.levelgen.structure.pieces.PiecesContainer;
+ import net.minecraft.world.level.levelgen.structure.pieces.StructurePiecesBuilder;
  import org.bukkit.Bukkit;
  
  public class StrongholdStructure extends Structure {
@@ -2188,7 +2441,15 @@ index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..497e41b4ce6338e2a459a791dee82908
              Holder<Biome> holder = null;
              try {
                  BlockPos blockPos = context.chunkPos().getMiddleBlockPosition(context.chunkGenerator().getSeaLevel());
-@@ -85,7 +105,7 @@ public class StrongholdStructure extends Structure {
+@@ -80,12 +106,14 @@ public class StrongholdStructure extends Structure {
+ 
+         // Martijn end - custom strongholds - surface strongholds
+ 
++        final int minYDifferenceBetweenPortalRoomAndStartPiece = 10;
++
+         StrongholdPieces.StartPiece startPiece;
+-        do {
++        while (true) { // Martijn - custom strongholds - bigger strongholds
              collector.clear();
              context.random().setLargeFeatureSeed(context.seed() + (long)(i++), context.chunkPos().x, context.chunkPos().z);
              StrongholdPieces.resetPieces();
@@ -2197,7 +2458,27 @@ index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..497e41b4ce6338e2a459a791dee82908
              collector.addPiece(startPiece);
              startPiece.addChildren(startPiece, collector, context.random());
              List<StructurePiece> list = startPiece.pendingChildren;
-@@ -100,8 +120,10 @@ public class StrongholdStructure extends Structure {
+@@ -96,12 +124,29 @@ public class StrongholdStructure extends Structure {
+                 structurePiece.addChildren(startPiece, collector, context.random());
+             }
+ 
+-        } while(collector.isEmpty() || startPiece.portalRoomPiece == null);
++            // Martijn start - custom strongholds - bigger strongholds
++            if (collector.isEmpty()) {
++                Bukkit.getLogger().info("Failed a stronghold generation (isSurface = " + isSurface + "): pieces empty");
++                continue;
++            } else if (startPiece.portalRoomPiece == null) {
++                Bukkit.getLogger().info("Failed a stronghold generation (isSurface = " + isSurface + "): no end portal");
++                continue;
++                // Martijn start - custom strongholds - surface strongholds
++            } else if (isSurface && startPiece.portalRoomPiece.getBoundingBox().getCenter().getY() >= startPiece.getBoundingBox().getCenter().getY() - minYDifferenceBetweenPortalRoomAndStartPiece) {
++                Bukkit.getLogger().info("Failed a stronghold generation (isSurface = " + isSurface + "): end portal not low enough");
++                continue;
++                // Martijn end - custom strongholds - surface strongholds
++            }
++            break;
++        }
++        // Martijn end - custom strongholds - bigger strongholds
  
          // Martijn start - custom strongholds - surface strongholds
  
@@ -2210,7 +2491,7 @@ index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..497e41b4ce6338e2a459a791dee82908
              Bukkit.getLogger().info("To create more surface strongholds, vertically offsetting stronghold at block " + context.chunkPos().getBlockX(2) + " , " + context.chunkPos().getBlockZ(2) + " by " + extraIncreasedY + " and not moving it downwards on purpose");
              collector.offsetPiecesVertically(extraIncreasedY);
          } else {
-@@ -112,8 +134,34 @@ public class StrongholdStructure extends Structure {
+@@ -112,8 +157,48 @@ public class StrongholdStructure extends Structure {
  
      }
  
@@ -2243,5 +2524,19 @@ index 10c81ebe7a6fe04784614c1df9cc454d2db33b90..497e41b4ce6338e2a459a791dee82908
 +    }
 +
 +    // Martijn end - custom strongholds - surface strongholds
++
++    // Martijn start - custom strongholds - strongholds in water
++
++    @Override
++    public void afterPlace(WorldGenLevel world, StructureManager structureAccessor, ChunkGenerator chunkGenerator, RandomSource random, BoundingBox box, ChunkPos chunkPos, PiecesContainer pieces) {
++        super.afterPlace(world, structureAccessor, chunkGenerator, random, box, chunkPos, pieces);
++        pieces.pieces().forEach(piece -> {
++            if (piece instanceof StrongholdPieces.StrongholdPiece strongholdPiece) {
++                strongholdPiece.spreadWater(world);
++            }
++        });
++    }
++
++    // Martijn end - custom strongholds - strongholds in water
 +
  }
