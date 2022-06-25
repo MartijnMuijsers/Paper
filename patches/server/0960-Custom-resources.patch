@@ -1,0 +1,291 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 25 Jun 2022 13:28:30 +0200
+Subject: [PATCH] Custom resources
+
+
+diff --git a/src/main/java/net/minecraft/commands/SharedSuggestionProvider.java b/src/main/java/net/minecraft/commands/SharedSuggestionProvider.java
+index cb63e8f343c81fdf192784c92e4f79a8146bec94..7480323cefe50147447c820b6123653b8ab8e22a 100644
+--- a/src/main/java/net/minecraft/commands/SharedSuggestionProvider.java
++++ b/src/main/java/net/minecraft/commands/SharedSuggestionProvider.java
+@@ -75,7 +75,7 @@ public interface SharedSuggestionProvider {
+                 if (matchesSubStr(remaining, string)) {
+                     action.accept(object);
+                 }
+-            } else if (matchesSubStr(remaining, resourceLocation.getNamespace()) || resourceLocation.getNamespace().equals("minecraft") && matchesSubStr(remaining, resourceLocation.getPath())) {
++            } else if (matchesSubStr(remaining, resourceLocation.getNamespace()) || (resourceLocation.getNamespace().equals("minecraft") || resourceLocation.getNamespace().equals("sucraft")) && matchesSubStr(remaining, resourceLocation.getPath())) { // Martijn - custom resources
+                 action.accept(object);
+             }
+         }
+diff --git a/src/main/java/net/minecraft/data/Main.java b/src/main/java/net/minecraft/data/Main.java
+index 0c12a78498708fbfad6b658ed930969bcc31ec23..c4cbf8589678b2d8b330d072391a021895a10ca9 100644
+--- a/src/main/java/net/minecraft/data/Main.java
++++ b/src/main/java/net/minecraft/data/Main.java
+@@ -37,6 +37,8 @@ import net.minecraft.data.tags.PoiTypeTagsProvider;
+ import net.minecraft.data.tags.StructureTagsProvider;
+ import net.minecraft.data.tags.WorldPresetTagsProvider;
+ import net.minecraft.obfuscate.DontObfuscate;
++import nl.martijnmuijsers.paper.biome.SuCraftBiomeTagsProvider;
++import nl.martijnmuijsers.paper.structure.SuCraftStructureTagsProvider;
+ 
+ public class Main {
+     @DontObfuscate
+@@ -82,6 +84,7 @@ public class Main {
+         dataGenerator.addProvider(includeServer, new ItemTagsProvider(dataGenerator, blockTagsProvider));
+         dataGenerator.addProvider(includeServer, new BannerPatternTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new BiomeTagsProvider(dataGenerator));
++        dataGenerator.addProvider(includeServer, new SuCraftBiomeTagsProvider(dataGenerator)); // Martijn - custom resources
+         dataGenerator.addProvider(includeServer, new CatVariantTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new EntityTypeTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new FlatLevelGeneratorPresetTagsProvider(dataGenerator));
+@@ -91,6 +94,7 @@ public class Main {
+         dataGenerator.addProvider(includeServer, new PaintingVariantTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new PoiTypeTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new StructureTagsProvider(dataGenerator));
++        dataGenerator.addProvider(includeServer, new SuCraftStructureTagsProvider(dataGenerator)); // Martijn - custom resources
+         dataGenerator.addProvider(includeServer, new WorldPresetTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeDev, new NbtToSnbt(dataGenerator));
+         dataGenerator.addProvider(includeReports, new BiomeParametersDumpReport(dataGenerator));
+diff --git a/src/main/java/net/minecraft/data/worldgen/Structures.java b/src/main/java/net/minecraft/data/worldgen/Structures.java
+index ae1d5d7f347491485a4101e81501213759e3cfa5..bfcf01afe4cb1fb2c5462dd19261d9388439f179 100644
+--- a/src/main/java/net/minecraft/data/worldgen/Structures.java
++++ b/src/main/java/net/minecraft/data/worldgen/Structures.java
+@@ -87,23 +87,23 @@ public class Structures {
+         return MINESHAFT;
+     }
+ 
+-    private static Structure.StructureSettings structure(TagKey<Biome> biomeTag, Map<MobCategory, StructureSpawnOverride> spawns, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) {
++    public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, Map<MobCategory, StructureSpawnOverride> spawns, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) { // Martijn - custom resources
+         return new Structure.StructureSettings(biomes(biomeTag), spawns, featureStep, terrainAdaptation);
+     }
+ 
+-    private static Structure.StructureSettings structure(TagKey<Biome> biomeTag, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) {
++    public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) { // Martijn - custom resources
+         return structure(biomeTag, Map.of(), featureStep, terrainAdaptation);
+     }
+ 
+-    private static Structure.StructureSettings structure(TagKey<Biome> biomeTag, TerrainAdjustment terrainAdaptation) {
++    public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, TerrainAdjustment terrainAdaptation) { // Martijn - custom resources
+         return structure(biomeTag, Map.of(), GenerationStep.Decoration.SURFACE_STRUCTURES, terrainAdaptation);
+     }
+ 
+-    private static Holder<Structure> register(ResourceKey<Structure> key, Structure structure) {
++    public static Holder<Structure> register(ResourceKey<Structure> key, Structure structure) { // Martijn - custom resources
+         return BuiltinRegistries.register(BuiltinRegistries.STRUCTURES, key, structure);
+     }
+ 
+-    private static HolderSet<Biome> biomes(TagKey<Biome> key) {
++    public static HolderSet<Biome> biomes(TagKey<Biome> key) { // Martijn - custom resources
+         return BuiltinRegistries.BIOME.getOrCreateTag(key);
+     }
+ }
+diff --git a/src/main/java/net/minecraft/resources/ResourceLocation.java b/src/main/java/net/minecraft/resources/ResourceLocation.java
+index 7017dd42f832d928f1008a05f01701667d951644..bb92ba63e91a637b18154a154672acc413acf5ca 100644
+--- a/src/main/java/net/minecraft/resources/ResourceLocation.java
++++ b/src/main/java/net/minecraft/resources/ResourceLocation.java
+@@ -25,6 +25,7 @@ public class ResourceLocation implements Comparable<ResourceLocation> {
+     public static final char NAMESPACE_SEPARATOR = ':';
+     public static final String DEFAULT_NAMESPACE = "minecraft";
+     public static final String REALMS_NAMESPACE = "realms";
++    public static final String SUCRAFT_NAMESPACE = "sucraft"; // Martijn - custom resources
+     protected final String namespace;
+     protected final String path;
+ 
+@@ -46,6 +47,14 @@ public class ResourceLocation implements Comparable<ResourceLocation> {
+         this(new String[]{namespace, path});
+     }
+ 
++    // Martijn start - custom resources
++
++    public static ResourceLocation sucraft(String id) {
++        return new ResourceLocation(SUCRAFT_NAMESPACE, id);
++    }
++
++    // Martijn end - custom resources
++
+     public static ResourceLocation of(String id, char delimiter) {
+         return new ResourceLocation(decompose(id, delimiter));
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTags.java b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTags.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bde00c76313a1794edf0f353b93187ce3a3541b5
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTags.java
+@@ -0,0 +1,19 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.biome;
++
++import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.tags.TagKey;
++import net.minecraft.world.level.biome.Biome;
++
++/**
++ * Based on {@link net.minecraft.tags.BiomeTags}
++ */
++public class SuCraftBiomeTags {
++
++    private static TagKey<Biome> create(String id) {
++        return TagKey.create(Registry.BIOME_REGISTRY, ResourceLocation.sucraft(id));
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..4c122f0086b8112837d33a9870a56d58da7fa05e
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
+@@ -0,0 +1,22 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.biome;
++
++import net.minecraft.data.BuiltinRegistries;
++import net.minecraft.data.DataGenerator;
++import net.minecraft.data.tags.TagsProvider;
++import net.minecraft.world.level.biome.Biome;
++
++/**
++ * Based on {@link net.minecraft.data.tags.BiomeTagsProvider}
++ */
++public class SuCraftBiomeTagsProvider extends TagsProvider<Biome> {
++
++    public SuCraftBiomeTagsProvider(DataGenerator dataGenerator) {
++        super(dataGenerator, BuiltinRegistries.BIOME);
++    }
++
++    @Override
++    protected void addTags() {}
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftBuiltinStructures.java b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftBuiltinStructures.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d81b5b97f24c4ebb73f10cdab99a07fa2ba9ead0
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftBuiltinStructures.java
+@@ -0,0 +1,19 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.structure;
++
++import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.level.levelgen.structure.Structure;
++
++/**
++ * Based on {@link net.minecraft.world.level.levelgen.structure.BuiltinStructures}
++ */
++public interface SuCraftBuiltinStructures {
++
++    private static ResourceKey<Structure> createKey(String id) {
++        return ResourceKey.create(Registry.STRUCTURE_REGISTRY, ResourceLocation.sucraft(id));
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTags.java b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTags.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..806bfc5a4c8b6cfd868b508bedb70e6302272ac1
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTags.java
+@@ -0,0 +1,19 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.structure;
++
++import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.tags.TagKey;
++import net.minecraft.world.level.levelgen.structure.Structure;
++
++/**
++ * Based on {@link net.minecraft.tags.StructureTags}
++ */
++public interface SuCraftStructureTags {
++
++    private static TagKey<Structure> create(String id) {
++        return TagKey.create(Registry.STRUCTURE_REGISTRY, ResourceLocation.sucraft(id));
++    }
++    
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..2a1c4780ab40444950e952a9ea53d66cc555882f
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java
+@@ -0,0 +1,22 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.structure;
++
++import net.minecraft.data.BuiltinRegistries;
++import net.minecraft.data.DataGenerator;
++import net.minecraft.data.tags.TagsProvider;
++import net.minecraft.world.level.levelgen.structure.Structure;
++
++/**
++ * Based on {@link net.minecraft.data.tags.StructureTagsProvider}
++ */
++public class SuCraftStructureTagsProvider extends TagsProvider<Structure> {
++
++    public SuCraftStructureTagsProvider(DataGenerator dataGenerator) {
++        super(dataGenerator, BuiltinRegistries.STRUCTURES);
++    }
++
++    @Override
++    protected void addTags() {}
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a289e4af5fa742e25d79aad5bcaa3d3fb54649a0
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java
+@@ -0,0 +1,46 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.structure;
++
++import net.minecraft.core.Holder;
++import net.minecraft.core.HolderSet;
++import net.minecraft.core.Registry;
++import net.minecraft.data.BuiltinRegistries;
++import net.minecraft.data.worldgen.Structures;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.tags.TagKey;
++import net.minecraft.world.entity.MobCategory;
++import net.minecraft.world.level.biome.Biome;
++import net.minecraft.world.level.levelgen.GenerationStep;
++import net.minecraft.world.level.levelgen.structure.Structure;
++import net.minecraft.world.level.levelgen.structure.StructureSpawnOverride;
++import net.minecraft.world.level.levelgen.structure.TerrainAdjustment;
++
++import java.util.Map;
++
++/**
++ * Based on {@link net.minecraft.data.worldgen.Structures}
++ */
++public class SuCraftStructures {
++
++    public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, Map<MobCategory, StructureSpawnOverride> spawns, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) {
++        return Structures.structure(biomeTag, spawns, featureStep, terrainAdaptation);
++    }
++
++    public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) {
++        return Structures.structure(biomeTag, featureStep, terrainAdaptation);
++    }
++
++    public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, TerrainAdjustment terrainAdaptation) {
++        return Structures.structure(biomeTag, terrainAdaptation);
++    }
++
++    public static Holder<Structure> register(ResourceKey<Structure> key, Structure structure) {
++        return Structures.register(key, structure);
++    }
++
++    public static HolderSet<Biome> biomes(TagKey<Biome> key) {
++        return Structures.biomes(key);
++    }
++
++}
