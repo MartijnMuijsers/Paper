@@ -216,6 +216,48 @@ index ae1d5d7f347491485a4101e81501213759e3cfa5..c49ba55cc657991e2aa28df4513f568c
      public static final Holder<Structure> OCEAN_MONUMENT = register(BuiltinStructures.OCEAN_MONUMENT, new OceanMonumentStructure(structure(BiomeTags.HAS_OCEAN_MONUMENT, Map.of(MobCategory.MONSTER, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, WeightedRandomList.create(new MobSpawnSettings.SpawnerData(EntityType.GUARDIAN, 1, 2, 4))), MobCategory.UNDERGROUND_WATER_CREATURE, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, MobSpawnSettings.EMPTY_MOB_LIST), MobCategory.AXOLOTLS, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, MobSpawnSettings.EMPTY_MOB_LIST)), GenerationStep.Decoration.SURFACE_STRUCTURES, TerrainAdjustment.NONE)));
      public static final Holder<Structure> OCEAN_RUIN_COLD = register(BuiltinStructures.OCEAN_RUIN_COLD, new OceanRuinStructure(structure(BiomeTags.HAS_OCEAN_RUIN_COLD, TerrainAdjustment.NONE), OceanRuinStructure.Type.COLD, 0.3F, 0.9F));
      public static final Holder<Structure> OCEAN_RUIN_WARM = register(BuiltinStructures.OCEAN_RUIN_WARM, new OceanRuinStructure(structure(BiomeTags.HAS_OCEAN_RUIN_WARM, TerrainAdjustment.NONE), OceanRuinStructure.Type.WARM, 0.3F, 0.9F));
+diff --git a/src/main/java/net/minecraft/server/ServerAdvancementManager.java b/src/main/java/net/minecraft/server/ServerAdvancementManager.java
+index 902f179e4e997829d9f2143ba358dd16d2303829..9a1433f8029312175302aba8f6c18592d8c38004 100644
+--- a/src/main/java/net/minecraft/server/ServerAdvancementManager.java
++++ b/src/main/java/net/minecraft/server/ServerAdvancementManager.java
+@@ -13,14 +13,19 @@ import java.util.Map;
+ import javax.annotation.Nullable;
+ import net.minecraft.advancements.Advancement;
+ import net.minecraft.advancements.AdvancementList;
++import net.minecraft.advancements.RequirementsStrategy;
+ import net.minecraft.advancements.TreeNodePosition;
+ import net.minecraft.advancements.critereon.DeserializationContext;
++import net.minecraft.advancements.critereon.LocationPredicate;
++import net.minecraft.advancements.critereon.PlayerTrigger;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.packs.resources.ResourceManager;
+ import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+ import net.minecraft.util.GsonHelper;
+ import net.minecraft.util.profiling.ProfilerFiller;
++import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+ import net.minecraft.world.level.storage.loot.PredicateManager;
++import org.bukkit.Bukkit;
+ import org.slf4j.Logger;
+ 
+ public class ServerAdvancementManager extends SimpleJsonResourceReloadListener {
+@@ -49,6 +54,17 @@ public class ServerAdvancementManager extends SimpleJsonResourceReloadListener {
+                 JsonObject jsonobject = GsonHelper.convertToJsonObject(jsonelement, "advancement");
+                 Advancement.Builder advancement_serializedadvancement = Advancement.Builder.fromJson(jsonobject, new DeserializationContext(minecraftkey, this.predicateManager));
+ 
++                // Martijn start - custom strongholds - surface strongholds
++                if (minecraftkey.toString().equals("minecraft:story/follow_ender_eye")) {
++                    advancement_serializedadvancement.getCriteria().clear(); // A bit hacky, but hey, if it works
++                    advancement_serializedadvancement = advancement_serializedadvancement
++                        .requirements(RequirementsStrategy.OR)
++                        .addCriterion("in_stronghold", PlayerTrigger.TriggerInstance.located(LocationPredicate.inStructure(BuiltinStructures.STRONGHOLD)))
++                        .addCriterion("in_stronghold_surface", PlayerTrigger.TriggerInstance.located(LocationPredicate.inStructure(BuiltinStructures.STRONGHOLD_SURFACE)))
++                        .requirements(new String[][] {{"in_stronghold", "in_stronghold_surface"}});
++                }
++                // Martijn end - custom strongholds - surface strongholds
++
+                 map1.put(minecraftkey, advancement_serializedadvancement);
+             } catch (Exception exception) {
+                 ServerAdvancementManager.LOGGER.error("Parsing error loading custom advancement {}: {}", minecraftkey, exception.getMessage());
 diff --git a/src/main/java/net/minecraft/server/level/WorldGenRegion.java b/src/main/java/net/minecraft/server/level/WorldGenRegion.java
 index f000c822ed4563b5b840936852bc7d8e030763e3..7aa5c20d52deb6a66fcf0dce0514f7d6013f0ea1 100644
 --- a/src/main/java/net/minecraft/server/level/WorldGenRegion.java
@@ -414,7 +456,7 @@ index 3b6d54d18ff04e7bd70e789f8bcb98f943226f96..96ae4c606f2fb755d898d4cc2e6e178d
      ResourceKey<Structure> OCEAN_RUIN_COLD = createKey("ocean_ruin_cold");
      ResourceKey<Structure> OCEAN_RUIN_WARM = createKey("ocean_ruin_warm");
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
-index dba3e948bacc9506c3d39b0fe56bcdbd97b44fdb..f5f9bf6b0f64744487041c9a322376ffe6d8f65b 100644
+index dba3e948bacc9506c3d39b0fe56bcdbd97b44fdb..5a01e7b0004aba3fb56a63a28afa25829780ce45 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
 @@ -3,7 +3,9 @@ package net.minecraft.world.level.levelgen.structure;
@@ -1083,7 +1125,7 @@ index dba3e948bacc9506c3d39b0fe56bcdbd97b44fdb..f5f9bf6b0f64744487041c9a322376ff
 +        for (int x = boundingBox.minX(); x <= boundingBox.maxX(); x++) {
 +            for (int y = boundingBox.minY(); y <= boundingBox.maxY(); y++) {
 +                for (int z = boundingBox.minZ(); z <= boundingBox.maxZ(); z++) {
-+                    if (!positionPredicate.test(new ImmutableTriple<>(x, y, z))) {
++                    if (positionPredicate != null && !positionPredicate.test(new ImmutableTriple<>(x, y, z))) {
 +                        continue;
 +                    }
 +                    BlockPos pos = new BlockPos(x, y, z);
