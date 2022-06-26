@@ -1,0 +1,477 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sun, 26 Jun 2022 20:59:24 +0200
+Subject: [PATCH] Modified custom resource system to work with tags
+
+
+diff --git a/src/main/java/net/minecraft/core/MappedRegistry.java b/src/main/java/net/minecraft/core/MappedRegistry.java
+index 3ef5d440fd3ce209110543bfd36569e846a5b749..a060a623ffdfe6538d00eb389f7ae7e86a767378 100644
+--- a/src/main/java/net/minecraft/core/MappedRegistry.java
++++ b/src/main/java/net/minecraft/core/MappedRegistry.java
+@@ -29,8 +29,18 @@ import javax.annotation.Nullable;
+ import net.minecraft.Util;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.tags.StructureTags;
+ import net.minecraft.tags.TagKey;
+ import net.minecraft.util.RandomSource;
++import net.minecraft.world.level.biome.Biome;
++import net.minecraft.world.level.biome.Biomes;
++import net.minecraft.world.level.levelgen.structure.Structure;
++import nl.martijnmuijsers.paper.biome.SuCraftBiomeTags;
++import nl.martijnmuijsers.paper.biome.SuCraftBiomeTagsProvider;
++import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
++import nl.martijnmuijsers.paper.structure.SuCraftBuiltinStructures;
++import nl.martijnmuijsers.paper.structure.SuCraftStructureTagsProvider;
+ import org.apache.commons.lang3.Validate;
+ import org.slf4j.Logger;
+ 
+@@ -379,9 +389,36 @@ public class MappedRegistry<T> extends WritableRegistry<T> {
+         this.byKey.values().forEach((entry) -> {
+             map.put(entry, new ArrayList<>());
+         });
++        // Martijn start - custom resources
++        if (this.key().equals(STRUCTURE_REGISTRY)) {
++            tagEntries = ((SuCraftTagsProvider<T>) new SuCraftStructureTagsProvider((Registry<Structure>) this)).run(tagEntries);
++        } else if (this.key().equals(BIOME_REGISTRY)) {
++            tagEntries = ((SuCraftTagsProvider<T>) new SuCraftBiomeTagsProvider((Registry<Biome>) this)).run(tagEntries);
++        }
++        // Martijn end - custom resource
++        tagEntries.forEach((tag, entries) ->
++            MinecraftServer.LOGGER.info(tag + " :: " + entries));
+         tagEntries.forEach((tag, entries) -> {
+             for(Holder<T> holder : entries) {
+                 if (!holder.isValidInRegistry(this)) {
++                    MinecraftServer.LOGGER.info("--");
++                    MinecraftServer.LOGGER.info("" + tag);
++                    MinecraftServer.LOGGER.info("" + this);
++                    MinecraftServer.LOGGER.info("" + holder);
++                    MinecraftServer.LOGGER.info("" + holder.getClass().getName());
++                    try {
++                        var field = Holder.Reference.class.getDeclaredField("registry");
++                        field.setAccessible(true);
++                        var registry = field.get(holder);
++                        MinecraftServer.LOGGER.info("" + registry);
++                        MinecraftServer.LOGGER.info("" + this.equals(registry));
++                        MinecraftServer.LOGGER.info("" + holder.isValidInRegistry(this));
++                        MinecraftServer.LOGGER.info("" + holder.isValidInRegistry((Registry<T>) registry));
++                    } catch (IllegalAccessException e) {
++                        throw new RuntimeException(e);
++                    } catch (NoSuchFieldException e) {
++                        throw new RuntimeException(e);
++                    }
+                     throw new IllegalStateException("Can't create named set " + tag + " containing value " + holder + " from outside registry " + this);
+                 }
+ 
+diff --git a/src/main/java/net/minecraft/data/Main.java b/src/main/java/net/minecraft/data/Main.java
+index c4cbf8589678b2d8b330d072391a021895a10ca9..ecd2166991dff09ecd6ea0a7471c878e0cdb689e 100644
+--- a/src/main/java/net/minecraft/data/Main.java
++++ b/src/main/java/net/minecraft/data/Main.java
+@@ -4,6 +4,7 @@ import java.io.IOException;
+ import java.nio.file.Path;
+ import java.nio.file.Paths;
+ import java.util.Collection;
++import java.util.List;
+ import java.util.stream.Collectors;
+ import joptsimple.OptionParser;
+ import joptsimple.OptionSet;
+@@ -37,8 +38,6 @@ import net.minecraft.data.tags.PoiTypeTagsProvider;
+ import net.minecraft.data.tags.StructureTagsProvider;
+ import net.minecraft.data.tags.WorldPresetTagsProvider;
+ import net.minecraft.obfuscate.DontObfuscate;
+-import nl.martijnmuijsers.paper.biome.SuCraftBiomeTagsProvider;
+-import nl.martijnmuijsers.paper.structure.SuCraftStructureTagsProvider;
+ 
+ public class Main {
+     @DontObfuscate
+@@ -84,7 +83,6 @@ public class Main {
+         dataGenerator.addProvider(includeServer, new ItemTagsProvider(dataGenerator, blockTagsProvider));
+         dataGenerator.addProvider(includeServer, new BannerPatternTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new BiomeTagsProvider(dataGenerator));
+-        dataGenerator.addProvider(includeServer, new SuCraftBiomeTagsProvider(dataGenerator)); // Martijn - custom resources
+         dataGenerator.addProvider(includeServer, new CatVariantTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new EntityTypeTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new FlatLevelGeneratorPresetTagsProvider(dataGenerator));
+@@ -94,7 +92,6 @@ public class Main {
+         dataGenerator.addProvider(includeServer, new PaintingVariantTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new PoiTypeTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeServer, new StructureTagsProvider(dataGenerator));
+-        dataGenerator.addProvider(includeServer, new SuCraftStructureTagsProvider(dataGenerator)); // Martijn - custom resources
+         dataGenerator.addProvider(includeServer, new WorldPresetTagsProvider(dataGenerator));
+         dataGenerator.addProvider(includeDev, new NbtToSnbt(dataGenerator));
+         dataGenerator.addProvider(includeReports, new BiomeParametersDumpReport(dataGenerator));
+diff --git a/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java b/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
+index d7fa20ed673c96c9cda352ae5025c0581c538b21..0e79ec93eb84cc1b62c4048c204b97c8020967bf 100644
+--- a/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
++++ b/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
+@@ -5,7 +5,6 @@ import net.minecraft.data.DataGenerator;
+ import net.minecraft.tags.StructureTags;
+ import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+ import net.minecraft.world.level.levelgen.structure.Structure;
+-import nl.martijnmuijsers.paper.structure.SuCraftBuiltinStructures;
+ 
+ public class StructureTagsProvider extends TagsProvider<Structure> {
+     public StructureTagsProvider(DataGenerator dataGenerator) {
+@@ -21,7 +20,7 @@ public class StructureTagsProvider extends TagsProvider<Structure> {
+         this.tag(StructureTags.RUINED_PORTAL).add(BuiltinStructures.RUINED_PORTAL_DESERT).add(BuiltinStructures.RUINED_PORTAL_JUNGLE).add(BuiltinStructures.RUINED_PORTAL_MOUNTAIN).add(BuiltinStructures.RUINED_PORTAL_NETHER).add(BuiltinStructures.RUINED_PORTAL_OCEAN).add(BuiltinStructures.RUINED_PORTAL_STANDARD).add(BuiltinStructures.RUINED_PORTAL_SWAMP);
+         this.tag(StructureTags.CATS_SPAWN_IN).add(BuiltinStructures.SWAMP_HUT);
+         this.tag(StructureTags.CATS_SPAWN_AS_BLACK).add(BuiltinStructures.SWAMP_HUT);
+-        this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(BuiltinStructures.STRONGHOLD).add(SuCraftBuiltinStructures.STRONGHOLD_SURFACE); // Martijn - custom strongholds - surface strongholds
++        this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(BuiltinStructures.STRONGHOLD);
+         this.tag(StructureTags.DOLPHIN_LOCATED).addTag(StructureTags.OCEAN_RUIN).addTag(StructureTags.SHIPWRECK);
+         this.tag(StructureTags.ON_WOODLAND_EXPLORER_MAPS).add(BuiltinStructures.WOODLAND_MANSION);
+         this.tag(StructureTags.ON_OCEAN_EXPLORER_MAPS).add(BuiltinStructures.OCEAN_MONUMENT);
+diff --git a/src/main/java/net/minecraft/data/worldgen/Structures.java b/src/main/java/net/minecraft/data/worldgen/Structures.java
+index b6a009b48874d7db4ac373f4192a83d212592ff9..6783ae575dcc711a44ab61f7588d7e31e0b15d89 100644
+--- a/src/main/java/net/minecraft/data/worldgen/Structures.java
++++ b/src/main/java/net/minecraft/data/worldgen/Structures.java
+@@ -44,6 +44,7 @@ import net.minecraft.world.level.levelgen.structure.structures.ShipwreckStructur
+ import net.minecraft.world.level.levelgen.structure.structures.StrongholdStructure;
+ import net.minecraft.world.level.levelgen.structure.structures.SwampHutStructure;
+ import net.minecraft.world.level.levelgen.structure.structures.WoodlandMansionStructure;
++import nl.martijnmuijsers.paper.structure.SuCraftStructures;
+ 
+ public class Structures {
+     public static final Holder<Structure> PILLAGER_OUTPOST = register(BuiltinStructures.PILLAGER_OUTPOST, new JigsawStructure(structure(BiomeTags.HAS_PILLAGER_OUTPOST, Map.of(MobCategory.MONSTER, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.STRUCTURE, WeightedRandomList.create(new MobSpawnSettings.SpawnerData(EntityType.PILLAGER, 1, 1, 1)))), GenerationStep.Decoration.SURFACE_STRUCTURES, TerrainAdjustment.BEARD_THIN), PillagerOutpostPools.START, 7, ConstantHeight.of(VerticalAnchor.absolute(0)), true, Heightmap.Types.WORLD_SURFACE_WG));
+@@ -84,7 +85,9 @@ public class Structures {
+     })), GenerationStep.Decoration.UNDERGROUND_DECORATION, TerrainAdjustment.BEARD_BOX), AncientCityStructurePieces.START, Optional.of(new ResourceLocation("city_anchor")), 7, ConstantHeight.of(VerticalAnchor.absolute(-27)), false, Optional.empty(), 116));
+ 
+     public static Holder<? extends Structure> bootstrap(Registry<Structure> registry) {
+-        return MINESHAFT;
++        var bootstrapValue = MINESHAFT;
++        SuCraftStructures.bootstrap(registry);
++        return bootstrapValue;
+     }
+ 
+     public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, Map<MobCategory, StructureSpawnOverride> spawns, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) { // Martijn - custom resources
+diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
+index 0a843e0afbcb1af8e2641515eb244b791b819b8c..5aaeb05cf3f3a86530e929499dfb98a659c714b7 100644
+--- a/src/main/java/net/minecraft/server/Main.java
++++ b/src/main/java/net/minecraft/server/Main.java
+@@ -27,6 +27,8 @@ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+ import net.minecraft.commands.Commands;
+ import net.minecraft.core.RegistryAccess;
++import net.minecraft.data.CachedOutput;
++import net.minecraft.data.DataGenerator;
+ import net.minecraft.nbt.NbtOps;
+ import net.minecraft.nbt.Tag;
+ import net.minecraft.network.chat.Component;
+@@ -55,6 +57,9 @@ import net.minecraft.world.level.levelgen.presets.WorldPresets;
+ import net.minecraft.world.level.storage.LevelResource;
+ import net.minecraft.world.level.storage.LevelStorageSource;
+ import net.minecraft.world.level.storage.LevelSummary;
++import nl.martijnmuijsers.paper.biome.SuCraftBiomeTagsProvider;
++import nl.martijnmuijsers.paper.data.BlackHoleCachedOutput;
++import nl.martijnmuijsers.paper.structure.SuCraftStructureTagsProvider;
+ import org.slf4j.Logger;
+ 
+ // CraftBukkit start
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
+index a59f91e402852038d3ecef4b9b7899641e1bd31d..ad35e4fc3898b2702151e8221c3d5f7dca7917d5 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
+@@ -2,24 +2,35 @@
+ 
+ package nl.martijnmuijsers.paper.biome;
+ 
++import net.minecraft.core.Registry;
+ import net.minecraft.data.BuiltinRegistries;
+ import net.minecraft.data.DataGenerator;
+ import net.minecraft.data.tags.TagsProvider;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.tags.BiomeTags;
++import net.minecraft.tags.StructureTags;
++import net.minecraft.tags.TagKey;
+ import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.biome.Biomes;
++import net.minecraft.world.level.levelgen.structure.Structure;
++import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
++import nl.martijnmuijsers.paper.structure.SuCraftBuiltinStructures;
++
++import java.util.ArrayList;
+ 
+ /**
+  * Based on {@link net.minecraft.data.tags.BiomeTagsProvider}
+  */
+-public class SuCraftBiomeTagsProvider extends TagsProvider<Biome> {
++public class SuCraftBiomeTagsProvider extends SuCraftTagsProvider<Biome> {
+ 
+-    public SuCraftBiomeTagsProvider(DataGenerator dataGenerator) {
+-        super(dataGenerator, BuiltinRegistries.BIOME);
++    public SuCraftBiomeTagsProvider(Registry<Biome> registry) {
++        super(registry);
+     }
+ 
+     @Override
+     protected void addTags() {
++        MinecraftServer.LOGGER.info("Adding SuCraft biome tags...");
+         this.tag(SuCraftBiomeTags.HAS_STRONGHOLD_SURFACE).add(Biomes.PLAINS).add(Biomes.SUNFLOWER_PLAINS).add(Biomes.SNOWY_PLAINS).add(Biomes.ICE_SPIKES).add(Biomes.DESERT).add(Biomes.FOREST).add(Biomes.FLOWER_FOREST).add(Biomes.BIRCH_FOREST).add(Biomes.DARK_FOREST).add(Biomes.OLD_GROWTH_BIRCH_FOREST).add(Biomes.OLD_GROWTH_PINE_TAIGA).add(Biomes.OLD_GROWTH_SPRUCE_TAIGA).add(Biomes.TAIGA).add(Biomes.SNOWY_TAIGA).add(Biomes.SAVANNA).add(Biomes.SAVANNA_PLATEAU).add(Biomes.WINDSWEPT_HILLS).add(Biomes.WINDSWEPT_GRAVELLY_HILLS).add(Biomes.WINDSWEPT_FOREST).add(Biomes.WINDSWEPT_SAVANNA).add(Biomes.JUNGLE).add(Biomes.SPARSE_JUNGLE).add(Biomes.BAMBOO_JUNGLE).add(Biomes.BADLANDS).add(Biomes.ERODED_BADLANDS).add(Biomes.WOODED_BADLANDS).add(Biomes.MEADOW).add(Biomes.GROVE).add(Biomes.SNOWY_SLOPES).add(Biomes.FROZEN_PEAKS).add(Biomes.JAGGED_PEAKS).add(Biomes.STONY_PEAKS).add(Biomes.MUSHROOM_FIELDS); // Martijn - custom strongholds - surface strongholds
+     }
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/data/BlackHoleCachedOutput.java b/src/main/java/nl/martijnmuijsers/paper/data/BlackHoleCachedOutput.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6af9cb40f08526365030843ca609220c6c16b120
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/data/BlackHoleCachedOutput.java
+@@ -0,0 +1,19 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.data;
++
++import com.google.common.hash.HashCode;
++import net.minecraft.data.CachedOutput;
++
++import java.io.IOException;
++import java.nio.file.Path;
++
++/**
++ * An implementation of {@link CachedOutput} that does nothing.
++ */
++public class BlackHoleCachedOutput implements CachedOutput {
++
++    @Override
++    public void writeIfNeeded(Path path, byte[] data, HashCode hashCode) {}
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/data/SuCraftTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/data/SuCraftTagsProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cd8d7cc8f2640e18b8128ac9d6faf6dd323f8070
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/data/SuCraftTagsProvider.java
+@@ -0,0 +1,165 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.data;
++
++import com.google.common.collect.Maps;
++import net.minecraft.core.Holder;
++import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.tags.TagBuilder;
++import net.minecraft.tags.TagEntry;
++import net.minecraft.tags.TagKey;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.lang.reflect.Field;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Objects;
++import java.util.stream.Collectors;
++import java.util.stream.Stream;
++
++/**
++ * Based on {@link net.minecraft.data.tags.TagsProvider}
++ */
++public abstract class SuCraftTagsProvider<T> {
++
++    protected final Registry<T> registry;
++
++    private final Map<ResourceLocation, TagBuilder> builders = Maps.newLinkedHashMap();
++
++    protected SuCraftTagsProvider(Registry<T> registry) {
++        this.registry = registry;
++    }
++
++    protected abstract void addTags();
++
++    public Map<TagKey<T>, List<Holder<T>>> run(Map<TagKey<T>, List<Holder<T>>> existingRegistryTagEntries) {
++
++        // Make the existing tag entries for the registry mutable
++        Map<TagKey<T>, List<Holder<T>>> updatedRegistryTagEntries = new HashMap<>(existingRegistryTagEntries);
++
++        // Define how to look up the elements to add to a tag, when given a ResourceLocation to the element, or another tag (which must have been defined before the calling of addTags or earlier within addTags than the tag it is to be added to)
++        TagEntry.Lookup<T> lookup = new TagEntry.Lookup<>() {
++
++            @Nullable
++            @Override
++            public T element(ResourceLocation elementId) {
++                return SuCraftTagsProvider.this.registry.get(elementId);
++            }
++
++            @Nullable
++            @Override
++            public Collection<T> tag(ResourceLocation otherTagId) {
++                TagKey<T> otherTagKey = TagKey.create(SuCraftTagsProvider.this.registry.key(), otherTagId);
++                return updatedRegistryTagEntries.get(otherTagKey).stream().map(Holder::value).toList();
++            }
++
++        };
++
++        // Create the builders: done by running this method similar to TagsProvider.addTags, which defines the elements for each tag that we wish to add elements to (both elements for custom tags and extra elements for existing tags)
++        this.addTags();
++        // For each tag for which entries were added in addTags
++        this.builders.forEach((tagId, builder) -> {
++            TagKey<T> tagKey = TagKey.create(SuCraftTagsProvider.this.registry.key(), tagId);
++            // Get the tag entries that were added for this tag in addTags
++            List<TagEntry> tagEntriesToMerge = builder.build();
++            // Filter only thetag  entries that exist (i.e. elements that exist in the registry, or tags that were defined earlier)
++            List<TagEntry> validTagEntriesToMerge = new ArrayList<>(tagEntriesToMerge.size());
++            tagEntriesToMerge.forEach(tagEntry -> {
++                if (tagEntry.verifyIfPresent(this.registry::containsKey, this.builders::containsKey)) { // Actually using existingRegistryEntries instead of this.builders seems more logical but the vanilla code uses builders so we'll just go with that
++                    validTagEntriesToMerge.add(tagEntry);
++                } else {
++                    MinecraftServer.LOGGER.error(String.format("The tag definition %s could not be fully defined as it is missing following reference: %s", tagId, tagEntry));
++                }
++            });
++            // For each tag entry to merge, merge it by looking up the resulting elements that would be added and adding them
++            validTagEntriesToMerge.forEach(tagEntry ->
++                tagEntry.build(
++                    lookup,
++                    newElement -> {
++                        updatedRegistryTagEntries.compute(tagKey, (sameTagKey, elementsForTag) -> {
++                            if (elementsForTag == null) {
++                                // Make sure the list of elements for this tag exists
++                                elementsForTag = new ArrayList<>(1);
++                            } else if (!(elementsForTag instanceof ArrayList)) {
++                                // Make sure the elements are mutable
++                                elementsForTag = new ArrayList<>(elementsForTag);
++                            }
++                            // Add the new element
++                            var holder = this.registry.getOrCreateHolderOrThrow(this.registry.getResourceKey(newElement).get());
++                            MinecraftServer.LOGGER.info("Holder: " + holder);
++                            Field field = null;
++                            try {
++                                field = Holder.Reference.class.getDeclaredField("registry");
++                            } catch (NoSuchFieldException e) {
++                                throw new RuntimeException(e);
++                            }
++                            field.setAccessible(true);
++                            try {
++                                MinecraftServer.LOGGER.info("Holder registry: " + ((Registry<T>) field.get(holder)).key());
++                            } catch (IllegalAccessException e) {
++                                throw new RuntimeException(e);
++                            }
++                            elementsForTag.add(holder);
++                            // Return the new list of elements for this tag
++                            return elementsForTag;
++                        });
++                    }
++                )
++            );
++        });
++        // Return the updated tag entries for the registry
++        return updatedRegistryTagEntries;
++
++    }
++
++    protected TagAppender<T> tag(TagKey<T> tag) {
++        TagBuilder tagBuilder = this.getOrCreateRawBuilder(tag);
++        return new TagAppender<>(tagBuilder);
++    }
++
++    protected TagBuilder getOrCreateRawBuilder(TagKey<T> tag) {
++        return this.builders.computeIfAbsent(tag.location(), (id) -> {
++            return TagBuilder.create();
++        });
++    }
++
++    protected static class TagAppender<T> {
++        private final TagBuilder builder;
++
++        TagAppender(TagBuilder builder) {
++            this.builder = builder;
++        }
++
++        @SafeVarargs
++        public final TagAppender<T> add(ResourceKey<T>... keys) {
++            for(ResourceKey<T> resourceKey : keys) {
++                this.builder.addElement(resourceKey.location());
++            }
++
++            return this;
++        }
++
++        public TagAppender<T> addOptional(ResourceLocation id) {
++            this.builder.addOptionalElement(id);
++            return this;
++        }
++
++        public TagAppender<T> addTag(TagKey<T> identifiedTag) {
++            this.builder.addTag(identifiedTag.location());
++            return this;
++        }
++
++        public TagAppender<T> addOptionalTag(ResourceLocation id) {
++            this.builder.addOptionalTag(id);
++            return this;
++        }
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java
+index 2a1c4780ab40444950e952a9ea53d66cc555882f..384ec2cbaa1eaf39dd3db6911b5c22b4989544ef 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java
++++ b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java
+@@ -2,21 +2,28 @@
+ 
+ package nl.martijnmuijsers.paper.structure;
+ 
++import net.minecraft.core.Registry;
+ import net.minecraft.data.BuiltinRegistries;
+ import net.minecraft.data.DataGenerator;
+ import net.minecraft.data.tags.TagsProvider;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.tags.StructureTags;
+ import net.minecraft.world.level.levelgen.structure.Structure;
++import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
+ 
+ /**
+  * Based on {@link net.minecraft.data.tags.StructureTagsProvider}
+  */
+-public class SuCraftStructureTagsProvider extends TagsProvider<Structure> {
++public class SuCraftStructureTagsProvider extends SuCraftTagsProvider<Structure> {
+ 
+-    public SuCraftStructureTagsProvider(DataGenerator dataGenerator) {
+-        super(dataGenerator, BuiltinRegistries.STRUCTURES);
++    public SuCraftStructureTagsProvider(Registry<Structure> registry) {
++        super(registry);
+     }
+ 
+     @Override
+-    protected void addTags() {}
++    protected void addTags() {
++        MinecraftServer.LOGGER.info("Adding onto existing structure tags...");
++        this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(SuCraftBuiltinStructures.STRONGHOLD_SURFACE);
++    }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java
+index 68696426152f5f3e9a665c0e9461064b0987ed2c..2aae54a4542a3f6fb725bebf465c441e3e43ac1c 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java
++++ b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java
+@@ -5,15 +5,12 @@ package nl.martijnmuijsers.paper.structure;
+ import net.minecraft.core.Holder;
+ import net.minecraft.core.HolderSet;
+ import net.minecraft.core.Registry;
+-import net.minecraft.data.BuiltinRegistries;
+ import net.minecraft.data.worldgen.Structures;
+ import net.minecraft.resources.ResourceKey;
+-import net.minecraft.tags.BiomeTags;
+ import net.minecraft.tags.TagKey;
+ import net.minecraft.world.entity.MobCategory;
+ import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.levelgen.GenerationStep;
+-import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+ import net.minecraft.world.level.levelgen.structure.Structure;
+ import net.minecraft.world.level.levelgen.structure.StructureSpawnOverride;
+ import net.minecraft.world.level.levelgen.structure.TerrainAdjustment;
+@@ -29,6 +26,10 @@ public class SuCraftStructures {
+ 
+     public static final Holder<Structure> STRONGHOLD_SURFACE = register(SuCraftBuiltinStructures.STRONGHOLD_SURFACE, new StrongholdStructure(structure(SuCraftBiomeTags.HAS_STRONGHOLD_SURFACE, TerrainAdjustment.NONE), true));
+ 
++    public static Holder<? extends Structure> bootstrap(Registry<Structure> registry) {
++       return STRONGHOLD_SURFACE;
++    }
++
+     public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, Map<MobCategory, StructureSpawnOverride> spawns, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) {
+         return Structures.structure(biomeTag, spawns, featureStep, terrainAdaptation);
+     }
