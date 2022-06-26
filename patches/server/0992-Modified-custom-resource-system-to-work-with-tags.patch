@@ -5,7 +5,7 @@ Subject: [PATCH] Modified custom resource system to work with tags
 
 
 diff --git a/src/main/java/net/minecraft/core/MappedRegistry.java b/src/main/java/net/minecraft/core/MappedRegistry.java
-index 3ef5d440fd3ce209110543bfd36569e846a5b749..a060a623ffdfe6538d00eb389f7ae7e86a767378 100644
+index 3ef5d440fd3ce209110543bfd36569e846a5b749..353186d923d1a350691a26132a0f9fdc1d8ee282 100644
 --- a/src/main/java/net/minecraft/core/MappedRegistry.java
 +++ b/src/main/java/net/minecraft/core/MappedRegistry.java
 @@ -29,8 +29,18 @@ import javax.annotation.Nullable;
@@ -27,7 +27,7 @@ index 3ef5d440fd3ce209110543bfd36569e846a5b749..a060a623ffdfe6538d00eb389f7ae7e8
  import org.apache.commons.lang3.Validate;
  import org.slf4j.Logger;
  
-@@ -379,9 +389,36 @@ public class MappedRegistry<T> extends WritableRegistry<T> {
+@@ -379,6 +389,15 @@ public class MappedRegistry<T> extends WritableRegistry<T> {
          this.byKey.values().forEach((entry) -> {
              map.put(entry, new ArrayList<>());
          });
@@ -43,27 +43,6 @@ index 3ef5d440fd3ce209110543bfd36569e846a5b749..a060a623ffdfe6538d00eb389f7ae7e8
          tagEntries.forEach((tag, entries) -> {
              for(Holder<T> holder : entries) {
                  if (!holder.isValidInRegistry(this)) {
-+                    MinecraftServer.LOGGER.info("--");
-+                    MinecraftServer.LOGGER.info("" + tag);
-+                    MinecraftServer.LOGGER.info("" + this);
-+                    MinecraftServer.LOGGER.info("" + holder);
-+                    MinecraftServer.LOGGER.info("" + holder.getClass().getName());
-+                    try {
-+                        var field = Holder.Reference.class.getDeclaredField("registry");
-+                        field.setAccessible(true);
-+                        var registry = field.get(holder);
-+                        MinecraftServer.LOGGER.info("" + registry);
-+                        MinecraftServer.LOGGER.info("" + this.equals(registry));
-+                        MinecraftServer.LOGGER.info("" + holder.isValidInRegistry(this));
-+                        MinecraftServer.LOGGER.info("" + holder.isValidInRegistry((Registry<T>) registry));
-+                    } catch (IllegalAccessException e) {
-+                        throw new RuntimeException(e);
-+                    } catch (NoSuchFieldException e) {
-+                        throw new RuntimeException(e);
-+                    }
-                     throw new IllegalStateException("Can't create named set " + tag + " containing value " + holder + " from outside registry " + this);
-                 }
- 
 diff --git a/src/main/java/net/minecraft/data/Main.java b/src/main/java/net/minecraft/data/Main.java
 index c4cbf8589678b2d8b330d072391a021895a10ca9..ecd2166991dff09ecd6ea0a7471c878e0cdb689e 100644
 --- a/src/main/java/net/minecraft/data/Main.java
@@ -238,10 +217,10 @@ index 0000000000000000000000000000000000000000..6af9cb40f08526365030843ca609220c
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/data/SuCraftTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/data/SuCraftTagsProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cd8d7cc8f2640e18b8128ac9d6faf6dd323f8070
+index 0000000000000000000000000000000000000000..57b4009663cb5391ca332011af4ae222b3f81966
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/data/SuCraftTagsProvider.java
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,152 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.data;
@@ -337,19 +316,6 @@ index 0000000000000000000000000000000000000000..cd8d7cc8f2640e18b8128ac9d6faf6dd
 +                            }
 +                            // Add the new element
 +                            var holder = this.registry.getOrCreateHolderOrThrow(this.registry.getResourceKey(newElement).get());
-+                            MinecraftServer.LOGGER.info("Holder: " + holder);
-+                            Field field = null;
-+                            try {
-+                                field = Holder.Reference.class.getDeclaredField("registry");
-+                            } catch (NoSuchFieldException e) {
-+                                throw new RuntimeException(e);
-+                            }
-+                            field.setAccessible(true);
-+                            try {
-+                                MinecraftServer.LOGGER.info("Holder registry: " + ((Registry<T>) field.get(holder)).key());
-+                            } catch (IllegalAccessException e) {
-+                                throw new RuntimeException(e);
-+                            }
 +                            elementsForTag.add(holder);
 +                            // Return the new list of elements for this tag
 +                            return elementsForTag;
