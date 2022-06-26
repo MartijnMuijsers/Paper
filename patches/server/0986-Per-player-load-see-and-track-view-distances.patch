@@ -906,7 +906,7 @@ index b53402903eb6845df361daf6b05a668608ad7b63..fad91a47e97aecd5baf1ff0d8cc7161c
      }
  }
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index 15b734b8b83f02f1a2ba6091811d539842749738..fc674300f9f3b394ebeb6df53f0dfc9bb97e5a1c 100644
+index f226492ac4bad22b8cd9219ecf7aeb0ac6bdf743..6c561e0683842a9a7951e19324814822b21c1b4e 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 @@ -8,6 +8,7 @@ import net.kyori.adventure.text.Component;
@@ -917,7 +917,7 @@ index 15b734b8b83f02f1a2ba6091811d539842749738..fc674300f9f3b394ebeb6df53f0dfc9b
  import org.bukkit.Bukkit;
  import org.checkerframework.checker.nullness.qual.Nullable;
  import org.spongepowered.configurate.objectmapping.ConfigSerializable;
-@@ -159,6 +160,79 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -296,6 +297,79 @@ public class GlobalConfiguration extends ConfigurationPart {
  
      // Martijn end - configurable proportion of skipped active entities
  

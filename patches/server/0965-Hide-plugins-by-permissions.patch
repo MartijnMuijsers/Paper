@@ -5,10 +5,10 @@ Subject: [PATCH] Hide plugins by permissions
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index eff740230beacfbf629eb00ddac2ac5106487d31..ea51679296d72ffa38d4c3aca3c823c9fd1c8a24 100644
+index 0f3a27d8376452ebd401a77b1603aa33c4f24c42..9b160e90bf842674bfb9984258bbbf44405812d0 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -83,6 +83,17 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -220,6 +220,17 @@ public class GlobalConfiguration extends ConfigurationPart {
  
      // Martijn end - configurable server version
  

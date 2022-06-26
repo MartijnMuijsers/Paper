@@ -5,10 +5,10 @@ Subject: [PATCH] Survival-compatible debug stick
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index b0f80405e6a2eb33a89b9f3236c5920f367aa843..7f0dedff2591880ac2ca58afd9a1a5a85c8fc22d 100644
+index 0e7ab09fb7d300176e6b1a235fe03fa359f858f0..6b0b65cbfdae0ef52d5584dd4d06fdf629dc9c3d 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -117,6 +117,21 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -254,6 +254,21 @@ public class GlobalConfiguration extends ConfigurationPart {
  
      // Martijn end - configurable keepalive
  
@@ -425,7 +425,7 @@ index 67a8f3b75fb5058c198c924835fa99a8863e7a9f..deec32f59a439494a7952585527c3c96
 +
  }
 diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
-index 939aca929038b90738c9b78c2fc3611088b18e72..477f7db7d9f237a7b37610462c86b2a22c01c2a6 100644
+index 53a26e35861ad622eeb7f064e89fc6567bb69b64..e8eb061181e9b5e6bde99253079864626bc8ad4b 100644
 --- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
 +++ b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
 @@ -33,6 +33,7 @@ import net.minecraft.world.entity.projectile.Projectile;

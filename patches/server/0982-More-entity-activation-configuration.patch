@@ -5,10 +5,10 @@ Subject: [PATCH] More entity activation configuration
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index e8c4f4320922c32a538d6cd160c7a40cebeafa3c..15b734b8b83f02f1a2ba6091811d539842749738 100644
+index 2461f3a4c4b1af9ef5fd032a0694613272b7ebdb..f226492ac4bad22b8cd9219ecf7aeb0ac6bdf743 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -142,6 +142,23 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -279,6 +279,23 @@ public class GlobalConfiguration extends ConfigurationPart {
  
      // Martijn end - customizable console logs
  

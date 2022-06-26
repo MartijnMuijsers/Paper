@@ -5,12 +5,12 @@ Subject: [PATCH] Custom stronghold generation
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index 63b344c7bf67bc236f88639ed6bee7d2c451761d..5a54f44db9db8747eaab6ee1a7ec9cfee25f7fd6 100644
+index 456595e4b7e0c7f50617aa2694b0d2dfc368ab81..4df362a5e554fcd850e258f4b06aa468cbf48c28 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -260,6 +260,141 @@ public class GlobalConfiguration extends ConfigurationPart {
- 
-     // Martijn end - network-constrained chunk sending
+@@ -32,6 +32,141 @@ public class GlobalConfiguration extends ConfigurationPart {
+     @Setting(Configuration.VERSION_FIELD)
+     public int version = CURRENT_VERSION;
  
 +    // Martijn start - custom strongholds
 +
@@ -341,7 +341,7 @@ index e6240f891e396d91e31b02fdf3084be77e9d6697..a25908423b187aaeca19300b677bd328
              chunkgenerator.applyBiomeDecoration(regionlimitedworldaccess, ichunkaccess, worldserver.structureManager().forWorldGenRegion(regionlimitedworldaccess));
              Blender.generateBorderTicks(regionlimitedworldaccess, ichunkaccess);
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
-index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa25829780ce45 100644
+index 048e03bd416fc3b905df1d06117a99b2b47135da..0cd41689ecaf686198372603b90f69cb32058cb8 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
 @@ -3,15 +3,20 @@ package net.minecraft.world.level.levelgen.structure;
@@ -365,7 +365,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
  import net.minecraft.util.RandomSource;
  import net.minecraft.world.level.BlockGetter;
  import net.minecraft.world.level.ChunkPos;
-@@ -29,6 +34,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
+@@ -29,11 +34,21 @@ import net.minecraft.world.level.block.entity.BlockEntity;
  import net.minecraft.world.level.block.entity.ChestBlockEntity;
  import net.minecraft.world.level.block.entity.DispenserBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
@@ -376,27 +376,27 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
  import net.minecraft.world.level.chunk.ChunkGenerator;
  import net.minecraft.world.level.levelgen.Heightmap;
  import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
-@@ -36,7 +45,9 @@ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
+ import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
  import net.minecraft.world.level.material.FluidState;
- import nl.martijnmuijsers.paper.structure.CraftWorldStructure;
- import nl.martijnmuijsers.paper.structure.CraftWorldStructurePiece;
--import org.bukkit.craftbukkit.CraftWorld;
++import nl.martijnmuijsers.paper.structure.CraftWorldStructure;
++import nl.martijnmuijsers.paper.structure.CraftWorldStructurePiece;
 +import org.apache.commons.lang3.tuple.ImmutableTriple;
 +import org.apache.commons.lang3.tuple.Triple;
 +import org.apache.logging.log4j.util.TriConsumer;
- import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  
-@@ -50,7 +61,7 @@ public abstract class StructurePiece {
+ public abstract class StructurePiece {
+@@ -46,7 +61,7 @@ public abstract class StructurePiece {
      private Rotation rotation;
      protected int genDepth;
      private final StructurePieceType type;
 -    private static final Set<Block> SHAPE_CHECK_BLOCKS = ImmutableSet.<Block>builder().add(Blocks.NETHER_BRICK_FENCE).add(Blocks.TORCH).add(Blocks.WALL_TORCH).add(Blocks.OAK_FENCE).add(Blocks.SPRUCE_FENCE).add(Blocks.DARK_OAK_FENCE).add(Blocks.ACACIA_FENCE).add(Blocks.BIRCH_FENCE).add(Blocks.JUNGLE_FENCE).add(Blocks.LADDER).add(Blocks.IRON_BARS).build();
 +    public static final Set<Block> SHAPE_CHECK_BLOCKS = ImmutableSet.<Block>builder().add(Blocks.NETHER_BRICK_FENCE).add(Blocks.TORCH).add(Blocks.WALL_TORCH).add(Blocks.OAK_FENCE).add(Blocks.SPRUCE_FENCE).add(Blocks.DARK_OAK_FENCE).add(Blocks.ACACIA_FENCE).add(Blocks.BIRCH_FENCE).add(Blocks.JUNGLE_FENCE).add(Blocks.LADDER).add(Blocks.IRON_BARS).build(); // Martijn - custom strongholds - surface strongholds
  
-     // Martijn start - structure API
- 
-@@ -175,31 +186,300 @@ public abstract class StructurePiece {
+     protected StructurePiece(StructurePieceType type, int length, BoundingBox boundingBox) {
+         this.type = type;
+@@ -158,31 +173,300 @@ public abstract class StructurePiece {
          }
      }
  
@@ -711,7 +711,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
  
      protected boolean canBeReplaced(LevelReader world, int x, int y, int z, BoundingBox box) {
          return true;
-@@ -219,6 +499,22 @@ public abstract class StructurePiece {
+@@ -202,6 +486,22 @@ public abstract class StructurePiece {
          }
      }
  
@@ -734,7 +734,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
      protected void generateAirBox(WorldGenLevel world, BoundingBox bounds, int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
          for(int i = minY; i <= maxY; ++i) {
              for(int j = minX; j <= maxX; ++j) {
-@@ -230,15 +526,35 @@ public abstract class StructurePiece {
+@@ -213,15 +513,35 @@ public abstract class StructurePiece {
  
      }
  
@@ -772,7 +772,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
                          }
                      }
                  }
-@@ -247,10 +563,35 @@ public abstract class StructurePiece {
+@@ -230,10 +550,35 @@ public abstract class StructurePiece {
  
      }
  
@@ -808,7 +808,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
      protected void generateBox(WorldGenLevel world, BoundingBox box, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, boolean cantReplaceAir, RandomSource random, StructurePiece.BlockSelector randomizer) {
          for(int i = minY; i <= maxY; ++i) {
              for(int j = minX; j <= maxX; ++j) {
-@@ -265,10 +606,104 @@ public abstract class StructurePiece {
+@@ -248,10 +593,104 @@ public abstract class StructurePiece {
  
      }
  
@@ -913,7 +913,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
      protected void generateMaybeBox(WorldGenLevel world, BoundingBox box, RandomSource random, float blockChance, int minX, int minY, int minZ, int maxX, int maxY, int maxZ, BlockState outline, BlockState inside, boolean cantReplaceAir, boolean stayBelowSeaLevel) {
          for(int i = minY; i <= maxY; ++i) {
              for(int j = minX; j <= maxX; ++j) {
-@@ -293,7 +728,9 @@ public abstract class StructurePiece {
+@@ -276,7 +715,9 @@ public abstract class StructurePiece {
  
      }
  
@@ -924,7 +924,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
          float f = (float)(maxX - minX + 1);
          float g = (float)(maxY - minY + 1);
          float h = (float)(maxZ - minZ + 1);
-@@ -308,7 +745,7 @@ public abstract class StructurePiece {
+@@ -291,7 +732,7 @@ public abstract class StructurePiece {
  
                  for(int o = minZ; o <= maxZ; ++o) {
                      float p = ((float)o - j) / (h * 0.5F);
@@ -933,7 +933,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
                          float q = n * n + l * l + p * p;
                          if (q <= 1.05F) {
                              this.placeBlock(world, block, m, k, o, bounds);
-@@ -320,6 +757,12 @@ public abstract class StructurePiece {
+@@ -303,6 +744,12 @@ public abstract class StructurePiece {
  
      }
  
@@ -946,7 +946,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
      protected void fillColumnDown(WorldGenLevel world, BlockState state, int x, int y, int z, BoundingBox box) {
          BlockPos.MutableBlockPos mutableBlockPos = this.getWorldPos(x, y, z);
          if (box.isInside(mutableBlockPos)) {
-@@ -339,6 +782,14 @@ public abstract class StructurePiece {
+@@ -322,6 +769,14 @@ public abstract class StructurePiece {
          return this.createChest(world, boundingBox, random, this.getWorldPos(x, y, z), lootTableId, (BlockState)null);
      }
  
@@ -961,7 +961,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
      public static BlockState reorient(BlockGetter world, BlockPos pos, BlockState state) {
          Direction direction = null;
  
-@@ -384,7 +835,13 @@ public abstract class StructurePiece {
+@@ -367,7 +822,13 @@ public abstract class StructurePiece {
      }
  
      protected boolean createChest(ServerLevelAccessor world, BoundingBox boundingBox, RandomSource random, BlockPos pos, ResourceLocation lootTableId, @Nullable BlockState block) {
@@ -976,7 +976,7 @@ index eb0ad03943c9afb22907f984cbc923453c820d40..5a01e7b0004aba3fb56a63a28afa2582
              if (block == null) {
                  block = reorient(world, pos, Blocks.CHEST.defaultBlockState());
              }
-@@ -420,6 +877,65 @@ public abstract class StructurePiece {
+@@ -403,6 +864,65 @@ public abstract class StructurePiece {
          this.boundingBox.move(x, y, z);
      }
  

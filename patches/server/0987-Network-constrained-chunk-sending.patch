@@ -165,10 +165,10 @@ index fad91a47e97aecd5baf1ff0d8cc7161c4e1f5c2d..89f86e52ff8b85a48e28ff60ca238531
              if (
                  // has view distance stayed the same?
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index fc674300f9f3b394ebeb6df53f0dfc9bb97e5a1c..63b344c7bf67bc236f88639ed6bee7d2c451761d 100644
+index 6c561e0683842a9a7951e19324814822b21c1b4e..5b079540a777db3f88cb356ee735d498fe6b5ed0 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -233,6 +233,33 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -370,6 +370,33 @@ public class GlobalConfiguration extends ConfigurationPart {
  
      // Martijn end - per-player track and see view distance
  

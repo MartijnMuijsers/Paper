@@ -5,10 +5,10 @@ Subject: [PATCH] Configurable keepalive mechanics
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index ea51679296d72ffa38d4c3aca3c823c9fd1c8a24..b0f80405e6a2eb33a89b9f3236c5920f367aa843 100644
+index 9b160e90bf842674bfb9984258bbbf44405812d0..0e7ab09fb7d300176e6b1a235fe03fa359f858f0 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -94,6 +94,29 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -231,6 +231,29 @@ public class GlobalConfiguration extends ConfigurationPart {
  
      // Martijn end - hide plugins
  

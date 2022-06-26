@@ -44,23 +44,20 @@ index 4947f9a00015b3dba1c829287defce71659ec908..606556f22fb002e46ffb6be80a9c1228
          this(pos.getX(), pos.getY(), pos.getZ(), pos.getX(), pos.getY(), pos.getZ());
      }
 diff --git a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
-index 048e03bd416fc3b905df1d06117a99b2b47135da..eb0ad03943c9afb22907f984cbc923453c820d40 100644
+index 0cd41689ecaf686198372603b90f69cb32058cb8..4ebbfad8a8d83eecdda2a5c7ade98889fbae710a 100644
 --- a/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
 +++ b/src/main/java/net/minecraft/world/level/levelgen/structure/StructurePiece.java
-@@ -34,6 +34,10 @@ import net.minecraft.world.level.levelgen.Heightmap;
- import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceSerializationContext;
- import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
- import net.minecraft.world.level.material.FluidState;
-+import nl.martijnmuijsers.paper.structure.CraftWorldStructure;
-+import nl.martijnmuijsers.paper.structure.CraftWorldStructurePiece;
+@@ -48,6 +48,7 @@ import nl.martijnmuijsers.paper.structure.CraftWorldStructurePiece;
+ import org.apache.commons.lang3.tuple.ImmutableTriple;
+ import org.apache.commons.lang3.tuple.Triple;
+ import org.apache.logging.log4j.util.TriConsumer;
 +import org.bukkit.craftbukkit.CraftWorld;
-+import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  
- public abstract class StructurePiece {
-@@ -48,6 +52,19 @@ public abstract class StructurePiece {
+@@ -63,6 +64,19 @@ public abstract class StructurePiece {
      private final StructurePieceType type;
-     private static final Set<Block> SHAPE_CHECK_BLOCKS = ImmutableSet.<Block>builder().add(Blocks.NETHER_BRICK_FENCE).add(Blocks.TORCH).add(Blocks.WALL_TORCH).add(Blocks.OAK_FENCE).add(Blocks.SPRUCE_FENCE).add(Blocks.DARK_OAK_FENCE).add(Blocks.ACACIA_FENCE).add(Blocks.BIRCH_FENCE).add(Blocks.JUNGLE_FENCE).add(Blocks.LADDER).add(Blocks.IRON_BARS).build();
+     public static final Set<Block> SHAPE_CHECK_BLOCKS = ImmutableSet.<Block>builder().add(Blocks.NETHER_BRICK_FENCE).add(Blocks.TORCH).add(Blocks.WALL_TORCH).add(Blocks.OAK_FENCE).add(Blocks.SPRUCE_FENCE).add(Blocks.DARK_OAK_FENCE).add(Blocks.ACACIA_FENCE).add(Blocks.BIRCH_FENCE).add(Blocks.JUNGLE_FENCE).add(Blocks.LADDER).add(Blocks.IRON_BARS).build(); // Martijn - custom strongholds - surface strongholds
  
 +    // Martijn start - structure API
 +

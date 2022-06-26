@@ -5,10 +5,10 @@ Subject: [PATCH] Configuration to remove unrecognized recipe console logs
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index 7f0dedff2591880ac2ca58afd9a1a5a85c8fc22d..e8c4f4320922c32a538d6cd160c7a40cebeafa3c 100644
+index 6b0b65cbfdae0ef52d5584dd4d06fdf629dc9c3d..2461f3a4c4b1af9ef5fd032a0694613272b7ebdb 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-@@ -132,6 +132,16 @@ public class GlobalConfiguration extends ConfigurationPart {
+@@ -269,6 +269,16 @@ public class GlobalConfiguration extends ConfigurationPart {
  
      // Martijn end - survival debug stick
  

@@ -72,7 +72,7 @@ index bf42969859545a8a520923ef1836ffa4a5cc24a0..aee05d70c781b30654d1672599413f30
          return Component.text("Previous version: " + oldVersion, NamedTextColor.GRAY, TextDecoration.ITALIC);
      }
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index 456595e4b7e0c7f50617aa2694b0d2dfc368ab81..eff740230beacfbf629eb00ddac2ac5106487d31 100644
+index 4df362a5e554fcd850e258f4b06aa468cbf48c28..0f3a27d8376452ebd401a77b1603aa33c4f24c42 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 @@ -8,6 +8,7 @@ import net.kyori.adventure.text.Component;
@@ -83,9 +83,37 @@ index 456595e4b7e0c7f50617aa2694b0d2dfc368ab81..eff740230beacfbf629eb00ddac2ac51
  import org.checkerframework.checker.nullness.qual.Nullable;
  import org.spongepowered.configurate.objectmapping.ConfigSerializable;
  import org.spongepowered.configurate.objectmapping.meta.Comment;
-@@ -32,6 +33,56 @@ public class GlobalConfiguration extends ConfigurationPart {
-     @Setting(Configuration.VERSION_FIELD)
-     public int version = CURRENT_VERSION;
+@@ -144,11 +145,14 @@ public class GlobalConfiguration extends ConfigurationPart {
+             public SecondOpportunity secondOpportunity;
+             public ThirdOpportunity thirdOpportunity;
+ 
+-            public class FirstOpportunity extends Opportunity {}
++            public class FirstOpportunity extends Opportunity {
++            }
+ 
+-            public class SecondOpportunity extends Opportunity {}
++            public class SecondOpportunity extends Opportunity {
++            }
+ 
+-            public class ThirdOpportunity extends Opportunity {}
++            public class ThirdOpportunity extends Opportunity {
++            }
+ 
+             public abstract class Opportunity extends ConfigurationPart {
+ 
+@@ -158,15 +162,64 @@ public class GlobalConfiguration extends ConfigurationPart {
+             }
+ 
+             public Opportunity[] getOpportunities() {
+-                return new Opportunity[] { firstOpportunity, secondOpportunity, thirdOpportunity };
++                return new Opportunity[]{firstOpportunity, secondOpportunity, thirdOpportunity};
+             }
+ 
+         }
+ 
+     }
+-
+     // Martijn end - custom strongholds
  
 +    // Martijn start - configurable server version
 +
