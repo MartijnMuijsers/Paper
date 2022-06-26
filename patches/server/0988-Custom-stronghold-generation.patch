@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: MartijnMuijsers <martijnmuijsers@live.nl>
-Date: Mon, 20 Jun 2022 01:43:25 +0200
+Date: Sun, 26 Jun 2022 23:37:34 +0200
 Subject: [PATCH] Custom stronghold generation
 
 
@@ -171,27 +171,6 @@ index 712e249ebe86d9adabf2bb816eea45543061efd3..de8a9a5fae3cfe9941481f1500a9a807
          Advancement.Builder.advancement().parent(advancement11).display(Blocks.END_STONE, Component.translatable("advancements.story.enter_the_end.title"), Component.translatable("advancements.story.enter_the_end.description"), (ResourceLocation)null, FrameType.TASK, true, true, false).addCriterion("entered_end", ChangeDimensionTrigger.TriggerInstance.changedDimensionTo(Level.END)).save(consumer, "story/enter_the_end");
      }
  }
-diff --git a/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java b/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
-index 0e79ec93eb84cc1b62c4048c204b97c8020967bf..d7fa20ed673c96c9cda352ae5025c0581c538b21 100644
---- a/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
-+++ b/src/main/java/net/minecraft/data/tags/StructureTagsProvider.java
-@@ -5,6 +5,7 @@ import net.minecraft.data.DataGenerator;
- import net.minecraft.tags.StructureTags;
- import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
- import net.minecraft.world.level.levelgen.structure.Structure;
-+import nl.martijnmuijsers.paper.structure.SuCraftBuiltinStructures;
- 
- public class StructureTagsProvider extends TagsProvider<Structure> {
-     public StructureTagsProvider(DataGenerator dataGenerator) {
-@@ -20,7 +21,7 @@ public class StructureTagsProvider extends TagsProvider<Structure> {
-         this.tag(StructureTags.RUINED_PORTAL).add(BuiltinStructures.RUINED_PORTAL_DESERT).add(BuiltinStructures.RUINED_PORTAL_JUNGLE).add(BuiltinStructures.RUINED_PORTAL_MOUNTAIN).add(BuiltinStructures.RUINED_PORTAL_NETHER).add(BuiltinStructures.RUINED_PORTAL_OCEAN).add(BuiltinStructures.RUINED_PORTAL_STANDARD).add(BuiltinStructures.RUINED_PORTAL_SWAMP);
-         this.tag(StructureTags.CATS_SPAWN_IN).add(BuiltinStructures.SWAMP_HUT);
-         this.tag(StructureTags.CATS_SPAWN_AS_BLACK).add(BuiltinStructures.SWAMP_HUT);
--        this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(BuiltinStructures.STRONGHOLD);
-+        this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(BuiltinStructures.STRONGHOLD).add(SuCraftBuiltinStructures.STRONGHOLD_SURFACE); // Martijn - custom strongholds - surface strongholds
-         this.tag(StructureTags.DOLPHIN_LOCATED).addTag(StructureTags.OCEAN_RUIN).addTag(StructureTags.SHIPWRECK);
-         this.tag(StructureTags.ON_WOODLAND_EXPLORER_MAPS).add(BuiltinStructures.WOODLAND_MANSION);
-         this.tag(StructureTags.ON_OCEAN_EXPLORER_MAPS).add(BuiltinStructures.OCEAN_MONUMENT);
 diff --git a/src/main/java/net/minecraft/data/worldgen/StructureSets.java b/src/main/java/net/minecraft/data/worldgen/StructureSets.java
 index ef50bc6a61c074c9b9f6a12dc465d407aec95d19..e497632891b5534b76943d9a4a24bf2d4e591ae2 100644
 --- a/src/main/java/net/minecraft/data/worldgen/StructureSets.java
@@ -223,10 +202,10 @@ index ef50bc6a61c074c9b9f6a12dc465d407aec95d19..e497632891b5534b76943d9a4a24bf2d
      static Holder<StructureSet> bootstrap(Registry<StructureSet> registry) {
          return registry.holders().iterator().next();
 diff --git a/src/main/java/net/minecraft/data/worldgen/Structures.java b/src/main/java/net/minecraft/data/worldgen/Structures.java
-index bfcf01afe4cb1fb2c5462dd19261d9388439f179..b6a009b48874d7db4ac373f4192a83d212592ff9 100644
+index c063227cdf647897e8cbd6aea9a1465405e612d9..6783ae575dcc711a44ab61f7588d7e31e0b15d89 100644
 --- a/src/main/java/net/minecraft/data/worldgen/Structures.java
 +++ b/src/main/java/net/minecraft/data/worldgen/Structures.java
-@@ -56,7 +56,7 @@ public class Structures {
+@@ -57,7 +57,7 @@ public class Structures {
      public static final Holder<Structure> SHIPWRECK = register(BuiltinStructures.SHIPWRECK, new ShipwreckStructure(structure(BiomeTags.HAS_SHIPWRECK, TerrainAdjustment.NONE), false));
      public static final Holder<Structure> SHIPWRECK_BEACHED = register(BuiltinStructures.SHIPWRECK_BEACHED, new ShipwreckStructure(structure(BiomeTags.HAS_SHIPWRECK_BEACHED, TerrainAdjustment.NONE), true));
      public static final Holder<Structure> SWAMP_HUT = register(BuiltinStructures.SWAMP_HUT, new SwampHutStructure(structure(BiomeTags.HAS_SWAMP_HUT, Map.of(MobCategory.MONSTER, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.PIECE, WeightedRandomList.create(new MobSpawnSettings.SpawnerData(EntityType.WITCH, 1, 1, 1))), MobCategory.CREATURE, new StructureSpawnOverride(StructureSpawnOverride.BoundingBoxType.PIECE, WeightedRandomList.create(new MobSpawnSettings.SpawnerData(EntityType.CAT, 1, 1, 1)))), GenerationStep.Decoration.SURFACE_STRUCTURES, TerrainAdjustment.NONE)));
@@ -291,96 +270,6 @@ index f000c822ed4563b5b840936852bc7d8e030763e3..7aa5c20d52deb6a66fcf0dce0514f7d6
              hasSetFarWarned = true;
              if (this.getServer() != null && this.getServer().isDebugging()) {
                  io.papermc.paper.util.TraceUtil.dumpTraceForThread("far setBlock call");
-diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
-index 477f7db7d9f237a7b37610462c86b2a22c01c2a6..3db0baaeba47cce086f1b39025304744e0d134fc 100644
---- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
-+++ b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
-@@ -42,6 +42,7 @@ import net.minecraft.world.level.Level;
- import net.minecraft.world.level.LevelAccessor;
- import net.minecraft.world.level.LevelReader;
- import net.minecraft.world.level.block.Block;
-+import net.minecraft.world.level.block.Blocks;
- import net.minecraft.world.level.block.EntityBlock;
- import net.minecraft.world.level.block.Mirror;
- import net.minecraft.world.level.block.RenderShape;
-@@ -678,14 +679,29 @@ public abstract class BlockBehaviour {
- 
-     public abstract static class BlockStateBase extends StateHolder<Block, BlockState> {
- 
--        private final int lightEmission; public final int getEmittedLight() { return this.lightEmission; } // Paper - OBFHELPER
--        private final boolean useShapeForLightOcclusion; public final boolean isTransparentOnSomeFaces() { return this.useShapeForLightOcclusion; } // Paper - OBFHELPER
-+        private final int lightEmission;
-+
-+        public final int getEmittedLight() {
-+            return this.lightEmission;
-+        } // Paper - OBFHELPER
-+
-+        private final boolean useShapeForLightOcclusion;
-+
-+        public final boolean isTransparentOnSomeFaces() {
-+            return this.useShapeForLightOcclusion;
-+        } // Paper - OBFHELPER
-+
-         private final boolean isAir;
-         private final Material material;
-         private final MaterialColor materialColor;
-         public final float destroySpeed;
-         private final boolean requiresCorrectToolForDrops;
--        private final boolean canOcclude; public final boolean isOpaque() { return this.canOcclude; } // Paper - OBFHELPER
-+        private final boolean canOcclude;
-+
-+        public final boolean isOpaque() {
-+            return this.canOcclude;
-+        } // Paper - OBFHELPER
-+
-         private final BlockBehaviour.StatePredicate isRedstoneConductor;
-         private final BlockBehaviour.StatePredicate isSuffocating;
-         private final BlockBehaviour.StatePredicate isViewBlocking;
-@@ -715,20 +731,24 @@ public abstract class BlockBehaviour {
-             this.offsetType = (BlockBehaviour.OffsetType) blockbase_info.offsetType.apply(this.asState());
-             this.conditionallyFullOpaque = this.isOpaque() & this.isTransparentOnSomeFaces(); // Paper
-         }
-+
-         // Paper start - impl cached craft block data, lazy load to fix issue with loading at the wrong time
-         private org.bukkit.craftbukkit.block.data.CraftBlockData cachedCraftBlockData;
- 
-         public org.bukkit.craftbukkit.block.data.CraftBlockData createCraftBlockData() {
--            if (cachedCraftBlockData == null) cachedCraftBlockData = org.bukkit.craftbukkit.block.data.CraftBlockData.createData(asState());
-+            if (cachedCraftBlockData == null)
-+                cachedCraftBlockData = org.bukkit.craftbukkit.block.data.CraftBlockData.createData(asState());
-             return (org.bukkit.craftbukkit.block.data.CraftBlockData) cachedCraftBlockData.clone();
-         }
-         // Paper end
- 
-         // Paper start
-         protected boolean shapeExceedsCube = true;
-+
-         public final boolean shapeExceedsCube() {
-             return this.shapeExceedsCube;
-         }
-+
-         // Paper end
-         // Paper start
-         protected boolean isTicking;
-@@ -736,15 +756,18 @@ public abstract class BlockBehaviour {
-         // Paper end
-         // Paper start
-         protected int opacityIfCached = -1;
-+
-         // ret -1 if opacity is dynamic, or -1 if the block is conditionally full opaque, else return opacity in [0, 15]
-         public final int getOpacityIfCached() {
-             return this.opacityIfCached;
-         }
- 
-         protected final boolean conditionallyFullOpaque;
-+
-         public final boolean isConditionallyFullOpaque() {
-             return this.conditionallyFullOpaque;
-         }
-+
-         // Paper end
-         // Paper start
-         private long blockCollisionBehavior = io.papermc.paper.util.CollisionUtil.KNOWN_SPECIAL_BLOCK;
 diff --git a/src/main/java/net/minecraft/world/level/chunk/ChunkStatus.java b/src/main/java/net/minecraft/world/level/chunk/ChunkStatus.java
 index e6240f891e396d91e31b02fdf3084be77e9d6697..a25908423b187aaeca19300b677bd3283e5c4063 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/ChunkStatus.java
@@ -3058,25 +2947,27 @@ index bde00c76313a1794edf0f353b93187ce3a3541b5..7f81a0060fa8ab72b71ac60e7f9c4a66
          return TagKey.create(Registry.BIOME_REGISTRY, ResourceLocation.sucraft(id));
      }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
-index 4c122f0086b8112837d33a9870a56d58da7fa05e..a59f91e402852038d3ecef4b9b7899641e1bd31d 100644
+index 9a6b12ce35e8f34b5e58f302a28328dacfd0883a..347f0b29fbe89eaab83692e3991aa19752c0e8fd 100644
 --- a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
 +++ b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
-@@ -5,7 +5,9 @@ package nl.martijnmuijsers.paper.biome;
- import net.minecraft.data.BuiltinRegistries;
- import net.minecraft.data.DataGenerator;
- import net.minecraft.data.tags.TagsProvider;
-+import net.minecraft.tags.BiomeTags;
+@@ -3,8 +3,10 @@
+ package nl.martijnmuijsers.paper.biome;
+ 
+ import net.minecraft.core.Registry;
++import net.minecraft.server.MinecraftServer;
  import net.minecraft.world.level.biome.Biome;
+ import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
 +import net.minecraft.world.level.biome.Biomes;
  
  /**
   * Based on {@link net.minecraft.data.tags.BiomeTagsProvider}
-@@ -17,6 +19,8 @@ public class SuCraftBiomeTagsProvider extends TagsProvider<Biome> {
+@@ -16,6 +18,9 @@ public class SuCraftBiomeTagsProvider extends SuCraftTagsProvider<Biome> {
      }
  
      @Override
 -    protected void addTags() {}
 +    protected void addTags() {
++        MinecraftServer.LOGGER.info("Adding custom biome tags...");
 +        this.tag(SuCraftBiomeTags.HAS_STRONGHOLD_SURFACE).add(Biomes.PLAINS).add(Biomes.SUNFLOWER_PLAINS).add(Biomes.SNOWY_PLAINS).add(Biomes.ICE_SPIKES).add(Biomes.DESERT).add(Biomes.FOREST).add(Biomes.FLOWER_FOREST).add(Biomes.BIRCH_FOREST).add(Biomes.DARK_FOREST).add(Biomes.OLD_GROWTH_BIRCH_FOREST).add(Biomes.OLD_GROWTH_PINE_TAIGA).add(Biomes.OLD_GROWTH_SPRUCE_TAIGA).add(Biomes.TAIGA).add(Biomes.SNOWY_TAIGA).add(Biomes.SAVANNA).add(Biomes.SAVANNA_PLATEAU).add(Biomes.WINDSWEPT_HILLS).add(Biomes.WINDSWEPT_GRAVELLY_HILLS).add(Biomes.WINDSWEPT_FOREST).add(Biomes.WINDSWEPT_SAVANNA).add(Biomes.JUNGLE).add(Biomes.SPARSE_JUNGLE).add(Biomes.BAMBOO_JUNGLE).add(Biomes.BADLANDS).add(Biomes.ERODED_BADLANDS).add(Biomes.WOODED_BADLANDS).add(Biomes.MEADOW).add(Biomes.GROVE).add(Biomes.SNOWY_SLOPES).add(Biomes.FROZEN_PEAKS).add(Biomes.JAGGED_PEAKS).add(Biomes.STONY_PEAKS).add(Biomes.MUSHROOM_FIELDS); // Martijn - custom strongholds - surface strongholds
 +    }
  
@@ -3094,20 +2985,35 @@ index d81b5b97f24c4ebb73f10cdab99a07fa2ba9ead0..1b890f788d0e93647424de2671e8c9e1
      private static ResourceKey<Structure> createKey(String id) {
          return ResourceKey.create(Registry.STRUCTURE_REGISTRY, ResourceLocation.sucraft(id));
      }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java
+index 173e76e24b01627d9fb2b1723be0be10e1d95c16..d8999bae8bd0fea2265320fc6505eb7e09fc3e12 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java
++++ b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructureTagsProvider.java
+@@ -3,6 +3,8 @@
+ package nl.martijnmuijsers.paper.structure;
+ 
+ import net.minecraft.core.Registry;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.tags.StructureTags;
+ import net.minecraft.world.level.levelgen.structure.Structure;
+ import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
+ 
+@@ -16,6 +18,9 @@ public class SuCraftStructureTagsProvider extends SuCraftTagsProvider<Structure>
+     }
+ 
+     @Override
+-    protected void addTags() {}
++    protected void addTags() {
++        MinecraftServer.LOGGER.info("Adding onto existing structure tags...");
++        this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(SuCraftBuiltinStructures.STRONGHOLD_SURFACE);
++    }
+ 
+ }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java
-index a289e4af5fa742e25d79aad5bcaa3d3fb54649a0..68696426152f5f3e9a665c0e9461064b0987ed2c 100644
+index 86609d3eb6c17a69843bd5ef2e934bb366554e18..2aae54a4542a3f6fb725bebf465c441e3e43ac1c 100644
 --- a/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java
 +++ b/src/main/java/nl/martijnmuijsers/paper/structure/SuCraftStructures.java
-@@ -8,13 +8,17 @@ import net.minecraft.core.Registry;
- import net.minecraft.data.BuiltinRegistries;
- import net.minecraft.data.worldgen.Structures;
- import net.minecraft.resources.ResourceKey;
-+import net.minecraft.tags.BiomeTags;
- import net.minecraft.tags.TagKey;
- import net.minecraft.world.entity.MobCategory;
- import net.minecraft.world.level.biome.Biome;
- import net.minecraft.world.level.levelgen.GenerationStep;
-+import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+@@ -14,6 +14,8 @@ import net.minecraft.world.level.levelgen.GenerationStep;
  import net.minecraft.world.level.levelgen.structure.Structure;
  import net.minecraft.world.level.levelgen.structure.StructureSpawnOverride;
  import net.minecraft.world.level.levelgen.structure.TerrainAdjustment;
@@ -3116,12 +3022,15 @@ index a289e4af5fa742e25d79aad5bcaa3d3fb54649a0..68696426152f5f3e9a665c0e9461064b
  
  import java.util.Map;
  
-@@ -23,6 +27,8 @@ import java.util.Map;
+@@ -22,8 +24,10 @@ import java.util.Map;
   */
  public class SuCraftStructures {
  
 +    public static final Holder<Structure> STRONGHOLD_SURFACE = register(SuCraftBuiltinStructures.STRONGHOLD_SURFACE, new StrongholdStructure(structure(SuCraftBiomeTags.HAS_STRONGHOLD_SURFACE, TerrainAdjustment.NONE), true));
 +
-     public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, Map<MobCategory, StructureSpawnOverride> spawns, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) {
-         return Structures.structure(biomeTag, spawns, featureStep, terrainAdaptation);
+     public static Holder<? extends Structure> bootstrap(Registry<Structure> registry) {
+-       return null; // TODO fil with first structure added
++       return STRONGHOLD_SURFACE;
      }
+ 
+     public static Structure.StructureSettings structure(TagKey<Biome> biomeTag, Map<MobCategory, StructureSpawnOverride> spawns, GenerationStep.Decoration featureStep, TerrainAdjustment terrainAdaptation) {
