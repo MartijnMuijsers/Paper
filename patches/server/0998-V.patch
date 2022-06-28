@@ -1,0 +1,400 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 29 Jun 2022 01:48:16 +0200
+Subject: [PATCH] V
+
+
+diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
+index ddffc050965ff526dbc07693354192fbf1c3eb02..c62894e88f9960a728c8f40717738b292f77e639 100644
+--- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
++++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
+@@ -83,6 +83,8 @@ public class FriendlyByteBuf extends ByteBuf {
+     private static final int MAX_PUBLIC_KEY_HEADER_SIZE = 256;
+     private static final int MAX_PUBLIC_KEY_LENGTH = 512;
+ 
++    public @Nullable Boolean doesNetworkTargetHaveResourcePack = null; // Martijn - custom blocks and items
++
+     public FriendlyByteBuf(ByteBuf parent) {
+         this.source = parent;
+     }
+@@ -594,6 +596,13 @@ public class FriendlyByteBuf extends ByteBuf {
+             this.writeBoolean(true);
+             Item item = stack.getItem();
+ 
++            // Martijn start - custom blocks and items
++            if (item.replacementRule != null && doesNetworkTargetHaveResourcePack != null) {
++                stack = item.replacementRule.replace(stack, doesNetworkTargetHaveResourcePack);
++                item = stack.getItem();
++            }
++            // Martijn end - custom blocks and items
++
+             this.writeId(Registry.ITEM, item);
+             this.writeByte(stack.getCount());
+             CompoundTag nbttagcompound = null;
+diff --git a/src/main/java/net/minecraft/network/PacketEncoder.java b/src/main/java/net/minecraft/network/PacketEncoder.java
+index 5fce1177e7198d791d4ab1c64b394c5b1c145782..aa71fb123042375367792d300ac80ca78aed36d8 100644
+--- a/src/main/java/net/minecraft/network/PacketEncoder.java
++++ b/src/main/java/net/minecraft/network/PacketEncoder.java
+@@ -38,6 +38,9 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+ 
+                 try {
+                     int i = friendlyByteBuf.writerIndex();
++                    // Martijn start - custom blocks and items
++                    friendlyByteBuf.doesNetworkTargetHaveResourcePack = packet.doesNetworkTargetHaveResourcePack();
++                    // Martijn end - custom blocks and items
+                     packet.write(friendlyByteBuf);
+                     int j = friendlyByteBuf.writerIndex() - i;
+                     if (j > 8388608) {
+diff --git a/src/main/java/net/minecraft/network/protocol/Packet.java b/src/main/java/net/minecraft/network/protocol/Packet.java
+index dde21b11d9b612eeac03be1835c815a697358bcb..87093defb3d443b9a90e6fb7bc48b0acd8318269 100644
+--- a/src/main/java/net/minecraft/network/protocol/Packet.java
++++ b/src/main/java/net/minecraft/network/protocol/Packet.java
+@@ -4,6 +4,8 @@ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.PacketListener;
+ import org.jetbrains.annotations.NotNull;
+ 
++import javax.annotation.Nullable;
++
+ public interface Packet<T extends PacketListener> {
+     void write(FriendlyByteBuf buf);
+ 
+@@ -46,6 +48,10 @@ public interface Packet<T extends PacketListener> {
+         return this;
+     }
+ 
++    default @Nullable Boolean doesNetworkTargetHaveResourcePack() {
++        return null;
++    }
++
+     // Martijn end - custom blocks and items
+ 
+ }
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
+index 7b4947aa2cdd7f359184689bf348560bde1016dd..6a4a9d78ff2e7dc184211e3d000b6ed98859bb9e 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
+@@ -6,10 +6,15 @@ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
++import nl.martijnmuijsers.paper.protocol.CachableCustomContentReplaceable;
++import nl.martijnmuijsers.paper.protocol.ReplacedCustomContentCache;
++import org.jetbrains.annotations.NotNull;
+ 
+-public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketListener> {
++import java.util.Arrays;
++
++public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketListener>, CachableCustomContentReplaceable<ClientboundBlockUpdatePacket> { // Martijn - custom blocks and items
+     private final BlockPos pos;
+-    public final BlockState blockState;
++    public BlockState blockState; // Martijn - custom blocks and items
+ 
+     public ClientboundBlockUpdatePacket(BlockPos pos, BlockState state) {
+         this.pos = pos;
+@@ -43,4 +48,34 @@ public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketList
+     public BlockPos getPos() {
+         return this.pos;
+     }
++
++    // Martijn start - custom blocks and items
++
++    private final ReplacedCustomContentCache<ClientboundBlockUpdatePacket> replacedCustomContentCache = new ReplacedCustomContentCache<>(this);
++
++    @Override
++    public @NotNull ClientboundBlockUpdatePacket replaceCustomContent(boolean hasResourcePack) {
++        return this.replacedCustomContentCache.get(hasResourcePack);
++    }
++
++    @Override
++    public ClientboundBlockUpdatePacket copy() {
++        return new ClientboundBlockUpdatePacket(
++            this.pos,
++            this.blockState
++        );
++    }
++
++    @Override
++    public void replaceCustomContentInPlace(boolean hasResourcePack) {
++        var stateIdReplacementArray = hasResourcePack ? Block.stateIdReplacementArrayWithResourcePack : Block.stateIdReplacementArrayWithoutResourcePack;
++        int oldId = Block.BLOCK_STATE_REGISTRY.getId(this.blockState);
++        int newId = stateIdReplacementArray[oldId];
++        if (oldId != newId) {
++            this.blockState = Block.BLOCK_STATE_REGISTRY.byId(newId);
++        }
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
+index dbd8b9b09b82c1b75e8be9dc7416d9f0863c8c87..6934b789294d50721caa9aa870c83d16a5ca2a98 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetContentPacket.java
+@@ -5,12 +5,13 @@ import net.minecraft.core.NonNullList;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.item.ItemStack;
++import org.jetbrains.annotations.NotNull;
+ 
+ public class ClientboundContainerSetContentPacket implements Packet<ClientGamePacketListener> {
+     private final int containerId;
+     private final int stateId;
+     private final List<ItemStack> items;
+-    private final ItemStack carriedItem;
++    private ItemStack carriedItem; // Martijn - custom blocks and items
+ 
+     public ClientboundContainerSetContentPacket(int syncId, int revision, NonNullList<ItemStack> contents, ItemStack cursorStack) {
+         this.containerId = syncId;
+@@ -69,4 +70,25 @@ public class ClientboundContainerSetContentPacket implements Packet<ClientGamePa
+     public int getStateId() {
+         return this.stateId;
+     }
++
++    // Martijn start - custom blocks and items
++
++    @Override
++    public @NotNull ClientboundContainerSetContentPacket replaceCustomContent(boolean hasResourcePack) {
++        for (int i = 0; i < this.items.size(); i++) {
++            ItemStack item = this.items.get(i);
++            var replacementRule = item.getItem().replacementRule;
++            if (replacementRule != null) {
++                this.items.set(i, replacementRule.replace(item, hasResourcePack));
++            }
++        }
++        var replacementRule = this.carriedItem.getItem().replacementRule;
++        if (replacementRule != null) {
++            this.carriedItem = replacementRule.replace(this.carriedItem, hasResourcePack);
++        }
++        return this;
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
+index 13ee7ad9c9415cd785b5487de7131c932c2198a0..4bea38905db11f4fd49a48926a65d7dc5ed8abf9 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundContainerSetSlotPacket.java
+@@ -3,6 +3,7 @@ package net.minecraft.network.protocol.game;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.item.ItemStack;
++import org.jetbrains.annotations.NotNull;
+ 
+ public class ClientboundContainerSetSlotPacket implements Packet<ClientGamePacketListener> {
+     public static final int CARRIED_ITEM = -1;
+@@ -10,7 +11,7 @@ public class ClientboundContainerSetSlotPacket implements Packet<ClientGamePacke
+     private final int containerId;
+     private final int stateId;
+     private final int slot;
+-    private final ItemStack itemStack;
++    private ItemStack itemStack; // Martijn - custom blocks and items
+ 
+     public ClientboundContainerSetSlotPacket(int syncId, int revision, int slot, ItemStack stack) {
+         this.containerId = syncId;
+@@ -54,4 +55,18 @@ public class ClientboundContainerSetSlotPacket implements Packet<ClientGamePacke
+     public int getStateId() {
+         return this.stateId;
+     }
++
++    // Martijn start - custom blocks and items
++
++    @Override
++    public @NotNull ClientboundContainerSetSlotPacket replaceCustomContent(boolean hasResourcePack) {
++        var replacementRule = this.itemStack.getItem().replacementRule;
++        if (replacementRule != null) {
++            this.itemStack = replacementRule.replace(this.itemStack, hasResourcePack);
++        }
++        return this;
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+index 652bea6868a03a5315965f79c76172fb9dbb93fb..62827c6d9ddb57694c2de27c0b0ff56abb9102a6 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+@@ -2,6 +2,8 @@ package net.minecraft.network.protocol.game;
+ 
+ import it.unimi.dsi.fastutil.shorts.ShortIterator;
+ import it.unimi.dsi.fastutil.shorts.ShortSet;
++
++import java.util.Arrays;
+ import java.util.function.BiConsumer;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.SectionPos;
+@@ -10,8 +12,11 @@ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.chunk.LevelChunkSection;
++import nl.martijnmuijsers.paper.protocol.CachableCustomContentReplaceable;
++import nl.martijnmuijsers.paper.protocol.ReplacedCustomContentCache;
++import org.jetbrains.annotations.NotNull;
+ 
+-public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePacketListener> {
++public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePacketListener>, CachableCustomContentReplaceable<ClientboundSectionBlocksUpdatePacket> { // Martijn - custom blocks and items
+ 
+     private static final int POS_IN_SECTION_BITS = 12;
+     private final SectionPos sectionPos;
+@@ -19,6 +24,17 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+     private final BlockState[] states;
+     private final boolean suppressLightUpdates;
+ 
++    // Martijn start - custom blocks and items
++
++    public ClientboundSectionBlocksUpdatePacket(SectionPos sectionPos, short[] positions, BlockState[] states, boolean suppressLightUpdates) {
++        this.sectionPos = sectionPos;
++        this.positions = positions;
++        this.states = states;
++        this.suppressLightUpdates = suppressLightUpdates;
++    }
++
++    // Martijn end - custom blocks and items
++
+     public ClientboundSectionBlocksUpdatePacket(SectionPos sectionPos, ShortSet positions, LevelChunkSection section, boolean noLightingUpdates) {
+         this.sectionPos = sectionPos;
+         this.suppressLightUpdates = noLightingUpdates;
+@@ -94,4 +110,38 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+     public boolean shouldSuppressLightUpdates() {
+         return this.suppressLightUpdates;
+     }
++
++    // Martijn start - custom blocks and items
++
++    private final ReplacedCustomContentCache<ClientboundSectionBlocksUpdatePacket> replacedCustomContentCache = new ReplacedCustomContentCache<>(this);
++
++    @Override
++    public @NotNull ClientboundSectionBlocksUpdatePacket replaceCustomContent(boolean hasResourcePack) {
++       return this.replacedCustomContentCache.get(hasResourcePack);
++    }
++
++    @Override
++    public ClientboundSectionBlocksUpdatePacket copy() {
++        return new ClientboundSectionBlocksUpdatePacket(
++            this.sectionPos,
++            this.positions,
++            Arrays.copyOf(this.states, this.states.length),
++            this.suppressLightUpdates
++        );
++    }
++
++    @Override
++    public void replaceCustomContentInPlace(boolean hasResourcePack) {
++        var stateIdReplacementArray = hasResourcePack ? Block.stateIdReplacementArrayWithResourcePack : Block.stateIdReplacementArrayWithoutResourcePack;
++        for (int i = 0; i < this.states.length; i++) {
++            int oldId = Block.BLOCK_STATE_REGISTRY.getId(states[i]);
++            int newId = stateIdReplacementArray[oldId];
++            if (oldId != newId) {
++                this.states[i] = Block.BLOCK_STATE_REGISTRY.byId(newId);
++            }
++        }
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java
+index 07d96cca04c9658291eea91e7b0a7f5a3fc9882e..18400a160cb3ba4f9e4734913c253e023c815bca 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java
+@@ -8,6 +8,7 @@ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.world.item.crafting.Recipe;
++import net.minecraft.world.item.crafting.RecipeSerializer;
+ 
+ public class ClientboundUpdateRecipesPacket implements Packet<ClientGamePacketListener> {
+     private final List<Recipe<?>> recipes;
+@@ -45,6 +46,20 @@ public class ClientboundUpdateRecipesPacket implements Packet<ClientGamePacketLi
+     public static <T extends Recipe<?>> void toNetwork(FriendlyByteBuf buf, T recipe) {
+         buf.writeResourceLocation(Registry.RECIPE_SERIALIZER.getKey(recipe.getSerializer()));
+         buf.writeResourceLocation(recipe.getId());
+-        recipe.getSerializer().toNetwork(buf, recipe);
++        ((RecipeSerializer<T>) recipe.getSerializer()).toNetwork(buf, recipe);
+     }
++
++    // Martijn start - custom blocks and items
++
++    @Override
++    public @NotNull ClientboundContainerSetSlotPacket replaceCustomContent(boolean hasResourcePack) {
++        var replacementRule = this.itemStack.getItem().replacementRule;
++        if (replacementRule != null) {
++            this.itemStack = replacementRule.replace(this.itemStack, hasResourcePack);
++        }
++        return this;
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/protocol/CachableCustomContentReplaceable.java b/src/main/java/nl/martijnmuijsers/paper/protocol/CachableCustomContentReplaceable.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..319553033ffc4de9dfe4d4b4977fa3f1d8cee91f
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/protocol/CachableCustomContentReplaceable.java
+@@ -0,0 +1,21 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.protocol;
++
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * An interface for classes that have custom content that may need to be replaced when being sent to a player
++ */
++public interface CachableCustomContentReplaceable<T extends CachableCustomContentReplaceable> {
++
++    /**
++     * Note: this may not make a full independent copy, merely a copy for the purpose of replacing custom content
++     *
++     * @return A copy of this instances so that it can be modified in-place
++     */
++    @NotNull T copy();
++
++    void replaceCustomContentInPlace(boolean hasResourcePack);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/protocol/ReplacedCustomContentCache.java b/src/main/java/nl/martijnmuijsers/paper/protocol/ReplacedCustomContentCache.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f5dabd85a486b834daa902c16b9b960ff385f8b2
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/protocol/ReplacedCustomContentCache.java
+@@ -0,0 +1,37 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.protocol;
++
++import javax.annotation.Nullable;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Class to contain a version of an instance that has been modified for players with the resource pack,
++ * and a version for players without the resource pack
++ */
++public class ReplacedCustomContentCache<T extends CachableCustomContentReplaceable<T>> {
++
++    public final @NotNull T original;
++    private @Nullable T withResourcePack;
++    private @Nullable T withoutResourcePack;
++
++    public ReplacedCustomContentCache(@NotNull T original) {
++        this.original = original;
++    }
++
++    public @NotNull T get(boolean hasResourcePack) {
++        if (hasResourcePack) {
++            if (this.withResourcePack == null) {
++                this.withResourcePack = this.original.copy();
++                this.withResourcePack.replaceCustomContentInPlace(true);
++            }
++            return this.withResourcePack;
++        }
++        if (this.withoutResourcePack == null) {
++            this.withoutResourcePack = this.original.copy();
++            this.withoutResourcePack.replaceCustomContentInPlace(false);
++        }
++        return this.withoutResourcePack;
++    }
++
++}
