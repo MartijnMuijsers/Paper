@@ -1,0 +1,338 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 27 Jun 2022 01:43:47 +0200
+Subject: [PATCH] Add custom blocks and items
+
+
+diff --git a/src/main/java/org/bukkit/Material.java b/src/main/java/org/bukkit/Material.java
+index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495afb9a781 100644
+--- a/src/main/java/org/bukkit/Material.java
++++ b/src/main/java/org/bukkit/Material.java
+@@ -4055,6 +4055,10 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     LEGACY_RECORD_11(2266, 1),
+     @Deprecated
+     LEGACY_RECORD_12(2267, 1),
++
++    // Martijn start - custom blocks and items
++    SUCRAFT_SNOWY_STONE_BRICKS(78131, MOSSY_STONE_BRICKS);
++    // Martijn end - custom blocks and items
+     ;
+     //</editor-fold>
+ 
+@@ -4071,6 +4075,10 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     private final NamespacedKey key;
+     private boolean isBlock; // Paper
+ 
++    // Martijn start - custom blocks and items
++    private @Nullable Material vanillaTarget = null;
++    // Martijn end - custom blocks and items
++
+     private Material(final int id) {
+         this(id, 64);
+     }
+@@ -4097,7 +4105,14 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+         this.maxStack = stack;
+         this.data = data;
+         this.legacy = this.name().startsWith(LEGACY_PREFIX);
+-        this.key = NamespacedKey.minecraft(this.name().toLowerCase(Locale.ROOT));
++        // Martijn start - custom blocks and items
++        String lowerCaseName = this.name().toLowerCase(Locale.ROOT);
++        if (lowerCaseName.startsWith("SUCRAFT_")) {
++            this.key = NamespacedKey.sucraft(lowerCaseName.substring(8));
++        } else {
++            this.key = NamespacedKey.minecraft(lowerCaseName);
++        }
++        // Martijn end - custom blocks and items
+         // try to cache the constructor for this material
+         try {
+             if (MaterialData.class.isAssignableFrom(data)) {
+@@ -4112,6 +4127,13 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+         }
+     }
+ 
++    // Martijn start - custom blocks and items
++    private Material(final int id, Material vanillaTarget) {
++        this(id);
++        this.vanillaTarget = vanillaTarget;
++    }
++    // Martijn end - custom blocks and items
++
+     // Paper start
+ 
+     /**
+@@ -4317,6 +4339,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     }
+     private boolean isBlock0() {
+     // Paper end
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isBlock0();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isBlock">
+             case ACACIA_BUTTON:
+@@ -5441,6 +5468,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      * @return True if this material represents a playable music disk.
+      */
+     public boolean isRecord() {
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isRecord();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isRecord">
+             case MUSIC_DISC_5:
+@@ -5474,6 +5506,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+         if (!isBlock() || id == 0) {
+             return false;
+         }
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isSolid();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isSolid">
+             case ACACIA_DOOR:
+@@ -6409,6 +6446,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      * @return True if this material is an air block.
+      */
+     public boolean isAir() {
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isAir();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isAir">
+             case AIR:
+@@ -6435,6 +6477,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+         if (!isBlock()) {
+             return false;
+         }
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isTransparent();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isTransparent">
+             case ACACIA_BUTTON:
+@@ -6631,6 +6678,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+         if (!isBlock()) {
+             return false;
+         }
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isFlammable();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isFlammable">
+             case ACACIA_DOOR:
+@@ -6929,6 +6981,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+         if (!isBlock()) {
+             return false;
+         }
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isBurnable();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isBurnable">
+             case ACACIA_FENCE:
+@@ -7133,6 +7190,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      * @return true if this Material can be used as fuel.
+      */
+     public boolean isFuel() {
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isFuel();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isFuel">
+             case ACACIA_BOAT:
+@@ -7419,6 +7481,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+         if (!isBlock()) {
+             return false;
+         }
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isOccluding();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isOccluding">
+             case ACACIA_LOG:
+@@ -7878,6 +7945,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+         if (!isBlock()) {
+             return false;
+         }
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.hasGravity();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="hasGravity">
+             case ANVIL:
+@@ -7921,6 +7993,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      * @return true if this material is an item
+      */
+     public boolean isItem() {
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isItem();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             //<editor-fold defaultstate="collapsed" desc="isItem">
+             case ACACIA_WALL_SIGN:
+@@ -8129,6 +8206,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      * @return true if this material can be interacted with.
+      */
+     public boolean isInteractable() {
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.isInteractable();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             // <editor-fold defaultstate="collapsed" desc="isInteractable">
+             case ACACIA_BUTTON:
+@@ -8425,6 +8507,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      */
+     public float getHardness() {
+         Preconditions.checkArgument(isBlock(), "The Material is not a block!");
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.getHardness();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             // <editor-fold defaultstate="collapsed" desc="getBlockHardness">
+             case BARRIER:
+@@ -9257,6 +9344,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      */
+     public float getBlastResistance() {
+         Preconditions.checkArgument(isBlock(), "The Material is not a block!");
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.getBlastResistance();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             // <editor-fold defaultstate="collapsed" desc="getBlastResistance">
+             case BIG_DRIPLEAF:
+@@ -10090,6 +10182,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      */
+     public float getSlipperiness() {
+         Preconditions.checkArgument(isBlock(), "The Material is not a block!");
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.getSlipperiness();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             // <editor-fold defaultstate="collapsed" desc="getSlipperiness">
+             default:
+@@ -10117,6 +10214,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     @Nullable
+     public Material getCraftingRemainingItem() {
+         Preconditions.checkArgument(isItem(), "The Material is not an item!");
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.getCraftingRemainingItem();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             // <editor-fold defaultstate="collapsed" desc="getCraftingRemainingItem">
+             case WATER_BUCKET:
+@@ -10142,6 +10244,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     @NotNull
+     public EquipmentSlot getEquipmentSlot() {
+         Preconditions.checkArgument(isItem(), "The Material is not an item!");
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.getEquipmentSlot();
++        }
++        // Martijn end - custom blocks and items
+         switch (this) {
+             // <editor-fold defaultstate="collapsed" desc="getEquipmentSlot">
+             case CARVED_PUMPKIN:
+@@ -10205,7 +10312,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     @NotNull
+     public Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(@NotNull EquipmentSlot slot) {
+         Preconditions.checkArgument(isItem(), "The Material is not an item!");
+-
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.getDefaultAttributeModifiers(slot);
++        }
++        // Martijn end - custom blocks and items
+         return Bukkit.getUnsafe().getDefaultAttributeModifiers(this, slot);
+     }
+ 
+@@ -10216,6 +10327,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+      */
+     @Nullable
+     public CreativeCategory getCreativeCategory() {
++        // Martijn start - custom blocks and items
++        if (vanillaTarget != null) {
++            return vanillaTarget.getCreativeCategory();
++        }
++        // Martijn end - custom blocks and items
+         return Bukkit.getUnsafe().getCreativeCategory(this);
+     }
+ 
+diff --git a/src/main/java/org/bukkit/NamespacedKey.java b/src/main/java/org/bukkit/NamespacedKey.java
+index 236c9aea9ffc36269e5c32eacc9f1fd6bd039c88..1121a533b31489a66b76aeeacccaed466d3fe8e3 100644
+--- a/src/main/java/org/bukkit/NamespacedKey.java
++++ b/src/main/java/org/bukkit/NamespacedKey.java
+@@ -30,6 +30,9 @@ public final class NamespacedKey implements net.kyori.adventure.key.Key, com.des
+      * compatibility measures.
+      */
+     public static final String BUKKIT = "bukkit";
++    // Martijn start - custom blocks and items
++    public static final String SUCRAFT = "sucraft";
++    // Martijn end - custom blocks and items
+     //
+     private static final Pattern VALID_NAMESPACE = Pattern.compile("[a-z0-9._-]+");
+     private static final Pattern VALID_KEY = Pattern.compile("[a-z0-9/._-]+");
+@@ -145,6 +148,15 @@ public final class NamespacedKey implements net.kyori.adventure.key.Key, com.des
+         return new NamespacedKey(MINECRAFT, key);
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    @NotNull
++    public static NamespacedKey sucraft(@NotNull String key) {
++        return new NamespacedKey(SUCRAFT, key);
++    }
++
++    // Martijn end - custom blocks and items
++
+     /**
+      * Get a NamespacedKey from the supplied string with a default namespace if
+      * a namespace is not defined. This is a utility method meant to fetch a
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 3f4d99e54a128cb05879ef5900bc6dd8a3faf6b2..8109ff8c611d8539210378a0e5412279bd8b572e 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -2495,6 +2495,12 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+      */
+     boolean hasResourcePack();
+ 
++    // Martijn start - custom blocks and items
++
++    public boolean hasSuCraftResourcePack();
++
++    // Martijn end - custom blocks and items
++
+     /**
+      * Gets a copy of this players profile
+      * @return The players profile object

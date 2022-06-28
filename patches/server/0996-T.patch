@@ -1,0 +1,702 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 28 Jun 2022 16:24:33 +0200
+Subject: [PATCH] T
+
+
+diff --git a/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketInfo.java b/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketInfo.java
+index d98a3f5c54c67a673eb7dc456dd039cd78f9c34d..7e9b89c8d18df38831f0e5a4945c65b1285fc7a0 100644
+--- a/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketInfo.java
++++ b/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketInfo.java
+@@ -13,6 +13,7 @@ public class ChunkPacketInfo<T> {
+     private final int[] indexes;
+     private final Object[][] presetValues;
+     private byte[] buffer;
++    private final int[] paletteIndexes; // Martijn - custom blocks and items
+ 
+     public ChunkPacketInfo(ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk) {
+         this.chunkPacket = chunkPacket;
+@@ -22,6 +23,7 @@ public class ChunkPacketInfo<T> {
+         palettes = new Object[sections];
+         indexes = new int[sections];
+         presetValues = new Object[sections][];
++        paletteIndexes = new int[sections]; // Martijn - custom blocks and items
+     }
+ 
+     public ClientboundLevelChunkWithLightPacket getChunkPacket() {
+@@ -74,6 +76,18 @@ public class ChunkPacketInfo<T> {
+         this.presetValues[chunkSectionIndex] = presetValues;
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    public int getPaletteIndex(int chunkSectionIndex) {
++        return paletteIndexes[chunkSectionIndex];
++    }
++
++    public void setPaletteIndex(int chunkSectionIndex, int paletteIndex) {
++        paletteIndexes[chunkSectionIndex] = paletteIndex;
++    }
++
++    // Martijn end - custom blocks and items
++
+     public boolean isWritten(int chunkSectionIndex) {
+         return bits[chunkSectionIndex] != 0;
+     }
+diff --git a/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketInfoAntiXray.java b/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketInfoAntiXray.java
+index 7c689bd7bf81cdd04b516ff31d6e92dcca3965e5..48bc2e20e45183733ec5b1e545ce0d371b3e1ad0 100644
+--- a/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketInfoAntiXray.java
++++ b/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketInfoAntiXray.java
+@@ -10,7 +10,7 @@ public final class ChunkPacketInfoAntiXray extends ChunkPacketInfo<BlockState> i
+ 
+     // Martijn start - custom blocks and items
+     private final ChunkPacketBlockControllerModifier chunkPacketBlockControllerAntiXray;
+-    private final boolean doesPlayerHaveResourcePack;
++    public final boolean doesPlayerHaveResourcePack;
+     // Martijn end - custom blocks and items
+     private LevelChunk[] nearbyChunks;
+ 
+diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
+index 35377576ed182814051c11f902e02e8e921e84e3..ddffc050965ff526dbc07693354192fbf1c3eb02 100644
+--- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
++++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
+@@ -513,6 +513,28 @@ public class FriendlyByteBuf extends ByteBuf {
+         return this;
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    /**
++     * We may want to change the palette of chunk packets on the fly, but we can't do that if the palette values are already written to the buffer with a VarInt type (since then, if they are no longer the same length in bytes as a VarInt, we would have to move up all following data in the buffer)
++     * <br>
++     * Therefore, we introduce this method: it will write exactly 3 bytes (which is the minimum needed to encode all possible block states using a VarInt), but still in the VarInt format so that the client can read it properly
++     *
++     * @see #writeVarInt
++     */
++    public FriendlyByteBuf writeVarIntThreeBytes(int value) {
++        // First write two bytes
++        this.writeByte(value & 127 | 128);
++        value >>>= 7;
++        this.writeByte(value & 127 | 128);
++        value >>>= 7;
++        // Then write the last byte
++        this.writeByte(value);
++        return this;
++    }
++
++    // Martijn end - custom blocks and items
++
+     public FriendlyByteBuf writeVarLong(long value) {
+         while ((value & -128L) != 0L) {
+             this.writeByte((int) (value & 127L) | 128);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java
+index 4ee273f57b77c1f9eb1b6e8464ff51b3e7677d30..721840c7e1280be5cb79add9f0da76c424573975 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkPacketData.java
+@@ -18,7 +18,6 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
+ import net.minecraft.world.level.chunk.LevelChunk;
+ import net.minecraft.world.level.chunk.LevelChunkSection;
+ import net.minecraft.world.level.levelgen.Heightmap;
+-import org.jetbrains.annotations.NotNull;
+ 
+ public class ClientboundLevelChunkPacketData {
+     private static final int TWO_MEGABYTES = 2097152;
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
+index 3accc8b96e41e711946419f0e966040d53b60382..b0fbfd9f32bb73d9ac7f6487235c9ea52f4fbf7c 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
+@@ -7,7 +7,6 @@ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.chunk.LevelChunk;
+ import net.minecraft.world.level.lighting.LevelLightEngine;
+-import org.jetbrains.annotations.NotNull;
+ 
+ public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePacketListener> {
+     private final int x;
+diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
+index 73185d6be51568a108ef6b8a877e6b57a9dad50b..8b2ec41bcbc085129875633ab72e5f4f957a1d39 100644
+--- a/src/main/java/net/minecraft/world/item/Item.java
++++ b/src/main/java/net/minecraft/world/item/Item.java
+@@ -73,6 +73,8 @@ public class Item implements ItemLike {
+ 
+     // Martijn start - custom blocks and items
+ 
++    public boolean isVanilla = true;
++
+     /**
+      * Must be non-null for SuCraft items
+      */
+diff --git a/src/main/java/net/minecraft/world/item/Items.java b/src/main/java/net/minecraft/world/item/Items.java
+index f15618f9c16b9179c033666fbc25ca556eeed138..0b987d94b77d1c2c64f4892e0c477389b9aef810 100644
+--- a/src/main/java/net/minecraft/world/item/Items.java
++++ b/src/main/java/net/minecraft/world/item/Items.java
+@@ -1221,7 +1221,6 @@ public class Items {
+     }
+ 
+     // Martijn start - custom blocks and items
+-
+     static {
+         // Evaluate the last element to bootstrap Items
+         ECHO_SHARD.asItem();
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index db05788e1eeca4bcf89a73f73f6501d02c1f97ac..dbd8c8c6de36475b62e3b65e32156a86bbd2a7c3 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -71,6 +71,7 @@ public class Block extends BlockBehaviour implements ItemLike {
+     private static final Logger LOGGER = LogUtils.getLogger();
+     private final Holder.Reference<Block> builtInRegistryHolder;
+     public static final IdMapper<BlockState> BLOCK_STATE_REGISTRY = new IdMapper<>();
++    public static final IdMapper<BlockState> BLOCK_STATE_REGISTRY_VANILLA = new IdMapper<>(); // Martijn - custom blocks and items
+     private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
+         public Boolean load(VoxelShape voxelshape) {
+             return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
+@@ -130,6 +131,8 @@ public class Block extends BlockBehaviour implements ItemLike {
+ 
+     // Martijn start - custom blocks and items
+ 
++    public boolean isVanilla = true;
++
+     /**
+      * Must be non-null for SuCraft blocks
+      */
+diff --git a/src/main/java/net/minecraft/world/level/block/Blocks.java b/src/main/java/net/minecraft/world/level/block/Blocks.java
+index eac7db586991732b8c98357bb5e16812ec455731..7af397733d917fa5529a9c5536f814d71ceacd1c 100644
+--- a/src/main/java/net/minecraft/world/level/block/Blocks.java
++++ b/src/main/java/net/minecraft/world/level/block/Blocks.java
+@@ -1183,13 +1183,20 @@ public class Blocks {
+     }
+ 
+     static {
++        // Martijn start - custom blocks and items
+         // Evaluate the last element to bootstrap Blocks
+         REINFORCED_DEEPSLATE.asBlock();
+         // Then bootstrap SuCraftBlocks
+-        SuCraftBlocks.bootstrap(); // Martijn - custom blocks and items
++        SuCraftBlocks.bootstrap();
++        // Martijn end - custom blocks and items
+         for(Block block : Registry.BLOCK) {
+             for(BlockState blockState : block.getStateDefinition().getPossibleStates()) {
+                 Block.BLOCK_STATE_REGISTRY.add(blockState);
++                // Martijn start - custom blocks and items
++                if (block.isVanilla) {
++                    Block.BLOCK_STATE_REGISTRY_VANILLA.add(blockState);
++                }
++                // Martijn end - custom blocks
+             }
+ 
+             block.getLootTable();
+diff --git a/src/main/java/net/minecraft/world/level/chunk/HashMapPalette.java b/src/main/java/net/minecraft/world/level/chunk/HashMapPalette.java
+index ba9b0f419b0785a0b1e3bc57f18bfe5edaa192bd..b21d11d08f7b69240e416bee1a7a2f0be49d627a 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/HashMapPalette.java
++++ b/src/main/java/net/minecraft/world/level/chunk/HashMapPalette.java
+@@ -11,7 +11,7 @@ public class HashMapPalette<T> implements Palette<T> {
+     private final IdMap<T> registry;
+     private final CrudeIncrementalIntIdentityHashBiMap<T> values;
+     private final PaletteResize<T> resizeHandler;
+-    private final int bits;
++    public final int bits; // Martijn - custom blocks and items
+ 
+     public HashMapPalette(IdMap<T> idList, int bits, PaletteResize<T> listener, List<T> entries) {
+         this(idList, bits, listener);
+@@ -90,7 +90,7 @@ public class HashMapPalette<T> implements Palette<T> {
+         buf.writeVarInt(i);
+ 
+         for(int j = 0; j < i; ++j) {
+-            buf.writeVarInt(this.registry.getId(this.values.byId(j)));
++            buf.writeVarIntThreeBytes(this.registry.getId(this.values.byId(j))); // Martijn - custom blocks and items
+         }
+ 
+     }
+@@ -99,9 +99,7 @@ public class HashMapPalette<T> implements Palette<T> {
+     public int getSerializedSize() {
+         int i = FriendlyByteBuf.getVarIntSize(this.getSize());
+ 
+-        for(int j = 0; j < this.getSize(); ++j) {
+-            i += FriendlyByteBuf.getVarIntSize(this.registry.getId(this.values.byId(j)));
+-        }
++        i += this.getSize() * 3; // Martijn - custom blocks and items
+ 
+         return i;
+     }
+@@ -121,4 +119,13 @@ public class HashMapPalette<T> implements Palette<T> {
+     public Palette<T> copy() {
+         return new HashMapPalette<>(this.registry, this.bits, this.resizeHandler, this.values.copy());
+     }
++
++    // Martijn start - custom blocks and items
++
++    public HashMapPalette<T> copyBlank(List<T> entries) {
++        return new HashMapPalette<>(this.registry, this.bits, (newSize, added) -> 0, entries);
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/net/minecraft/world/level/chunk/LinearPalette.java b/src/main/java/net/minecraft/world/level/chunk/LinearPalette.java
+index fb65457bc03a24b5f67e8eef538da8d6c2aabd6e..1732975254176f19f80d3563488b7f30959dbbff 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/LinearPalette.java
++++ b/src/main/java/net/minecraft/world/level/chunk/LinearPalette.java
+@@ -10,7 +10,7 @@ public class LinearPalette<T> implements Palette<T> {
+     private final IdMap<T> registry;
+     private final T[] values;
+     private final PaletteResize<T> resizeHandler;
+-    private final int bits;
++    public final int bits; // Martijn start - custom blocks and items
+     private int size;
+ 
+     private LinearPalette(IdMap<T> idList, int bits, PaletteResize<T> listener, List<T> list) {
+@@ -92,7 +92,7 @@ public class LinearPalette<T> implements Palette<T> {
+         buf.writeVarInt(this.size);
+ 
+         for(int i = 0; i < this.size; ++i) {
+-            buf.writeVarInt(this.registry.getId(this.values[i]));
++            buf.writeVarIntThreeBytes(this.registry.getId(this.values[i])); // Martijn - custom blocks and items
+         }
+ 
+     }
+@@ -101,9 +101,7 @@ public class LinearPalette<T> implements Palette<T> {
+     public int getSerializedSize() {
+         int i = FriendlyByteBuf.getVarIntSize(this.getSize());
+ 
+-        for(int j = 0; j < this.getSize(); ++j) {
+-            i += FriendlyByteBuf.getVarIntSize(this.registry.getId(this.values[j]));
+-        }
++        i += this.getSize() * 3; // Martijn - custom blocks and items
+ 
+         return i;
+     }
+@@ -117,4 +115,13 @@ public class LinearPalette<T> implements Palette<T> {
+     public Palette<T> copy() {
+         return new LinearPalette<>(this.registry, (T[])((Object[])this.values.clone()), this.resizeHandler, this.bits, this.size);
+     }
++
++    // Martijn start - custom blocks and items
++
++    public LinearPalette<T> copyBlank(List<T> entries) {
++        return new LinearPalette<>(this.registry, this.bits, (newSize, added) -> 0, entries);
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/net/minecraft/world/level/chunk/PalettedContainer.java b/src/main/java/net/minecraft/world/level/chunk/PalettedContainer.java
+index 08e1309e618377d170c446a1568c21b7bf4e5683..35014a305d1388d117bddb9b7e03e28b95ab8e5d 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/PalettedContainer.java
++++ b/src/main/java/net/minecraft/world/level/chunk/PalettedContainer.java
+@@ -374,7 +374,7 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+         }
+     }
+ 
+-    static record Configuration<T>(Palette.Factory factory, int bits) {
++    public static record Configuration<T>(Palette.Factory factory, int bits) { // Martijn - custom blocks and items
+         public PalettedContainer.Data<T> createData(IdMap<T> idList, PaletteResize<T> listener, int size) {
+             BitStorage bitStorage = (BitStorage)(this.bits == 0 ? new ZeroBitStorage(size) : new SimpleBitStorage(this.bits, size));
+             Palette<T> palette = this.factory.create(this.bits, idList, listener, List.of());
+@@ -411,6 +411,12 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+         // Paper start - Anti-Xray - Add chunk packet info
+         public void write(FriendlyByteBuf buf, @Nullable com.destroystokyo.paper.antixray.ChunkPacketInfo<T> chunkPacketInfo, int bottomBlockY) {
+             buf.writeByte(this.storage.getBits());
++            // Martijn start - custom blocks and items
++            if (chunkPacketInfo != null) {
++                int chunkSectionIndex = (bottomBlockY >> 4) - chunkPacketInfo.getChunk().getMinSection();
++                chunkPacketInfo.setPaletteIndex(chunkSectionIndex, buf.writerIndex());
++            }
++            // Martijn end - custom blocks and items
+             this.palette.write(buf);
+ 
+             if (chunkPacketInfo != null) {
+diff --git a/src/main/java/net/minecraft/world/level/chunk/SingleValuePalette.java b/src/main/java/net/minecraft/world/level/chunk/SingleValuePalette.java
+index 76cfa5797a71df34c7b933798815863f437debcd..f7b8bcbc27c52176b68dcd558531ec8349f06bec 100644
+--- a/src/main/java/net/minecraft/world/level/chunk/SingleValuePalette.java
++++ b/src/main/java/net/minecraft/world/level/chunk/SingleValuePalette.java
+@@ -8,12 +8,12 @@ import net.minecraft.network.FriendlyByteBuf;
+ import org.apache.commons.lang3.Validate;
+ 
+ public class SingleValuePalette<T> implements Palette<T> {
+-    private final IdMap<T> registry;
++    public final IdMap<T> registry; // Martijn - custom blocks and items
+     @Nullable
+     private T value;
+-    private final PaletteResize<T> resizeHandler;
++    private final @Nullable PaletteResize<T> resizeHandler; // Martijn - custom blocks and items
+ 
+-    public SingleValuePalette(IdMap<T> idList, PaletteResize<T> listener, List<T> entries) {
++    public SingleValuePalette(IdMap<T> idList, @Nullable PaletteResize<T> listener, List<T> entries) { // Martijn - custom blocks and items
+         this.registry = idList;
+         this.resizeHandler = listener;
+         if (entries.size() > 0) {
+@@ -23,13 +23,18 @@ public class SingleValuePalette<T> implements Palette<T> {
+ 
+     }
+ 
+-    public static <A> Palette<A> create(int bitSize, IdMap<A> idList, PaletteResize<A> listener, List<A> entries) {
++    public static <A> Palette<A> create(int bitSize, IdMap<A> idList, @Nullable PaletteResize<A> listener, List<A> entries) { // Martijn - custom blocks and items
+         return new SingleValuePalette<>(idList, listener, entries);
+     }
+ 
+     @Override
+     public int idFor(T object) {
+         if (this.value != null && this.value != object) {
++            // Martijn start - custom blocks and items
++            if (this.resizeHandler == null) {
++                throw new IllegalStateException("Tried to expand SingleValuePalette without a resizeHandler");
++            }
++            // Martijn end - custom blocks and items
+             return this.resizeHandler.onResize(1, object);
+         } else {
+             this.value = object;
+@@ -65,7 +70,7 @@ public class SingleValuePalette<T> implements Palette<T> {
+         if (this.value == null) {
+             throw new IllegalStateException("Use of an uninitialized palette");
+         } else {
+-            buf.writeVarInt(this.registry.getId(this.value));
++            buf.writeVarIntThreeBytes(this.registry.getId(this.value)); // Martijn - custom blocks and items
+         }
+     }
+ 
+@@ -74,7 +79,7 @@ public class SingleValuePalette<T> implements Palette<T> {
+         if (this.value == null) {
+             throw new IllegalStateException("Use of an uninitialized palette");
+         } else {
+-            return FriendlyByteBuf.getVarIntSize(this.registry.getId(this.value));
++            return 3; // Martijn - custom blocks and items
+         }
+     }
+ 
+@@ -91,4 +96,13 @@ public class SingleValuePalette<T> implements Palette<T> {
+             return this;
+         }
+     }
++
++    // Martijn start - custom blocks and items
++
++    public SingleValuePalette<T> copyBlank(List<T> entries) {
++        return new SingleValuePalette<>(this.registry, (newSize, added) -> 0, entries);
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/antixray/ChunkPacketBlockControllerCustom.java b/src/main/java/nl/martijnmuijsers/paper/antixray/ChunkPacketBlockControllerCustom.java
+index a999977bca8485e400745423c4288f092f980ace..2b548e6c0b68591213a38037c017012f07586dbf 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/antixray/ChunkPacketBlockControllerCustom.java
++++ b/src/main/java/nl/martijnmuijsers/paper/antixray/ChunkPacketBlockControllerCustom.java
+@@ -4,51 +4,36 @@ package nl.martijnmuijsers.paper.antixray;
+ 
+ import com.destroystokyo.paper.antixray.BitStorageReader;
+ import com.destroystokyo.paper.antixray.BitStorageWriter;
+-import com.destroystokyo.paper.antixray.ChunkPacketBlockController;
+-import com.destroystokyo.paper.antixray.ChunkPacketInfo;
+ import com.destroystokyo.paper.antixray.ChunkPacketInfoAntiXray;
+-import io.papermc.paper.configuration.WorldConfiguration;
+-import net.minecraft.core.BlockPos;
+-import net.minecraft.core.Direction;
+-import net.minecraft.core.Registry;
+-import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+-import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+-import net.minecraft.resources.ResourceLocation;
++import io.netty.buffer.ByteBuf;
++import io.netty.buffer.Unpooled;
++import it.unimi.dsi.fastutil.ints.Int2IntArrayMap;
++import it.unimi.dsi.fastutil.ints.Int2IntMap;
++import it.unimi.dsi.fastutil.ints.Int2IntOpenHashMap;
++import it.unimi.dsi.fastutil.ints.IntArraySet;
++import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
++import it.unimi.dsi.fastutil.ints.IntSet;
++import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.server.MinecraftServer;
+-import net.minecraft.server.level.ServerLevel;
+ import net.minecraft.server.level.ServerPlayer;
+-import net.minecraft.server.level.ServerPlayerGameMode;
+-import net.minecraft.world.level.ChunkPos;
++import net.minecraft.util.Mth;
+ import net.minecraft.world.level.Level;
+-import net.minecraft.world.level.biome.Biomes;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.block.EntityBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+-import net.minecraft.world.level.chunk.EmptyLevelChunk;
+ import net.minecraft.world.level.chunk.GlobalPalette;
+ import net.minecraft.world.level.chunk.HashMapPalette;
+ import net.minecraft.world.level.chunk.LevelChunk;
+-import net.minecraft.world.level.chunk.LevelChunkSection;
+ import net.minecraft.world.level.chunk.LinearPalette;
+-import net.minecraft.world.level.chunk.MissingPaletteEntryException;
+ import net.minecraft.world.level.chunk.Palette;
++import net.minecraft.world.level.chunk.PalettedContainer;
+ import net.minecraft.world.level.chunk.SingleValuePalette;
+-import org.bukkit.Bukkit;
+-import org.spongepowered.configurate.serialize.ScalarSerializer;
+-import org.spongepowered.configurate.serialize.SerializationException;
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ 
+-import java.lang.reflect.Type;
+ import java.util.ArrayList;
+-import java.util.LinkedHashSet;
+-import java.util.LinkedList;
++import java.util.Arrays;
+ import java.util.List;
+-import java.util.Objects;
+-import java.util.Set;
+ import java.util.concurrent.Executor;
+-import java.util.concurrent.ThreadLocalRandom;
+-import java.util.function.IntSupplier;
+-import java.util.function.Predicate;
+ 
+ public final class ChunkPacketBlockControllerCustom extends ChunkPacketBlockControllerModifierBase {
+ 
+@@ -67,14 +52,16 @@ public final class ChunkPacketBlockControllerCustom extends ChunkPacketBlockCont
+     }
+ 
+     // Temporary only
+-    static int replacementFor(int stateRegistryId) {
++    static int replacementFor(int stateRegistryId, boolean doesPlayerHaveResourcePack) {
+         BlockState state = Block.BLOCK_STATE_REGISTRY.byId(stateRegistryId);
+         if (state.is(Blocks.STONE)) {
+             return Block.BLOCK_STATE_REGISTRY.getId(Blocks.DIRT.defaultBlockState());
+         } else if (state.is(Blocks.DIRT)) {
+             return Block.BLOCK_STATE_REGISTRY.getId(Blocks.OAK_LOG.defaultBlockState());
+         } else if (state.is(Blocks.ACACIA_LEAVES)) {
+-            return Block.BLOCK_STATE_REGISTRY.getId(Blocks.RED_WOOL.defaultBlockState())
++            return Block.BLOCK_STATE_REGISTRY.getId(Blocks.RED_WOOL.defaultBlockState());
++        } else if (state.is(SuCraftBlocks.SNOWY_STONE_BRICKS)) {
++            return Block.BLOCK_STATE_REGISTRY.getId(Blocks.STONE_BRICKS.defaultBlockState());
+         }
+         return stateRegistryId;
+     }
+@@ -93,26 +80,168 @@ public final class ChunkPacketBlockControllerCustom extends ChunkPacketBlockCont
+         for (int chunkSectionIndex = 0; chunkSectionIndex < sectionsCount; chunkSectionIndex++) {
+             if (chunkPacketInfoAntiXray.isWritten(chunkSectionIndex)) {
+ 
+-                var palette = chunkPacketInfoAntiXray.getPalette(chunkSectionIndex);
+-                if (palette instanceof GlobalPalette<BlockState>) {
+-                    throw new IllegalStateException("Palette is not allowed to be GlobalPalette, because it contains custom blocks");
+-                } else if (palette instanceof LinearPalette<BlockState> linearPalette) {
+-
+-                } else if (palette instanceof HashMapPalette<BlockState> hashMapPalette) {
+-                    hashMapPalette.getEntries()
+-                } else if (palette instanceof SingleValuePalette<BlockState> singleValuePalette) {
+-                    int value = Block.BLOCK_STATE_REGISTRY.getId(singleValuePalette.valueFor(0));
+-                    int replacementValue = replacementFor(value);
+-                    if (value != replacementValue) {
+-                        chunkPacketInfoAntiXray.setPalette(chunkSectionIndex, SingleValuePalette.create(singleValuePalette.getSize()))
++                MinecraftServer.LOGGER.info(chunk.locX + " , " + chunk.locZ + " : " + chunkSectionIndex); // TEMP
++                String conversionString = null; // TEMP
++
++                // Get the current (potentially to be replaced) palette
++                var oldPalette = chunkPacketInfoAntiXray.getPalette(chunkSectionIndex);
++                int oldPaletteSize = oldPalette.getSize();
++
++                // First we store the old and new global ids, and flag if there will be any replacements
++                int[] oldStateRegistryIdsByOldPaletteId = new int[oldPaletteSize];
++                int[] newStateRegistryIdsByOldPaletteId = new int[oldPaletteSize];
++                boolean anyReplacements = false;
++                for (int oldPaletteId = 0; oldPaletteId < oldPaletteSize; oldPaletteId++) {
++                    BlockState oldValue = oldPalette.valueFor(oldPaletteId);
++                    int oldStateRegistryId = Block.BLOCK_STATE_REGISTRY.getId(oldValue);
++                    oldStateRegistryIdsByOldPaletteId[oldPaletteId] = oldStateRegistryId;
++                    int newStateRegistryId = replacementFor(oldStateRegistryId, chunkPacketInfoAntiXray.doesPlayerHaveResourcePack);
++                    newStateRegistryIdsByOldPaletteId[oldPaletteId] = newStateRegistryId;
++                    anyReplacements |= oldStateRegistryId != newStateRegistryId;
++                }
++
++                // If no replacements are necessary, we are done with this section (this will always be false in the case of a global palette that contains some non-vanilla block states)
++                if (!anyReplacements) {
++                    continue;
++                }
++
++                // Prepare for potential block replacements later
++                int[] blockReplacements = null;
++
++                // Special case for the global palette, where we don't have to find a new list of which global ids are needed in the new palette: we can just use the palette containing all vanilla blocks
++                // But the palette isn't written at all to the packet in this case (the client simply expects the vanilla global palette), so we simply need to compute the needed block replacements
++                if (oldPalette instanceof GlobalPalette<BlockState>) {
++
++                    // TODO this is completely unnecessary, just for testing with replacementFor(), but normally we can just have this pre-computed since we need it anyway instead of replacementFor()
++                    blockReplacements = new int[oldPaletteSize];
++                    for (int i = 0; i < oldPaletteSize; i++) {
++                        blockReplacements[i] = replacementFor(i, chunkPacketInfoAntiXray.doesPlayerHaveResourcePack);
+                     }
++
+                 } else {
+-                    throw new IllegalStateException("Unknown palette type: " + palette.getClass().getName());
+-                }
++                    // If not a global palette, we must figure out what will go into the new palette
++
++                    // We create sets of the old and new global ids so that we can for example check for old global ids whether they will be still present
++                    //                IntSet oldStateRegistryIds = (oldPaletteSize <= 16) ? new IntArraySet(oldPaletteSize) : new IntOpenHashSet(oldPaletteSize * 2);
++                    //                Arrays.stream(oldStateRegistryIdsByOldPaletteId).forEach(oldPaletteStateRegistryIds::add);
++                    IntSet newStateRegistryIds = (oldPaletteSize <= 16) ? new IntArraySet(oldPaletteSize) : new IntOpenHashSet(oldPaletteSize * 2);
++                    Arrays.stream(newStateRegistryIdsByOldPaletteId).forEach(newStateRegistryIds::add);
++                    int newPaletteSize = newStateRegistryIds.size();
++
++                    // Create the global ids that will be in the new palette
++                    int[] newStateRegistryIdsByNewPaletteId = new int[newStateRegistryIds.size()];
++                    Arrays.fill(newStateRegistryIdsByNewPaletteId, -1); // -1 marks we have not decided which new palette state registry id to put at this palette id yet
++
++                    // Put the new global ids in the same position as the old global id they replace, if possible
++                    Int2IntMap newPaletteIdByNewStateRegistryId = newStateRegistryIds.size() <= 16 ? new Int2IntArrayMap(newStateRegistryIds.size()) : new Int2IntOpenHashMap(newStateRegistryIds.size() * 2);
++                    for (int oldPaletteId = 0; oldPaletteId < oldPaletteSize && oldPaletteId < newPaletteSize /* We cannot store them in the same palette id beyond the new palette size */; oldPaletteId++) {
++                        int newStateRegistryId = newStateRegistryIdsByOldPaletteId[oldPaletteId];
++                        // Get the existing new palette id, or use the current old palette id
++                        final int finalOldPaletteId = oldPaletteId;
++                        int newPaletteId = newPaletteIdByNewStateRegistryId.computeIfAbsent(newStateRegistryId, key -> finalOldPaletteId);
++                        newStateRegistryIdsByNewPaletteId[newPaletteId] = newStateRegistryId;
++                    }
++
++                    // Go over all new global ids and assign any of them that still need it a new palette id
++                    int[] nextNewPaletteId = {0};
++                    while (nextNewPaletteId[0] < newStateRegistryIdsByNewPaletteId.length && newStateRegistryIdsByNewPaletteId[nextNewPaletteId[0]] != -1) {
++                        nextNewPaletteId[0]++;
++                    }
++                    for (int newStateRegistryId : newStateRegistryIds) {
++                        newPaletteIdByNewStateRegistryId.computeIfAbsent(newStateRegistryId, key -> {
++                            int newPaletteId = nextNewPaletteId[0];
++                            do {
++                                nextNewPaletteId[0]++;
++                            } while (nextNewPaletteId[0] < newStateRegistryIdsByNewPaletteId.length && newStateRegistryIdsByNewPaletteId[nextNewPaletteId[0]] != -1);
++                            newStateRegistryIdsByNewPaletteId[newPaletteId] = key;
++                            return newPaletteId;
++                        });
++                    }
+ 
+-                replacementsNeeded = false;
++                    // Create the necessary entries for the new palette
++//                    int newPaletteBits = Mth.ceillog2(oldPalette.getSize());//Mth.ceillog2(newPaletteSize);
++                    List<BlockState> newPaletteBlockStateList = new ArrayList<>(Arrays.stream(newStateRegistryIdsByNewPaletteId).mapToObj(stateRegistryId -> Block.BLOCK_STATE_REGISTRY.byId(stateRegistryId)).toList());
++
++                    // Make sure we fit into the protocol by keeping the exact same number of bits and such, so we add some unused block states to the palette to get the same size as before
++                    for (BlockState paddingBlockState : Block.BLOCK_STATE_REGISTRY) {
++                        if (newPaletteBlockStateList.size() == oldPaletteSize) {
++                            break;
++                        }
++                        if (!newPaletteBlockStateList.contains(paddingBlockState)) {
++                            newPaletteBlockStateList.add(paddingBlockState);
++                        }
++                    }
++
++                    // TODO temp test remove this (testing if the setPalette method below actually has any effect)
++                    // EDIT: Result: nope it has no effect, we need to find another way to set the palette for this chunk section
++                    if (newPaletteBlockStateList.size() > 0 && !newPaletteBlockStateList.get(0).isAir())
++                        newPaletteBlockStateList.set(0, Blocks.COAL_ORE.defaultBlockState());
++                    if (newPaletteBlockStateList.size() > 1 && !newPaletteBlockStateList.get(1).isAir())
++                        newPaletteBlockStateList.set(1, Blocks.IRON_ORE.defaultBlockState());
++                    if (newPaletteBlockStateList.size() > 2 && !newPaletteBlockStateList.get(2).isAir())
++                        newPaletteBlockStateList.set(2, Blocks.DIAMOND_ORE.defaultBlockState());
++                    if (newPaletteBlockStateList.size() > 3 && !newPaletteBlockStateList.get(3).isAir())
++                        newPaletteBlockStateList.set(3, Blocks.EMERALD_ORE.defaultBlockState());
++                    if (newPaletteBlockStateList.size() > 4 && !newPaletteBlockStateList.get(4).isAir())
++                        newPaletteBlockStateList.set(4, Blocks.REDSTONE_ORE.defaultBlockState());
++                    if (newPaletteBlockStateList.size() > 5 && !newPaletteBlockStateList.get(5).isAir())
++                        newPaletteBlockStateList.set(5, Blocks.NETHERITE_BLOCK.defaultBlockState());
++                    if (newPaletteBlockStateList.size() > 6 && !newPaletteBlockStateList.get(6).isAir())
++                        newPaletteBlockStateList.set(6, Blocks.EMERALD_BLOCK.defaultBlockState());
++                    if (newPaletteBlockStateList.size() > 7 && !newPaletteBlockStateList.get(7).isAir())
++                        newPaletteBlockStateList.set(7, Blocks.DIAMOND_BLOCK.defaultBlockState());
++
++                    // We clone the palette with the new entries, so that we can then write it to the buffer
++                    Palette<BlockState> newPalette = null; // Will be initialized in one of the cases below for sure
++                    if (oldPalette instanceof SingleValuePalette<BlockState> oldSingleValuePalette) {
++                        newPalette = oldSingleValuePalette.copyBlank(newPaletteBlockStateList);
++                    } else if (oldPalette instanceof LinearPalette<BlockState> oldLinearPalette) {
++                        newPalette = oldLinearPalette.copyBlank(newPaletteBlockStateList);
++                    } else if (oldPalette instanceof HashMapPalette<BlockState> oldHashMapPalette) {
++                        newPalette = oldHashMapPalette.copyBlank(newPaletteBlockStateList);
++                    }
++
++                    // Write the new palette to the buffer
++                    FriendlyByteBuf paletteWriter;
++                    {
++                        ByteBuf byteBuf = Unpooled.wrappedBuffer(chunkPacketInfoAntiXray.getBuffer());
++                        byteBuf.writerIndex(chunkPacketInfoAntiXray.getPaletteIndex(chunkSectionIndex));
++                        paletteWriter = new FriendlyByteBuf(byteBuf);
++                    }
++                    newPalette.write(paletteWriter); // TEMP DISABLED BUT THIS *SHOULD* WORK
++
++//                chunkPacketInfoAntiXray.setPalette(chunkSectionIndex, PalettedContainer.Strategy.SECTION_STATES.getConfiguration(Block.BLOCK_STATE_REGISTRY, newPaletteBits).factory().create(newPaletteBits, Block.BLOCK_STATE_REGISTRY, null, newPaletteBlockStateList));
++//                PalettedContainer<BlockState> palettedContainer = (PalettedContainer<BlockState>) oldPalette.listener; // ACtually should just be provided to this method
++//                PalettedContainer.Data<T> data2 = palettedContainer.createOrReuseData(palettedContainer.data, newBits);
++//                data2.copyFrom(palettedContainer.data.palette, palettedContainer.data.storage);
++//                palettedContainer.data = data2;
++                    // ^ This should have effect
++                    // EDIT: actually, it seems this already does the block replacements written below for us, so we may have to skip the code below if this works out
++
++
++                    // For any palette id where the global id at that index in the new palette is not the replacement for the global id at that index in the old palette, we must replace the palette id of all block occurrences to the palette id where the replacement is in fact stored in the new palette
++                    for (int oldPaletteId = 0; oldPaletteId < oldPaletteSize; oldPaletteId++) {
++                        // If the replacement is no longer in the right position
++                        int newStateRegistryId = newStateRegistryIdsByOldPaletteId[oldPaletteId];
++                        int newPaletteIdOfNewStateRegistryId = newPaletteIdByNewStateRegistryId.get(newStateRegistryId);
++                        if (newPaletteIdOfNewStateRegistryId != oldPaletteId) {
++                            if (blockReplacements == null) {
++                                blockReplacements = new int[oldPaletteSize];
++                                for (int i = 0; i < oldPaletteSize; i++) {
++                                    blockReplacements[i] = i;
++                                }
++                            }
++                            blockReplacements[oldPaletteId] = newPaletteIdOfNewStateRegistryId;
++                        }
++                    }
++
++                    conversionString = "\t\tnewStateRegistryIdsByNewPaletteId: " + Arrays.toString(newStateRegistryIdsByNewPaletteId) + "\n\t\tnewPaletteBlockStateList: " + newPaletteBlockStateList + "\n\t\tnewPalette: " + newPalette + " of type " + newPalette.getClass().getName() + " of size " + newPalette.getSize() + " with bits " + (
++                        newPalette instanceof LinearPalette<BlockState> newLinearPalette ? newLinearPalette.bits : oldPalette instanceof HashMapPalette<BlockState> newHashMapPalette ? newHashMapPalette.bits : "<undefined>"
++                        ) + "\n\t\tblock replacements: " + Arrays.toString(blockReplacements);
++
++                }
+ 
+-                if (replacementsNeeded) {
++                if (blockReplacements != null) {
+                     bitStorageReader.setBits(chunkPacketInfoAntiXray.getBits(chunkSectionIndex));
+                     bitStorageReader.setIndex(chunkPacketInfoAntiXray.getIndex(chunkSectionIndex));
+                     bitStorageWriter.setBits(chunkPacketInfoAntiXray.getBits(chunkSectionIndex));
+@@ -121,17 +250,20 @@ public final class ChunkPacketBlockControllerCustom extends ChunkPacketBlockCont
+                     // Modify all layers of the current chunk section
+                     for (int xyz = 0; xyz < 4096/* = 16*16*16 */; xyz++) {
+                         int bits = bitStorageReader.read();
+-                        // TODO change
+-                        // temporary test
+-                        if (bits != 0) {
+-                            bits = 1;
++                        try {
++                            bitStorageWriter.write(blockReplacements[bits]);
++                        } catch (Exception e) {
++                            MinecraftServer.LOGGER.warn("section bits: " + chunkPacketInfoAntiXray.getBits(chunkSectionIndex) + "\noldPalette: " + oldPalette + " of type " + oldPalette.getClass().getName() + " of size " + oldPaletteSize + " with bits " + (
++                                oldPalette instanceof LinearPalette<BlockState> oldLinearPalette ? oldLinearPalette.bits : oldPalette instanceof HashMapPalette<BlockState> oldHashMapPalette ? oldHashMapPalette.bits : "<undefined>"
++                                ) + ":\n\toldStateRegistryIdsByOldPaletteId: " + Arrays.toString(oldStateRegistryIdsByOldPaletteId) + "\n\tnewStateRegistryIdsByOldPaletteId: " + Arrays.toString(newStateRegistryIdsByOldPaletteId) + "\n\n" + conversionString);
++                            throw e;
+                         }
+-                        bitStorageWriter.write(bits);
+                     }
+                     bitStorageWriter.flush();
+                 }
+             }
+         }
++        MinecraftServer.LOGGER.info(chunk.locX + " , " + chunk.locZ + " : done");
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 35663c5ba47e9930d7793879272b8dfa436322c8..77a94f54fae6c11584de5425bb4d9d0ffe217bb5 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -31,6 +31,7 @@ public class SuCraftBlocks {
+ 
+     private static Block register(String id, BlockReplacementRule.Builder replacementRuleBuilder, Block block) {
+         Block registeredBlock = Registry.register(Registry.BLOCK, ResourceLocation.sucraft(id), block);
++        registeredBlock.isVanilla = false;
+         registeredBlock.replacementRule = replacementRuleBuilder.withReal(registeredBlock).build();
+         // Patch the break time, because the vanilla client will assume its own breaking time and if we do not allow for it, we get desync in whether the block is finished being broken
+         registeredBlock.replacementRule.updateMinDestroyTimes();
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+index 2ef9ccdcc6d7294fd739f139535b9f23c50e1c12..7c0165cce8cbe56ec5c35796af2b8543885c2bd3 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+@@ -23,6 +23,7 @@ public class SuCraftItems {
+ 
+     public static Item registerBlock(Block block, String displayName, CreativeModeTab group) {
+         Item registeredItem = Items.registerBlock(block, group);
++        registeredItem.isVanilla = false;
+         registeredItem.replacementRule = ItemReplacementRule.simple().withReal(registeredItem).forBlock(block).build();
+         registeredItem.customDisplayName = net.kyori.adventure.text.Component.text(displayName).decoration(TextDecoration.ITALIC, false);
+         registeredItem.customDisplayNameJSON = net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().serialize(registeredItem.customDisplayName);

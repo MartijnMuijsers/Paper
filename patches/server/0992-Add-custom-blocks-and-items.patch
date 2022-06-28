@@ -1,0 +1,824 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 27 Jun 2022 01:04:35 +0200
+Subject: [PATCH] Add custom blocks and items
+
+
+diff --git a/src/main/java/net/minecraft/data/loot/BlockLoot.java b/src/main/java/net/minecraft/data/loot/BlockLoot.java
+index 2ae3cf188ed5ab1266b1aae796fecce02f517908..ebad557399e1f3e965a45a1f0252762ed9dd91af 100644
+--- a/src/main/java/net/minecraft/data/loot/BlockLoot.java
++++ b/src/main/java/net/minecraft/data/loot/BlockLoot.java
+@@ -88,6 +88,7 @@ import net.minecraft.world.level.storage.loot.providers.number.BinomialDistribut
+ import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
+ import net.minecraft.world.level.storage.loot.providers.number.NumberProvider;
+ import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
++import nl.martijnmuijsers.paper.block.SuCraftBlockLoot;
+ 
+ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTable.Builder>> {
+     private static final LootItemCondition.Builder HAS_SILK_TOUCH = MatchTool.toolMatches(ItemPredicate.Builder.item().hasEnchantment(new EnchantmentPredicate(Enchantments.SILK_TOUCH, MinMaxBounds.Ints.atLeast(1))));
+@@ -1312,6 +1313,10 @@ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTabl
+         this.add(Blocks.POWDER_SNOW, noDrop());
+         this.add(Blocks.FROGSPAWN, noDrop());
+         this.add(Blocks.REINFORCED_DEEPSLATE, noDrop());
++
++        // Martijn start - custom blocks and items
++        SuCraftBlockLoot.accept(this, biConsumer);
++
+         Set<ResourceLocation> set = Sets.newHashSet();
+ 
+         for(Block block : Registry.BLOCK) {
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index aca0dc4ce75b25409b057fe94362276c682cdc21..d5a083c678adcaeca6509f331aafcfb4c9ceae48 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -433,6 +433,10 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             this.channel.config().setAutoRead(false);
+         }
+ 
++        // Martijn start - custom blocks and items
++        packet = packet.replaceCustomContent(getPlayer().getBukkitEntity().hasSuCraftResourcePack());
++        // Martijn end - custom blocks and items
++
+         if (this.channel.eventLoop().inEventLoop()) {
+             this.doSendPacket(packet, callback, enumprotocol, enumprotocol1, flush); // Paper - add flush parameter
+         } else {
+diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
+index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..73185d6be51568a108ef6b8a877e6b57a9dad50b 100644
+--- a/src/main/java/net/minecraft/world/item/Item.java
++++ b/src/main/java/net/minecraft/world/item/Item.java
+@@ -44,6 +44,9 @@ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.Vec3;
++import nl.martijnmuijsers.paper.block.BlockReplacementRule;
++import nl.martijnmuijsers.paper.item.ItemReplacementRule;
++import org.jetbrains.annotations.NotNull;
+ import org.slf4j.Logger;
+ 
+ public class Item implements ItemLike {
+@@ -68,6 +71,25 @@ public class Item implements ItemLike {
+     @Nullable
+     private final FoodProperties foodProperties;
+ 
++    // Martijn start - custom blocks and items
++
++    /**
++     * Must be non-null for SuCraft items
++     */
++    public @Nullable ItemReplacementRule replacementRule = null;
++
++    /**
++     * Must be non-null for SuCraft items
++     */
++    public @Nullable net.kyori.adventure.text.Component customDisplayName = null;
++
++    /**
++     * Must be non-null for SuCraft items
++     */
++    public @Nullable String customDisplayNameJSON = null;
++
++    // Martijn end - custom blocks and items
++
+     public static int getId(Item item) {
+         return item == null ? 0 : Registry.ITEM.getId(item);
+     }
+diff --git a/src/main/java/net/minecraft/world/item/Items.java b/src/main/java/net/minecraft/world/item/Items.java
+index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..6534c9f44323a3cc97e74f3347562d1561b1326e 100644
+--- a/src/main/java/net/minecraft/world/item/Items.java
++++ b/src/main/java/net/minecraft/world/item/Items.java
+@@ -14,6 +14,7 @@ import net.minecraft.world.food.Foods;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.material.Fluids;
++import nl.martijnmuijsers.paper.item.SuCraftItems;
+ 
+ public class Items {
+     public static final Item AIR = registerBlock(Blocks.AIR, new AirItem(Blocks.AIR, new Item.Properties()));
+@@ -1173,15 +1174,15 @@ public class Items {
+         return Optional.empty();
+     }
+ 
+-    private static Item registerBlock(Block block) {
++    public static Item registerBlock(Block block) { // Martijn - custom blocks and items
+         return registerBlock(new BlockItem(block, new Item.Properties()));
+     }
+ 
+-    private static Item registerBlock(Block block, CreativeModeTab group) {
++    public static Item registerBlock(Block block, CreativeModeTab group) { // Martijn - custom blocks and items
+         return registerBlock(new BlockItem(block, (new Item.Properties()).tab(group)));
+     }
+ 
+-    private static Item registerBlock(Block block, Optional<CreativeModeTab> group) {
++    public static Item registerBlock(Block block, Optional<CreativeModeTab> group) { // Martijn - custom blocks and items
+         return group.map((groupx) -> {
+             return registerBlock(block, groupx);
+         }).orElseGet(() -> {
+@@ -1189,7 +1190,7 @@ public class Items {
+         });
+     }
+ 
+-    private static Item registerBlock(Block block, CreativeModeTab group, Block... blocks) {
++    public static Item registerBlock(Block block, CreativeModeTab group, Block... blocks) { // Martijn - custom blocks and items
+         BlockItem blockItem = new BlockItem(block, (new Item.Properties()).tab(group));
+ 
+         for(Block block2 : blocks) {
+@@ -1199,23 +1200,32 @@ public class Items {
+         return registerBlock(blockItem);
+     }
+ 
+-    private static Item registerBlock(BlockItem item) {
++    public static Item registerBlock(BlockItem item) { // Martijn - custom blocks and items
+         return registerBlock(item.getBlock(), item);
+     }
+ 
+-    protected static Item registerBlock(Block block, Item item) {
++    public static Item registerBlock(Block block, Item item) { // Martijn - custom blocks and items
+         return registerItem(Registry.BLOCK.getKey(block), item);
+     }
+ 
+-    private static Item registerItem(String id, Item item) {
++    public static Item registerItem(String id, Item item) { // Martijn - custom blocks and items
+         return registerItem(new ResourceLocation(id), item);
+     }
+ 
+-    private static Item registerItem(ResourceLocation id, Item item) {
++    public static Item registerItem(ResourceLocation id, Item item) { // Martijn - custom blocks and items
+         if (item instanceof BlockItem) {
+             ((BlockItem)item).registerBlocks(Item.BY_BLOCK, item);
+         }
+ 
+         return Registry.register(Registry.ITEM, id, item);
+     }
++
++    // Martijn start - custom blocks and items
++
++    static {
++        SuCraftItems.bootstrap();
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..db05788e1eeca4bcf89a73f73f6501d02c1f97ac 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -63,6 +63,7 @@ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.BooleanOp;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
++import nl.martijnmuijsers.paper.block.BlockReplacementRule;
+ import org.slf4j.Logger;
+ 
+ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +128,15 @@ public class Block extends BlockBehaviour implements ItemLike {
+         return object2bytelinkedopenhashmap;
+     });
+ 
++    // Martijn start - custom blocks and items
++
++    /**
++     * Must be non-null for SuCraft blocks
++     */
++    public @Nullable BlockReplacementRule replacementRule = null;
++
++    // Martijn end - custom blocks and items
++
+     public static int getId(@Nullable BlockState state) {
+         if (state == null) {
+             return 0;
+diff --git a/src/main/java/net/minecraft/world/level/block/Blocks.java b/src/main/java/net/minecraft/world/level/block/Blocks.java
+index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..daa20c9b3b6ae543f2b2525b9f8d67eb736eb9f5 100644
+--- a/src/main/java/net/minecraft/world/level/block/Blocks.java
++++ b/src/main/java/net/minecraft/world/level/block/Blocks.java
+@@ -34,6 +34,7 @@ import net.minecraft.world.level.block.state.properties.WoodType;
+ import net.minecraft.world.level.material.Fluids;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.material.MaterialColor;
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ import org.jetbrains.annotations.NotNull;
+ 
+ public class Blocks {
+@@ -1182,6 +1183,7 @@ public class Blocks {
+     }
+ 
+     static {
++        SuCraftBlocks.bootstrap(); // Martijn - custom blocks and items
+         for(Block block : Registry.BLOCK) {
+             for(BlockState blockState : block.getStateDefinition().getPossibleStates()) {
+                 Block.BLOCK_STATE_REGISTRY.add(blockState);
+diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
+index e8eb061181e9b5e6bde99253079864626bc8ad4b..2f69f56e4573b60c4c84bda549130841e2d1f562 100644
+--- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
++++ b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
+@@ -83,7 +83,7 @@ public abstract class BlockBehaviour {
+     protected final float speedFactor;
+     protected final float jumpFactor;
+     protected final boolean dynamicShape;
+-    protected final BlockBehaviour.Properties properties;
++    public final BlockBehaviour.Properties properties; // Martijn - custom blocks and items
+     @Nullable
+     protected ResourceLocation drops;
+ 
+@@ -434,7 +434,7 @@ public abstract class BlockBehaviour {
+         SoundType soundType;
+         ToIntFunction<BlockState> lightEmission;
+         float explosionResistance;
+-        float destroyTime;
++        public float destroyTime; // Martijn - custom blocks and items
+         boolean requiresCorrectToolForDrops;
+         boolean isRandomlyTicking;
+         float friction;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..31ce381b7d9ca3c1bc276542db5b115f92dd1f20
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java
+@@ -0,0 +1,185 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.world.item.Item;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.state.BlockState;
++import org.apache.commons.lang3.Validate;
++import org.checkerframework.checker.units.qual.N;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public interface BlockReplacementRule {
++
++    interface Builder {
++
++        @NotNull BlockReplacementRule.Builder withReal(@NotNull Block real);
++
++        @NotNull BlockReplacementRule.Builder withFallbackItem(@NotNull Item fallbackItem);
++
++        @NotNull BlockReplacementRule build();
++
++    }
++
++    @Nullable BlockState replace(@NotNull BlockState state, boolean hasResourcePack);
++
++    @NotNull Block getReal();
++
++    @Nullable Item getFallbackItem();
++
++    default void updateMinDestroyTimes() {
++        updateMinDestroyTimeOfReal(); // Some will see it as the host, others as the fallback
++        updateMinDestroyTimeOfHost(); // Some may see it as the host replacement
++    }
++
++    default void updateMinDestroyTimeOfReal() {
++        getReal().properties.destroyTime(Math.min(
++            getReal().properties.destroyTime,
++            getMinDestroyTimeOfHostAndFallback()
++        ));
++    }
++
++    void updateMinDestroyTimeOfHost();
++
++    float getMinDestroyTimeOfHostAndFallback();
++
++    float getMinDestroyTimeOfHostAndHostReplacement();
++
++    class StatelessBlockReplacementRule implements BlockReplacementRule {
++
++        public static class Builder implements BlockReplacementRule.Builder {
++
++            private @Nullable Block real;
++            private @Nullable BlockState host;
++            private @Nullable BlockState hostReplacement;
++            private @Nullable BlockState fallback;
++            private @Nullable Item fallbackItem;
++
++            @Override
++            public @NotNull StatelessBlockReplacementRule.Builder withReal(@NotNull Block real) {
++                this.real = real;
++                return this;
++            }
++
++            public @NotNull StatelessBlockReplacementRule.Builder withHost(@NotNull BlockState host) {
++                this.host = host;
++                return this;
++            }
++
++            public @NotNull StatelessBlockReplacementRule.Builder withHost(@NotNull Block host) {
++                return this.withHost(host.defaultBlockState());
++            }
++
++            public @NotNull StatelessBlockReplacementRule.Builder withHostReplacement(@NotNull BlockState hostReplacement) {
++                this.hostReplacement = hostReplacement;
++                return this;
++            }
++
++            public @NotNull StatelessBlockReplacementRule.Builder withHostReplacement(@NotNull Block hostReplacement) {
++                return this.withHostReplacement(hostReplacement.defaultBlockState());
++            }
++
++            public @NotNull StatelessBlockReplacementRule.Builder withHostDefaultAsHostReplacement() {
++                return this.withHostReplacement(this.host.getBlock().defaultBlockState());
++            }
++
++            public @NotNull StatelessBlockReplacementRule.Builder withFallback(@NotNull BlockState fallback) {
++                this.fallback = fallback;
++                return this;
++            }
++
++            public @NotNull StatelessBlockReplacementRule.Builder withFallback(@NotNull Block fallback) {
++                return this.withFallback(fallback.defaultBlockState());
++            }
++
++            @Override
++            public @NotNull StatelessBlockReplacementRule.Builder withFallbackItem(@NotNull Item fallbackItem) {
++                this.fallbackItem = fallbackItem;
++                return this;
++            }
++
++            public @NotNull StatelessBlockReplacementRule.Builder withFallbackBlockAsItem() {
++                Validate.notNull(this.fallback);
++                return this.withFallbackItem(this.fallback.getBlock().asItem());
++            }
++
++            @Override
++            public @NotNull StatelessBlockReplacementRule build() {
++                Validate.notNull(this.real);
++                Validate.notNull(this.host);
++                Validate.notNull(this.hostReplacement);
++                Validate.notNull(this.fallback);
++                return new StatelessBlockReplacementRule(this.real, this.host, this.hostReplacement, this.fallback, fallbackItem);
++            }
++
++        }
++
++        private final @NotNull Block real;
++        private final @NotNull BlockState host;
++        private final @NotNull BlockState hostReplacement;
++        private final @NotNull BlockState fallback;
++
++        /**
++         * May be null if this block has no item form, must be non-null if this block has an item form
++         */
++        private final @Nullable Item fallbackItem;
++
++        private StatelessBlockReplacementRule(@NotNull Block real, @NotNull BlockState host, @NotNull BlockState hostReplacement, @NotNull BlockState fallback, @Nullable Item fallbackItem) {
++            this.real = real;
++            this.host = host;
++            this.hostReplacement = hostReplacement;
++            this.fallback = fallback;
++            this.fallbackItem = fallbackItem;
++        }
++
++        @Override
++        public @Nullable BlockState replace(@NotNull BlockState state, boolean hasResourcePack) {
++            if (state.is(this.real)) {
++                return hasResourcePack ? this.host : this.fallback;
++            } else if (state.equals(this.host)) {
++                return hasResourcePack ? this.hostReplacement : this.host;
++            }
++            return null;
++        }
++
++        @Override
++        public @NotNull Block getReal() {
++            return this.real;
++        }
++
++        @Override
++        public @Nullable Item getFallbackItem() {
++            return this.fallbackItem;
++        }
++
++        @Override
++        public void updateMinDestroyTimeOfHost() {
++            this.host.getBlock().properties.destroyTime(this.getMinDestroyTimeOfHostAndHostReplacement());
++        }
++
++        @Override
++        public float getMinDestroyTimeOfHostAndFallback() {
++            return Math.min(
++                this.host.getBlock().properties.destroyTime,
++                this.fallback.getBlock().properties.destroyTime
++            );
++        }
++
++        @Override
++        public float getMinDestroyTimeOfHostAndHostReplacement() {
++            return Math.min(
++                this.host.getBlock().properties.destroyTime,
++                this.hostReplacement.getBlock().properties.destroyTime
++            );
++        }
++
++    }
++
++    // Blocks with item form
++
++    static @NotNull StatelessBlockReplacementRule.Builder stateless() {
++        return new StatelessBlockReplacementRule.Builder();
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce940682b37914fa8b41992b6ffe7fb69536aaa9
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
+@@ -0,0 +1,21 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.data.loot.BlockLoot;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.storage.loot.LootTable;
++
++import java.util.function.BiConsumer;
++
++/**
++ * Based on {@link net.minecraft.data.loot.BlockLoot}
++ */
++public class SuCraftBlockLoot {
++
++    public static void accept(BlockLoot vanilla, BiConsumer<ResourceLocation, LootTable.Builder> biConsumer) {
++        vanilla.dropSelf(SuCraftBlocks.SNOWY_STONE_BRICKS);
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7b5f47a5d8b4ee7f958abcb453b7d4bca2cfc23f
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -0,0 +1,43 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.state.BlockBehaviour;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.material.Material;
++
++/**
++ * Based on {@link net.minecraft.world.level.block.Blocks}
++ */
++public class SuCraftBlocks {
++
++    /**
++     * Based on {@link Blocks#STONE_BRICKS}
++     */
++    public static final Block SNOWY_STONE_BRICKS = register(
++        "snowy_stone_bricks",
++        BlockReplacementRule.stateless()
++            .withHost(Blocks.INFESTED_STONE_BRICKS)
++            .withHostReplacement(Blocks.STONE_BRICKS)
++            .withFallback(Blocks.STONE_BRICKS)
++            .withFallbackBlockAsItem(),
++        new Block(BlockBehaviour.Properties.of(Material.STONE).requiresCorrectToolForDrops().strength(1.5F, 6.0F))
++    );
++
++    private static Block register(String id, BlockReplacementRule.Builder replacementRuleBuilder, Block block) {
++        Block registeredBlock = Registry.register(Registry.BLOCK, ResourceLocation.sucraft(id), block);
++        registeredBlock.replacementRule = replacementRuleBuilder.withReal(registeredBlock).build();
++        // Patch the break time, because the vanilla client will assume its own breaking time and if we do not allow for it, we get desync in whether the block is finished being broken
++        registeredBlock.replacementRule.updateMinDestroyTimes();
++        return registeredBlock;
++    }
++
++    public static Block bootstrap() {
++        return SNOWY_STONE_BRICKS;
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..78438cedd0536224cc10f17138bffb5d240932bd
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
+@@ -0,0 +1,132 @@
++package nl.martijnmuijsers.paper.item;
++
++import net.minecraft.nbt.CompoundTag;
++import net.minecraft.nbt.StringTag;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.state.BlockState;
++import nl.martijnmuijsers.paper.block.BlockReplacementRule;
++import org.apache.commons.lang3.Validate;
++import org.bukkit.craftbukkit.inventory.CraftMetaItem;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.function.IntSupplier;
++
++public interface ItemReplacementRule {
++
++    interface Builder {
++
++        @NotNull ItemReplacementRule.Builder withReal(@NotNull Item real);
++
++        @NotNull ItemReplacementRule build();
++
++    }
++
++    @Nullable ItemStack replace(ItemStack item, boolean hasResourcePack);
++
++    @NotNull Item getReal();
++
++    class SimpleItemReplacementRule implements ItemReplacementRule {
++
++        public static class Builder implements ItemReplacementRule.Builder {
++
++            private @Nullable Item real;
++            private @Nullable Item host;
++            private @Nullable IntSupplier computeHostCustomModelData;
++            private @Nullable Item fallback;
++
++            @Override
++            public @NotNull SimpleItemReplacementRule.Builder withReal(@NotNull Item real) {
++                this.real = real;
++                return this;
++            }
++
++            public @NotNull SimpleItemReplacementRule.Builder withHost(@NotNull Item host) {
++                this.host = host;
++                return this;
++            }
++
++            public @NotNull SimpleItemReplacementRule.Builder withHostCustomModelData(int hostCustomModelData) {
++                this.computeHostCustomModelData = () -> hostCustomModelData;
++                return this;
++            }
++
++            public @NotNull SimpleItemReplacementRule.Builder withNextUnusedHostCustomModelData() {
++                this.computeHostCustomModelData = () -> UsedHostCustomModelData.generateUnusedHostCustomModelData(host);
++                return this;
++            }
++
++            public @NotNull SimpleItemReplacementRule.Builder withFallback(@NotNull Item real) {
++                this.real = real;
++                return this;
++            }
++
++            public @NotNull SimpleItemReplacementRule.Builder forBlock(@NotNull Block block) {
++                return this
++                    .withHost(Items.BARRIER)
++                    .withNextUnusedHostCustomModelData()
++                    .withFallback(block.replacementRule.getFallbackItem());
++            }
++
++            @Override
++            public @NotNull SimpleItemReplacementRule build() {
++                Validate.notNull(this.real);
++                Validate.notNull(this.host);
++                Validate.notNull(this.fallback);
++                Validate.notNull(this.computeHostCustomModelData);
++                return new SimpleItemReplacementRule(this.real, this.host, this.computeHostCustomModelData.getAsInt(), this.fallback);
++            }
++
++        }
++
++        private final @NotNull Item real;
++        private final @NotNull Item host;
++        private final int hostCustomModelData;
++        private final @NotNull Item fallback;
++
++        private SimpleItemReplacementRule(@NotNull Item real, @NotNull Item host, int hostCustomModelData, @NotNull Item fallback) {
++            this.real = real;
++            this.host = host;
++            this.hostCustomModelData = hostCustomModelData;
++            this.fallback = fallback;
++        }
++
++        @Override
++        public @Nullable ItemStack replace(@NotNull ItemStack item, boolean hasResourcePack) {
++            if (item.is(this.real)) {
++                @NotNull ItemStack clone = item.copy();
++                CompoundTag tag = clone.getOrCreateTag();
++                if (hasResourcePack) {
++                    clone.setItem(this.host);
++                    // Setting custom model data is based on CraftMetaItem.applyToItem(CompoundTag)
++                    tag.putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, this.hostCustomModelData);
++                } else {
++                    clone.setItem(this.fallback);
++                }
++                // Setting display name is based on CraftMetaItem.applyToItem(CompoundTag)
++                // Could potentially also be based on ItemStack.setHoverName(Component)
++                final CompoundTag display = tag.getCompound(CraftMetaItem.DISPLAY.NBT);
++                if (!tag.contains(CraftMetaItem.DISPLAY.NBT)) {
++                    tag.put(CraftMetaItem.DISPLAY.NBT, display);
++                }
++                display.put(CraftMetaItem.NAME.NBT, StringTag.valueOf(this.real.customDisplayNameJSON));
++                return clone;
++            }
++            return null;
++        }
++
++        @Override
++        public @NotNull Item getReal() {
++            return this.real;
++        }
++
++    }
++
++    static @NotNull SimpleItemReplacementRule.Builder simple() {
++        return new SimpleItemReplacementRule.Builder();
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e52cb61cc11d4a945f15cc73763293e2e736d22b
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+@@ -0,0 +1,34 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.item;
++
++import net.kyori.adventure.text.format.TextDecoration;
++import net.minecraft.world.item.CreativeModeTab;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.item.Items;
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
++
++/**
++ * Based on {@link net.minecraft.world.item.Items}
++ */
++public class SuCraftItems {
++
++    /**
++     * Based on {@link Items#STONE_BRICKS}
++     */
++    public static final Item SNOWY_STONE_BRICKS = registerBlock(SuCraftBlocks.SNOWY_STONE_BRICKS, "Snowy Stone Bricks", CreativeModeTab.TAB_BUILDING_BLOCKS);
++
++    public static Item registerBlock(Block block, String displayName, CreativeModeTab group) {
++        Item registeredItem = Items.registerBlock(block, group);
++        registeredItem.replacementRule = ItemReplacementRule.simple().forBlock(block).build();
++        registeredItem.customDisplayName = net.kyori.adventure.text.Component.text(displayName).decoration(TextDecoration.ITALIC, false);
++        registeredItem.customDisplayNameJSON = net.kyori.adventure.text.serializer.gson.GsonComponentSerializer.gson().serialize(registeredItem.customDisplayName);
++        return registeredItem;
++    }
++
++    public static Item bootstrap() {
++        return SNOWY_STONE_BRICKS;
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftJustInTimeItemTranslation.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftJustInTimeItemTranslation.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..36d4e3080afc150b589ff87c2a7b32ec9e7f7fa7
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftJustInTimeItemTranslation.java
+@@ -0,0 +1,9 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.item;
++
++public class SuCraftJustInTimeItemTranslation {
++
++
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/UsedHostCustomModelData.java b/src/main/java/nl/martijnmuijsers/paper/item/UsedHostCustomModelData.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3b510c88a719b982edaccb5c4adeb5cc4c3e273d
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/item/UsedHostCustomModelData.java
+@@ -0,0 +1,32 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.item;
++
++import it.unimi.dsi.fastutil.objects.Object2IntMap;
++import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
++import net.minecraft.world.item.Item;
++
++import java.util.HashMap;
++import java.util.Map;
++
++/**
++ * A utility class that keeps track of used custom model data in item replacement hosts
++ */
++public final class UsedHostCustomModelData {
++
++    private UsedHostCustomModelData() {}
++
++    private static Object2IntMap<Item> lastUsed = new Object2IntOpenHashMap<>(0);
++
++    static {
++        lastUsed.defaultReturnValue(0); // After all, the custom model data 0 is always in use
++    }
++
++    public static int generateUnusedHostCustomModelData(Item host) {
++        int lastUsedCustomModelData = lastUsed.getInt(host);
++        lastUsedCustomModelData++;
++        lastUsed.put(host, lastUsedCustomModelData);
++        return lastUsedCustomModelData;
++    }
++
++}
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 2a7c9a82e5b5797f9a49889ae6fc251870258d49..3353fc3eabb08a80fcd817906eaf0062fea55045 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -2429,6 +2429,17 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     public void setResourcePackStatus(org.bukkit.event.player.PlayerResourcePackStatusEvent.Status status) {
+         this.resourcePackStatus = status;
+     }
++
++    // Martijn start - custom blocks and items
++
++    @Override
++    public boolean hasSuCraftResourcePack() {
++        // Currently we simply assume that if any resource pack was successfully loaded, it includes at least the SuCraft resource pack
++        return this.hasResourcePack();
++    }
++
++    // Martijn end - custom blocks and items
++
+     // Paper end
+ 
+     @Override
+diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+index 3c4dadd0012c11191c873fe25a7625193563915d..56d50c26c5c01540614b93292fddb32d0c13b160 100644
+--- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
++++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
+@@ -112,9 +112,9 @@ import java.util.Collections;
+  * <li> SerializableMeta.Deserializers deserializer()
+  */
+ @DelegateDeserialization(CraftMetaItem.SerializableMeta.class)
+-class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
++public class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta { // Martijn - custom blocks and items
+ 
+-    static class ItemMetaKey {
++    public static class ItemMetaKey { // Martijn - custom blocks and items
+ 
+         @Retention(RetentionPolicy.SOURCE)
+         @Target(ElementType.FIELD)
+@@ -128,7 +128,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+         }
+ 
+         final String BUKKIT;
+-        final String NBT;
++        public final String NBT; // Martijn - custom blocks and items
+ 
+         ItemMetaKey(final String both) {
+             this(both, both);
+@@ -238,12 +238,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+         }
+     }
+ 
+-    static final ItemMetaKey NAME = new ItemMetaKey("Name", "display-name");
++    public static final ItemMetaKey NAME = new ItemMetaKey("Name", "display-name"); // Martijn - custom blocks and items
+     static final ItemMetaKey LOCNAME = new ItemMetaKey("LocName", "loc-name");
+     @Specific(Specific.To.NBT)
+-    static final ItemMetaKey DISPLAY = new ItemMetaKey("display");
++    public static final ItemMetaKey DISPLAY = new ItemMetaKey("display"); // Martijn - custom blocks and items
+     static final ItemMetaKey LORE = new ItemMetaKey("Lore", "lore");
+-    static final ItemMetaKey CUSTOM_MODEL_DATA = new ItemMetaKey("CustomModelData", "custom-model-data");
++    public static final ItemMetaKey CUSTOM_MODEL_DATA = new ItemMetaKey("CustomModelData", "custom-model-data"); // Martijn - custom blocks and items
+     static final ItemMetaKey ENCHANTMENTS = new ItemMetaKey("Enchantments", "enchants");
+     @Specific(Specific.To.NBT)
+     static final ItemMetaKey ENCHANTMENTS_ID = new ItemMetaKey("id");
+diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+index 7c1e510a0ad4b69c1fedc3367a8216046efb228e..0a0ea287897b4cbe15ca18bda99d6115f3aea31c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
++++ b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
+@@ -144,11 +144,25 @@ public final class CraftMagicNumbers implements UnsafeValues {
+         }
+         // Paper end
+         for (Block block : net.minecraft.core.Registry.BLOCK) {
+-            BLOCK_MATERIAL.put(block, Material.getMaterial(net.minecraft.core.Registry.BLOCK.getKey(block).getPath().toUpperCase(Locale.ROOT)));
++            // Martijn start - custom blocks and items
++            var key = net.minecraft.core.Registry.BLOCK.getKey(block);
++            String materialName = key.getPath().toUpperCase(Locale.ROOT);
++            if (key.getNamespace().equals(ResourceLocation.SUCRAFT_NAMESPACE)) {
++                materialName = "SUCRAFT_" + materialName;
++            }
++            BLOCK_MATERIAL.put(block, Material.getMaterial(materialName));
++            // Martijn end - custom blocks and items
+         }
+ 
+         for (Item item : net.minecraft.core.Registry.ITEM) {
+-            ITEM_MATERIAL.put(item, Material.getMaterial(net.minecraft.core.Registry.ITEM.getKey(item).getPath().toUpperCase(Locale.ROOT)));
++            // Martijn start - custom blocks and items
++            var key = net.minecraft.core.Registry.ITEM.getKey(item);
++            String materialName = key.getPath().toUpperCase(Locale.ROOT);
++            if (key.getNamespace().equals(ResourceLocation.SUCRAFT_NAMESPACE)) {
++                materialName = "SUCRAFT_" + materialName;
++            }
++            ITEM_MATERIAL.put(item, Material.getMaterial(materialName));
++            // Martijn end - custom blocks and items
+         }
+ 
+         for (net.minecraft.world.level.material.Fluid fluid : net.minecraft.core.Registry.FLUID) {
