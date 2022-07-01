@@ -1,0 +1,1647 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 30 Jun 2022 14:19:00 +0200
+Subject: [PATCH] Before making intent and keys clearer
+
+
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java
+index 1fee493568658dee18ac7300ead8ce93852c47a1..32968e6a64a234b6715b90b9d73aa7c74a88d846 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java
+@@ -6,9 +6,8 @@ import net.minecraft.core.Registry;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackBlockStates;
+-import nl.martijnmuijsers.paper.resourcepack.ResourcePackAssetType;
+-import nl.martijnmuijsers.paper.resourcepack.memory.MemoryResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.model.Model;
+ import nl.martijnmuijsers.paper.resourcepack.model.ModelContent;
+ import nl.martijnmuijsers.paper.resourcepack.model.ModelType;
+@@ -41,7 +40,7 @@ public interface BlockReplacementRule {
+ 
+     void writeToStateIdReplacementArrays();
+ 
+-    void addToResourcePack(@NotNull MemoryResourcePack resourcePack);
++    void addToResourcePack(@NotNull MutableResourcePack resourcePack);
+ 
+     default void updateMinDestroyTimes() {
+         updateMinDestroyTimeOfReal(); // Some will see it as the host, others as the fallback
+@@ -241,12 +240,10 @@ public interface BlockReplacementRule {
+         }
+ 
+         @Override
+-        public void addToResourcePack(@NotNull MemoryResourcePack resourcePack) {
++        public void addToResourcePack(@NotNull MutableResourcePack resourcePack) {
+             @NotNull NamespacedKey hostKey = Registry.BLOCK.getKey(this.host.getBlock()).asBukkit();
+-            @NotNull NamespacedKey realKey =  Registry.BLOCK.getKey(this.real).asBukkit();
+-            @NotNull MutableResourcePackBlockStates<?, ?> minecraftBlockStates = resourcePack.getMutableAsset(ResourcePackAssetType.BLOCK_STATES, hostKey);
+-            minecraftBlockStates.setNoVariantModel(this.model);
+-            this.model.addToResourcePack(resourcePack, false);
++            @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
++            minecraftBlockStates.setNoVariantModel(this.model, resourcePack, false);
+         }
+ 
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
+index 5b515c2c1c971f521263b78a3200a0a13e1381f0..86d0a36f489018674a7abc930728276f268e4547 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
+@@ -1,27 +1,26 @@
+ package nl.martijnmuijsers.paper.item;
+ 
+-import it.unimi.dsi.fastutil.objects.Object2IntFunction;
+ import net.minecraft.core.Registry;
+ import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.nbt.StringTag;
+-import net.minecraft.server.MinecraftServer;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.block.Block;
+-import net.minecraft.world.level.block.state.BlockState;
+-import nl.martijnmuijsers.paper.block.BlockReplacementRule;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackBlockStates;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackModel;
+ import nl.martijnmuijsers.paper.resourcepack.memory.MemoryResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.model.Model;
+ import nl.martijnmuijsers.paper.resourcepack.model.ModelContent;
+ import nl.martijnmuijsers.paper.resourcepack.model.ModelType;
+ import org.apache.commons.lang3.Validate;
++import org.bukkit.NamespacedKey;
+ import org.bukkit.craftbukkit.inventory.CraftMetaItem;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+ import java.util.function.Function;
+-import java.util.function.IntSupplier;
+ import java.util.function.Supplier;
+ 
+ public interface ItemReplacementRule {
+@@ -40,7 +39,7 @@ public interface ItemReplacementRule {
+ 
+     @NotNull Model getModel();
+ 
+-    void addToResourcePack(@NotNull MemoryResourcePack resourcePack);
++    void addToResourcePack(@NotNull MutableResourcePack resourcePack);
+ 
+     class SimpleItemReplacementRule implements ItemReplacementRule {
+ 
+@@ -96,7 +95,7 @@ public interface ItemReplacementRule {
+                     .withHost(() -> Items.BARRIER)
+                     .withNextUnusedHostCustomModelData()
+                     .withFallback(() -> block.replacementRule.getFallbackItem())
+-                    .withModel(block.replacementRule.getModelForStatePlacedByItem().asItemModel());
++                    .withModel(block.replacementRule.getModelForStatePlacedByItem().getReference(ModelType.ITEM));
+             }
+ 
+             @Override
+@@ -183,9 +182,15 @@ public interface ItemReplacementRule {
+         }
+ 
+         @Override
+-        public void addToResourcePack(@NotNull MemoryResourcePack resourcePack) {
+-            //TODO
+-            return null;
++        public @NotNull Model getModel() {
++            return this.model;
++        }
++
++        @Override
++        public void addToResourcePack(@NotNull MutableResourcePack resourcePack) {
++            @NotNull NamespacedKey hostKey = Registry.ITEM.getKey(this.getHost()).asBukkit();
++            @NotNull MutableResourcePackModel minecraftModel = resourcePack.getModel(ModelType.ITEM, hostKey);
++            minecraftModel.addModelOverride(this.getHostCustomModelData(), this.model, resourcePack, false);
+         }
+ 
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ConcreteResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ConcreteResourcePackBlockStates.java
+index 73960a8760fd18a58ab1f8085c9ea6574e7a168a..f8cd866559b14d7ccfa48ca1ef6fb90f684d2f01 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ConcreteResourcePackBlockStates.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ConcreteResourcePackBlockStates.java
+@@ -3,31 +3,50 @@
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
+ import com.google.gson.JsonObject;
++import nl.martijnmuijsers.paper.resourcepack.model.Model;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * Concrete implementation of {@link MutableResourcePackBlockStates}
+  */
+-public class ConcreteResourcePackBlockStates extends SimpleJsonResourcePackAsset<ConcreteResourcePackBlockStates, ResourcePackBlockStates<?>> implements MutableResourcePackBlockStates<ConcreteResourcePackBlockStates, ConcreteResourcePackBlockStates> {
++public class ConcreteResourcePackBlockStates extends SimpleJsonResourcePackAsset<ConcreteResourcePackBlockStates> implements MutableResourcePackBlockStates {
++
++    public ConcreteResourcePackBlockStates(@NotNull JsonObject json, @NotNull NamespacedKey key, boolean dirty) {
++        super(ConcreteResourcePackBlockStates::new, json, key, dirty);
++    }
+ 
+     public ConcreteResourcePackBlockStates(@NotNull JsonObject json, @NotNull NamespacedKey key) {
+         super(ConcreteResourcePackBlockStates::new, json, key);
+     }
+ 
+-    public ConcreteResourcePackBlockStates(@NotNull ResourcePackBlockStates<?> reference) {
+-        this(reference.getJson(), reference.getKey());
++    public ConcreteResourcePackBlockStates(@NotNull ResourcePackBlockStates reference) {
++        this(reference.getJsonCopy(), reference.getKey());
+     }
+ 
+-
+     @Override
+-    public @NotNull ResourcePackAssetType<? extends ResourcePackBlockStates<?>, ? extends MutableResourcePackBlockStates<?, ?>> getType() {
++    public @NotNull ResourcePackAssetType getType() {
+         return ResourcePackAssetType.BLOCK_STATES;
+     }
+ 
+     @Override
+-    public @NotNull ConcreteResourcePackBlockStates mergeToMutable(@NotNull ConcreteResourcePackBlockStates other) {
+-        return this.mergeToMutable((ResourcePackBlockStates<?>) other);
++    public void setModel(@NotNull String variant, @NotNull Model model) {
++        @NotNull JsonObject variantsJson;
++        if (this.json.has(KeyConstants.variants)) {
++            variantsJson = this.json.getAsJsonObject(KeyConstants.variants);
++        } else {
++            variantsJson = new JsonObject();
++            this.json.add(KeyConstants.variants, variantsJson);
++        }
++        @NotNull JsonObject variantJson;
++        if (variantsJson.has(variant)) {
++            variantJson = variantsJson.getAsJsonObject(variant);
++        } else {
++            variantJson = new JsonObject();
++            variantsJson.add(variant, variantJson);
++        }
++        variantJson.addProperty(KeyConstants.model, model.getKeyWithType().toString());
++        this.setDirty();
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ConcreteResourcePackModel.java
+index 09a59bfb3bc1a5a2148613a37da68d8950142fd5..92ee1dda192cbe775c76995e376b837f2571e505 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ConcreteResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ConcreteResourcePackModel.java
+@@ -2,31 +2,81 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
++import com.google.gson.JsonArray;
++import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
++import nl.martijnmuijsers.paper.resourcepack.model.Model;
++import nl.martijnmuijsers.paper.resourcepack.texture.Texture;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ /**
+  * Concrete implementation of {@link MutableResourcePackModel}
+  */
+-public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<ConcreteResourcePackModel, ResourcePackModel<?>> implements MutableResourcePackModel<ConcreteResourcePackModel, ConcreteResourcePackModel> {
++public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<ConcreteResourcePackModel> implements MutableResourcePackModel {
++
++    public ConcreteResourcePackModel(@NotNull JsonObject json, @NotNull NamespacedKey key, boolean dirty) {
++        super(ConcreteResourcePackModel::new, json, key, dirty);
++    }
+ 
+     public ConcreteResourcePackModel(@NotNull JsonObject json, @NotNull NamespacedKey key) {
+         super(ConcreteResourcePackModel::new, json, key);
+     }
+ 
+-    public ConcreteResourcePackModel(@NotNull ResourcePackModel<?> reference) {
+-        this(reference.getJson(), reference.getKey());
++    public ConcreteResourcePackModel(@NotNull ResourcePackModel reference) {
++        this(reference.getJsonCopy(), reference.getKey());
+     }
+ 
+     @Override
+-    public @NotNull ResourcePackAssetType<? extends ResourcePackModel<?>, ? extends MutableResourcePackModel<?, ?>> getType() {
++    public @NotNull ResourcePackAssetType getType() {
+         return ResourcePackAssetType.MODEL;
+     }
+ 
+     @Override
+-    public @NotNull ConcreteResourcePackModel mergeToMutable(@NotNull ConcreteResourcePackModel other) {
+-        return this.mergeToMutable((ResourcePackModel<?>) other);
++    public void setParent(@NotNull Model parent) {
++        this.json.addProperty(KeyConstants.assetParent, parent.getKeyWithType().toString());
++        this.setDirty();
++    }
++
++    @Override
++    public void setAllTextures(@NotNull Texture texture) {
++        @NotNull JsonObject texturesJson = new JsonObject();
++        texturesJson.addProperty(KeyConstants.allModelTextures, texture.getKeyWithType().toString());
++        this.json.add(KeyConstants.modelTextures, texturesJson);
++        this.setDirty();
++    }
++
++    @Override
++    public void addModelOverride(int customModelData, @NotNull Model overridingModel) {
++        @NotNull JsonArray overridesJson;
++        if (this.json.has(KeyConstants.modelOverrides)) {
++            overridesJson = this.json.getAsJsonArray(KeyConstants.modelOverrides);
++        } else {
++            overridesJson = new JsonArray();
++            this.json.add(KeyConstants.modelOverrides, overridesJson);
++        }
++        // Make sure we try to find an override with the same predicate as that we're trying to create
++        @NotNull JsonObject predicateJson = new JsonObject();
++        predicateJson.addProperty(KeyConstants.customModelData, customModelData);
++        @Nullable JsonObject overrideJson = null;
++        for (JsonElement existingOverrideJson : overridesJson) {
++            if (existingOverrideJson instanceof JsonObject existingOverrideJsonObject) {
++                @Nullable JsonElement existingOverridePredicateJson = existingOverrideJsonObject.get(KeyConstants.overridePredicate);
++                if (existingOverridePredicateJson != null && existingOverridePredicateJson.equals(predicateJson)) {
++                    overrideJson = existingOverrideJsonObject;
++                    break;
++                }
++            }
++        }
++        if (overrideJson == null) {
++            // We need to create a new override because none with the desired predicate existed
++            overrideJson = new JsonObject();
++            overrideJson.add(KeyConstants.overridePredicate, predicateJson);
++            overridesJson.add(overrideJson);
++        }
++        overrideJson.addProperty(KeyConstants.model, overridingModel.getKeyWithType().toString());
++        this.setDirty();
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/InitializableResourcePackAssetType.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/InitializableResourcePackAssetType.java
+index 85ecadeb38c735001ed15352cf7b297a3a3968f3..75106c68020ed1fc32e3d64ead0c33296b263ce7 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/InitializableResourcePackAssetType.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/InitializableResourcePackAssetType.java
+@@ -3,14 +3,15 @@
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ /**
+  * A {@link ResourcePackAssetType} that can be initialized to some empty state
+  */
+-public class InitializableResourcePackAssetType<T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> extends ResourcePackAssetType<T, MT> {
++public class InitializableResourcePackAssetType extends ResourcePackAssetType {
+ 
+-    protected InitializableResourcePackAssetType(@NotNull String folderPathInNamespaceFolder) {
+-        super(folderPathInNamespaceFolder);
++    protected InitializableResourcePackAssetType(@NotNull String folderPathInNamespaceFolder, @Nullable String defaultFileExtension) {
++        super(folderPathInNamespaceFolder, defaultFileExtension);
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/JsonMerging.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/JsonMerging.java
+index 05902f4a2a87c2a4f67992db7e8fe58ccb19bdd7..b3a16a1c058c37d53497fe0e39b985350cd79dea 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/JsonMerging.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/JsonMerging.java
+@@ -2,8 +2,11 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
++import com.google.gson.JsonArray;
++import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ /**
+  * Utility class to merge JSON data, with the first provided instance taking precedent over the second one when any conflict arises
+@@ -12,8 +15,45 @@ public final class JsonMerging {
+ 
+     private JsonMerging() {}
+ 
++    /**
++     * Returns a new JSON object, the result of merging the two given JSON objects (where the first provided JSON object takes precedence in any conflicts)
++     */
+     public static @NotNull JsonObject merge(@NotNull JsonObject json1, @NotNull JsonObject json2) {
++        JsonObject newJson = json1.deepCopy();
++        mergeIntoObject(newJson, json2);
++        return newJson;
++    }
++
++    /**
++     * Merges the second given JSON object into the first given JSON object (where the first provided JSON object takes precedence in any conflicts)
++     */
++    public static void mergeIntoObject(@NotNull JsonObject json1, @NotNull JsonObject json2) {
++        for (String key : json2.keySet()) {
++            @Nullable JsonElement element2 = json2.get(key);
++            if (element2 != null) {
++                @Nullable JsonElement element1 = json1.get(key);
++                if (element1 == null) {
++                    json1.add(key, element2.deepCopy());
++                } else {
++                    mergeInto(element1, element2);
++                }
++            }
++        }
++    }
+ 
++    /**
++     * Merges the second given JSON element into the first given JSON element (where the first provided JSON element takes precedence in any conflicts)
++     */
++    public static void mergeInto(@NotNull JsonElement json1, @NotNull JsonElement json2) {
++        if (json1 instanceof JsonArray jsonArray1) {
++            if (json2 instanceof JsonArray jsonArray2) {
++                jsonArray1.addAll(jsonArray2);
++            }
++        } else if (json1 instanceof JsonObject jsonObject1) {
++            if (json2 instanceof JsonObject jsonObject2) {
++                mergeIntoObject(jsonObject1, jsonObject2);
++            }
++        }
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/JsonResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/JsonResourcePackAsset.java
+index c6739b6e20b731d107464a36bfcd62415dc3c119..0e99e7533d139efd6301fc9902fa74f3a306aa9a 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/JsonResourcePackAsset.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/JsonResourcePackAsset.java
+@@ -8,8 +8,13 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * A {@link ResourcePackAsset} with JSON data
+  */
+-public interface JsonResourcePackAsset<T> extends ResourcePackAsset<T> {
++public interface JsonResourcePackAsset extends ResourcePackAsset {
+ 
+-    @NotNull JsonObject getJson();
++    @Override
++    @NotNull JsonResourcePackAsset merge(@NotNull ResourcePackAsset other);
++
++    @NotNull JsonObject getJsonCopy();
++
++    boolean isJsonEmpty();
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
+index 5b302087d440fe012e2ec6d75da58bed0b1554d0..81115881f220e9489800189f10e0da3787478613 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
+@@ -21,4 +21,49 @@ public final class KeyConstants {
+      */
+     public static final @NotNull String packDescription = "description";
+ 
++    /**
++     * The variants of a block (the block states)
++     */
++    public static final @NotNull String variants = "variants";
++
++    /**
++     * The variant key used as block state variant for blocks that have no block states
++     */
++    public static final @NotNull String noVariant = "";
++
++    /**
++     * The model of a variant (block state) of a block, or of a model override
++     */
++    public static final @NotNull String model = "model";
++
++    /**
++     * The parent of an asset
++     */
++    public static final @NotNull String assetParent = "parent";
++
++    /**
++     * The textures of a model
++     */
++    public static final @NotNull String modelTextures = "textures";
++
++    /**
++     * The inner key of textures of a model representing setting all textures
++     */
++    public static final @NotNull String allModelTextures = "all";
++
++    /**
++     * The overrides of a model
++     */
++    public static final @NotNull String modelOverrides = "overrides";
++
++    /**
++     * The predicate of a model override
++     */
++    public static final @NotNull String overridePredicate = "predicate";
++
++    /**
++     * The key for custom model data
++     */
++    public static final @NotNull String customModelData = "custom_model_data";
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableJsonResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableJsonResourcePackAsset.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..bdd9cc985717521aa72c5c8ee24031d061ec43f0
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableJsonResourcePackAsset.java
+@@ -0,0 +1,17 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.resourcepack;
++
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * A mutable {@link JsonResourcePackAsset}
++ */
++public interface MutableJsonResourcePackAsset extends MutableResourcePackAsset, JsonResourcePackAsset {
++
++    @Override
++    @NotNull MutableJsonResourcePackAsset merge(@NotNull ResourcePackAsset other);
++
++    void clearJson();
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePack.java
+index 09e637a375a341ff1c76f887bf2fddb5f3f3a1a7..597c35fa286f91e94fbc54e98134917c5be90314 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePack.java
+@@ -2,7 +2,7 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
+-import com.google.gson.JsonObject;
++import nl.martijnmuijsers.paper.resourcepack.model.ModelType;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -14,22 +14,64 @@ public interface MutableResourcePack extends ResourcePack {
+ 
+     @NotNull ResourcePackSettings getSettings();
+ 
++    /**
++     * Note that the key must be typed, if any
++     */
+     @Override
+-    default <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @NotNull T getAsset(@NotNull ResourcePackAssetType<T, MT> type, @NotNull NamespacedKey key) throws IllegalArgumentException {
++    @NotNull MutableResourcePackAsset getAsset(@NotNull ResourcePackAssetType type, @NotNull NamespacedKey key) throws IllegalArgumentException;
++
++    /**
++     * Note that the key must be typed, if any
++     */
++    @Override
++    default @Nullable MutableResourcePackAsset getOptionalAsset(@NotNull ResourcePackAssetType type, @NotNull NamespacedKey key) {
++        return (MutableResourcePackAsset) ResourcePack.super.getOptionalAsset(type, key);
++    }
++
++    /**
++     * Note that the key must be typed, if any
++     */
++    @NotNull MutableResourcePackAsset getOrCreateAsset(@NotNull InitializableResourcePackAssetType type, @NotNull NamespacedKey key) throws IllegalArgumentException;
++
++    /**
++     * Note that the key must be typed, if any
++     */
++    default <T extends MutableResourcePackAsset> @NotNull T getOrCreateAsset(@NotNull InitializableResourcePackAssetType type, @NotNull NamespacedKey key, @NotNull Class<T> clazz) throws IllegalArgumentException {
+         //noinspection unchecked
+-        return (T) this.getMutableAsset(type, key);
++        return (T) this.getOrCreateAsset(type, key);
+     }
+ 
+-    <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @NotNull MT getMutableAsset(@NotNull ResourcePackAssetType<T, MT> type, @NotNull NamespacedKey key) throws IllegalArgumentException;
++    default @NotNull MutableResourcePackBlockStates getBlockStates(@NotNull NamespacedKey key) throws IllegalArgumentException {
++        return this.getAsset(ResourcePackAssetType.BLOCK_STATES, key, MutableResourcePackBlockStates.class);
++    }
+ 
+-    default <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @Nullable MT getOptionalMutableAsset(@NotNull ResourcePackAssetType<T, MT> type, @NotNull NamespacedKey key) {
+-        try {
+-            return this.getMutableAsset(type, key);
+-        } catch (Exception e) {
+-            return null;
+-        }
++    default @Nullable MutableResourcePackBlockStates getOptionalBlockStates(@NotNull NamespacedKey key) {
++        return this.getOptionalAsset(ResourcePackAssetType.BLOCK_STATES, key, MutableResourcePackBlockStates.class);
+     }
+ 
+-    <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @NotNull MT getOrCreateAsset(InitializableResourcePackAssetType<T, MT> type, @NotNull NamespacedKey key) throws IllegalArgumentException;
++    default @NotNull MutableResourcePackBlockStates getOrCreateBlockStates(@NotNull NamespacedKey key) throws IllegalArgumentException {
++        return this.getOrCreateAsset(ResourcePackAssetType.BLOCK_STATES, key, MutableResourcePackBlockStates.class);
++    }
++
++    /**
++     * Note that the key must be untyped
++     */
++    default @NotNull MutableResourcePackModel getModel(@NotNull ModelType type, @NotNull NamespacedKey key) throws IllegalArgumentException {
++        return this.getAsset(ResourcePackAssetType.MODEL, type.getTypedKey(key), MutableResourcePackModel.class);
++    }
++
++    /**
++     * Note that the key must be untyped
++     */
++    default @Nullable MutableResourcePackModel getOptionalModel(@NotNull ModelType type, @NotNull NamespacedKey key) {
++        return this.getOptionalAsset(ResourcePackAssetType.MODEL, type.getTypedKey(key), MutableResourcePackModel.class);
++    }
++
++    /**
++     * Note that the key must be untyped
++     */
++    default @NotNull MutableResourcePackModel getOrCreateModel(@NotNull ModelType type, @NotNull NamespacedKey key) throws IllegalArgumentException {
++        return this.getOrCreateAsset(ResourcePackAssetType.MODEL, type.getTypedKey(key), MutableResourcePackModel.class);
++    }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackAsset.java
+index 40c3d92c92da72dfc2f95bd0af2d668c636a12b7..ddb6530727c68866cff73944be347517cb17854e 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackAsset.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackAsset.java
+@@ -7,24 +7,35 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * A mutable {@link ResourcePackAsset}
+  */
+-public interface MutableResourcePackAsset<T, MT> extends ResourcePackAsset<T> {
++public interface MutableResourcePackAsset extends ResourcePackAsset {
+ 
++    /**
++     * Note that merging two assets sets the {@link #isDirty} flag if any of the two assets have it set to true
++     */
+     @Override
+-    default @NotNull T merge(@NotNull T other) {
+-        //noinspection unchecked
+-        return (T) mergeToMutable(other);
+-    }
++    @NotNull MutableResourcePackAsset merge(@NotNull ResourcePackAsset other);
+ 
+     /**
+-     * Gets the result of merging this asset with the given one
++     * Whether this asset would need to be added to a resource pack when written
+      * <br>
+-     * In any conflicts, this asset will take precedence over the given one
++     * This is false when:
++     * <ul>
++     * <li>The asset was created from a default asset and has not been modified</li>
++     * <li>The asset was newly created (not based on a default asset) in an empty state and has not been modified</li>
++     * </ul>
++     * This is true otherwise, for example but not limited to:
++     * <ul>
++     * <li>The asset was created from an included asset</li>
++     * <li>The asset was newly created (not based on a default asset) in a non-empty state</li>
++     * <li>The asset was has modifications since creation that make it non-equal to the default asset, if any</li>
++     * </ul>
++     * Note that this flag may (and will usually) be true if the asset is created from a default asset and then modified in such a way that it ends up being the same as the original again, even though it would be valid (and better) to have it be false
+      */
+-    @NotNull MT mergeToMutable(@NotNull T other);
++    boolean isDirty();
+ 
+-    default @NotNull MT mergeToMutableUntyped(@NotNull Object other) {
+-        //noinspection unchecked
+-        return this.mergeToMutable((T) other);
+-    }
++    /**
++     * Sets {@link #isDirty} to true
++     */
++    void setDirty();
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackBlockStates.java
+index dca54daec3c485b2b129ac2e21cbd3c89746d89d..60f8a1e2b5c0ecf079e8d13e67982fd81a6ecd88 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackBlockStates.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackBlockStates.java
+@@ -2,13 +2,37 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
++import nl.martijnmuijsers.paper.resourcepack.model.Model;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * A mutable {@link ResourcePackBlockStates}
+  */
+-public interface MutableResourcePackBlockStates<T, MT> extends MutableResourcePackAsset<T, MT>, ResourcePackBlockStates<T> {
++public interface MutableResourcePackBlockStates extends MutableJsonResourcePackAsset, ResourcePackBlockStates {
+ 
+-    @NotNull MT mergeToMutable(@NotNull ResourcePackBlockStates<?> other);
++    @Override
++    @NotNull MutableResourcePackBlockStates merge(@NotNull ResourcePackAsset other);
++
++    /**
++     * @param pack Because this instance is not aware of the resource pack it is in, this pack must be provided to automatically add the given model to the resource pack
++     * @param overwriteExistingModel Whether to overwrite an existing model in the resource pack (this has to do with the model, not with this {@link MutableResourcePackBlockStates} instance: this instance's model property is always overwritten by this method)
++     */
++    default void setModel(@NotNull String variant, @NotNull Model model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel) {
++        this.setModel(variant, model);
++        model.addToResourcePack(pack, overwriteExistingModel);
++    }
++
++    /**
++     * This does not automatically add the model to the resource pack
++     */
++    void setModel(@NotNull String variant, @NotNull Model model);
++
++    default void setNoVariantModel(@NotNull Model model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel) {
++        this.setModel(KeyConstants.noVariant, model, pack, overwriteExistingModel);
++    }
++
++    default void setNoVariantModel(@NotNull Model model) {
++        this.setModel(KeyConstants.noVariant, model);
++    }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackModel.java
+index 0ec95a6876e178f0396c0b6e062f46cb5fe1c69e..a4027d51f33e06d7ea089861cebb5ff6d73de5db 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/MutableResourcePackModel.java
+@@ -2,13 +2,34 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
++import nl.martijnmuijsers.paper.resourcepack.model.Model;
++import nl.martijnmuijsers.paper.resourcepack.texture.Texture;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * A mutable {@link ResourcePackModel}
+  */
+-public interface MutableResourcePackModel<T, MT> extends MutableResourcePackAsset<T, MT>, ResourcePackModel<T> {
++public interface MutableResourcePackModel extends MutableJsonResourcePackAsset, ResourcePackModel {
+ 
+-    @NotNull MT mergeToMutable(@NotNull ResourcePackModel<?> other);
++    @Override
++    @NotNull MutableResourcePackModel merge(@NotNull ResourcePackAsset other);
++
++    void setParent(@NotNull Model parent);
++
++    void setAllTextures(@NotNull Texture texture);
++
++    /**
++     * @param pack Because this instance is not aware of the resource pack it is in, this pack must be provided to automatically add the given overriding model to the resource pack
++     * @param overwriteExistingOverridingModel Whether to overwrite an existing model in the resource pack (this has to do with the overriding model, not with this model instance: this instance's overrides property is always modified by this method)
++     */
++    default void addModelOverride(int customModelData, @NotNull Model overridingModel, @NotNull MutableResourcePack pack, boolean overwriteExistingOverridingModel) {
++        this.addModelOverride(customModelData, overridingModel);
++        overridingModel.addToResourcePack(pack, overwriteExistingOverridingModel);
++    }
++
++    /**
++     * This does not automatically add the overriding model to the resource pack
++     */
++    void addModelOverride(int customModelData, @NotNull Model overridingModel);
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/PathConstants.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/PathConstants.java
+index fc5f5c821ae2401705be3f10c33586570895cfa2..b3733430eee1dad737187d1f947ad177f65f2d61 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/PathConstants.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/PathConstants.java
+@@ -2,7 +2,6 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
+-import net.minecraft.resources.ResourceLocation;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ 
+@@ -23,6 +22,16 @@ public final class PathConstants {
+ 
+     }
+ 
++    /**
++     * The prefixes (separated from the regular key with a slash) for certain asset type subtypes (meant to differentiate their intention)
++     */
++    public static final class IntentionKeyPrefixes {
++
++        public static final @NotNull String block = "block";
++        public static final @NotNull String item = "item";
++
++    }
++
+     /**
+      * The assets folder
+      */
+@@ -56,7 +65,7 @@ public final class PathConstants {
+          */
+         public static final class Block {
+ 
+-            public static final @NotNull String name = "block";
++            public static final @NotNull String name = IntentionKeyPrefixes.block;
+             public static final @NotNull String pathInNamespaceFolder = Models.pathInNamespaceFolder + "/" + name;
+ 
+         }
+@@ -66,19 +75,49 @@ public final class PathConstants {
+          */
+         public static final class Item {
+ 
+-            public static final @NotNull String name = "item";
++            public static final @NotNull String name = IntentionKeyPrefixes.item;
+             public static final @NotNull String pathInNamespaceFolder = Models.pathInNamespaceFolder + "/" + name;
+ 
+         }
+ 
+     }
+ 
+-    public static @NotNull NamespacedKey getBlockModel(@NotNull NamespacedKey block) {
+-        return new NamespacedKey(block.getNamespace(), Models.Block.name + "/" + block.getKey());
++    /**
++     * The textures folder
++     */
++    public static final class Textures {
++
++        public static final @NotNull String name = "textures";
++        public static final @NotNull String pathInNamespaceFolder = name;
++
++        /**
++         * The block textures folder
++         */
++        public static final class Block {
++
++            public static final @NotNull String name = IntentionKeyPrefixes.block;
++            public static final @NotNull String pathInNamespaceFolder = Textures.pathInNamespaceFolder + "/" + name;
++
++        }
++
++        /**
++         * The item textures folder
++         */
++        public static final class Item {
++
++            public static final @NotNull String name = IntentionKeyPrefixes.item;
++            public static final @NotNull String pathInNamespaceFolder = Textures.pathInNamespaceFolder + "/" + name;
++
++        }
++
++    }
++
++    public static @NotNull NamespacedKey getBlockKey(@NotNull NamespacedKey block) {
++        return new NamespacedKey(block.getNamespace(), IntentionKeyPrefixes.block + "/" + block.getKey());
+     }
+ 
+-    public static @NotNull NamespacedKey getItemModel(@NotNull NamespacedKey item) {
+-        return new NamespacedKey(item.getNamespace(), Models.Item.name + "/" + item.getKey());
++    public static @NotNull NamespacedKey getItemKey(@NotNull NamespacedKey item) {
++        return new NamespacedKey(item.getNamespace(), IntentionKeyPrefixes.item + "/" + item.getKey());
+     }
+ 
+     public static @NotNull String getNamespaceFolderPathFromRoot(@NotNull String namespace) {
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePack.java
+index 39a599ca0188c78cf7dc0e678c2ff5a22d39c5e7..739bfd6e3a1527f156fa83944d11163ab219665e 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePack.java
+@@ -2,6 +2,7 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
++import nl.martijnmuijsers.paper.resourcepack.model.ModelType;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -13,9 +14,15 @@ public interface ResourcePack {
+ 
+     @NotNull ResourcePackSettings getSettings();
+ 
+-    <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @NotNull T getAsset(@NotNull ResourcePackAssetType<T, MT> type, @NotNull NamespacedKey key) throws IllegalArgumentException;
++    /**
++     * Note that the key must be typed, if any
++     */
++    @NotNull ResourcePackAsset getAsset(@NotNull ResourcePackAssetType type, @NotNull NamespacedKey key) throws IllegalArgumentException;
+ 
+-    default <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @Nullable T getOptionalAsset(@NotNull ResourcePackAssetType<T, MT> type, @NotNull NamespacedKey key) {
++    /**
++     * Note that the key must be typed, if any
++     */
++    default @Nullable ResourcePackAsset getOptionalAsset(@NotNull ResourcePackAssetType type, @NotNull NamespacedKey key) {
+         try {
+             return this.getAsset(type, key);
+         } catch (Exception e) {
+@@ -23,4 +30,42 @@ public interface ResourcePack {
+         }
+     }
+ 
++    /**
++     * Note that the key must be typed, if any
++     */
++    default <T extends ResourcePackAsset> @NotNull T getAsset(@NotNull ResourcePackAssetType type, @NotNull NamespacedKey key, @NotNull Class<T> clazz) throws IllegalArgumentException {
++        //noinspection unchecked
++        return (T) this.getAsset(type, key);
++    }
++
++    /**
++     * Note that the key must be typed, if any
++     */
++    default <T extends ResourcePackAsset> @Nullable T getOptionalAsset(@NotNull ResourcePackAssetType type, @NotNull NamespacedKey key, @NotNull Class<T> clazz) {
++        //noinspection unchecked
++        return (T) this.getOptionalAsset(type, key);
++    }
++
++    default @NotNull ResourcePackBlockStates getBlockStates(@NotNull NamespacedKey key) throws IllegalArgumentException {
++        return this.getAsset(ResourcePackAssetType.BLOCK_STATES, key, ResourcePackBlockStates.class);
++    }
++
++    default @Nullable ResourcePackBlockStates getOptionalBlockStates(@NotNull NamespacedKey key) {
++        return this.getOptionalAsset(ResourcePackAssetType.BLOCK_STATES, key, ResourcePackBlockStates.class);
++    }
++
++    /**
++     * Note that the key must be untyped
++     */
++    default @NotNull ResourcePackModel getModel(@NotNull ModelType type, @NotNull NamespacedKey key) throws IllegalArgumentException {
++        return this.getAsset(ResourcePackAssetType.MODEL, type.getTypedKey(key), ResourcePackModel.class);
++    }
++
++    /**
++     * Note that the key must be untyped
++     */
++    default @Nullable ResourcePackModel getOptionalModel(@NotNull ModelType type, @NotNull NamespacedKey key) {
++        return this.getOptionalAsset(ResourcePackAssetType.MODEL, type.getTypedKey(key), ResourcePackModel.class);
++    }
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackAsset.java
+index 6176372451b470c579429f35bc108d44cc5d59ae..7c2d99389311aa736153608487157b7cf20aee9d 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackAsset.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackAsset.java
+@@ -8,24 +8,21 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * An asset (element of some asset type) in a {@link ResourcePack}
+  */
+-public interface ResourcePackAsset<T> {
++public interface ResourcePackAsset {
+ 
+-    @NotNull ResourcePackAssetType<?, ?> getType();
++    @NotNull ResourcePackAssetType getType();
+ 
+     @NotNull NamespacedKey getKey();
+ 
+-    @NotNull String getPathInResourcePack();
++    default @NotNull String getPathInResourcePack() {
++        return this.getType().getPathInResourcePack(this.getKey());
++    }
+ 
+     /**
+      * Gets the result of merging this asset with the given one
+      * <br>
+      * In any conflicts, this asset will take precedence over the given one
+      */
+-    @NotNull T merge(@NotNull T other);
+-
+-    default @NotNull T mergeUntyped(@NotNull Object other) {
+-        //noinspection unchecked
+-        return this.merge((T) other);
+-    }
++    @NotNull ResourcePackAsset merge(@NotNull ResourcePackAsset other);
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackAssetType.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackAssetType.java
+index e350600d3bdaa854f0d89d6309ae175534726560..bba7196f71c0c8d6d11b1e1a6bf1114a3210142f 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackAssetType.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackAssetType.java
+@@ -2,24 +2,41 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
++import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ /**
+  * A type of {@link ResourcePackAsset}
+  */
+-public class ResourcePackAssetType<T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> {
++public class ResourcePackAssetType {
+ 
+-    public static final @NotNull ResourcePackAssetType<? extends ResourcePackBlockStates<?>, ? extends MutableResourcePackBlockStates<?, ?>> BLOCK_STATES = new InitializableResourcePackAssetType<>(PathConstants.BlockStates.pathInNamespaceFolder);
+-    public static final @NotNull ResourcePackAssetType<? extends ResourcePackModel<?>, ? extends MutableResourcePackModel<?, ?>> MODEL = new InitializableResourcePackAssetType<>(PathConstants.Models.pathInNamespaceFolder);
++    public static final @NotNull InitializableResourcePackAssetType BLOCK_STATES = new InitializableResourcePackAssetType(PathConstants.BlockStates.pathInNamespaceFolder, ".json");
++    public static final @NotNull InitializableResourcePackAssetType MODEL = new InitializableResourcePackAssetType(PathConstants.Models.pathInNamespaceFolder, ".json");
+ 
+     private final @NotNull String folderPathInNamespaceFolder;
++    /**
++     * This extension includes the dot separating the filename from the extension (so this may be an empty string to indicate that this asset type's files have no extension at all)
++     */
++    private final @Nullable String defaultFileExtension;
+ 
+-    protected ResourcePackAssetType(@NotNull String folderName) {
++    protected ResourcePackAssetType(@NotNull String folderName, @Nullable String defaultFileExtension) {
+         this.folderPathInNamespaceFolder = folderName;
++        this.defaultFileExtension = defaultFileExtension;
+     }
+ 
+     public @NotNull String getFolderPathInNamespaceFolder() {
+         return this.folderPathInNamespaceFolder;
+     }
+ 
++    /**
++     * Note that the given asset key must be typed
++     */
++    public @NotNull String getPathInResourcePack(@NotNull NamespacedKey assetKey) {
++        if (this.defaultFileExtension == null) {
++            throw new IllegalStateException("Called ResourcePackAssetType.getPathInResourcePack while defaultFileExtension was not set: if a type has multiple extensions, this method cannot be used, and ResourcePackAsset.getPathInResourcePack should be overridden as appropriate");
++        }
++        return PathConstants.getNamespaceFolderPathFromRoot(assetKey) + "/" + this.getFolderPathInNamespaceFolder() + "/" + assetKey.getKey() + this.defaultFileExtension;
++    }
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackBlockStates.java
+index 22848e27772c2b3b741647c0f4e1cbd2c692e5d5..e4d69a9a415cb15550ba17215047198e9928641b 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackBlockStates.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackBlockStates.java
+@@ -2,10 +2,14 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
+-import com.google.gson.JsonObject;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * An element of 'blockstates' in a {@link ResourcePack}
+  */
+-public interface ResourcePackBlockStates<T> extends JsonResourcePackAsset<T> {}
++public interface ResourcePackBlockStates extends JsonResourcePackAsset {
++
++    @Override
++    @NotNull ResourcePackBlockStates merge(@NotNull ResourcePackAsset other);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackModel.java
+index 7e51d43a9096ac71daea2f66e885c8795c11fa73..46a93e34908e106c1481ebf934ae8a5257354f98 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackModel.java
+@@ -2,10 +2,14 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
+-import com.google.gson.JsonObject;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * An element of 'models' in a {@link ResourcePack}
+  */
+-public interface ResourcePackModel<T> extends JsonResourcePackAsset<T> {}
++public interface ResourcePackModel extends JsonResourcePackAsset {
++
++    @Override
++    @NotNull ResourcePackModel merge(@NotNull ResourcePackAsset other);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/SimpleJsonResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/SimpleJsonResourcePackAsset.java
+index f1d34214faaf2312f101537f4bc8b639f5aff29a..64fb6a615fbc36c829a66f2c6eeca14a74d0132f 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/SimpleJsonResourcePackAsset.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/SimpleJsonResourcePackAsset.java
+@@ -3,40 +3,66 @@
+ package nl.martijnmuijsers.paper.resourcepack;
+ 
+ import com.google.gson.JsonObject;
++import org.apache.commons.lang3.Validate;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * Base implementation of {@link MutableResourcePackAsset} for JSON assets
+  */
+-public abstract class SimpleJsonResourcePackAsset<T extends SimpleJsonResourcePackAsset<T, IT>, IT extends JsonResourcePackAsset<?>> extends SimpleResourcePackAsset<T> implements JsonResourcePackAsset<T> {
++public abstract class SimpleJsonResourcePackAsset<T extends SimpleJsonResourcePackAsset<T>> extends SimpleResourcePackAsset implements MutableJsonResourcePackAsset {
+ 
+-    protected interface JsonResourcePackAssetConstructor<T extends SimpleJsonResourcePackAsset<T, IT>, IT extends JsonResourcePackAsset<?>> {
++    protected interface JsonResourcePackAssetConstructor<T extends SimpleJsonResourcePackAsset<T>> {
+ 
+-        @NotNull T construct(@NotNull JsonObject json, @NotNull NamespacedKey key);
++        @NotNull T construct(@NotNull JsonObject json, @NotNull NamespacedKey key, boolean dirty);
+ 
+     }
+ 
+-    private final @NotNull JsonResourcePackAssetConstructor<T, IT> constructor;
++    private final @NotNull JsonResourcePackAssetConstructor<T> constructor;
+     protected @NotNull JsonObject json;
+ 
+-    protected SimpleJsonResourcePackAsset(@NotNull JsonResourcePackAssetConstructor<T, IT> constructor, @NotNull JsonObject json, @NotNull NamespacedKey key) {
+-        super(key);
++    protected SimpleJsonResourcePackAsset(@NotNull JsonResourcePackAssetConstructor<T> constructor, @NotNull JsonObject json, @NotNull NamespacedKey key, boolean dirty) {
++        super(key, dirty);
+         this.constructor = constructor;
+         this.json = json;
+     }
+ 
+-    @Override
+-    public @NotNull String getPathInResourcePack() {
+-        return this.getPathWithoutFileExtensionInResourcePack() + ".json";
++    protected SimpleJsonResourcePackAsset(@NotNull JsonResourcePackAssetConstructor<T> constructor, @NotNull JsonObject json, @NotNull NamespacedKey key) {
++        super(key);
++        this.constructor = constructor;
++        this.json = json;
+     }
+ 
+-    public @NotNull T mergeToMutable(@NotNull IT other) {
+-        return this.constructor.construct(JsonMerging.merge(this.json, other.getJson()), this.getKey());
++    public @NotNull T merge(@NotNull ResourcePackAsset other) {
++        Validate.isTrue(this.getType() == other.getType());
++        @NotNull JsonObject otherJson;
++        if (other instanceof SimpleJsonResourcePackAsset<?> simpleOther) {
++            otherJson = simpleOther.json;
++        } else {
++            otherJson = ((JsonResourcePackAsset) other).getJsonCopy();
++        }
++        boolean otherDirty;
++        if (other instanceof MutableResourcePackAsset mutableOther) {
++            otherDirty = mutableOther.isDirty();
++        } else {
++            otherDirty = false;
++        }
++        return this.constructor.construct(JsonMerging.merge(this.json, otherJson), this.getKey(), this.isDirty() || otherDirty);
+     }
+ 
+-    public @NotNull JsonObject getJson() {
++    public @NotNull JsonObject getJsonCopy() {
+         return this.json.deepCopy();
+     }
+ 
++    @Override
++    public boolean isJsonEmpty() {
++        return this.json.keySet().isEmpty();
++    }
++
++    @Override
++    public void clearJson() {
++        this.json = new JsonObject();
++        this.setDirty();
++    }
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/SimpleResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/SimpleResourcePackAsset.java
+index 6387b1f2cfce8f14ea0bb7e5d545139574c4047a..39efc87582c2ecff1823f83f83b4d82216aa87da 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/SimpleResourcePackAsset.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/SimpleResourcePackAsset.java
+@@ -8,15 +8,22 @@ import org.jetbrains.annotations.NotNull;
+ /**
+  * Base implementation of {@link MutableResourcePackAsset}
+  */
+-public abstract class SimpleResourcePackAsset<T extends SimpleResourcePackAsset<T>> implements MutableResourcePackAsset<T, T> {
++public abstract class SimpleResourcePackAsset implements MutableResourcePackAsset {
+ 
+     /**
+      * This key does not include the asset folder (such as models) but does include any subfolders (such as block)
+      */
+     private final @NotNull NamespacedKey key;
+ 
+-    protected SimpleResourcePackAsset(@NotNull NamespacedKey key) {
++    private boolean dirty;
++
++    protected SimpleResourcePackAsset(@NotNull NamespacedKey key, boolean dirty) {
+         this.key = key;
++        this.dirty = dirty;
++    }
++
++    protected SimpleResourcePackAsset(@NotNull NamespacedKey key) {
++        this(key, false);
+     }
+ 
+     @Override
+@@ -24,8 +31,14 @@ public abstract class SimpleResourcePackAsset<T extends SimpleResourcePackAsset<
+         return this.key;
+     }
+ 
+-    protected @NotNull String getPathWithoutFileExtensionInResourcePack() {
+-        return PathConstants.getNamespaceFolderPathFromRoot(this.key) + "/" + this.getType().getFolderPathInNamespaceFolder() + "/" + this.key.getKey();
++    @Override
++    public boolean isDirty() {
++        return this.dirty;
++    }
++
++    @Override
++    public void setDirty() {
++        this.dirty = true;
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
+index f59e831d8ac098c74f0f0a6334d26abc9eff9031..4015aa4cafae6cf7a96fb8c1a976dc709f316bf7 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
+@@ -10,8 +10,6 @@ import nl.martijnmuijsers.paper.resourcepack.ConcreteResourcePackModel;
+ import nl.martijnmuijsers.paper.resourcepack.InitializableResourcePackAssetType;
+ import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackAsset;
+-import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackBlockStates;
+-import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackModel;
+ import nl.martijnmuijsers.paper.resourcepack.ResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.ResourcePackAsset;
+ import nl.martijnmuijsers.paper.resourcepack.ResourcePackAssetType;
+@@ -48,7 +46,7 @@ public class MemoryResourcePack implements MutableResourcePack {
+ 
+     private final @NotNull MemoryResourcePackSettings settings = new MemoryResourcePackSettings(this);
+ 
+-    private final @NotNull Map<@NotNull Pair<@NotNull ResourcePackAssetType<?, ?>, @NotNull NamespacedKey>, @NotNull ResourcePackAsset<?>> assets = new HashMap<>(0);
++    private final @NotNull Map<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKey>, @NotNull MutableResourcePackAsset> assets = new HashMap<>(0);
+ 
+     public MemoryResourcePack() {}
+ 
+@@ -77,50 +75,43 @@ public class MemoryResourcePack implements MutableResourcePack {
+         return this.settings;
+     }
+ 
+-    private <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @NotNull MT copyToMutable(@NotNull ResourcePackAssetType<T, MT> type, @NotNull T asset) {
++    private @NotNull MutableResourcePackAsset getMutable(@NotNull ResourcePackAssetType type, @NotNull ResourcePackAsset asset) {
++        if (asset instanceof MutableResourcePackAsset mutableAsset) {
++            return mutableAsset;
++        }
+         if (type.equals(ResourcePackAssetType.BLOCK_STATES)) {
+-            if (asset instanceof MutableResourcePackBlockStates<?, ?>) {
+-                //noinspection unchecked
+-                return (MT) asset;
+-            }
+-            //noinspection unchecked
+-            return (MT) new ConcreteResourcePackBlockStates((ResourcePackBlockStates<?>) asset);
++            return new ConcreteResourcePackBlockStates((ResourcePackBlockStates) asset);
+         } else if (type.equals(ResourcePackAssetType.MODEL)) {
+-            if (asset instanceof MutableResourcePackModel<?, ?>) {
+-                //noinspection unchecked
+-                return (MT) asset;
+-            }
+-            //noinspection unchecked
+-            return (MT) new ConcreteResourcePackModel((ResourcePackModel<?>) asset);
++            return new ConcreteResourcePackModel((ResourcePackModel) asset);
+         } else {
+             throw new IllegalArgumentException("Attempted to create mutable asset for memory resource pack by cloning a given asset, but the type (" + type.getFolderPathInNamespaceFolder() + ") is not a known copiable type");
+         }
+     }
+ 
+     @Override
+-    public <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @NotNull MT getMutableAsset(@NotNull ResourcePackAssetType<T, MT> type, @NotNull NamespacedKey key) throws IllegalArgumentException {
+-        @SuppressWarnings("unchecked")
+-        @Nullable MT foundOrDerivedAsset = (MT) this.assets.computeIfAbsent(Pair.of(type, key), namespacedKey -> {
++    public @NotNull MutableResourcePackAsset getAsset(@NotNull ResourcePackAssetType type, @NotNull NamespacedKey key) throws IllegalArgumentException {
++        @Nullable MutableResourcePackAsset foundOrDerivedAsset = this.assets.computeIfAbsent(Pair.of(type, key), namespacedKey -> {
+             // Try creating a merged asset from the included resource packs
+-            @Nullable MT derivedAsset = null;
++            @Nullable MutableResourcePackAsset derivedAsset = null;
+             for (@NotNull ResourcePack includedResourcePack : this.getIncludedResourcePacks()) {
+-                @Nullable T includedAsset = includedResourcePack.getOptionalAsset(type, key);
++                @Nullable ResourcePackAsset includedAsset = includedResourcePack.getOptionalAsset(type, key);
+                 if (includedAsset != null) {
+                     if (derivedAsset == null) {
+-                        derivedAsset = this.copyToMutable(type, includedAsset);
++                        derivedAsset = this.getMutable(type, includedAsset);
+                     } else {
+-                        derivedAsset = (MT) derivedAsset.mergeToMutableUntyped(includedAsset);
++                        derivedAsset = derivedAsset.merge(includedAsset);
+                     }
+                 }
+             }
+             if (derivedAsset != null) {
++                derivedAsset.setDirty();
+                 return derivedAsset;
+             }
+             // Try finding the default form of the asset in the default resource packs
+             for (@NotNull ResourcePack defaultResourcePack : this.getDefaultResourcePacks()) {
+-                @Nullable T defaultAsset = defaultResourcePack.getOptionalAsset(type, key);
++                @Nullable ResourcePackAsset defaultAsset = defaultResourcePack.getOptionalAsset(type, key);
+                 if (defaultAsset != null) {
+-                    return this.copyToMutable(type, defaultAsset);
++                    return this.getMutable(type, defaultAsset);
+                 }
+             }
+             // We can't initially derive this asset from any inherited resource packs
+@@ -133,18 +124,16 @@ public class MemoryResourcePack implements MutableResourcePack {
+     }
+ 
+     @Override
+-    public <T extends ResourcePackAsset<?>, MT extends MutableResourcePackAsset<?, ?>> @NotNull MT getOrCreateAsset(InitializableResourcePackAssetType<T, MT> type, @NotNull NamespacedKey key) throws IllegalArgumentException {
+-        @Nullable MT existingAsset = getOptionalMutableAsset(type, key);
++    public @NotNull MutableResourcePackAsset getOrCreateAsset(@NotNull InitializableResourcePackAssetType type, @NotNull NamespacedKey key) throws IllegalArgumentException {
++        @Nullable MutableResourcePackAsset existingAsset = this.getOptionalAsset(type, key);
+         if (existingAsset != null) {
+             return existingAsset;
+         }
+-        @NotNull MT newAsset;
++        @NotNull MutableResourcePackAsset newAsset;
+         if (type.equals(ResourcePackAssetType.BLOCK_STATES)) {
+-            //noinspection unchecked
+-            newAsset = (MT) new ConcreteResourcePackBlockStates(new JsonObject(), key);
++            newAsset = new ConcreteResourcePackBlockStates(new JsonObject(), key);
+         } else if (type.equals(ResourcePackAssetType.MODEL)) {
+-            //noinspection unchecked
+-            newAsset = (MT) new ConcreteResourcePackModel(new JsonObject(), key);
++            newAsset = new ConcreteResourcePackModel(new JsonObject(), key);
+         } else {
+             throw new IllegalArgumentException("Attempted to create asset for memory resource pack, but the type (" + type.getFolderPathInNamespaceFolder() + ") is not a known initializable type");
+         }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/Model.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/Model.java
+index 6e78a201735c4b4d64956d1c18682007e906a79c..32c8aac2ecbb57bed8e8d363d1bd964f33daaf3e 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/Model.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/Model.java
+@@ -2,9 +2,9 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack.model;
+ 
+-import nl.martijnmuijsers.paper.resourcepack.PathConstants;
+-import nl.martijnmuijsers.paper.resourcepack.ResourcePackAssetType;
+-import nl.martijnmuijsers.paper.resourcepack.memory.MemoryResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackModel;
++import nl.martijnmuijsers.paper.resourcepack.texture.Texture;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ 
+@@ -35,25 +35,37 @@ public class Model {
+     }
+ 
+     public @NotNull NamespacedKey getKeyWithType() {
+-        return switch (this.type) {
+-            case BLOCK -> PathConstants.getBlockModel(getKey());
+-            case ITEM -> PathConstants.getItemModel(getKey());
+-        };
++        return this.type.getTypedKey(this.key);
+     }
+ 
+     public @NotNull ModelContent getContent() {
+         return this.content;
+     }
+ 
+-    public @NotNull Model asItemModel() {
+-        if (getType() == ModelType.ITEM) {
+-            return this;
++    public @NotNull Model getReference(@NotNull ModelType newType) {
++        return reference(newType, this.getKey());
++    }
++
++    public void addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean overwriteExisting) {
++        @NotNull MutableResourcePackModel resourcePackModel = resourcePack.getOrCreateModel(this.type, this.key);
++        if (!resourcePackModel.isJsonEmpty() && !overwriteExisting) {
++            return;
+         }
+-        return new Model(ModelType.ITEM, key, content);
++        if (!resourcePackModel.isJsonEmpty()) {
++            resourcePackModel.clearJson();
++        }
++        this.content.writeToClearResourcePackModel(resourcePackModel, resourcePack);
++    }
++
++    /**
++     * Note that the given key must be untyped
++     */
++    public static @NotNull Model reference(@NotNull ModelType type, @NotNull NamespacedKey key) {
++        return new Model(type, key, ReferenceModelContent.getInstance());
+     }
+ 
+-    public void addToResourcePack(@NotNull MemoryResourcePack resourcePack, boolean overwriteExisting) {
+-        @NotNull ResourcePackModel resourcePackModel = resourcePack.getMutableAsset(ResourcePackAssetType.MDOEL, this.getKeyWithType());
++    public static @NotNull Model cube(@NotNull ModelType type, @NotNull NamespacedKey key, @NotNull Texture texture) {
++        return new Model(type, key, new OneTextureCubeModelContent(texture));
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ModelContent.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ModelContent.java
+index 2b416ba0c345c07f28f95653c61e501a7f361542..bd74e83ac1d3268d9efd787ec20464dfafa2693f 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ModelContent.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ModelContent.java
+@@ -2,16 +2,25 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack.model;
+ 
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackModel;
+ import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ 
+ /**
+  * The immutable content of a model: a {@link Model} without any information about its appropriate location in a resource pack
+  */
+-public class ModelContent {
++public abstract class ModelContent {
++
++    protected ModelContent() {}
+ 
+     public @NotNull Model asModel(@NotNull ModelType type, @NotNull NamespacedKey key) {
+         return new Model(type, key, this);
+     }
+ 
++    /**
++     * Note that this method will attempt to add any used textures to the resource pack, but will not overwrite any existing ones
++     */
++    abstract void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack);
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ModelType.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ModelType.java
+index 49071dad4380ea4c4b2a9f91dcd70eb701f55c3d..aad741c34c57ff38f51ab4f27dccb82b679b2e20 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ModelType.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ModelType.java
+@@ -2,14 +2,28 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack.model;
+ 
++import nl.martijnmuijsers.paper.resourcepack.PathConstants;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.function.Function;
++
+ /**
+  * The type of a {@link Model}
+  */
+ public enum ModelType {
+ 
+-    BLOCK,
+-    ITEM;
++    BLOCK(PathConstants::getBlockKey),
++    ITEM(PathConstants::getItemKey);
++
++    private final @NotNull Function<@NotNull NamespacedKey, @NotNull NamespacedKey> typedKeyFunction;
++
++    ModelType(@NotNull Function<@NotNull NamespacedKey, @NotNull NamespacedKey> typedKeyFunction) {
++        this.typedKeyFunction = typedKeyFunction;
++    }
+ 
+-    ModelType() {}
++    public @NotNull NamespacedKey getTypedKey(@NotNull NamespacedKey key) {
++        return this.typedKeyFunction.apply(key);
++    }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/OneTextureCubeModelContent.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/OneTextureCubeModelContent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..038b4192f828e90f0c918506cca3dc08effcb0bd
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/OneTextureCubeModelContent.java
+@@ -0,0 +1,32 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.resourcepack.model;
++
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackModel;
++import nl.martijnmuijsers.paper.resourcepack.texture.Texture;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * A basic form of {@link ModelContent}: a full cube with the same texture on all 6 sides
++ */
++public class OneTextureCubeModelContent extends ModelContent {
++
++    private static final @NotNull Model parent = Model.reference(ModelType.BLOCK, NamespacedKey.minecraft("cube_all"));
++
++    private final @NotNull Texture texture;
++
++    OneTextureCubeModelContent(@NotNull Texture texture) {
++        super();
++        this.texture = texture;
++    }
++
++    @Override
++    void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
++        resourcePackModel.setParent(parent);
++        resourcePackModel.setAllTextures(this.texture);
++        this.texture.addToResourcePack(resourcePack, false);
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ReferenceModelContent.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ReferenceModelContent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..89703ce3ec1ff35bd0333a03d424acbb733fd1db
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/model/ReferenceModelContent.java
+@@ -0,0 +1,32 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.resourcepack.model;
++
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackModel;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * A reference to some model that is outside the scope of our own resource pack (for example a model already existing, for use as a parent)
++ */
++public class ReferenceModelContent extends ModelContent {
++
++    private static @Nullable ReferenceModelContent instance;
++
++    public static @NotNull ReferenceModelContent getInstance() {
++        if (instance == null) {
++            instance = new ReferenceModelContent();
++        }
++        return instance;
++    }
++
++    private ReferenceModelContent() {}
++
++    /**
++     * Since this references content that already exists, it does not need to be written
++     */
++    @Override
++    void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {}
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/readfromarchive/ReadFromArchiveResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/readfromarchive/ReadFromArchiveResourcePack.java
+index cf987810d6eed987f17fb43f401c5dc12897efde..c79de6db9cc67036dfe40a258af87d5ff7d06ec6 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/readfromarchive/ReadFromArchiveResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/readfromarchive/ReadFromArchiveResourcePack.java
+@@ -4,8 +4,14 @@ package nl.martijnmuijsers.paper.resourcepack.readfromarchive;
+ 
+ import com.google.gson.JsonObject;
+ import com.google.gson.JsonParser;
++import it.unimi.dsi.fastutil.Pair;
++import nl.martijnmuijsers.paper.resourcepack.ConcreteResourcePackBlockStates;
++import nl.martijnmuijsers.paper.resourcepack.ConcreteResourcePackModel;
+ import nl.martijnmuijsers.paper.resourcepack.ResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.ResourcePackAsset;
++import nl.martijnmuijsers.paper.resourcepack.ResourcePackAssetType;
+ import org.apache.commons.lang3.Validate;
++import org.bukkit.NamespacedKey;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -14,6 +20,8 @@ import java.io.IOException;
+ import java.io.InputStream;
+ import java.io.InputStreamReader;
+ import java.nio.file.Path;
++import java.util.HashMap;
++import java.util.Map;
+ import java.util.zip.ZipEntry;
+ import java.util.zip.ZipFile;
+ 
+@@ -28,6 +36,8 @@ public class ReadFromArchiveResourcePack implements ResourcePack, Closeable {
+ 
+     private final ReadFromArchiveResourcePackSettings settings = new ReadFromArchiveResourcePackSettings(this);
+ 
++    private final @NotNull Map<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKey>, @NotNull ResourcePackAsset> assets = new HashMap<>(0);
++
+     public ReadFromArchiveResourcePack(@NotNull Path path) {
+         this.path = path;
+     }
+@@ -84,4 +94,18 @@ public class ReadFromArchiveResourcePack implements ResourcePack, Closeable {
+         return this.settings;
+     }
+ 
++    @Override
++    public @NotNull ResourcePackAsset getAsset(@NotNull ResourcePackAssetType type, @NotNull NamespacedKey key) throws IllegalArgumentException {
++        @Nullable ResourcePackAsset foundAsset = this.assets.computeIfAbsent(Pair.of(type, key), namespacedKey -> {
++            if (type.equals(ResourcePackAssetType.BLOCK_STATES)) {
++                return new ConcreteResourcePackBlockStates(readJsonAsset(type.getPathInResourcePack(key)), key);
++            } else if (type.equals(ResourcePackAssetType.MODEL)) {
++                return new ConcreteResourcePackModel(readJsonAsset(type.getPathInResourcePack(key)), key);
++            } else {
++                throw new IllegalArgumentException("Attempted to read asset from archive resource pack, but the type (" + type.getFolderPathInNamespaceFolder() + ") is not a known readable type");
++            }
++        });
++        return foundAsset;
++    }
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/ReferenceTextureContent.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/ReferenceTextureContent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ad4f5a872ac2d45c9c631633ddf27c27dc5c71b4
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/ReferenceTextureContent.java
+@@ -0,0 +1,33 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.resourcepack.texture;
++
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackModel;
++import nl.martijnmuijsers.paper.resourcepack.model.ModelContent;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++/**
++ * A reference to some texture that is outside the scope of our own resource pack (for example a texture already existing)
++ */
++public class ReferenceTextureContent extends TextureContent {
++
++    private static @Nullable ReferenceTextureContent instance;
++
++    public static @NotNull ReferenceTextureContent getInstance() {
++        if (instance == null) {
++            instance = new ReferenceTextureContent();
++        }
++        return instance;
++    }
++
++    private ReferenceTextureContent() {}
++
++    /**
++     * Since this references content that already exists, it does not need to be written
++     */
++    @Override
++    void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture) {}
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/Texture.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/Texture.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..373c4ecb8036daa26569456a9f66386235a9d8d8
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/Texture.java
+@@ -0,0 +1,58 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.resourcepack.texture;
++
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * An immutable item or block texture
++ */
++public class Texture {
++
++    private final @NotNull TextureType type;
++    /**
++     * This key does not include the type of texture (such as: it is sucraft:snowy_stone_bricks, not sucraft:block/snowy_stone_bricks)
++     */
++    private final @NotNull NamespacedKey key;
++    private final @NotNull TextureContent content;
++
++    public Texture(@NotNull TextureType type, @NotNull NamespacedKey key, @NotNull TextureContent content) {
++        this.type = type;
++        this.key = key;
++        this.content = content;
++    }
++
++    public @NotNull TextureType getType() {
++        return this.type;
++    }
++
++    public @NotNull NamespacedKey getKey() {
++        return this.key;
++    }
++
++    public @NotNull NamespacedKey getKeyWithType() {
++        return this.type.getTypedKey(this.key);
++    }
++
++    public @NotNull TextureContent getContent() {
++        return this.content;
++    }
++
++    public void addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean overwriteExisting) {
++        @NotNull MutableResourcePackTexture resourcePackTexture = resourcePack.getOrCreateTexture(this.type, this.key);
++        if (!resourcePackTexture.hasData() && !overwriteExisting) {
++            return;
++        }
++        this.content.writeToResourcePackTexture(resourcePackTexture);
++    }
++
++    /**
++     * Note that the given key must be untyped
++     */
++    public static @NotNull Texture reference(@NotNull TextureType type, @NotNull NamespacedKey key) {
++        return new Texture(type, key, ReferenceTextureContent.getInstance());
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/TextureContent.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/TextureContent.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..47b27b7e701b8e61a2d08be25139481d2c5fa539
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/TextureContent.java
+@@ -0,0 +1,25 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.resourcepack.texture;
++
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.MutableResourcePackModel;
++import nl.martijnmuijsers.paper.resourcepack.model.Model;
++import nl.martijnmuijsers.paper.resourcepack.model.ModelType;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * The immutable content of a texture: a {@link Texture} without any information about its appropriate location in a resource pack
++ */
++public abstract class TextureContent {
++
++    protected TextureContent() {}
++
++    public @NotNull Texture asTexture(@NotNull TextureType type, @NotNull NamespacedKey key) {
++        return new Texture(type, key, this);
++    }
++
++    abstract void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/TextureType.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/TextureType.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..3cadb5588d7cfb2293d8a8a47bb1d25eb1152147
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/texture/TextureType.java
+@@ -0,0 +1,29 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.resourcepack.texture;
++
++import nl.martijnmuijsers.paper.resourcepack.PathConstants;
++import org.bukkit.NamespacedKey;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.function.Function;
++
++/**
++ * The type of a {@link Texture}
++ */
++public enum TextureType {
++
++    BLOCK(PathConstants::getBlockKey),
++    ITEM(PathConstants::getItemKey);
++
++    private final @NotNull Function<@NotNull NamespacedKey, @NotNull NamespacedKey> typedKeyFunction;
++
++    TextureType(@NotNull Function<@NotNull NamespacedKey, @NotNull NamespacedKey> typedKeyFunction) {
++        this.typedKeyFunction = typedKeyFunction;
++    }
++
++    public @NotNull NamespacedKey getTypedKey(@NotNull NamespacedKey key) {
++        return this.typedKeyFunction.apply(key);
++    }
++
++}
