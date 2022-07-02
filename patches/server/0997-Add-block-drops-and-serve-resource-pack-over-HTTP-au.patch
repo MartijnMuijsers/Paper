@@ -1,0 +1,424 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 2 Jul 2022 23:44:59 +0200
+Subject: [PATCH] Add block drops and serve resource pack over HTTP
+ automatically
+
+
+diff --git a/src/main/java/net/minecraft/data/loot/BlockLoot.java b/src/main/java/net/minecraft/data/loot/BlockLoot.java
+index ebad557399e1f3e965a45a1f0252762ed9dd91af..3ec6a393045f66f6d92e58a92c5facfe3f547468 100644
+--- a/src/main/java/net/minecraft/data/loot/BlockLoot.java
++++ b/src/main/java/net/minecraft/data/loot/BlockLoot.java
+@@ -88,7 +88,6 @@ import net.minecraft.world.level.storage.loot.providers.number.BinomialDistribut
+ import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
+ import net.minecraft.world.level.storage.loot.providers.number.NumberProvider;
+ import net.minecraft.world.level.storage.loot.providers.number.UniformGenerator;
+-import nl.martijnmuijsers.paper.block.SuCraftBlockLoot;
+ 
+ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTable.Builder>> {
+     private static final LootItemCondition.Builder HAS_SILK_TOUCH = MatchTool.toolMatches(ItemPredicate.Builder.item().hasEnchantment(new EnchantmentPredicate(Enchantments.SILK_TOUCH, MinMaxBounds.Ints.atLeast(1))));
+@@ -110,7 +109,7 @@ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTabl
+         return (T)(!EXPLOSION_RESISTANT.contains(drop.asItem()) ? builder.when(ExplosionCondition.survivesExplosion()) : builder.unwrap());
+     }
+ 
+-    private static LootTable.Builder createSingleItemTable(ItemLike drop) {
++    public static LootTable.Builder createSingleItemTable(ItemLike drop) { // Martijn - custom blocks and items
+         return LootTable.lootTable().withPool(applyExplosionCondition(drop, LootPool.lootPool().setRolls(ConstantValue.exactly(1.0F)).add(LootItem.lootTableItem(drop))));
+     }
+ 
+@@ -1314,9 +1313,6 @@ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTabl
+         this.add(Blocks.FROGSPAWN, noDrop());
+         this.add(Blocks.REINFORCED_DEEPSLATE, noDrop());
+ 
+-        // Martijn start - custom blocks and items
+-        SuCraftBlockLoot.accept(this, biConsumer);
+-
+         Set<ResourceLocation> set = Sets.newHashSet();
+ 
+         for(Block block : Registry.BLOCK) {
+diff --git a/src/main/java/net/minecraft/server/Main.java b/src/main/java/net/minecraft/server/Main.java
+index 5aaeb05cf3f3a86530e929499dfb98a659c714b7..177b7b7d0216cfb9ceec776d71e570f76690ffee 100644
+--- a/src/main/java/net/minecraft/server/Main.java
++++ b/src/main/java/net/minecraft/server/Main.java
+@@ -59,6 +59,7 @@ import net.minecraft.world.level.storage.LevelStorageSource;
+ import net.minecraft.world.level.storage.LevelSummary;
+ import nl.martijnmuijsers.paper.biome.SuCraftBiomeTagsProvider;
+ import nl.martijnmuijsers.paper.data.BlackHoleCachedOutput;
++import nl.martijnmuijsers.paper.resourcepack.httpserver.ResourcePackHTTPServer;
+ import nl.martijnmuijsers.paper.structure.SuCraftStructureTagsProvider;
+ import org.slf4j.Logger;
+ 
+@@ -287,6 +288,12 @@ public class Main {
+ 
+                 return dedicatedserver1;
+             });
++
++            // Martijn start - custom blocks and items
++            // Update the server properties in memory to match the resource pack and HTTP server
++            ResourcePackHTTPServer.getInstance().updateServerPropertiesInMemory(false);
++            // Martijn end - custom blocks and items
++
+             /* CraftBukkit start
+             Thread thread = new Thread("Server Shutdown Thread") {
+                 public void run() {
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index d120c5003e4d2fbe3d87952a8d92e222605022b6..705f1f0743d9895753a3d7bd292e0bab969a8b2e 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -58,6 +58,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
+ import net.minecraft.world.level.block.state.properties.Property;
+ import net.minecraft.world.level.gameevent.GameEvent;
+ import net.minecraft.world.level.storage.loot.LootContext;
++import net.minecraft.world.level.storage.loot.LootTable;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
+ import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.phys.shapes.BooleanOp;
+@@ -151,11 +152,22 @@ public class Block extends BlockBehaviour implements ItemLike {
+ 
+     public boolean isVanilla = true;
+ 
++    public @Nullable Item customItemForBlock = null;
++
+     /**
+      * Must be non-null for SuCraft blocks
+      */
+     public @Nullable BlockReplacementRule replacementRule = null;
+ 
++    public @Nullable Supplier<@org.jetbrains.annotations.Nullable LootTable> customLootTableSupplier = null;
++
++    public @Nullable LootTable createCustomLootTable() {
++        if (this.customLootTableSupplier == null) {
++            return null;
++        }
++        return this.customLootTableSupplier.get();
++    }
++
+     // Martijn end - custom blocks and items
+ 
+     public static int getId(@Nullable BlockState state) {
+diff --git a/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java b/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java
+index aef7198ca8b781d02204098811086b25050ab262..c51bd7abafdb609c9e4086b33e6210f1f1f9ba74 100644
+--- a/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java
++++ b/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java
+@@ -9,12 +9,17 @@ import java.util.Map;
+ import java.util.Objects;
+ import java.util.Set;
+ import java.util.function.Function;
++
++import net.minecraft.core.Registry;
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.packs.resources.ResourceManager;
+ import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
+ import net.minecraft.util.profiling.ProfilerFiller;
++import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParamSet;
+ import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
++import org.jetbrains.annotations.Nullable;
+ import org.slf4j.Logger;
+ 
+ public class LootTables extends SimpleJsonResourceReloadListener {
+@@ -52,6 +57,16 @@ public class LootTables extends SimpleJsonResourceReloadListener {
+             }
+ 
+         });
++        // Martijn start - custom blocks and items
++        for (Block block : Registry.BLOCK) {
++            @Nullable LootTable customLootTable = block.createCustomLootTable();
++            if (customLootTable != null) {
++                // The below is taken from
++                var lootTableKey = block.getLootTable();
++                builder.put(lootTableKey, customLootTable);
++            }
++        }
++        // Martijn end - custom blocks and items
+         builder.put(BuiltInLootTables.EMPTY, LootTable.EMPTY);
+         ImmutableMap<ResourceLocation, LootTable> immutablemap = builder.build();
+         LootContextParamSet lootcontextparameterset = LootContextParamSets.ALL_PARAMS;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
+index 49c1bb5766ff2766bf106412633d788e3b08a4a7..fe98b46de9806d8892f40cea6a925875206d3a10 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
+@@ -3,18 +3,31 @@
+ package nl.martijnmuijsers.paper.block;
+ 
+ import net.minecraft.data.loot.BlockLoot;
+-import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.level.ItemLike;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.storage.loot.LootPool;
+ import net.minecraft.world.level.storage.loot.LootTable;
++import net.minecraft.world.level.storage.loot.entries.LootItem;
++import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
++import org.jetbrains.annotations.NotNull;
+ 
+-import java.util.function.BiConsumer;
++import java.util.function.Supplier;
+ 
+ /**
+- * Based on {@link net.minecraft.data.loot.BlockLoot}
++ * Partially based on {@link net.minecraft.data.loot.BlockLoot}
+  */
+-public class SuCraftBlockLoot {
++public final class SuCraftBlockLoot {
+ 
+-    public static void accept(BlockLoot vanilla, BiConsumer<ResourceLocation, LootTable.Builder> biConsumer) {
+-        vanilla.dropSelf(SuCraftBlocks.SNOWY_STONE_BRICKS);
++    private SuCraftBlockLoot() {}
++
++    private static final @NotNull BlockLoot blockLoot = new BlockLoot();
++
++    public static @NotNull LootTable dropSelf(Block block) {
++        return dropSingleItem(block);
++    }
++
++    public static @NotNull LootTable dropSingleItem(ItemLike drop) {
++        return blockLoot.createSingleItemTable(drop).build();
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 19c70f29f8d8165387a5604722fe5709c1b875f2..7f9f82567336ce22466d1226884a06dfa5782224 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -8,8 +8,14 @@ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.material.Material;
++import net.minecraft.world.level.storage.loot.LootTable;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.function.Function;
++import java.util.function.Supplier;
+ 
+ /**
+  * Based on {@link net.minecraft.world.level.block.Blocks}
+@@ -30,15 +36,21 @@ public class SuCraftBlocks {
+             .withHostReplacingItemFromHostBlock()
+             .withHostReplacingItemReplacementFromHostReplacementBlock()
+             .withModel(Model.DEFAULT_CUBE_MODEL(ResourcePackAssetIntention.BLOCK)),
+-        new Block(BlockBehaviour.Properties.of(Material.STONE).requiresCorrectToolForDrops().strength(1.5F, 6.0F))
++        new Block(BlockBehaviour.Properties.of(Material.STONE).requiresCorrectToolForDrops().strength(1.5F, 6.0F)),
++        SuCraftBlockLoot::dropSelf
+     );
+ 
+-    private static Block register(String id, BlockReplacementRule.Builder<?> replacementRuleBuilder, Block block) {
+-        Block registeredBlock = Registry.register(Registry.BLOCK, ResourceLocation.sucraft(id), block);
++    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRule.Builder<?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
++        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
++    }
++
++    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRule.Builder<?> replacementRuleBuilder, @NotNull Block block, @Nullable Function<@NotNull Block, @Nullable LootTable> lootTableFunction) {
++        @NotNull Block registeredBlock = Registry.register(Registry.BLOCK, ResourceLocation.sucraft(id), block);
+         registeredBlock.isVanilla = false;
+         registeredBlock.replacementRule = replacementRuleBuilder.withReal(registeredBlock).build();
+         // Patch the break time, because the vanilla client will assume its own breaking time and if we do not allow for it, we get desync in whether the block is finished being broken
+         registeredBlock.replacementRule.updateMinDestroyTimes();
++        registeredBlock.customLootTableSupplier = lootTableFunction == null ? null : () -> lootTableFunction.apply(registeredBlock);
+         return registeredBlock;
+     }
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+index 5425beab643177ca22edbb721f62a13a564f0bd5..50501a6736d9d2d097c31789f97cf318eee91f7c 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+@@ -9,7 +9,6 @@ import net.kyori.adventure.text.format.TextDecoration;
+ import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.core.Registry;
+-import net.minecraft.network.chat.TextColor;
+ import net.minecraft.world.item.CreativeModeTab;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.level.block.Block;
+@@ -32,6 +31,7 @@ public class SuCraftItems {
+ 
+     public static Item registerBlock(Block block, String displayName, CreativeModeTab group) {
+         Item registeredItem = Items.registerBlock(block, group);
++        block.customItemForBlock = registeredItem;
+         registeredItem.isVanilla = false;
+         registeredItem.replacementRule = ItemReplacementRule.simple().withReal(registeredItem).forBlock(block).build();
+         registeredItem.customDisplayName = Component.text(displayName, PaperAdventure.asAdventure(registeredItem.rarity.color)).decoration(TextDecoration.ITALIC, false);
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackHash.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackHash.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..dd244b1b7bc4045e2b7b13aeaa7a9bdb49579206
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/ResourcePackHash.java
+@@ -0,0 +1,47 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.resourcepack;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.io.File;
++import java.io.FileInputStream;
++import java.io.IOException;
++import java.math.BigInteger;
++import java.security.MessageDigest;
++import java.security.NoSuchAlgorithmException;
++
++/**
++ * Utility class to compute the SHA-1 hash of the resource pack archive file
++ */
++public final class ResourcePackHash {
++
++    private static final @NotNull String algorithm = "SHA-1";
++
++    private ResourcePackHash() {}
++
++    public static String getHash(@NotNull File resourcePackArchiveFile) {
++        try {
++
++            try {
++                MessageDigest md = MessageDigest.getInstance(algorithm);
++                try (FileInputStream inputStream = new FileInputStream(resourcePackArchiveFile)) {
++                    md.update(inputStream.readAllBytes());
++                    byte[] digest = md.digest();
++                    return toHex(digest);
++                }
++            } catch (NoSuchAlgorithmException e) {
++                throw new IllegalStateException(algorithm + " is not implemented in MessageDigest", e);
++            }
++
++        } catch (Exception e) {
++            throw new RuntimeException("Exception occurred while computing resource pack archive file " + algorithm + " hash", e);
++        }
++    }
++
++    private static String toHex(byte[] bytes) {
++        BigInteger bi = new BigInteger(1, bytes);
++        return String.format("%0" + (bytes.length << 1) + "X", bi);
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
+index 47de9ec1ea8637f53cf29a9f6b7f34d9080803fc..6cc2e9aec629c357ac2fcdc40e2f93c2026077f1 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
+@@ -4,14 +4,19 @@ package nl.martijnmuijsers.paper.resourcepack.httpserver;
+ 
+ import com.sun.net.httpserver.HttpExchange;
+ import com.sun.net.httpserver.HttpServer;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.dedicated.DedicatedServer;
++import nl.martijnmuijsers.paper.resourcepack.ResourcePackHash;
+ import nl.martijnmuijsers.paper.resourcepack.sucraft.CreateSuCraftResourcePack;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
++import java.io.File;
+ import java.io.FileInputStream;
+ import java.io.IOException;
+ import java.io.OutputStream;
+ import java.net.InetSocketAddress;
++import java.util.Optional;
+ 
+ /**
+  * A singleton that runs an HTTP server to serve the server resource pack (or multiple variants of it)
+@@ -19,15 +24,18 @@ import java.net.InetSocketAddress;
+ public final class ResourcePackHTTPServer {
+ 
+     private static final @NotNull String PROTOCOL = "http";
+-    private static final @NotNull String IP = "sucraft.org";
++    // Modified for easy testing
++    private static final @NotNull String IP = new File("paper_test_server").exists() ? "89.35.34.254" : "sucraft.org";
+     private static final int PORT = 25454;
+     private static final @NotNull String PATH = "resourcepack";
+ 
+     public static final @NotNull String RESOURCE_PACK_URL = PROTOCOL + "://" + IP + ":" + PORT + "/" + PATH;
+ 
+-    private ResourcePackHTTPServer() {}
++    private ResourcePackHTTPServer() {
++    }
+ 
+     private static @Nullable ResourcePackHTTPServer instance;
++
+     public static @NotNull ResourcePackHTTPServer getInstance() {
+         if (instance == null) {
+             instance = new ResourcePackHTTPServer();
+@@ -46,11 +54,17 @@ public final class ResourcePackHTTPServer {
+             return;
+         }
+         try {
++
++            // Start the HTTP server
+             this.httpServer = HttpServer.create(new InetSocketAddress(25454), 0);
+             httpServer.createContext("/" + PATH, ResourcePackHTTPServer::handle);
+             httpServer.setExecutor(null); // creates a default executor
+             httpServer.start();
+             this.isStarted = true;
++
++            // Update the server properties in memory to match the resource pack and HTTP server
++            this.updateServerPropertiesInMemory(false);
++
+         } catch (Exception e) {
+             throw new RuntimeException("Exception occurred while starting resource pack HTTP server", e);
+         } finally {
+@@ -73,4 +87,41 @@ public final class ResourcePackHTTPServer {
+         responseBody.close();
+     }
+ 
++    private boolean updatedServerPropertiesInMemoryBefore = false;
++
++    public void updateServerPropertiesInMemory(boolean updateEvenIfAlreadyUpdatedBefore) {
++        if (updatedServerPropertiesInMemoryBefore && !updateEvenIfAlreadyUpdatedBefore) {
++            return;
++        }
++        try {
++
++            var server = MinecraftServer.getServer();
++            if (server == null) { // IntelliJ says that this will never be null, but that is false (due to IntelliJ not understanding the static class initialization order in practice)
++                // We cannot update the server properties if the server was not initialized yet
++                return;
++            }
++            var dedicatedServer = (DedicatedServer) server;
++            var serverProperties = dedicatedServer.getProperties();
++            if (serverProperties == null) { // IntelliJ says that this will never be null, but that is false (due to IntelliJ not understanding the static class initialization order in practice)
++                // We cannot update the server properties if the server properties were not initialized yet
++                return;
++            }
++            String hash = ResourcePackHash.getHash(CreateSuCraftResourcePack.getOutputFile());
++            var previousResourcePackInfo = serverProperties.serverResourcePackInfo.orElse(null);
++            boolean isRequired = previousResourcePackInfo != null ? previousResourcePackInfo.isRequired() : false;
++            var prompt = previousResourcePackInfo != null ? previousResourcePackInfo.prompt() : null;
++            serverProperties.serverResourcePackInfo = Optional.of(new MinecraftServer.ServerResourcePackInfo(
++                RESOURCE_PACK_URL,
++                hash,
++                isRequired,
++                prompt
++            ));
++            MinecraftServer.LOGGER.info("Update server resource pack properties: url = '" + RESOURCE_PACK_URL + "', hash = '" + hash + "', isRequired = " + isRequired + ", prompt = '" + prompt + "'");
++            updatedServerPropertiesInMemoryBefore = true;
++
++        } catch (Exception e) {
++            throw new RuntimeException("Exception occurred while updating server properties in memory, for the resource pack", e);
++        }
++    }
++
+ }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 3353fc3eabb08a80fcd817906eaf0062fea55045..7c16070effd4b5fde33128b4c9b7824869fa7a1f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -133,6 +133,7 @@ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.player.PlayerHideEntityEvent;
+ import org.bukkit.event.player.PlayerRegisterChannelEvent;
++import org.bukkit.event.player.PlayerResourcePackStatusEvent;
+ import org.bukkit.event.player.PlayerShowEntityEvent;
+ import org.bukkit.event.player.PlayerTeleportEvent;
+ import org.bukkit.event.player.PlayerUnregisterChannelEvent;
+@@ -2435,7 +2436,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     @Override
+     public boolean hasSuCraftResourcePack() {
+         // Currently we simply assume that if any resource pack was successfully loaded, it includes at least the SuCraft resource pack
+-        return this.hasResourcePack();
++        // TODO maybe make this smarter, but for now taking ACCEPTED is nicer at the start - even though it may lead to FAILED_DOWNLOAD later in a small number of cases
++        // TODO ^ Maybe it's best to assume the player has the resource while status is ACCEPTED, and refresh the most important things (world chunks, player's own inventory) on FAILED_DOWNLOAD - which will be rare but then it's fixed reasonably enough I think
++        return this.resourcePackStatus == PlayerResourcePackStatusEvent.Status.ACCEPTED || this.resourcePackStatus == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED;
+     }
+ 
+     // Martijn end - custom blocks and items
