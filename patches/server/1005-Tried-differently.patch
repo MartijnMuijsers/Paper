@@ -1,0 +1,85 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sun, 3 Jul 2022 23:56:45 +0200
+Subject: [PATCH] Tried differently
+
+
+diff --git a/src/main/java/net/minecraft/commands/synchronization/ArgumentTypeInfos.java b/src/main/java/net/minecraft/commands/synchronization/ArgumentTypeInfos.java
+index 33e8a450daa834b0bef35c8734cf68496d33ce94..74495b5a7cc6b5dd3bf648c5610e78e49547657e 100644
+--- a/src/main/java/net/minecraft/commands/synchronization/ArgumentTypeInfos.java
++++ b/src/main/java/net/minecraft/commands/synchronization/ArgumentTypeInfos.java
+@@ -117,13 +117,13 @@ public class ArgumentTypeInfos {
+         register(registry, "resource", fixClassType(ResourceKeyArgument.class), new ResourceKeyArgument.Info<>());
+         register(registry, "template_mirror", TemplateMirrorArgument.class, SingletonArgumentInfo.contextFree(TemplateMirrorArgument::templateMirror));
+         register(registry, "template_rotation", TemplateRotationArgument.class, SingletonArgumentInfo.contextFree(TemplateRotationArgument::templateRotation));
+-        register(registry, "sucraft_item", CustomItemArgument.class, SingletonArgumentInfo.contextAware(CustomItemArgument::item)); // Martijn - custom blocks and items
+         if (SharedConstants.IS_RUNNING_IN_IDE) {
+             register(registry, "test_argument", TestFunctionArgument.class, SingletonArgumentInfo.contextFree(TestFunctionArgument::testFunctionArgument));
+             register(registry, "test_class", TestClassNameArgument.class, SingletonArgumentInfo.contextFree(TestClassNameArgument::testClassName));
+         }
+ 
+-        return register(registry, "uuid", UuidArgument.class, SingletonArgumentInfo.contextFree(UuidArgument::uuid));
++        register(registry, "uuid", UuidArgument.class, SingletonArgumentInfo.contextFree(UuidArgument::uuid));
++        return register(registry, "sucraft_item", CustomItemArgument.class, SingletonArgumentInfo.contextFree(CustomItemArgument::item)); // Martijn - custom blocks and items
+     }
+ 
+     private static <T extends ArgumentType<?>> Class<T> fixClassType(Class<? super T> clazz) {
+diff --git a/src/main/java/net/minecraft/server/commands/GiveCommand.java b/src/main/java/net/minecraft/server/commands/GiveCommand.java
+index d9cc9203fba01ee41c9a39d1037c6b8b0f052a4b..20555182f96acdec4c065d1ae4179afaee35c1a1 100644
+--- a/src/main/java/net/minecraft/server/commands/GiveCommand.java
++++ b/src/main/java/net/minecraft/server/commands/GiveCommand.java
+@@ -37,7 +37,7 @@ public class GiveCommand {
+                 })).then(net.minecraft.commands.Commands.argument("count", IntegerArgumentType.integer(1)).executes((commandcontext) -> {
+                     return GiveCommand.giveItem((CommandSourceStack) commandcontext.getSource(), ItemArgument.getItem(commandcontext, "item"), EntityArgument.getPlayers(commandcontext, "targets"), IntegerArgumentType.getInteger(commandcontext, "count"));
+                 })))
+-                .then(((RequiredArgumentBuilder) net.minecraft.commands.Commands.argument("sucraft item", CustomItemArgument.item(commandRegistryAccess))).executes((commandcontext) -> {
++                .then(((RequiredArgumentBuilder) net.minecraft.commands.Commands.argument("sucraft item", CustomItemArgument.item())).executes((commandcontext) -> {
+                     return GiveCommand.giveItem((CommandSourceStack) commandcontext.getSource(), CustomItemArgument.getItem(commandcontext, "sucraft item"), EntityArgument.getPlayers(commandcontext, "targets"), 1);
+                 }).then(net.minecraft.commands.Commands.argument("count", IntegerArgumentType.integer(1)).executes((commandcontext) -> {
+                     return GiveCommand.giveItem((CommandSourceStack) commandcontext.getSource(), CustomItemArgument.getItem(commandcontext, "sucraft item"), EntityArgument.getPlayers(commandcontext, "targets"), IntegerArgumentType.getInteger(commandcontext, "count"));
+diff --git a/src/main/java/nl/martijnmuijsers/paper/command/CustomItemArgument.java b/src/main/java/nl/martijnmuijsers/paper/command/CustomItemArgument.java
+index 945fc050480b2e28598c393ec7a382d4b77b4161..f7141a9887c825afda3e2434ccc0e575244fe79f 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/command/CustomItemArgument.java
++++ b/src/main/java/nl/martijnmuijsers/paper/command/CustomItemArgument.java
+@@ -8,12 +8,14 @@ import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+ import com.mojang.brigadier.suggestion.Suggestions;
+ import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+ import net.minecraft.commands.CommandBuildContext;
++import net.minecraft.commands.SharedSuggestionProvider;
+ import net.minecraft.commands.arguments.item.ItemArgument;
+ import net.minecraft.commands.arguments.item.ItemInput;
+ import net.minecraft.commands.arguments.item.ItemParser;
+ import net.minecraft.core.HolderLookup;
+ import net.minecraft.core.Registry;
+ import net.minecraft.network.chat.Component;
++import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.world.item.Item;
+ import org.apache.commons.lang3.Validate;
+@@ -25,14 +27,11 @@ import java.util.concurrent.CompletableFuture;
+ public class CustomItemArgument implements ArgumentType<ResourceLocation> {
+ 
+     private static final Collection<String> EXAMPLES = Arrays.asList("snowy_stone_bricks", "sucraft:snowy_stone_bricks");
+-    private final HolderLookup<Item> items;
+ 
+-    public CustomItemArgument(CommandBuildContext commandRegistryAccess) {
+-        this.items = commandRegistryAccess.holderLookup(Registry.ITEM_REGISTRY);
+-    }
++    public CustomItemArgument() {}
+ 
+-    public static CustomItemArgument item(CommandBuildContext commandRegistryAccess) {
+-        return new CustomItemArgument(commandRegistryAccess);
++    public static CustomItemArgument item() {
++        return new CustomItemArgument();
+     }
+ 
+     public static <S> ItemInput getItem(CommandContext<S> context, String name) {
+@@ -50,7 +49,7 @@ public class CustomItemArgument implements ArgumentType<ResourceLocation> {
+     }
+ 
+     public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> commandContext, SuggestionsBuilder suggestionsBuilder) {
+-        return ItemParser.fillSuggestions(this.items, suggestionsBuilder, false);
++        return commandContext.getSource() instanceof SharedSuggestionProvider ? SharedSuggestionProvider.suggestResource(Registry.ITEM.keySet(), suggestionsBuilder) : Suggestions.empty();
+     }
+ 
+     public Collection<String> getExamples() {

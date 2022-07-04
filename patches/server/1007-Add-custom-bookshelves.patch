@@ -1,0 +1,1251 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 4 Jul 2022 21:11:36 +0200
+Subject: [PATCH] Add custom bookshelves
+
+
+diff --git a/src/main/java/net/minecraft/data/loot/BlockLoot.java b/src/main/java/net/minecraft/data/loot/BlockLoot.java
+index 15d312defd3c588d826f75c5b49aa4b1a3bf4ec6..c7bdc9b77dcda12f3dd45d3f9ce1609e280baf08 100644
+--- a/src/main/java/net/minecraft/data/loot/BlockLoot.java
++++ b/src/main/java/net/minecraft/data/loot/BlockLoot.java
+@@ -129,7 +129,7 @@ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTabl
+         return createSelfDropDispatchTable(drop, HAS_SHEARS_OR_SILK_TOUCH, child);
+     }
+ 
+-    private static LootTable.Builder createSingleItemTableWithSilkTouch(Block dropWithSilkTouch, ItemLike drop) {
++    public static LootTable.Builder createSingleItemTableWithSilkTouch(Block dropWithSilkTouch, ItemLike drop) { // Martijn - custom blocks and items
+         return createSilkTouchDispatchTable(dropWithSilkTouch, applyExplosionCondition(dropWithSilkTouch, LootItem.lootTableItem(drop)));
+     }
+ 
+@@ -137,7 +137,7 @@ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTabl
+         return LootTable.lootTable().withPool(LootPool.lootPool().setRolls(ConstantValue.exactly(1.0F)).add(applyExplosionDecay(drop, LootItem.lootTableItem(drop).apply(SetItemCountFunction.setCount(count)))));
+     }
+ 
+-    private static LootTable.Builder createSingleItemTableWithSilkTouch(Block dropWithSilkTouch, ItemLike drop, NumberProvider count) {
++    public static LootTable.Builder createSingleItemTableWithSilkTouch(Block dropWithSilkTouch, ItemLike drop, NumberProvider count) { // Martijn - custom blocks and items
+         return createSilkTouchDispatchTable(dropWithSilkTouch, applyExplosionDecay(dropWithSilkTouch, LootItem.lootTableItem(drop).apply(SetItemCountFunction.setCount(count))));
+     }
+ 
+diff --git a/src/main/java/net/minecraft/world/level/block/Blocks.java b/src/main/java/net/minecraft/world/level/block/Blocks.java
+index 065eca1a740d25c060a963ecdd5a56cc3ca73e45..364646f4785f437433ba4f961598c73113bc7ae5 100644
+--- a/src/main/java/net/minecraft/world/level/block/Blocks.java
++++ b/src/main/java/net/minecraft/world/level/block/Blocks.java
+@@ -1223,6 +1223,12 @@ public class Blocks {
+                 block.replacementRule.writeToStateIdReplacementArrays();
+             }
+         }
++        // TEMP TODO REMOVE
++//        for (BlockState state : Blocks.NOTE_BLOCK.getStateDefinition().getPossibleStates()) {
++//            if (!state.equals(Blocks.NOTE_BLOCK.defaultBlockState())) {
++//                Block.stateIdReplacementArrayWithResourcePack[Block.BLOCK_STATE_REGISTRY.getId(state)] = Block.BLOCK_STATE_REGISTRY.getId(Blocks.NOTE_BLOCK.defaultBlockState());
++//            }
++//        }
+ 
+         // Martijn end - custom blocks and items
+     }
+diff --git a/src/main/java/net/minecraft/world/level/block/NoteBlock.java b/src/main/java/net/minecraft/world/level/block/NoteBlock.java
+index c14eb4f7decdbcd6176d3bff95d595a947d4ec95..67c14254c1fca29290437c0335a113119ca7140e 100644
+--- a/src/main/java/net/minecraft/world/level/block/NoteBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/NoteBlock.java
+@@ -70,7 +70,7 @@ public class NoteBlock extends Block {
+             // CraftBukkit end
+             // Paper - TODO any way to cancel the game event?
+             world.blockEvent(blockposition, this, 0, 0);
+-            world.gameEvent(entity, GameEvent.NOTE_BLOCK_PLAY, blockposition);
++            //world.gameEvent(entity, GameEvent.NOTE_BLOCK_PLAY, blockposition); // Martijn - custom blocks and items
+         }
+ 
+     }
+diff --git a/src/main/java/net/minecraft/world/level/block/state/StateHolder.java b/src/main/java/net/minecraft/world/level/block/state/StateHolder.java
+index 340d0648fcf9b9749c4daa1c25a226b947707c3d..d3033f13b92966d6b40853e64f096ab03efcc567 100644
+--- a/src/main/java/net/minecraft/world/level/block/state/StateHolder.java
++++ b/src/main/java/net/minecraft/world/level/block/state/StateHolder.java
+@@ -81,6 +81,19 @@ public abstract class StateHolder<O, S> {
+         return stringBuilder.toString();
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    public String toVariantString() {
++        // Based on StateHolder.toString
++        StringBuilder stringBuilder = new StringBuilder();
++        if (!this.getValues().isEmpty()) {
++            stringBuilder.append(this.getValues().entrySet().stream().map(PROPERTY_ENTRY_TO_STRING_FUNCTION).collect(Collectors.joining(",")));
++        }
++        return stringBuilder.toString();
++    }
++
++    // Martijn end - custom blocks and items
++
+     public Collection<Property<?>> getProperties() {
+         return Collections.unmodifiableCollection(this.values.keySet());
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java
+index e5db89b035d12c6873484add9c8dc1ffa0e00f6c..69c2072a151edb0b056f26dc6dfae40489f95906 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/BlockReplacementRule.java
+@@ -9,6 +9,8 @@ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
++import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
++import nl.martijnmuijsers.paper.item.UsedHostCustomModelData;
+ import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.asset.blockstates.MutableResourcePackBlockStates;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
+@@ -141,6 +143,11 @@ public interface BlockReplacementRule {
+                 return this.withHostReplacement(hostReplacement.defaultBlockState());
+             }
+ 
++            public @NotNull StatelessBlockReplacementRule.Builder withNoteBlockHost() {
++                return this.withHost(UsedNoteBlockStateData.generateUnusedNoteBlockHost())
++                    .withHostReplacement(UsedNoteBlockStateData.getNoteBlockHostReplacement());
++            }
++
+             public @NotNull StatelessBlockReplacementRule.Builder withHostDefaultAsHostReplacement() {
+                 return this.withHostReplacement(this.host.getBlock().defaultBlockState());
+             }
+@@ -203,18 +210,18 @@ public interface BlockReplacementRule {
+             /**
+              * The provided function will be called with the {@link ResourceLocation} of the real block of this rule
+              */
+-            public @NotNull StatelessBlockReplacementRule.Builder withModel(@NotNull Function<@NotNull ResourceLocation, @NotNull Model> modelFunction) {
++            public @NotNull StatelessBlockReplacementRule.Builder withModel(@NotNull ModelCreation modelCreation) {
+                 this.modelSupplier = () -> {
+                     Validate.notNull(this.real);
+                     @NotNull ResourceLocation key = Registry.BLOCK.getKey(this.real);
+-                    return modelFunction.apply(key);
++                    return modelCreation.create(ResourcePackAssetIntention.BLOCK, key);
+                 };
+                 return this;
+             }
+ 
+             public @NotNull StatelessBlockReplacementRule.Builder withModelContent(@NotNull ModelContent modelContent) {
+-                return this.withModel(resourceLocation ->
+-                    modelContent.asModel(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.forMinecraft(resourceLocation)));
++                return this.withModel((intention, key) ->
++                    modelContent.asModel(intention, NamespacedKeyWithoutIntention.forMinecraft(key)));
+             }
+ 
+             @Override
+@@ -449,7 +456,11 @@ public interface BlockReplacementRule {
+         public void addToResourcePack(@NotNull MutableResourcePack resourcePack) {
+             @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(this.host.getBlock())).withEmptyIntention();
+             @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
+-            minecraftBlockStates.setNoVariantModel(this.model, resourcePack, false);
++            if (this.host.getBlock().getStateDefinition().getPossibleStates().size() == 1) {
++                minecraftBlockStates.setNoVariantModel(this.model, resourcePack, false);
++            } else {
++                minecraftBlockStates.setModel(this.host, this.model, resourcePack, false);
++            }
+         }
+ 
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
+index d27461e4193d3c3c759428c5f007244cb2f93de5..8a87612c8dbb1811749f83c4064eff3a3e073971 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
+@@ -9,6 +9,7 @@ import net.minecraft.world.level.storage.loot.LootPool;
+ import net.minecraft.world.level.storage.loot.LootTable;
+ import net.minecraft.world.level.storage.loot.entries.LootItem;
+ import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
++import net.minecraft.world.level.storage.loot.providers.number.NumberProvider;
+ import org.jetbrains.annotations.NotNull;
+ 
+ import java.util.function.Supplier;
+@@ -34,4 +35,12 @@ public final class SuCraftBlockLoot {
+         return blockLoot.createSilkTouchOnlyTable(drop).build();
+     }
+ 
++    public static @NotNull LootTable dropSingleItemAndSingleItemWhenSilkTouch(ItemLike withoutSilkTouch, Block withSilkTouch) {
++        return blockLoot.createSingleItemTableWithSilkTouch(withSilkTouch, withoutSilkTouch).build();
++    }
++
++    public static @NotNull LootTable dropSingleItemAndSingleItemWhenSilkTouch(ItemLike withoutSilkTouch, NumberProvider withoutSilkTouchAmount, Block withSilkTouch) {
++        return blockLoot.createSingleItemTableWithSilkTouch(withSilkTouch, withoutSilkTouch, withoutSilkTouchAmount).build();
++    }
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 186f5ed65519aab0446fe0f9924a2f39ff3d673c..ba3f8d933e091a265ac616d7fc436b80d491ce81 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -4,14 +4,20 @@ package nl.martijnmuijsers.paper.block;
+ 
+ import net.minecraft.core.Registry;
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.InfestedBlock;
++import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.storage.loot.LootTable;
++import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContent;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -37,7 +43,7 @@ public class SuCraftBlocks {
+             .withFallbackBlockAsFallbackItem()
+             .withHostReplacingItemFromHostBlock()
+             .withHostReplacingItemReplacementFromHostReplacementBlock()
+-            .withModel(Model.DEFAULT_CUBE_MODEL(ResourcePackAssetIntention.BLOCK)),
++            .withModel(Model.OneTextureCube.defaultCreation()),
+         new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)),
+         SuCraftBlockLoot::dropSelf
+     );
+@@ -55,7 +61,7 @@ public class SuCraftBlocks {
+             .withFallbackBlockAsFallbackItem()
+             .withHostReplacingItemFromHostBlock()
+             .withHostReplacingItemReplacementFromHostReplacementBlock()
+-            .withModel(Model.DEFAULT_CUBE_MODEL(ResourcePackAssetIntention.BLOCK)),
++            .withModel(Model.OneTextureCube.defaultCreation()),
+         new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)),
+         SuCraftBlockLoot::dropSelf
+     );
+@@ -96,6 +102,15 @@ public class SuCraftBlocks {
+         block -> SuCraftBlockLoot.dropSingleItemWhenSilkTouch(DIRTY_STONE_BRICKS)
+     );
+ 
++    public static final Block SPRUCE_BOOKSHELF = registerBookshelf("spruce");
++    public static final Block BIRCH_BOOKSHELF = registerBookshelf("birch");
++    public static final Block JUNGLE_BOOKSHELF = registerBookshelf("jungle");
++    public static final Block ACACIA_BOOKSHELF = registerBookshelf("acacia");
++    public static final Block DARK_OAK_BOOKSHELF = registerBookshelf("dark_oak");
++    public static final Block WARPED_BOOKSHELF = registerBookshelf("warped");
++    public static final Block CRIMSON_BOOKSHELF = registerBookshelf("crimson");
++//    public static final Block MANGROVE_BOOKSHELF = registerBookshelf("mangrove");
++
+     private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRule.Builder<?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
+         return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
+     }
+@@ -110,6 +125,25 @@ public class SuCraftBlocks {
+         return registeredBlock;
+     }
+ 
++    /**
++     * Based on {@link Blocks#BOOKSHELF}
++     */
++    private static @NotNull Block registerBookshelf(@NotNull String idWoodType) {
++        return register(
++            idWoodType + "_bookshelf",
++            BlockReplacementRule.stateless()
++                .withNoteBlockHost()
++                .withFullBlockBoundingBoxHostItem()
++                .withFallback(Blocks.BOOKSHELF)
++                .withFallbackBlockAsFallbackItem()
++                .withHostReplacingItemFromHostBlock()
++                .withHostReplacingItemReplacementFromHostReplacementBlock()
++                .withModel(Model.YPillarCube.defaultCreationWithAlternativeEnd(new Texture(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft(idWoodType + "_planks"), TextureContent.Existing.getInstance()))),
++            new Block(BlockBehaviour.Properties.of(Material.WOOD).strength(1.5F).sound(SoundType.WOOD)),
++            block -> SuCraftBlockLoot.dropSingleItemAndSingleItemWhenSilkTouch(Items.BOOK, ConstantValue.exactly(3.0F), block)
++        );
++    }
++
+     public static Block bootstrap() {
+         SNOWY_STONE_BRICKS.toString();
+         return SNOWY_STONE_BRICKS;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/UsedNoteBlockStateData.java b/src/main/java/nl/martijnmuijsers/paper/block/UsedNoteBlockStateData.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..1aafdb655f191e33cb97dc4b222cf5f3b7f7234e
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/UsedNoteBlockStateData.java
+@@ -0,0 +1,39 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block;
++
++import it.unimi.dsi.fastutil.objects.Object2IntMap;
++import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.state.BlockState;
++import org.jetbrains.annotations.NotNull;
++
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.IdentityHashMap;
++import java.util.Set;
++
++/**
++ * A utility class that keeps track of used block states in block replacement hosts
++ */
++public final class UsedNoteBlockStateData {
++
++    private UsedNoteBlockStateData() {}
++
++    private static int lastUsedStateIndex = 0;
++
++    public static @NotNull BlockState getNoteBlockHostReplacement() {
++        return Blocks.NOTE_BLOCK.getStateDefinition().getPossibleStates().get(0);
++    }
++
++    public static @NotNull BlockState generateUnusedNoteBlockHost() {
++        lastUsedStateIndex++;
++        try {
++            return Blocks.NOTE_BLOCK.getStateDefinition().getPossibleStates().get(lastUsedStateIndex);
++        } catch (IndexOutOfBoundsException e) {
++            throw new IllegalStateException("Tried to generate unused note block host block state, but all block states are already in use", e);
++        }
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ExistingModelContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ExistingModelContent.java
+deleted file mode 100644
+index df9aa99f4928a6be33f9db9f104ba462c4d5ad08..0000000000000000000000000000000000000000
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ExistingModelContent.java
++++ /dev/null
+@@ -1,35 +0,0 @@
+-// Martijn - custom blocks and items
+-
+-package nl.martijnmuijsers.paper.blockanditemdata.model;
+-
+-import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
+-import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+-import nl.martijnmuijsers.paper.resourcepack.ResourcePack;
+-import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
+-import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
+-import org.jetbrains.annotations.NotNull;
+-import org.jetbrains.annotations.Nullable;
+-
+-/**
+- * A reference to some model that is outside the scope of our own resource pack (for example a model already existing) that we do not seek to modify
+- */
+-public class ExistingModelContent extends ModelContent {
+-
+-    private static @Nullable ExistingModelContent instance;
+-
+-    public static @NotNull ExistingModelContent getInstance() {
+-        if (instance == null) {
+-            instance = new ExistingModelContent();
+-        }
+-        return instance;
+-    }
+-
+-    private ExistingModelContent() {}
+-
+-    /**
+-     * Since this is content that already exists, it does not need to be written
+-     */
+-    @Override
+-    void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {}
+-
+-}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
+index f0a5d8043d1eb970f4cd7842ed3f9765d062d5b9..209c296a1ee3483b15d6cc960dca1cc3dca3544e 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
+@@ -4,6 +4,10 @@ package nl.martijnmuijsers.paper.blockanditemdata.model;
+ 
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.server.MinecraftServer;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContentCreation;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureCreation;
+ import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
+ import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackIntentionedAssetDataByContent;
+@@ -23,7 +27,7 @@ public class Model extends ResourcePackIntentionedAssetDataByContent<ModelConten
+     }
+ 
+     public @NotNull Model getReference(@NotNull ResourcePackAssetIntention newIntention) {
+-        return new Model(newIntention, this.key, ModelContent.reference(this));
++        return new Model(newIntention, this.key, new ModelContent.Reference(this));
+     }
+ 
+     public void addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean overwriteExisting) {
+@@ -37,16 +41,60 @@ public class Model extends ResourcePackIntentionedAssetDataByContent<ModelConten
+         this.content.writeToClearResourcePackModel(resourcePackModel, resourcePack);
+     }
+ 
+-    // Some default model builder method argument functions (easy to pass to StatelessBlockReplacementRule.Builder.withModel and similar methods)
++    // Convenience methods for replacement rule builders
+ 
+-    // Model by content (for replacement rule builders)
++    public static @NotNull Model create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull ModelContent content) {
++        return new Model(intention, NamespacedKeyWithoutIntention.forMinecraft(key), content);
++    }
++
++    public static @NotNull Model create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull ModelContentCreation content) {
++        return create(intention, key, content.create(intention, key));
++    }
+ 
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull Model> MODEL_BY_MODEL_CONTENT(@NotNull Function<@NotNull ResourceLocation, @NotNull ModelContent> modelContentFunction) {
+-        return resourceLocation -> new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.forMinecraft(resourceLocation), modelContentFunction.apply(resourceLocation));
++    public static @NotNull ModelCreation creation(@NotNull ModelContent content) {
++        return (intention, key) -> create(intention, key, content);
+     }
+ 
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull Model> DEFAULT_CUBE_MODEL(@NotNull ResourcePackAssetIntention intention) {
+-        return MODEL_BY_MODEL_CONTENT(ModelContent.DEFAULT_CUBE_MODEL_CONTENT(intention));
++    public static @NotNull ModelCreation creation(@NotNull ModelContentCreation content) {
++        return (intention, key) -> create(intention, key, content);
++    }
++
++    /**
++     * @see ModelContent.OneTextureCube
++     */
++    public static final class OneTextureCube {
++
++        private OneTextureCube() {}
++
++        private static final @NotNull ModelCreation DEFAULT_CREATION = creation(ModelContent.OneTextureCube.defaultCreation());
++
++        public static @NotNull ModelCreation defaultCreation() {
++            return DEFAULT_CREATION;
++        }
++
++    }
++
++    /**
++     * @see ModelContent.YPillarCube
++     */
++    public static final class YPillarCube {
++
++        private YPillarCube() {}
++
++        private static final @NotNull ModelCreation DEFAULT_CREATION = creation(ModelContent.YPillarCube.defaultCreation());
++
++        public static @NotNull ModelCreation defaultCreation() {
++            return DEFAULT_CREATION;
++        }
++
++        public static @NotNull ModelCreation defaultCreationWithAlternativeEnd(@NotNull Texture endTexture) {
++            return creation(ModelContent.YPillarCube.defaultCreationWithAlternativeEnd(endTexture));
++        }
++
++        public static @NotNull ModelCreation defaultCreationWithAlternativeEnd(@NotNull TextureCreation endTexture) {
++            return creation(ModelContent.YPillarCube.defaultCreationWithAlternativeEnd(endTexture));
++        }
++
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
+index 58aabc4fc0f4b9f2feba2c47e13ed3f98a5b3cc3..a5bd9b75ecc7ad13f8adc63464d850348a756f0e 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
+@@ -3,14 +3,16 @@
+ package nl.martijnmuijsers.paper.blockanditemdata.model;
+ 
+ import net.minecraft.resources.ResourceLocation;
+-import nl.martijnmuijsers.paper.blockanditemdata.texture.ExistingTextureContent;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContentCreation;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureCreation;
+ import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
+ import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetDataContent;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
++import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
+ import org.jetbrains.annotations.NotNull;
+ 
+ import java.util.function.Function;
+@@ -31,26 +33,141 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+      */
+     abstract void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack);
+ 
+-    public static @NotNull ModelContent existing() {
+-        return ExistingModelContent.getInstance();
+-    }
++    // Convenience methods for replacement rule builders
++
++    /**
++     * A basic form of {@link ModelContent}: a full cube with the same texture on all 6 sides
++     */
++    public static final class OneTextureCube extends ModelContent {
++
++        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("cube_all"), Existing.getInstance());
++
++        private final @NotNull Texture texture;
++
++        public OneTextureCube(@NotNull Texture texture) {
++            super();
++            this.texture = texture;
++        }
++
++        @Override
++        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
++            resourcePackModel.setParent(parent);
++            resourcePackModel.setAllTextures(this.texture);
++            this.texture.addToResourcePack(resourcePack, false);
++        }
++
++        public static @NotNull OneTextureCube create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureCreation texture) {
++            return new OneTextureCube(texture.create(intention, key));
++        }
++
++        public static @NotNull ModelContentCreation creation(@NotNull Texture texture) {
++            return (intention, key) -> new OneTextureCube(texture);
++        }
++
++        public static @NotNull ModelContentCreation creation(@NotNull TextureCreation texture) {
++            return (intention, key) -> create(intention, key, texture);
++        }
++
++        private static final @NotNull ModelContentCreation DEFAULT_CREATION = creation(Texture.defaultCreation());
++
++        public static @NotNull ModelContentCreation defaultCreation() {
++            return DEFAULT_CREATION;
++        }
+ 
+-    public static @NotNull ModelContent reference(@NotNull Model parent) {
+-        return new ReferenceModelContent(parent);
+     }
+ 
+-    public static @NotNull ModelContent cube(@NotNull Texture texture) {
+-        return new OneTextureCubeModelContent(texture);
++    /**
++     * A form of {@link ModelContent}: a full cube with one texture for the y-oriented sides, and one textures for the x- and z-oriented sides
++     */
++    public static final class YPillarCube extends ModelContent {
++
++        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("cube_column"), Existing.getInstance());
++
++        private final @NotNull Texture endTexture;
++        private final @NotNull Texture sideTexture;
++
++        public YPillarCube(@NotNull Texture endTexture, @NotNull Texture sideTexture) {
++            super();
++            this.endTexture = endTexture;
++            this.sideTexture = sideTexture;
++        }
++
++        @Override
++        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
++            resourcePackModel.setParent(parent);
++            resourcePackModel.setColumnTextures(this.endTexture, this.sideTexture);
++            this.endTexture.addToResourcePack(resourcePack, false);
++            this.sideTexture.addToResourcePack(resourcePack, false);
++        }
++
++        public static @NotNull YPillarCube create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureCreation endTexture, @NotNull TextureCreation sideTexture) {
++            return new YPillarCube(endTexture.create(intention, key), sideTexture.create(intention, key));
++        }
++
++        public static @NotNull ModelContentCreation creation(@NotNull Texture endTexture, @NotNull Texture sideTexture) {
++            return (intention, key) -> new YPillarCube(endTexture, sideTexture);
++        }
++
++        public static @NotNull ModelContentCreation creation(@NotNull TextureCreation endTexture, @NotNull TextureCreation sideTexture) {
++            return (intention, key) -> create(intention, key, endTexture, sideTexture);
++        }
++
++        private static final @NotNull ModelContentCreation DEFAULT_CREATION = creation(Texture.defaultCreation(), Texture.defaultTopCreation());
++
++        public static @NotNull ModelContentCreation defaultCreation() {
++            return DEFAULT_CREATION;
++        }
++
++        public static @NotNull ModelContentCreation defaultCreationWithAlternativeEnd(@NotNull Texture endTexture) {
++            return defaultCreationWithAlternativeEnd((intention, key) -> endTexture);
++        }
++
++        public static @NotNull ModelContentCreation defaultCreationWithAlternativeEnd(@NotNull TextureCreation endTexture) {
++            return (intention, key) -> create(intention, key, endTexture, Texture.defaultCreation());
++        }
++
+     }
+ 
+-    // Model content by textures (for replacement rule builders)
++    /**
++     * A reference to some model that is outside the scope of our own resource pack (for example a model already existing, for use as a parent)
++     */
++    public static final class Reference extends ModelContent {
++
++        private final @NotNull Model parent;
++
++        public Reference(@NotNull Model parent) {
++            super();
++            this.parent = parent;
++        }
++
++        @Override
++        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
++            resourcePackModel.setParent(parent);
++        }
+ 
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull ModelContent> CUBE_MODEL_CONTENT_BY_TEXTURE(@NotNull Function<@NotNull ResourceLocation, @NotNull Texture> textureFunction) {
+-        return resourceLocation -> ModelContent.cube(textureFunction.apply(resourceLocation));
+     }
+ 
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull ModelContent> DEFAULT_CUBE_MODEL_CONTENT(@NotNull ResourcePackAssetIntention intention) {
+-        return CUBE_MODEL_CONTENT_BY_TEXTURE(Texture.DEFAULT_TEXTURE(intention));
++    /**
++     * A reference to some model that is outside the scope of our own resource pack (for example a model already existing) that we do not seek to modify
++     */
++    public static final class Existing extends ModelContent {
++
++        private Existing() {
++            super();
++        }
++
++        /**
++         * Since this is content that already exists, it does not need to be written
++         */
++        @Override
++        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {}
++
++        private static final @NotNull Existing INSTANCE = new Existing();
++
++        public static @NotNull Existing getInstance() {
++            return INSTANCE;
++        }
++
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContentCreation.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContentCreation.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a8d98bfd5aa38c7c0d313855a04a0fcabf7107fb
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContentCreation.java
+@@ -0,0 +1,13 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.model;
++
++import net.minecraft.resources.ResourceLocation;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
++import org.jetbrains.annotations.NotNull;
++
++public interface ModelContentCreation {
++
++    @NotNull ModelContent create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelCreation.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelCreation.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..f3273d800a50c6bd95d14180f9a3212e7a386a9b
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelCreation.java
+@@ -0,0 +1,13 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.model;
++
++import net.minecraft.resources.ResourceLocation;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
++import org.jetbrains.annotations.NotNull;
++
++public interface ModelCreation {
++
++    @NotNull Model create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/OneTextureCubeModelContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/OneTextureCubeModelContent.java
+deleted file mode 100644
+index 2b162b6151be105b8724c7aaa1939a4e06e2f283..0000000000000000000000000000000000000000
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/OneTextureCubeModelContent.java
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// Martijn - custom blocks and items
+-
+-package nl.martijnmuijsers.paper.blockanditemdata.model;
+-
+-import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+-import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+-import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
+-import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
+-import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
+-import org.jetbrains.annotations.NotNull;
+-
+-/**
+- * A basic form of {@link ModelContent}: a full cube with the same texture on all 6 sides
+- */
+-public class OneTextureCubeModelContent extends ModelContent {
+-
+-    private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("cube_all"), ModelContent.existing());
+-
+-    private final @NotNull Texture texture;
+-
+-    OneTextureCubeModelContent(@NotNull Texture texture) {
+-        super();
+-        this.texture = texture;
+-    }
+-
+-    @Override
+-    void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
+-        resourcePackModel.setParent(parent);
+-        resourcePackModel.setAllTextures(this.texture);
+-        this.texture.addToResourcePack(resourcePack, false);
+-    }
+-
+-}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ReferenceModelContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ReferenceModelContent.java
+deleted file mode 100644
+index 80f830be5b604b1189822cad2fe0a32bf7b395fa..0000000000000000000000000000000000000000
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ReferenceModelContent.java
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Martijn - custom blocks and items
+-
+-package nl.martijnmuijsers.paper.blockanditemdata.model;
+-
+-import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
+-import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+-import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+-import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
+-import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
+-import org.jetbrains.annotations.NotNull;
+-import org.jetbrains.annotations.Nullable;
+-
+-/**
+- * A reference to some model that is outside the scope of our own resource pack (for example a model already existing, for use as a parent)
+- */
+-public class ReferenceModelContent extends ModelContent {
+-
+-    private final @NotNull Model parent;
+-
+-    ReferenceModelContent(@NotNull Model parent) {
+-        this.parent = parent;
+-    }
+-
+-    @Override
+-    void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
+-        resourcePackModel.setParent(parent);
+-    }
+-
+-}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/ExistingTextureContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/ExistingTextureContent.java
+deleted file mode 100644
+index 555dae6ead496d78ea6bdccff33b22a657136c35..0000000000000000000000000000000000000000
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/ExistingTextureContent.java
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Martijn - custom blocks and items
+-
+-package nl.martijnmuijsers.paper.blockanditemdata.texture;
+-
+-import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
+-import org.jetbrains.annotations.NotNull;
+-import org.jetbrains.annotations.Nullable;
+-
+-/**
+- * A reference to some texture that is outside the scope of our own resource pack (for example a texture already existing)
+- */
+-public class ExistingTextureContent extends TextureContent {
+-
+-    private static @Nullable ExistingTextureContent instance;
+-
+-    public static @NotNull ExistingTextureContent getInstance() {
+-        if (instance == null) {
+-            instance = new ExistingTextureContent();
+-        }
+-        return instance;
+-    }
+-
+-    private ExistingTextureContent() {}
+-
+-    /**
+-     * Since this is content that already exists, it does not need to be written
+-     */
+-    @Override
+-    void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture) {}
+-
+-}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/FileToImportPathTextureContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/FileToImportPathTextureContent.java
+deleted file mode 100644
+index d31d9dca41de97c57c51e0ca9c19abea7ea19e8a..0000000000000000000000000000000000000000
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/FileToImportPathTextureContent.java
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// Martijn - custom blocks and items
+-
+-package nl.martijnmuijsers.paper.blockanditemdata.texture;
+-
+-import net.minecraft.resources.ResourceLocation;
+-import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
+-import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+-import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
+-import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
+-import nl.martijnmuijsers.paper.resourcepack.sucraft.CreateSuCraftResourcePack;
+-import org.jetbrains.annotations.NotNull;
+-
+-import java.nio.file.Path;
+-import java.util.function.Function;
+-
+-/**
+- * A basic form of {@link TextureContent}: whatever is in the file that the stored path points to
+- */
+-public class FileToImportPathTextureContent extends TextureContent {
+-
+-    private final @NotNull String fileToImportPath;
+-
+-    FileToImportPathTextureContent(@NotNull String fileToImportPath) {
+-        super();
+-        this.fileToImportPath = fileToImportPath;
+-    }
+-
+-    @Override
+-    void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture) {
+-        resourcePackTexture.setBasedOnFileToImport(this.fileToImportPath);
+-    }
+-
+-    // Default import file path (for replacement rule builders)
+-
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull String> DEFAULT_FILE_TO_IMPORT_PATH(@NotNull ResourcePackAssetIntention intention) {
+-        return resourceLocation -> Path.of(CreateSuCraftResourcePack.INPUT_TEXTURES_FOLDER_PATH, NamespacedKeyWithoutIntention.forMinecraft(resourceLocation).withIntention(intention).keyWithIntention() + ResourcePackAssetType.TEXTURE.getDefaultFileExtension()).toString();
+-    }
+-
+-}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java
+index 541fabcc1f0205235d980fc934101aa630aa8bbc..15aa7377405f77711945e78b3b40f8c9f227d8c1 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java
+@@ -3,6 +3,9 @@
+ package nl.martijnmuijsers.paper.blockanditemdata.texture;
+ 
+ import net.minecraft.resources.ResourceLocation;
++import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
++import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContentCreation;
++import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
+ import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+ import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackIntentionedAssetDataByContent;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+@@ -29,14 +32,32 @@ public class Texture extends ResourcePackIntentionedAssetDataByContent<TextureCo
+         this.content.writeToResourcePackTexture(resourcePackTexture);
+     }
+ 
+-    // Texture by texture content (for replacement rule builders)
++    // Convenience methods for replacement rule builders
+ 
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull Texture> TEXTURE_BY_TEXTURE_CONTENT(@NotNull Function<@NotNull ResourceLocation, @NotNull TextureContent> textureContentFunction) {
+-        return resourceLocation -> new Texture(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.forMinecraft(resourceLocation), textureContentFunction.apply(resourceLocation));
++    public static @NotNull Texture create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureContent content) {
++        return new Texture(intention, NamespacedKeyWithoutIntention.forMinecraft(key), content);
+     }
+ 
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull Texture> DEFAULT_TEXTURE(@NotNull ResourcePackAssetIntention intention) {
+-        return TEXTURE_BY_TEXTURE_CONTENT(TextureContent.DEFAULT_TEXTURE_CONTENT(intention));
++    public static @NotNull Texture create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureContentCreation content) {
++        return create(intention, key, content.create(intention, key));
++    }
++
++    public static @NotNull TextureCreation creation(@NotNull TextureContent content) {
++        return (intention, key) -> create(intention, key, content);
++    }
++
++    public static @NotNull TextureCreation creation(@NotNull TextureContentCreation content) {
++        return (intention, key) -> create(intention, key, content);
++    }
++
++    private static final @NotNull TextureCreation DEFAULT_CREATION = creation(TextureContent.ByFileToImportPath.defaultCreation());
++    private static final @NotNull TextureCreation DEFAULT_TOP_CREATION = creation(TextureContent.ByFileToImportPath.defaultTopCreation());
++
++    public static @NotNull TextureCreation defaultCreation() {
++        return DEFAULT_CREATION;
++    }
++    public static @NotNull TextureCreation defaultTopCreation() {
++        return DEFAULT_TOP_CREATION;
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContent.java
+index 243b3072f942f044239f793443c03aa5d2cbbd13..646a60f7fd3754ec366571ac0a34ae3b5d1db6fe 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContent.java
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContent.java
+@@ -2,14 +2,15 @@
+ 
+ package nl.martijnmuijsers.paper.blockanditemdata.texture;
+ 
+-import net.minecraft.resources.ResourceLocation;
+ import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetDataContent;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
+ import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
++import nl.martijnmuijsers.paper.resourcepack.sucraft.CreateSuCraftResourcePack;
+ import org.jetbrains.annotations.NotNull;
+ 
+-import java.util.function.Function;
++import java.nio.file.Path;
+ 
+ /**
+  * The immutable content of a texture: a {@link Texture} without any information about its appropriate location in a resource pack
+@@ -24,22 +25,69 @@ public abstract class TextureContent implements ResourcePackAssetDataContent {
+ 
+     abstract void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture);
+ 
+-    public static @NotNull TextureContent existing() {
+-        return ExistingTextureContent.getInstance();
+-    }
++    // Convenience methods for replacement rule builders
+ 
+-    public static @NotNull TextureContent fileToImport(@NotNull String fileToImportPath) {
+-        return new FileToImportPathTextureContent(fileToImportPath);
+-    }
++    /**
++     * A reference to some texture that is outside the scope of our own resource pack (for example a texture already existing)
++     */
++    public static final class Existing extends TextureContent {
++
++        private Existing() {
++            super();
++        }
++
++        /**
++         * Since this is content that already exists, it does not need to be written
++         */
++        @Override
++        void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture) {}
+ 
+-    // Texture content by file path (for replacement rule builders)
++        private static final @NotNull Existing INSTANCE = new Existing();
++
++        public static @NotNull Existing getInstance() {
++            return INSTANCE;
++        }
+ 
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull TextureContent> TEXTURE_CONTENT_BY_FILE_TO_IMPORT_PATH(@NotNull Function<@NotNull ResourceLocation, @NotNull String> fileToImportFunction) {
+-        return resourceLocation -> TextureContent.fileToImport(fileToImportFunction.apply(resourceLocation));
+     }
+ 
+-    public static @NotNull Function<@NotNull ResourceLocation, @NotNull TextureContent> DEFAULT_TEXTURE_CONTENT(@NotNull ResourcePackAssetIntention intention) {
+-        return TEXTURE_CONTENT_BY_FILE_TO_IMPORT_PATH(FileToImportPathTextureContent.DEFAULT_FILE_TO_IMPORT_PATH(intention));
++    /**
++     * A basic form of {@link TextureContent}: whatever is in the file that the stored path points to
++     */
++    public static final class ByFileToImportPath extends TextureContent {
++
++        private final @NotNull String fileToImportPath;
++
++        public ByFileToImportPath(@NotNull String fileToImportPath) {
++            super();
++            this.fileToImportPath = fileToImportPath;
++        }
++
++        @Override
++        void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture) {
++            resourcePackTexture.setBasedOnFileToImport(this.fileToImportPath);
++        }
++
++        public static @NotNull TextureContentCreation creation(@NotNull String fileToImportPath) {
++            return (intention, key) -> new ByFileToImportPath(fileToImportPath);
++        }
++
++        public static @NotNull TextureContentCreation creationInDefaultFolder(@NotNull TextureFilenameCreation filename) {
++            return (intention, key) -> new ByFileToImportPath(Path.of(CreateSuCraftResourcePack.INPUT_TEXTURES_FOLDER_PATH, filename.create(intention, key)).toString());
++        }
++
++        private static final @NotNull TextureFilenameCreation DEFAULT_FILENAME = (intention, key) -> NamespacedKeyWithoutIntention.forMinecraft(key).withIntention(intention).keyWithIntention() + ResourcePackAssetType.TEXTURE.getDefaultFileExtension();
++        private static final @NotNull TextureFilenameCreation DEFAULT_TOP_FILENAME = (intention, key) -> NamespacedKeyWithoutIntention.forMinecraft(key).withIntention(intention).keyWithIntention() + "_top" + ResourcePackAssetType.TEXTURE.getDefaultFileExtension();
++        private static final @NotNull TextureContentCreation DEFAULT_CREATION = creationInDefaultFolder(DEFAULT_FILENAME);
++        private static final @NotNull TextureContentCreation DEFAULT_TOP_CREATION = creationInDefaultFolder(DEFAULT_TOP_FILENAME);
++
++        public static @NotNull TextureContentCreation defaultCreation() {
++            return DEFAULT_CREATION;
++        }
++
++        public static @NotNull TextureContentCreation defaultTopCreation() {
++            return DEFAULT_TOP_CREATION;
++        }
++
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContentCreation.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContentCreation.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..a1141f37a4295bdec3a2b5a2e1f52cf168947861
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContentCreation.java
+@@ -0,0 +1,14 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.texture;
++
++import net.minecraft.resources.ResourceLocation;
++import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContent;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
++import org.jetbrains.annotations.NotNull;
++
++public interface TextureContentCreation {
++
++    @NotNull TextureContent create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureCreation.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureCreation.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..df18c89f3e82f74296d2642ac4577ceab9b8e81e
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureCreation.java
+@@ -0,0 +1,14 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.texture;
++
++import net.minecraft.resources.ResourceLocation;
++import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
++import org.jetbrains.annotations.NotNull;
++
++public interface TextureCreation {
++
++    @NotNull Texture create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureFilenameCreation.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureFilenameCreation.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..dbd573f970e913f7f7123dc5d3ccd6c5e377ab73
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureFilenameCreation.java
+@@ -0,0 +1,13 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.texture;
++
++import net.minecraft.resources.ResourceLocation;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
++import org.jetbrains.annotations.NotNull;
++
++public interface TextureFilenameCreation {
++
++    @NotNull String create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key);
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+index fe18bc19a30296725a88d30925526fb49c488d41..df401ab97834696d873b8a8fcc52512e391cf8c2 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+@@ -16,6 +16,9 @@ import net.minecraft.world.item.Items;
+ import nl.martijnmuijsers.paper.block.BlockReplacementRule;
+ import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.function.Function;
+ 
+ /**
+  * Based on {@link net.minecraft.world.item.Items}
+@@ -27,28 +30,76 @@ public class SuCraftItems {
+     /**
+      * Based on {@link Items#STONE_BRICKS}
+      */
+-    public static final Item SNOWY_STONE_BRICKS = registerBlock(SuCraftBlocks.SNOWY_STONE_BRICKS, "Snowy Stone Bricks", CreativeModeTab.TAB_BUILDING_BLOCKS);
++    public static final Item SNOWY_STONE_BRICKS = registerBlock(SuCraftBlocks.SNOWY_STONE_BRICKS, "Snowy Stone Bricks", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.STONE_BRICKS));
+ 
+     /**
+      * Based on {@link #SNOWY_STONE_BRICKS}
+      */
+-    public static final Item DIRTY_STONE_BRICKS = registerBlock(SuCraftBlocks.DIRTY_STONE_BRICKS, "Dirty Stone Bricks", CreativeModeTab.TAB_BUILDING_BLOCKS);
++    public static final Item DIRTY_STONE_BRICKS = registerBlock(SuCraftBlocks.DIRTY_STONE_BRICKS, "Dirty Stone Bricks", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.STONE_BRICKS));
+ 
+     /**
+      * Based on {@link Items#INFESTED_STONE_BRICKS} and {@link #SNOWY_STONE_BRICKS}
+      */
+-    public static final Item INFESTED_SNOWY_STONE_BRICKS = registerBlock(SuCraftBlocks.INFESTED_SNOWY_STONE_BRICKS, "Infested Snowy Stone Bricks", CreativeModeTab.TAB_DECORATIONS);
++    public static final Item INFESTED_SNOWY_STONE_BRICKS = registerBlock(SuCraftBlocks.INFESTED_SNOWY_STONE_BRICKS, "Infested Snowy Stone Bricks", CreativeModeTab.TAB_DECORATIONS, rule -> rule.withHost(() -> Items.STONE_BRICKS));
+ 
+     /**
+      * Based on {@link #INFESTED_SNOWY_STONE_BRICKS} and {@link #DIRTY_STONE_BRICKS}
+      */
+-    public static final Item INFESTED_DIRTY_STONE_BRICKS = registerBlock(SuCraftBlocks.INFESTED_DIRTY_STONE_BRICKS, "Infested Dirty Stone Bricks", CreativeModeTab.TAB_DECORATIONS);
++    public static final Item INFESTED_DIRTY_STONE_BRICKS = registerBlock(SuCraftBlocks.INFESTED_DIRTY_STONE_BRICKS, "Infested Dirty Stone Bricks", CreativeModeTab.TAB_DECORATIONS, rule -> rule.withHost(() -> Items.STONE_BRICKS));
++
++    /**
++     * Based on {@link Items#BOOKSHELF}
++     */
++    public static final Item SPRUCE_BOOKSHELF = registerBlock(SuCraftBlocks.SPRUCE_BOOKSHELF, "Spruce Bookshelf", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.SPRUCE_PLANKS));
++
++    /**
++     * Based on {@link #SPRUCE_BOOKSHELF}
++     */
++    public static final Item BIRCH_BOOKSHELF = registerBlock(SuCraftBlocks.BIRCH_BOOKSHELF, "Birch Bookshelf", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.BIRCH_PLANKS));
++
++    /**
++     * Based on {@link #SPRUCE_BOOKSHELF}
++     */
++    public static final Item JUNGLE_BOOKSHELF = registerBlock(SuCraftBlocks.JUNGLE_BOOKSHELF, "Jungle Bookshelf", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.JUNGLE_PLANKS));
++
++    /**
++     * Based on {@link #SPRUCE_BOOKSHELF}
++     */
++    public static final Item ACACIA_BOOKSHELF = registerBlock(SuCraftBlocks.ACACIA_BOOKSHELF, "Acacia Bookshelf", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.ACACIA_PLANKS));
++
++    /**
++     * Based on {@link #SPRUCE_BOOKSHELF}
++     */
++    public static final Item DARK_OAK_BOOKSHELF = registerBlock(SuCraftBlocks.DARK_OAK_BOOKSHELF, "Dark Oak Bookshelf", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.DARK_OAK_PLANKS));
++
++    /**
++     * Based on {@link #SPRUCE_BOOKSHELF}
++     */
++    public static final Item WARPED_BOOKSHELF = registerBlock(SuCraftBlocks.WARPED_BOOKSHELF, "Warped Bookshelf", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.WARPED_PLANKS));
++
++    /**
++     * Based on {@link #SPRUCE_BOOKSHELF}
++     */
++    public static final Item CRIMSON_BOOKSHELF = registerBlock(SuCraftBlocks.CRIMSON_BOOKSHELF, "Crimson Bookshelf", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.CRIMSON_PLANKS));
++
++    /**
++     * Based on {@link #SPRUCE_BOOKSHELF}
++     */
++//    public static final Item MANGROVE_BOOKSHELF = registerBlock(SuCraftBlocks.MANGROVE_BOOKSHELF, "Mangrove Bookshelf", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(() -> Items.MANGROVE_PLANKS));
+ 
+-    public static Item registerBlock(Block block, String displayName, CreativeModeTab group) {
++    public static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
++        return registerBlock(block, displayName, group, null);
++    }
++
++    public static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group, @Nullable Function<ItemReplacementRule.SimpleItemReplacementRule.Builder, ItemReplacementRule.SimpleItemReplacementRule.Builder> replacementRuleFunction) {
+         Item registeredItem = Items.registerBlock(block, group);
+         block.customItemForBlock = registeredItem;
+         registeredItem.isVanilla = false;
+-        registeredItem.replacementRule = ItemReplacementRule.simple().withReal(registeredItem).forBlock(block).build();
++        var replacementRuleBuilder = ItemReplacementRule.simple().withReal(registeredItem).forBlock(block);
++        if (replacementRuleFunction != null) {
++            replacementRuleBuilder = replacementRuleFunction.apply(replacementRuleBuilder);
++        }
++        registeredItem.replacementRule = replacementRuleBuilder.build();
+         registeredItem.customDisplayName = Component.text(displayName, PaperAdventure.asAdventure(registeredItem.rarity.color)).decoration(TextDecoration.ITALIC, false);
+         registeredItem.customDisplayNameJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayName);
+         registeredItem.customDisplayName = Component.text(displayName, PaperAdventure.asAdventure(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR)).decoration(TextDecoration.ITALIC, false);
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
+index 8d002ace564f2df10f3cc47c1c569f14dd43b5c1..001622880593af9b1edaf895d47405cbed005976 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
+@@ -54,7 +54,17 @@ public final class KeyConstants {
+     /**
+      * The inner key of textures of a model representing setting all textures
+      */
+-    public static final @NotNull String allModelTextures = "all";
++    public static final @NotNull String modelTexturesAll = "all";
++
++    /**
++     * The inner key of textures of a model representing setting the textures on a column's ends
++     */
++    public static final @NotNull String modelTexturesEnd = "end";
++
++    /**
++     * The inner key of textures of a model representing setting the textures on a column's sides
++     */
++    public static final @NotNull String modelTexturesSide = "side";
+ 
+     /**
+      * The overrides of a model
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
+index a39d8dc6645276d7ed997a4cc18ad93deed37a72..5b4f0819710cd501707ec66e3e8a2ad141629839 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
+@@ -32,8 +32,7 @@ public class ConcreteResourcePackBlockStates extends SimpleJsonResourcePackAsset
+         return ResourcePackAssetType.BLOCK_STATES;
+     }
+ 
+-    @Override
+-    public void setModel(@NotNull String variant, @NotNull Model model) {
++    private @NotNull JsonObject getOrCreateVariantsJson() {
+         @NotNull JsonObject variantsJson;
+         if (this.json.has(KeyConstants.variants)) {
+             variantsJson = this.json.getAsJsonObject(KeyConstants.variants);
+@@ -41,6 +40,12 @@ public class ConcreteResourcePackBlockStates extends SimpleJsonResourcePackAsset
+             variantsJson = new JsonObject();
+             this.json.add(KeyConstants.variants, variantsJson);
+         }
++        return variantsJson;
++    }
++
++    @Override
++    public void setModel(@NotNull String variant, @NotNull Model model) {
++        @NotNull JsonObject variantsJson = this.getOrCreateVariantsJson();
+         @NotNull JsonObject variantJson;
+         if (variantsJson.has(variant)) {
+             variantJson = variantsJson.getAsJsonObject(variant);
+@@ -49,6 +54,9 @@ public class ConcreteResourcePackBlockStates extends SimpleJsonResourcePackAsset
+             variantsJson.add(variant, variantJson);
+         }
+         variantJson.addProperty(KeyConstants.model, model.getKeyWithIntention().toString());
++        if (!variant.equals(KeyConstants.noVariant)) {
++            variantsJson.remove(KeyConstants.noVariant);
++        }
+         this.setDirty();
+     }
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/MutableResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/MutableResourcePackBlockStates.java
+index f13b28870052ee67afb3eaf6b7ff3004366fcbd3..27941cffc1f0f2b6e06ac51c7e873ffb48cd0d4d 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/MutableResourcePackBlockStates.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/MutableResourcePackBlockStates.java
+@@ -2,6 +2,7 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack.asset.blockstates;
+ 
++import net.minecraft.world.level.block.state.BlockState;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
+ import nl.martijnmuijsers.paper.resourcepack.KeyConstants;
+ import nl.martijnmuijsers.paper.resourcepack.asset.json.MutableJsonResourcePackAsset;
+@@ -28,9 +29,19 @@ public interface MutableResourcePackBlockStates extends MutableJsonResourcePackA
+ 
+     /**
+      * This does not automatically add the model to the resource pack
++     *
++     * If the variant is not {@link KeyConstants#noVariant}, any existing empty variant will be removed
+      */
+     void setModel(@NotNull String variant, @NotNull Model model);
+ 
++    default void setModel(@NotNull BlockState variant, @NotNull Model model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel) {
++        this.setModel(variant.toVariantString(), model, pack, overwriteExistingModel);
++    }
++
++    default void setModel(@NotNull BlockState variant, @NotNull Model model) {
++        this.setModel(variant.toVariantString(), model);
++    }
++
+     default void setNoVariantModel(@NotNull Model model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel) {
+         this.setModel(KeyConstants.noVariant, model, pack, overwriteExistingModel);
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
+index d7da1798c70e570baa6dcbb08cd74d252b19cce9..043fa38f95353b86a7841ff151d596334463435f 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
+@@ -45,7 +45,16 @@ public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<Concr
+     @Override
+     public void setAllTextures(@NotNull Texture texture) {
+         @NotNull JsonObject texturesJson = new JsonObject();
+-        texturesJson.addProperty(KeyConstants.allModelTextures, texture.getKeyWithIntention().toString());
++        texturesJson.addProperty(KeyConstants.modelTexturesAll, texture.getKeyWithIntention().toString());
++        this.json.add(KeyConstants.modelTextures, texturesJson);
++        this.setDirty();
++    }
++
++    @Override
++    public void setColumnTextures(@NotNull Texture endTexture, @NotNull Texture sideTexture) {
++        @NotNull JsonObject texturesJson = new JsonObject();
++        texturesJson.addProperty(KeyConstants.modelTexturesEnd, endTexture.getKeyWithIntention().toString());
++        texturesJson.addProperty(KeyConstants.modelTexturesSide, sideTexture.getKeyWithIntention().toString());
+         this.json.add(KeyConstants.modelTextures, texturesJson);
+         this.setDirty();
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java
+index 52fe7370738d0ca3bb937a172052d1d436a538a6..796ca6d0fa09eb32cda2cc4080c3465bbd5f1bdd 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java
+@@ -21,6 +21,8 @@ public interface MutableResourcePackModel extends MutableJsonResourcePackAsset,
+ 
+     void setAllTextures(@NotNull Texture texture);
+ 
++    void setColumnTextures(@NotNull Texture endTexture, @NotNull Texture sideTexture);
++
+     /**
+      * @param pack Because this instance is not aware of the resource pack it is in, this pack must be provided to automatically add the given overriding model to the resource pack
+      * @param overwriteExistingOverridingModel Whether to overwrite an existing model in the resource pack (this has to do with the overriding model, not with this model instance: this instance's overrides property is always modified by this method)
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+index 31ac096c671b72562212b2c745b6fb8617eddc43..eb582c8b01cbc86110c663fe4dab6c9a60f92242 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+@@ -36,7 +36,7 @@ public final class CreateSuCraftResourcePack {
+ 
+     private CreateSuCraftResourcePack() {}
+ 
+-    private static final int currentResourcePackVersion = 6;
++    private static final int currentResourcePackVersion = 13;
+ 
+     public static final int RESOURCE_PACK_FORMAT = 9;
+ 

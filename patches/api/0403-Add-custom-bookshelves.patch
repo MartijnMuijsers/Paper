@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 4 Jul 2022 21:11:58 +0200
+Subject: [PATCH] Add custom bookshelves
+
+
+diff --git a/src/main/java/org/bukkit/Material.java b/src/main/java/org/bukkit/Material.java
+index 5122d5c9c61b51fa206ff6f6768a2670c930df52..4508628fc432a69117b9c0e0b48ffc07fdd025da 100644
+--- a/src/main/java/org/bukkit/Material.java
++++ b/src/main/java/org/bukkit/Material.java
+@@ -4057,12 +4057,21 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     LEGACY_RECORD_12(2267, 1),
+ 
+     // Martijn start - custom blocks and items
++
+     SUCRAFT_SNOWY_STONE_BRICKS(78131, MOSSY_STONE_BRICKS),
+     SUCRAFT_DIRTY_STONE_BRICKS(78132, SUCRAFT_SNOWY_STONE_BRICKS),
+     SUCRAFT_INFESTED_SNOWY_STONE_BRICKS(78133, INFESTED_MOSSY_STONE_BRICKS),
+-    SUCRAFT_INFESTED_DIRTY_STONE_BRICKS(78134, SUCRAFT_INFESTED_SNOWY_STONE_BRICKS);
++    SUCRAFT_INFESTED_DIRTY_STONE_BRICKS(78134, SUCRAFT_INFESTED_SNOWY_STONE_BRICKS),
++    SUCRAFT_SPRUCE_BOOKSHELF(78135, BOOKSHELF),
++    SUCRAFT_BIRCH_BOOKSHELF(78136, BOOKSHELF),
++    SUCRAFT_JUNGLE_BOOKSHELF(78137, BOOKSHELF),
++    SUCRAFT_ACACIA_BOOKSHELF(78138, BOOKSHELF),
++    SUCRAFT_DARK_OAK_BOOKSHELF(78139, BOOKSHELF),
++    SUCRAFT_WARPED_BOOKSHELF(78140, BOOKSHELF),
++    SUCRAFT_CRIMSON_BOOKSHELF(78141, BOOKSHELF);
++//    SUCRAFT_MANGROVE_BOOKSHELF(78142, BOOKSHELF);
++
+     // Martijn end - custom blocks and items
+-    ;
+     //</editor-fold>
+ 
+     @Deprecated

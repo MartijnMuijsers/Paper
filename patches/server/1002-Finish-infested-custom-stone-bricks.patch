@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sun, 3 Jul 2022 20:33:16 +0200
+Subject: [PATCH] Finish infested custom stone bricks
+
+
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 4ad2e577fc950fcc7b847fb26984c3f547f64794..186f5ed65519aab0446fe0f9924a2f39ff3d673c 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -38,7 +38,7 @@ public class SuCraftBlocks {
+             .withHostReplacingItemFromHostBlock()
+             .withHostReplacingItemReplacementFromHostReplacementBlock()
+             .withModel(Model.DEFAULT_CUBE_MODEL(ResourcePackAssetIntention.BLOCK)),
+-        new Block(BlockBehaviour.Properties.of(Material.STONE).requiresCorrectToolForDrops().strength(1.5F, 6.0F)),
++        new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)),
+         SuCraftBlockLoot::dropSelf
+     );
+ 
+@@ -56,7 +56,7 @@ public class SuCraftBlocks {
+             .withHostReplacingItemFromHostBlock()
+             .withHostReplacingItemReplacementFromHostReplacementBlock()
+             .withModel(Model.DEFAULT_CUBE_MODEL(ResourcePackAssetIntention.BLOCK)),
+-        new Block(BlockBehaviour.Properties.of(Material.STONE).requiresCorrectToolForDrops().strength(1.5F, 6.0F)),
++        new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)),
+         SuCraftBlockLoot::dropSelf
+     );
+ 
+@@ -78,6 +78,24 @@ public class SuCraftBlocks {
+         block -> SuCraftBlockLoot.dropSingleItemWhenSilkTouch(SNOWY_STONE_BRICKS)
+     );
+ 
++    /**
++     * Based on {@link #INFESTED_SNOWY_STONE_BRICKS} and {@link #DIRTY_STONE_BRICKS}
++     */
++    public static final Block INFESTED_DIRTY_STONE_BRICKS = register(
++        "infested_dirty_stone_bricks",
++        BlockReplacementRule.stateless()
++            .withHost(Blocks.INFESTED_CRACKED_STONE_BRICKS)
++            .withHostReplacement(Blocks.CRACKED_STONE_BRICKS)
++            .withFullBlockBoundingBoxHostItem()
++            .withFallback(Blocks.STONE_BRICKS)
++            .withFallbackBlockAsFallbackItem()
++            .withHostReplacingItemFromHostBlock()
++            .withHostReplacingItemReplacementFromHostReplacementBlock()
++            .withModelSameAsStatelessBlock(DIRTY_STONE_BRICKS),
++        new InfestedBlock(DIRTY_STONE_BRICKS, BlockBehaviour.Properties.of(Material.CLAY), false),
++        block -> SuCraftBlockLoot.dropSingleItemWhenSilkTouch(DIRTY_STONE_BRICKS)
++    );
++
+     private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRule.Builder<?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
+         return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+index c8719f129cc0d7d463f6e6e40c009ef8aae6a3e9..fe18bc19a30296725a88d30925526fb49c488d41 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+@@ -39,6 +39,11 @@ public class SuCraftItems {
+      */
+     public static final Item INFESTED_SNOWY_STONE_BRICKS = registerBlock(SuCraftBlocks.INFESTED_SNOWY_STONE_BRICKS, "Infested Snowy Stone Bricks", CreativeModeTab.TAB_DECORATIONS);
+ 
++    /**
++     * Based on {@link #INFESTED_SNOWY_STONE_BRICKS} and {@link #DIRTY_STONE_BRICKS}
++     */
++    public static final Item INFESTED_DIRTY_STONE_BRICKS = registerBlock(SuCraftBlocks.INFESTED_DIRTY_STONE_BRICKS, "Infested Dirty Stone Bricks", CreativeModeTab.TAB_DECORATIONS);
++
+     public static Item registerBlock(Block block, String displayName, CreativeModeTab group) {
+         Item registeredItem = Items.registerBlock(block, group);
+         block.customItemForBlock = registeredItem;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+index d28cfffa6c6fea196b5ee66ee9501ae9424f5158..31ac096c671b72562212b2c745b6fb8617eddc43 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+@@ -36,7 +36,7 @@ public final class CreateSuCraftResourcePack {
+ 
+     private CreateSuCraftResourcePack() {}
+ 
+-    private static final int currentResourcePackVersion = 4;
++    private static final int currentResourcePackVersion = 6;
+ 
+     public static final int RESOURCE_PACK_FORMAT = 9;
+ 
