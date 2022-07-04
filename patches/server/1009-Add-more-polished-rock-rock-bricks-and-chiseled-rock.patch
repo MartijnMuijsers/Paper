@@ -1,0 +1,235 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 5 Jul 2022 00:44:04 +0200
+Subject: [PATCH] Add more polished rock, rock bricks and chiseled rock bricks
+
+
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index ba4a7ed5848f659356e6b98b191a9f4f2cfeb7b6..c0e29842ca05ac14e2cb674a4a1c049e97222b42 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.InfestedBlock;
+ import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.material.Material;
++import net.minecraft.world.level.material.MaterialColor;
+ import net.minecraft.world.level.storage.loot.LootTable;
+ import net.minecraft.world.level.storage.loot.providers.number.ConstantValue;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
+@@ -46,10 +47,10 @@ public class SuCraftBlocks {
+     public static final Block BLUE_PLANKS = registerPlanks("blue", Blocks.WARPED_PLANKS);
+     public static final Block BROWN_PLANKS = registerPlanks("brown", Blocks.SPRUCE_PLANKS);
+     public static final Block CYAN_PLANKS = registerPlanks("cyan", Blocks.WARPED_PLANKS);
+-    public static final Block GRAY_PLANKS = registerPlanks("gray", Blocks.OAK_PLANKS);
++    public static final Block GRAY_PLANKS = registerPlanks("gray", Blocks.SPRUCE_PLANKS);
+     public static final Block GREEN_PLANKS = registerPlanks("green", Blocks.WARPED_PLANKS);
+     public static final Block LIGHT_BLUE_PLANKS = registerPlanks("light_blue", Blocks.WARPED_PLANKS);
+-    public static final Block LIGHT_GRAY_PLANKS = registerPlanks("light_gray", Blocks.SPRUCE_PLANKS);
++    public static final Block LIGHT_GRAY_PLANKS = registerPlanks("light_gray", Blocks.OAK_PLANKS);
+     public static final Block LIME_PLANKS = registerPlanks("lime", Blocks.WARPED_PLANKS);
+     public static final Block MAGENTA_PLANKS = registerPlanks("magenta", Blocks.CRIMSON_PLANKS);
+     public static final Block ORANGE_PLANKS = registerPlanks("orange", Blocks.ACACIA_PLANKS);
+@@ -59,6 +60,39 @@ public class SuCraftBlocks {
+     public static final Block WHITE_PLANKS = registerPlanks("white", Blocks.BIRCH_PLANKS);
+     public static final Block YELLOW_PLANKS = registerPlanks("yellow", Blocks.BIRCH_PLANKS);
+ 
++    /**
++     * Based on {@link Blocks#DIRT}
++     */
++    public static final Block DIRT_BRICKS = register(
++        "dirt_bricks",
++        BlockReplacementRule.stateless()
++            .withNoteBlockHost()
++            .withFullBlockBoundingBoxHostItem()
++            .withFallback(Blocks.MUD_BRICKS)
++            .withFallbackBlockAsFallbackItem()
++            .withHostReplacingItemFromHostBlock()
++            .withHostReplacingItemReplacementFromHostReplacementBlock()
++            .withModel(Model.OneTextureCube.defaultCreation()),
++        new Block(BlockBehaviour.Properties.of(Material.DIRT).strength(1.0F).sound(SoundType.GRAVEL)),
++        SuCraftBlockLoot::dropSelf
++    );
++
++    public static final Block POLISHED_CALCITE = registerPolished("calcite", Blocks.CALCITE);
++    public static final Block POLISHED_DRIPSTONE = registerPolished("dripstone", Blocks.DRIPSTONE_BLOCK);
++    public static final Block POLISHED_TUFF = registerPolished("tuff", Blocks.TUFF);
++    public static final Block ANDESITE_BRICKS = registerBricks("andesite", Blocks.POLISHED_ANDESITE);
++    public static final Block CALCITE_BRICKS = registerBricks("calcite", Blocks.CALCITE);
++    public static final Block DIORITE_BRICKS = registerBricks("diorite", Blocks.POLISHED_DIORITE);
++    public static final Block DRIPSTONE_BRICKS = registerBricks("dripstone", Blocks.DRIPSTONE_BLOCK);
++    public static final Block GRANITE_BRICKS = registerBricks("granite", Blocks.POLISHED_GRANITE);
++    public static final Block TUFF_BRICKS = registerBricks("tuff", Blocks.TUFF);
++    public static final Block CHISELED_ANDESITE_BRICKS = registerChiseledBricks("andesite", Blocks.POLISHED_ANDESITE);
++    public static final Block CHISELED_CALCITE_BRICKS = registerChiseledBricks("calcite", Blocks.CALCITE);
++    public static final Block CHISELED_DIORITE_BRICKS = registerChiseledBricks("diorite", Blocks.POLISHED_DIORITE);
++    public static final Block CHISELED_DRIPSTONE_BRICKS = registerChiseledBricks("dripstone", Blocks.DRIPSTONE_BLOCK);
++    public static final Block CHISELED_GRANITE_BRICKS = registerChiseledBricks("granite", Blocks.POLISHED_GRANITE);
++    public static final Block CHISELED_TUFF_BRICKS = registerChiseledBricks("tuff", Blocks.TUFF);
++
+     private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRule.Builder<?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
+         return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
+     }
+@@ -164,6 +198,63 @@ public class SuCraftBlocks {
+         );
+     }
+ 
++    /**
++     * Based on {@link Blocks#POLISHED_ANDESITE}
++     */
++    private static @NotNull Block registerPolished(@NotNull String unpolished, @NotNull Block fallback) {
++        return register(
++            "polished_" + unpolished,
++            BlockReplacementRule.stateless()
++                .withNoteBlockHost()
++                .withFullBlockBoundingBoxHostItem()
++                .withFallback(fallback)
++                .withFallbackBlockAsFallbackItem()
++                .withHostReplacingItemFromHostBlock()
++                .withHostReplacingItemReplacementFromHostReplacementBlock()
++                .withModel(Model.OneTextureCube.defaultCreation()),
++            new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)),
++            SuCraftBlockLoot::dropSelf
++        );
++    }
++
++    /**
++     * Based on {@link Blocks#STONE_BRICKS}
++     */
++    private static @NotNull Block registerBricks(@NotNull String type, @NotNull Block fallback) {
++        return register(
++            type + "_bricks",
++            BlockReplacementRule.stateless()
++                .withNoteBlockHost()
++                .withFullBlockBoundingBoxHostItem()
++                .withFallback(fallback)
++                .withFallbackBlockAsFallbackItem()
++                .withHostReplacingItemFromHostBlock()
++                .withHostReplacingItemReplacementFromHostReplacementBlock()
++                .withModel(Model.OneTextureCube.defaultCreation()),
++            new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)),
++            SuCraftBlockLoot::dropSelf
++        );
++    }
++
++    /**
++     * Based on {@link Blocks#CHISELED_STONE_BRICKS}
++     */
++    private static @NotNull Block registerChiseledBricks(@NotNull String type, @NotNull Block fallback) {
++        return register(
++            "chiseled_" + type + "_bricks",
++            BlockReplacementRule.stateless()
++                .withNoteBlockHost()
++                .withFullBlockBoundingBoxHostItem()
++                .withFallback(fallback)
++                .withFallbackBlockAsFallbackItem()
++                .withHostReplacingItemFromHostBlock()
++                .withHostReplacingItemReplacementFromHostReplacementBlock()
++                .withModel(Model.OneTextureCube.defaultCreation()),
++            new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)),
++            SuCraftBlockLoot::dropSelf
++        );
++    }
++
+     public static Block bootstrap() {
+         SNOWY_STONE_BRICKS.toString();
+         return SNOWY_STONE_BRICKS;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+index 5a1c57856532435d79499803a37aa2a5e8547ccd..3b2b8a9234cc7fddddea0976f9c194d2154b09ad 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+@@ -40,22 +40,38 @@ public class SuCraftItems {
+     public static final Item WARPED_BOOKSHELF = registerBookshelf(SuCraftBlocks.WARPED_BOOKSHELF, "Warped", () -> Items.WARPED_PLANKS);
+     public static final Item CRIMSON_BOOKSHELF = registerBookshelf(SuCraftBlocks.CRIMSON_BOOKSHELF, "Crimson", () -> Items.CRIMSON_PLANKS);
+ //    public static final Item MANGROVE_BOOKSHELF = registerBookshelf(SuCraftBlocks.MANGROVE_BOOKSHELF, "Mangrove", () -> Items.MANGROVE_PLANKS);
+-    public static final Item BLACK_PLANKS = registerPlanks(SuCraftBlocks.BLACK_PLANKS, "Black", () -> Items.BLACK_CONCRETE);;
+-    public static final Item BLUE_PLANKS = registerPlanks(SuCraftBlocks.BLUE_PLANKS, "Blue", () -> Items.BLUE_CONCRETE);;
+-    public static final Item BROWN_PLANKS = registerPlanks(SuCraftBlocks.BROWN_PLANKS, "Brown", () -> Items.BROWN_CONCRETE);;
+-    public static final Item CYAN_PLANKS = registerPlanks(SuCraftBlocks.CYAN_PLANKS, "Cyan", () -> Items.CYAN_CONCRETE);;
+-    public static final Item GRAY_PLANKS = registerPlanks(SuCraftBlocks.GRAY_PLANKS, "Gray", () -> Items.GRAY_CONCRETE);;
+-    public static final Item GREEN_PLANKS = registerPlanks(SuCraftBlocks.GREEN_PLANKS, "Green", () -> Items.GREEN_CONCRETE);;
+-    public static final Item LIGHT_BLUE_PLANKS = registerPlanks(SuCraftBlocks.LIGHT_BLUE_PLANKS, "Light Blue", () -> Items.LIGHT_BLUE_CONCRETE);;
+-    public static final Item LIGHT_GRAY_PLANKS = registerPlanks(SuCraftBlocks.LIGHT_GRAY_PLANKS, "Light Gray", () -> Items.LIGHT_GRAY_CONCRETE);;
+-    public static final Item LIME_PLANKS = registerPlanks(SuCraftBlocks.LIME_PLANKS, "Lime", () -> Items.LIME_CONCRETE);;
+-    public static final Item MAGENTA_PLANKS = registerPlanks(SuCraftBlocks.MAGENTA_PLANKS, "Magenta", () -> Items.MAGENTA_CONCRETE);;
+-    public static final Item ORANGE_PLANKS = registerPlanks(SuCraftBlocks.ORANGE_PLANKS, "Orange", () -> Items.ORANGE_CONCRETE);;
+-    public static final Item PINK_PLANKS = registerPlanks(SuCraftBlocks.PINK_PLANKS, "Pink", () -> Items.PINK_CONCRETE);;
+-    public static final Item PURPLE_PLANKS = registerPlanks(SuCraftBlocks.PURPLE_PLANKS, "Purple", () -> Items.PURPLE_CONCRETE);;
+-    public static final Item RED_PLANKS = registerPlanks(SuCraftBlocks.RED_PLANKS, "Red", () -> Items.RED_CONCRETE);;
+-    public static final Item WHITE_PLANKS = registerPlanks(SuCraftBlocks.WHITE_PLANKS, "White", () -> Items.WHITE_CONCRETE);;
+-    public static final Item YELLOW_PLANKS = registerPlanks(SuCraftBlocks.YELLOW_PLANKS, "Yellow", () -> Items.YELLOW_CONCRETE);;
++    public static final Item BLACK_PLANKS = registerPlanks(SuCraftBlocks.BLACK_PLANKS, "Black", () -> Items.BLACK_CONCRETE);
++    public static final Item BLUE_PLANKS = registerPlanks(SuCraftBlocks.BLUE_PLANKS, "Blue", () -> Items.BLUE_CONCRETE);
++    public static final Item BROWN_PLANKS = registerPlanks(SuCraftBlocks.BROWN_PLANKS, "Brown", () -> Items.BROWN_CONCRETE);
++    public static final Item CYAN_PLANKS = registerPlanks(SuCraftBlocks.CYAN_PLANKS, "Cyan", () -> Items.CYAN_CONCRETE);
++    public static final Item GRAY_PLANKS = registerPlanks(SuCraftBlocks.GRAY_PLANKS, "Gray", () -> Items.GRAY_CONCRETE);
++    public static final Item GREEN_PLANKS = registerPlanks(SuCraftBlocks.GREEN_PLANKS, "Green", () -> Items.GREEN_CONCRETE);
++    public static final Item LIGHT_BLUE_PLANKS = registerPlanks(SuCraftBlocks.LIGHT_BLUE_PLANKS, "Light Blue", () -> Items.LIGHT_BLUE_CONCRETE);
++    public static final Item LIGHT_GRAY_PLANKS = registerPlanks(SuCraftBlocks.LIGHT_GRAY_PLANKS, "Light Gray", () -> Items.LIGHT_GRAY_CONCRETE);
++    public static final Item LIME_PLANKS = registerPlanks(SuCraftBlocks.LIME_PLANKS, "Lime", () -> Items.LIME_CONCRETE);
++    public static final Item MAGENTA_PLANKS = registerPlanks(SuCraftBlocks.MAGENTA_PLANKS, "Magenta", () -> Items.MAGENTA_CONCRETE);
++    public static final Item ORANGE_PLANKS = registerPlanks(SuCraftBlocks.ORANGE_PLANKS, "Orange", () -> Items.ORANGE_CONCRETE);
++    public static final Item PINK_PLANKS = registerPlanks(SuCraftBlocks.PINK_PLANKS, "Pink", () -> Items.PINK_CONCRETE);
++    public static final Item PURPLE_PLANKS = registerPlanks(SuCraftBlocks.PURPLE_PLANKS, "Purple", () -> Items.PURPLE_CONCRETE);
++    public static final Item RED_PLANKS = registerPlanks(SuCraftBlocks.RED_PLANKS, "Red", () -> Items.RED_CONCRETE);
++    public static final Item WHITE_PLANKS = registerPlanks(SuCraftBlocks.WHITE_PLANKS, "White", () -> Items.WHITE_CONCRETE);
++    public static final Item YELLOW_PLANKS = registerPlanks(SuCraftBlocks.YELLOW_PLANKS, "Yellow", () -> Items.YELLOW_CONCRETE);
++    public static final Item DIRT_BRICKS = registerBricks(SuCraftBlocks.DIRT_BRICKS, "Dirt", () -> Items.DIRT);
++    public static final Item POLISHED_CALCITE = registerPolished(SuCraftBlocks.POLISHED_CALCITE, "Calcite", () -> Items.CALCITE);
++    public static final Item POLISHED_DRIPSTONE = registerPolished(SuCraftBlocks.POLISHED_DRIPSTONE, "Dripstone", () -> Items.DRIPSTONE_BLOCK);
++    public static final Item POLISHED_TUFF = registerPolished(SuCraftBlocks.POLISHED_TUFF, "Tuff", () -> Items.TUFF);
++    public static final Item ANDESITE_BRICKS = registerBricks(SuCraftBlocks.ANDESITE_BRICKS, "Andesite", () -> Items.POLISHED_ANDESITE);
++    public static final Item CALCITE_BRICKS = registerBricks(SuCraftBlocks.CALCITE_BRICKS, "Calcite", () -> Items.CALCITE);
++    public static final Item DIORITE_BRICKS = registerBricks(SuCraftBlocks.DIORITE_BRICKS, "Diorite", () -> Items.POLISHED_DIORITE);
++    public static final Item DRIPSTONE_BRICKS = registerBricks(SuCraftBlocks.DRIPSTONE_BRICKS, "Dripstone", () -> Items.DRIPSTONE_BLOCK);
++    public static final Item GRANITE_BRICKS = registerBricks(SuCraftBlocks.GRANITE_BRICKS, "Granite", () -> Items.POLISHED_GRANITE);
++    public static final Item TUFF_BRICKS = registerBricks(SuCraftBlocks.TUFF_BRICKS, "Tuff", () -> Items.TUFF);
++    public static final Item CHISELED_ANDESITE_BRICKS = registerChiseledBricks(SuCraftBlocks.CHISELED_ANDESITE_BRICKS, "Andesite", () -> Items.POLISHED_ANDESITE);
++    public static final Item CHISELED_CALCITE_BRICKS = registerChiseledBricks(SuCraftBlocks.CHISELED_CALCITE_BRICKS, "Calcite", () -> Items.CALCITE);
++    public static final Item CHISELED_DIORITE_BRICKS = registerChiseledBricks(SuCraftBlocks.CHISELED_DIORITE_BRICKS, "Diorite", () -> Items.POLISHED_DIORITE);
++    public static final Item CHISELED_DRIPSTONE_BRICKS = registerChiseledBricks(SuCraftBlocks.CHISELED_DRIPSTONE_BRICKS, "Dripstone", () -> Items.DRIPSTONE_BLOCK);
++    public static final Item CHISELED_GRANITE_BRICKS = registerChiseledBricks(SuCraftBlocks.CHISELED_GRANITE_BRICKS, "Granite", () -> Items.POLISHED_GRANITE);
++    public static final Item CHISELED_TUFF_BRICKS = registerChiseledBricks(SuCraftBlocks.CHISELED_TUFF_BRICKS, "Tuff", () -> Items.TUFF);
+ 
+     private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
+         return registerBlock(block, displayName, group, null);
+@@ -106,6 +122,27 @@ public class SuCraftItems {
+         return registerBlock(block, descriptionDisplayName + " Planks", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(hostSupplier));
+     }
+ 
++    /**
++     * Based on {@link Items#STONE_BRICKS}
++     */
++    private static @NotNull Item registerBricks(@NotNull Block block, @NotNull String typeDisplayName, @NotNull Supplier<@NotNull Item> hostSupplier) {
++        return registerBlock(block, typeDisplayName + " Bricks", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(hostSupplier));
++    }
++
++    /**
++     * Based on {@link Items#POLISHED_ANDESITE}
++     */
++    private static @NotNull Item registerPolished(@NotNull Block block, @NotNull String unpolishedDisplayName, @NotNull Supplier<@NotNull Item> hostSupplier) {
++        return registerBlock(block, "Polished " + unpolishedDisplayName, CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(hostSupplier));
++    }
++
++    /**
++     * Based on {@link Items#CHISELED_STONE_BRICKS}
++     */
++    private static @NotNull Item registerChiseledBricks(@NotNull Block block, @NotNull String typeDisplayName, @NotNull Supplier<@NotNull Item> hostSupplier) {
++        return registerBlock(block, "Chiseled " + typeDisplayName + " Bricks", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHost(hostSupplier));
++    }
++
+     public static Item bootstrap() {
+         SNOWY_STONE_BRICKS.toString();
+         // Make sure that the item replacement rule for block items for which the block has some hosts that are potentially placed by vanilla items is registered with those vanilla items
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+index d5f7951e5d568efadfdc025b96e2b6ec9bd119be..14f89df7b9709c5c10771bfe8e20ebe2dc97d32f 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+@@ -36,7 +36,7 @@ public final class CreateSuCraftResourcePack {
+ 
+     private CreateSuCraftResourcePack() {}
+ 
+-    private static final int currentResourcePackVersion = 14;
++    private static final int currentResourcePackVersion = 16;
+ 
+     public static final int RESOURCE_PACK_FORMAT = 9;
+ 
