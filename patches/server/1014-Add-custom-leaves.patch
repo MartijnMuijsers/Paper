@@ -1,0 +1,446 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sat, 9 Jul 2022 14:26:52 +0200
+Subject: [PATCH] Add custom leaves
+
+
+diff --git a/src/main/java/net/minecraft/data/loot/BlockLoot.java b/src/main/java/net/minecraft/data/loot/BlockLoot.java
+index c7bdc9b77dcda12f3dd45d3f9ce1609e280baf08..9b0eaa1f04eccc85ccef2b7b1acb15a240fce52f 100644
+--- a/src/main/java/net/minecraft/data/loot/BlockLoot.java
++++ b/src/main/java/net/minecraft/data/loot/BlockLoot.java
+@@ -96,7 +96,7 @@ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTabl
+     private static final LootItemCondition.Builder HAS_SHEARS_OR_SILK_TOUCH = HAS_SHEARS.or(HAS_SILK_TOUCH);
+     private static final LootItemCondition.Builder HAS_NO_SHEARS_OR_SILK_TOUCH = HAS_SHEARS_OR_SILK_TOUCH.invert();
+     private static final Set<Item> EXPLOSION_RESISTANT = Stream.of(Blocks.DRAGON_EGG, Blocks.BEACON, Blocks.CONDUIT, Blocks.SKELETON_SKULL, Blocks.WITHER_SKELETON_SKULL, Blocks.PLAYER_HEAD, Blocks.ZOMBIE_HEAD, Blocks.CREEPER_HEAD, Blocks.DRAGON_HEAD, Blocks.SHULKER_BOX, Blocks.BLACK_SHULKER_BOX, Blocks.BLUE_SHULKER_BOX, Blocks.BROWN_SHULKER_BOX, Blocks.CYAN_SHULKER_BOX, Blocks.GRAY_SHULKER_BOX, Blocks.GREEN_SHULKER_BOX, Blocks.LIGHT_BLUE_SHULKER_BOX, Blocks.LIGHT_GRAY_SHULKER_BOX, Blocks.LIME_SHULKER_BOX, Blocks.MAGENTA_SHULKER_BOX, Blocks.ORANGE_SHULKER_BOX, Blocks.PINK_SHULKER_BOX, Blocks.PURPLE_SHULKER_BOX, Blocks.RED_SHULKER_BOX, Blocks.WHITE_SHULKER_BOX, Blocks.YELLOW_SHULKER_BOX).map(ItemLike::asItem).collect(ImmutableSet.toImmutableSet());
+-    private static final float[] NORMAL_LEAVES_SAPLING_CHANCES = new float[]{0.05F, 0.0625F, 0.083333336F, 0.1F};
++    public static final float[] NORMAL_LEAVES_SAPLING_CHANCES = new float[]{0.05F, 0.0625F, 0.083333336F, 0.1F}; // Martijn - custom blocks and items
+     private static final float[] JUNGLE_LEAVES_SAPLING_CHANGES = new float[]{0.025F, 0.027777778F, 0.03125F, 0.041666668F, 0.1F};
+     private static final float[] NORMAL_LEAVES_STICK_CHANCES = new float[]{0.02F, 0.022222223F, 0.025F, 0.033333335F, 0.1F};
+     private final Map<ResourceLocation, LootTable.Builder> map = Maps.newHashMap();
+@@ -225,7 +225,7 @@ public class BlockLoot implements Consumer<BiConsumer<ResourceLocation, LootTabl
+         }).apply(SetItemCountFunction.setCount(ConstantValue.exactly(-1.0F), true)))));
+     }
+ 
+-    private static LootTable.Builder createLeavesDrops(Block leaves, Block drop, float... chance) {
++    public static LootTable.Builder createLeavesDrops(Block leaves, Block drop, float... chance) { // Martijn - custom blocks and items
+         return createSilkTouchOrShearsDispatchTable(leaves, applyExplosionCondition(leaves, LootItem.lootTableItem(drop)).when(BonusLevelTableCondition.bonusLevelFlatChance(Enchantments.BLOCK_FORTUNE, chance))).withPool(LootPool.lootPool().setRolls(ConstantValue.exactly(1.0F)).when(HAS_NO_SHEARS_OR_SILK_TOUCH).add(applyExplosionDecay(leaves, LootItem.lootTableItem(Items.STICK).apply(SetItemCountFunction.setCount(UniformGenerator.between(1.0F, 2.0F)))).when(BonusLevelTableCondition.bonusLevelFlatChance(Enchantments.BLOCK_FORTUNE, NORMAL_LEAVES_STICK_CHANCES))));
+     }
+ 
+diff --git a/src/main/java/net/minecraft/world/level/block/Blocks.java b/src/main/java/net/minecraft/world/level/block/Blocks.java
+index 364646f4785f437433ba4f961598c73113bc7ae5..8efa8580cc0c153f838efd122c4e496dee64aba8 100644
+--- a/src/main/java/net/minecraft/world/level/block/Blocks.java
++++ b/src/main/java/net/minecraft/world/level/block/Blocks.java
+@@ -1096,7 +1096,7 @@ public class Blocks {
+         return (boolean)true;
+     }
+ 
+-    private static Boolean ocelotOrParrot(BlockState state, BlockGetter world, BlockPos pos, EntityType<?> type) {
++    public static Boolean ocelotOrParrot(BlockState state, BlockGetter world, BlockPos pos, EntityType<?> type) { // Martijn - custom blocks and items
+         return type == EntityType.OCELOT || type == EntityType.PARROT;
+     }
+ 
+@@ -1143,7 +1143,7 @@ public class Blocks {
+         return true;
+     }
+ 
+-    private static boolean never(BlockState state, BlockGetter world, BlockPos pos) {
++    public static boolean never(BlockState state, BlockGetter world, BlockPos pos) { // Martijn - custom blocks and items
+         return false;
+     }
+ 
+@@ -1151,7 +1151,7 @@ public class Blocks {
+         return new StainedGlassBlock(color, BlockBehaviour.Properties.of(Material.GLASS, color).strength(0.3F).sound(SoundType.GLASS).noOcclusion().isValidSpawn(Blocks::never).isRedstoneConductor(Blocks::never).isSuffocating(Blocks::never).isViewBlocking(Blocks::never));
+     }
+ 
+-    private static LeavesBlock leaves(SoundType soundGroup) {
++    public static LeavesBlock leaves(SoundType soundGroup) {
+         return new LeavesBlock(BlockBehaviour.Properties.of(Material.LEAVES).strength(0.2F).randomTicks().sound(soundGroup).noOcclusion().isValidSpawn(Blocks::ocelotOrParrot).isSuffocating(Blocks::never).isViewBlocking(Blocks::never));
+     }
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
+index 8a87612c8dbb1811749f83c4064eff3a3e073971..639ee95bdf206cf4d595557e4f684d1acae915fa 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
+@@ -5,6 +5,7 @@ package nl.martijnmuijsers.paper.block;
+ import net.minecraft.data.loot.BlockLoot;
+ import net.minecraft.world.level.ItemLike;
+ import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.storage.loot.LootPool;
+ import net.minecraft.world.level.storage.loot.LootTable;
+ import net.minecraft.world.level.storage.loot.entries.LootItem;
+@@ -23,24 +24,28 @@ public final class SuCraftBlockLoot {
+ 
+     private static final @NotNull BlockLoot blockLoot = new BlockLoot();
+ 
+-    public static @NotNull LootTable dropSelf(Block block) {
++    public static @NotNull LootTable dropSelf(@NotNull Block block) {
+         return dropSingleItem(block);
+     }
+ 
+-    public static @NotNull LootTable dropSingleItem(ItemLike drop) {
++    public static @NotNull LootTable dropSingleItem(@NotNull ItemLike drop) {
+         return blockLoot.createSingleItemTable(drop).build();
+     }
+ 
+-    public static @NotNull LootTable dropSingleItemWhenSilkTouch(ItemLike drop) {
++    public static @NotNull LootTable dropSingleItemWhenSilkTouch(@NotNull ItemLike drop) {
+         return blockLoot.createSilkTouchOnlyTable(drop).build();
+     }
+ 
+-    public static @NotNull LootTable dropSingleItemAndSingleItemWhenSilkTouch(ItemLike withoutSilkTouch, Block withSilkTouch) {
++    public static @NotNull LootTable dropSingleItemAndSingleItemWhenSilkTouch(@NotNull ItemLike withoutSilkTouch, @NotNull Block withSilkTouch) {
+         return blockLoot.createSingleItemTableWithSilkTouch(withSilkTouch, withoutSilkTouch).build();
+     }
+ 
+-    public static @NotNull LootTable dropSingleItemAndSingleItemWhenSilkTouch(ItemLike withoutSilkTouch, NumberProvider withoutSilkTouchAmount, Block withSilkTouch) {
++    public static @NotNull LootTable dropSingleItemAndSingleItemWhenSilkTouch(@NotNull ItemLike withoutSilkTouch, @NotNull NumberProvider withoutSilkTouchAmount, @NotNull Block withSilkTouch) {
+         return blockLoot.createSingleItemTableWithSilkTouch(withSilkTouch, withoutSilkTouch, withoutSilkTouchAmount).build();
+     }
+ 
++    public static @NotNull LootTable dropLeaves(@NotNull Block block, @NotNull Block saplingBlock) {
++        return blockLoot.createLeavesDrops(block, saplingBlock, blockLoot.NORMAL_LEAVES_SAPLING_CHANCES).build();
++    }
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 51301215bbfe36c5171d3d2a266d2d8655af8a69..bc5323cd678123e49f627d20a8823a87e388107a 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -9,6 +9,7 @@ import net.minecraft.world.item.Items;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.InfestedBlock;
++import net.minecraft.world.level.block.LeavesBlock;
+ import net.minecraft.world.level.block.RotatedPillarBlock;
+ import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+@@ -150,6 +151,13 @@ public class SuCraftBlocks {
+     public static final Block DRIPSTONE_PILLAR = registerStonePillar("dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
+     public static final Block GRANITE_PILLAR = registerStonePillar("granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
+     public static final Block TUFF_PILLAR = registerStonePillar("tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
++    public static final Block FIERY_BIRCH_LEAVES = registerLeaves("fiery_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_ORANGE);
++    public static final Block YELLOW_BIRCH_LEAVES = registerLeaves("yellow_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_YELLOW);
++    public static final Block RED_OAK_LEAVES = registerLeaves("red_oak", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_RED);
++    public static final Block ORANGE_OAK_LEAVES = registerLeaves("orange_oak", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_ORANGE);
++    public static final Block RED_MAPLE_LEAVES = registerLeaves("red_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_RED);
++    public static final Block ORANGE_MAPLE_LEAVES = registerLeaves("orange_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_ORANGE);
++    public static final Block YELLOW_MAPLE_LEAVES = registerLeaves("yellow_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_YELLOW);
+ 
+     private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
+         return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
+@@ -327,6 +335,22 @@ public class SuCraftBlocks {
+         );
+     }
+ 
++    /**
++     * Based on {@link Blocks#BIRCH_LEAVES}
++     */
++    private static @NotNull Block registerLeaves(@NotNull String leavesType, @NotNull Block host, @NotNull Block saplingBlock, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
++        return register(
++            leavesType + "_leaves",
++            new SingleMultiStateRealBlockReplacementRuleBuilder()
++                .withOneNonWaterLoggedAndOneWaterLoggedHost(host)
++                .withFallback(fallback) // TODO this is incorrect, it should maintain the waterloggedness (or just any state for that matter)
++                .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
++                .withFullBlockBoundingBoxItem(),
++            new LeavesBlock(BlockBehaviour.Properties.of(Material.LEAVES, materialColor).strength(0.2F).randomTicks().sound(SoundType.GRASS).noOcclusion().isValidSpawn(Blocks::ocelotOrParrot).isSuffocating(Blocks::never).isViewBlocking(Blocks::never)),
++            block -> SuCraftBlockLoot.dropLeaves(block, saplingBlock)
++        );
++    }
++
+     public static Block bootstrap() {
+         SNOWY_STONE_BRICKS.toString();
+         return SNOWY_STONE_BRICKS;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftObservableBlockTagsSpreader.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftObservableBlockTagsSpreader.java
+index eebb8dfdfec58f190a6e29ae845a67ee2aa9ea8b..b2d641eb697be26eebcc3eb5d3765994a7436f39 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftObservableBlockTagsSpreader.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftObservableBlockTagsSpreader.java
+@@ -32,13 +32,13 @@ public class SuCraftObservableBlockTagsSpreader extends SuCraftTagsProvider<Bloc
+ 
+     @Override
+     protected void addTags(Map<TagKey<Block>, List<Holder<Block>>> existingRegistryTagEntries) {
+-        final List<TagKey<Block>> mineableTags = List.of(BlockTags.MINEABLE_WITH_AXE, BlockTags.MINEABLE_WITH_HOE, BlockTags.MINEABLE_WITH_PICKAXE, BlockTags.MINEABLE_WITH_SHOVEL);
++        final List<TagKey<Block>> tagsToSpread = List.of(BlockTags.MINEABLE_WITH_AXE, BlockTags.MINEABLE_WITH_HOE, BlockTags.MINEABLE_WITH_PICKAXE, BlockTags.MINEABLE_WITH_SHOVEL, BlockTags.LEAVES /* To allow custom leaves to inherit being broken by shears fast */);
+         MinecraftServer.LOGGER.info("Inheriting mineable with tool tags for custom blocks...");
+         for (Block block : Registry.BLOCK) {
+             BlockReplacementRule blockReplacementRule = block.replacementRule;
+             if (blockReplacementRule != null) {
+                 for (@NotNull Pair<@NotNull Block, @NotNull Block> observationReplacement : blockReplacementRule.getPotentialBlockReplacementPairs()) {
+-                    for (TagKey<Block> tag : mineableTags) {
++                    for (TagKey<Block> tag : tagsToSpread) {
+                         var holder = this.registry.getHolderOrThrow(this.registry.getResourceKey(observationReplacement.second()).get());
+                         if (existingRegistryTagEntries.getOrDefault(tag, Collections.emptyList()).contains(holder)) {
+                             this.tag(tag).add(this.registry.getResourceKey(observationReplacement.first()).get());
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/UsedHostBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/block/UsedHostBlockStates.java
+index a38b830ea76cf1441f6044485c2727947110c794..22ff7d33bd62ccd41dcbd686c6b6a645ffd2d4f6 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/UsedHostBlockStates.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/UsedHostBlockStates.java
+@@ -55,7 +55,7 @@ public final class UsedHostBlockStates {
+     private static @NotNull List<@NotNull BlockState> getDefaultPossibleBlockStatesForBlock(@NotNull Block block) {
+         return defaultPossibleBlockStatesByBlock.computeIfAbsent(block, $ -> {
+             @NotNull List<@NotNull BlockState> allBlockStates = new ArrayList<>(block.getStateDefinition().getPossibleStates());
+-            @NotNull Set<@NotNull BlockState> hostReplacements = allBlockStates.stream().map(it -> getHostReplacement(it)).collect(Collectors.toSet());
++            @NotNull List<@NotNull BlockState> hostReplacements = allBlockStates.stream().map(UsedHostBlockStates::getHostReplacement).distinct().toList();
+             allBlockStates.removeAll(hostReplacements);
+             return allBlockStates;
+         });
+@@ -66,7 +66,9 @@ public final class UsedHostBlockStates {
+     }
+ 
+     public static @NotNull Pair<@NotNull BlockState, @NotNull BlockState> generateUnusedHostAndReplacement(@NotNull List<@NotNull BlockState> possibleBlockStates) {
+-        for (@NotNull BlockState possibleBlockState : possibleBlockStates) {
++        @NotNull List<@NotNull BlockState> possibleBlockStatesWithoutReplacements = new ArrayList<>(possibleBlockStates);
++        possibleBlockStates.stream().map(UsedHostBlockStates::getHostReplacement).distinct().forEach(possibleBlockStatesWithoutReplacements::remove);
++        for (@NotNull BlockState possibleBlockState : possibleBlockStatesWithoutReplacements) {
+             if (usedBlockStates.add(possibleBlockState)) {
+                 return Pair.of(possibleBlockState, getHostReplacement(possibleBlockState));
+             }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
+index ddd107d81f50d466004538c4eeecd9565d2f0123..dbbfec0e26a7333afd15b519b6b6d9a619a13a99 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
+@@ -20,7 +20,6 @@ import org.jetbrains.annotations.Nullable;
+ import java.util.IdentityHashMap;
+ import java.util.List;
+ import java.util.Map;
+-import java.util.function.Consumer;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ 
+@@ -137,6 +136,29 @@ public interface BlockReplacementRuleBuilder<R extends BlockReplacementRule, B e
+         return this.withNextUnusedStatesOfHostBlock(Blocks.NOTE_BLOCK);
+     }
+ 
++    /**
++     * Takes an unused state of the host block that is not waterlogged, and sets it as the host for all real block states that are not waterlogged,
++     * and takes an unused state of the host block that is waterlogged, and sets it as the host for all real block states that are waterlogged,
++     * and also sets the host replacements appropriately
++     */
++    default @NotNull B withOneNonWaterLoggedAndOneWaterLoggedHost(@NotNull Block hostBlock) {
++        @NotNull List<@NotNull BlockState> hostBlockStates = hostBlock.getStateDefinition().getPossibleStates();
++        @NotNull List<@NotNull BlockState> nonWaterloggedHostBlockStates = hostBlockStates.stream().filter(potentialHost -> !potentialHost.getValue(BlockStateProperties.WATERLOGGED)).toList();
++        @NotNull List<@NotNull BlockState> waterloggedHostBlockStates = hostBlockStates.stream().filter(potentialHost -> potentialHost.getValue(BlockStateProperties.WATERLOGGED)).toList();
++        @NotNull Pair<@NotNull BlockState, @NotNull BlockState> nonWaterloggedHostAndReplacement = UsedHostBlockStates.generateUnusedHostAndReplacement(nonWaterloggedHostBlockStates);
++        @NotNull Pair<@NotNull BlockState, @NotNull BlockState> waterloggedHostAndReplacement = UsedHostBlockStates.generateUnusedHostAndReplacement(waterloggedHostBlockStates);
++        return this
++            .withHostForRealState(realState -> (realState.getValue(BlockStateProperties.WATERLOGGED) ? waterloggedHostAndReplacement : nonWaterloggedHostAndReplacement).left())
++            .withHostReplacementForHost(host -> {
++                if (host.equals(nonWaterloggedHostAndReplacement.left())) {
++                    return nonWaterloggedHostAndReplacement.right();
++                } else if (host.equals(waterloggedHostAndReplacement.left())) {
++                    return waterloggedHostAndReplacement.right();
++                }
++                return null;
++            });
++    }
++
+     /**
+      * One fallback for all real block states
+      */
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
+index 34bbf1173a3e6f3aff1fb2e84c491b61613d46a9..e7a9890230a90705656c474e31e9b9594645b64c 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
+@@ -46,16 +46,16 @@ public class MultiStateRealBlockReplacementRule extends BlockReplacementRuleBase
+ 
+     private final @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost;
+ 
+-    public MultiStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @NotNull Set<@NotNull BlockState> hostSet, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost, @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState, @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost, List<@NotNull HostItemReplacementRule> hostItemRules) {
++    public MultiStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @NotNull List<@NotNull BlockState> hosts, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost, @NotNull List<@NotNull BlockState> fallbacks, @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState, @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost, List<@NotNull HostItemReplacementRule> hostItemRules) {
+         super(real, realItemRule, hostItemRules);
+         this.hostSet = Collections.newSetFromMap(new IdentityHashMap<>());
+-        this.hostSet.addAll(hostSet);
+-        this.hostList = List.copyOf(this.hostSet);
++        this.hostSet.addAll(hosts);
++        this.hostList = List.copyOf(hosts);
+         this.hostPerRealState = new IdentityHashMap<>(hostPerRealState);
+         this.hostReplacementPerHost = new IdentityHashMap<>(hostReplacementPerHost);
++        this.fallbackList = fallbacks;
+         this.fallbackPerRealState = new IdentityHashMap<>(fallbackPerRealState);
+-        this.fallbackList = fallbackPerRealState.values().stream().distinct().toList();
+-        this.hostAndFallbackBlocks = Streams.concat(this.hostList.stream().map(BlockState::getBlock), this.fallbackPerRealState.values().stream().map(BlockState::getBlock)).distinct().toList();
++        this.hostAndFallbackBlocks = Stream.of(this.hostList, this.fallbackList).flatMap(List::stream).map(BlockState::getBlock).distinct().toList();
+         this.potentialBlockReplacementPairs = Stream.of(this.hostPerRealState, this.hostReplacementPerHost, this.fallbackPerRealState)
+             .flatMap(map -> map.entrySet().stream().map(entry -> Pair.of(entry.getKey().getBlock(), entry.getValue().getBlock())))
+             .filter(pair -> !pair.left().equals(pair.right()))
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
+index 2247f0003a6b37229ab31c2bad2370af860d1a8e..97561597abab4e314360922fe4e183281539e079 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
+@@ -193,16 +193,22 @@ public class SingleMultiStateRealBlockReplacementRuleBuilder implements BlockRep
+                 hostItemRules
+             );
+         }
+-        @NotNull Set<@NotNull BlockState> hosts = Collections.newSetFromMap(new IdentityHashMap<>(0));
++        @NotNull List<@NotNull BlockState> hosts = new ArrayList<>();
+         @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState = new IdentityHashMap<>(0);
+         @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost = new IdentityHashMap<>(0);
++        @NotNull List<@NotNull BlockState> fallbacks = new ArrayList<>();
+         @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState = new IdentityHashMap<>(0);
+         @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost = new IdentityHashMap<>(0);
+         for (@NotNull BlockState realState : realStates) {
+             @NotNull BlockState host = Validate.notNull(this.hostForRealState.apply(realState));
++            if (!hosts.contains(host)) {
++                hosts.add(host);
++            }
+             hostPerRealState.put(realState, host);
+-            hosts.add(host);
+             @NotNull BlockState fallback = Validate.notNull(this.fallbackForRealState.apply(realState));
++            if (!fallbacks.contains(fallback)) {
++                fallbacks.add(fallback);
++            }
+             fallbackPerRealState.put(realState, fallback);
+             if (!modelPerHost.containsKey(host)) {
+                 @NotNull ModelWithParameters model = Validate.notNull(this.modelForRealState.apply(realState));
+@@ -219,6 +225,7 @@ public class SingleMultiStateRealBlockReplacementRuleBuilder implements BlockRep
+             hosts,
+             hostPerRealState,
+             hostReplacementPerHost,
++            fallbacks,
+             fallbackPerRealState,
+             modelPerHost,
+             hostItemRules
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
+index a6930c41981691b495a6aaa59f12e130037245af..fd94774e806ce90ee1b8306622a04f8457aae4bc 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
+@@ -47,6 +47,11 @@ public interface ItemReplacementRule {
+ 
+     void addToResourcePack(@NotNull MutableResourcePack resourcePack);
+ 
++    /**
++     * @see SuCraftItems#bootstrap
++     */
++    void initializeOrderSensitiveLateInitializations();
++
+     class SimpleItemReplacementRule implements ItemReplacementRule {
+ 
+         public static class Builder implements ItemReplacementRule.Builder {
+@@ -151,6 +156,10 @@ public interface ItemReplacementRule {
+ 
+         }
+ 
++        /**
++         * @see SuCraftItems#bootstrap
++         */
++        private boolean orderSensitiveLateInitializationsHaveStarted = false;
+         private final @NotNull Item real;
+         private @Nullable Item lowPingHost = null;
+         private @Nullable Supplier<@NotNull Item> lowPingHostSupplier;
+@@ -242,6 +251,9 @@ public interface ItemReplacementRule {
+         }
+ 
+         public @NotNull Item getLowPingHost() {
++            if (!orderSensitiveLateInitializationsHaveStarted) {
++                throw new IllegalStateException("SimpleItemReplacementRule.getLowPingHost cannot be called before order-sensitive late initialization");
++            }
+             if (this.lowPingHost == null) {
+                 this.lowPingHost = this.lowPingHostSupplier.get();
+                 this.lowPingHostSupplier = null;
+@@ -250,6 +262,9 @@ public interface ItemReplacementRule {
+         }
+ 
+         public int getLowPingHostCustomModelData() {
++            if (!orderSensitiveLateInitializationsHaveStarted) {
++                throw new IllegalStateException("SimpleItemReplacementRule.getLowPingHostCustomModelData cannot be called before order-sensitive late initialization");
++            }
+             if (this.lowPingHostCustomModelData == -1) {
+                 this.lowPingHostCustomModelData = this.computeLowPingHostCustomModelData.apply(this.getLowPingHost());
+                 this.computeLowPingHostCustomModelData = null;
+@@ -258,6 +273,9 @@ public interface ItemReplacementRule {
+         }
+ 
+         public @NotNull Item getHighPingHost() {
++            if (!orderSensitiveLateInitializationsHaveStarted) {
++                throw new IllegalStateException("SimpleItemReplacementRule.getHighPingHost cannot be called before order-sensitive late initialization");
++            }
+             if (this.highPingHost == null) {
+                 this.highPingHost = this.highPingHostSupplier.get();
+                 this.highPingHostSupplier = null;
+@@ -266,6 +284,9 @@ public interface ItemReplacementRule {
+         }
+ 
+         public int getHighPingHostCustomModelData() {
++            if (!orderSensitiveLateInitializationsHaveStarted) {
++                throw new IllegalStateException("SimpleItemReplacementRule.getHighPingHostCustomModelData cannot be called before order-sensitive late initialization");
++            }
+             if (this.highPingHostCustomModelData == -1) {
+                 this.highPingHostCustomModelData = this.computeHighPingHostCustomModelData.apply(this.getHighPingHost());
+                 this.computeHighPingHostCustomModelData = null;
+@@ -324,6 +345,15 @@ public interface ItemReplacementRule {
+ 
+         }
+ 
++        @Override
++        public void initializeOrderSensitiveLateInitializations() {
++            this.orderSensitiveLateInitializationsHaveStarted = true;
++            this.getLowPingHost();
++            this.getLowPingHostCustomModelData();
++            this.getHighPingHost();
++            this.getHighPingHostCustomModelData();
++        }
++
+     }
+ 
+     static @NotNull SimpleItemReplacementRule.Builder simple() {
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+index 83888787e8ee505f2a22500d096672de2af9d7d7..9f6e78726ba2a02ed112083aedafed4efe53d439 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+@@ -102,6 +102,13 @@ public class SuCraftItems {
+     public static final Item DRIPSTONE_PILLAR = registerPillar(SuCraftBlocks.DRIPSTONE_PILLAR, "Dripstone", () -> Items.DRIPSTONE_BLOCK);
+     public static final Item GRANITE_PILLAR = registerPillar(SuCraftBlocks.GRANITE_PILLAR, "Granite", () -> Items.POLISHED_GRANITE);
+     public static final Item TUFF_PILLAR = registerPillar(SuCraftBlocks.TUFF_PILLAR, "Tuff", () -> Items.TUFF);
++    public static final Item FIERY_BIRCH_LEAVES = registerLeaves(SuCraftBlocks.FIERY_BIRCH_LEAVES, "Fiery Birch", () -> Items.ACACIA_LEAVES);
++    public static final Item YELLOW_BIRCH_LEAVES = registerLeaves(SuCraftBlocks.YELLOW_BIRCH_LEAVES, "Yellow Birch", () -> Items.ACACIA_LEAVES);
++    public static final Item RED_OAK_LEAVES = registerLeaves(SuCraftBlocks.RED_OAK_LEAVES, "Red Oak", () -> Items.ACACIA_LEAVES);
++    public static final Item ORANGE_OAK_LEAVES = registerLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES, "Orange Oak", () -> Items.ACACIA_LEAVES);
++    public static final Item RED_MAPLE_LEAVES = registerLeaves(SuCraftBlocks.RED_MAPLE_LEAVES, "Red Maple", () -> Items.ACACIA_LEAVES);
++    public static final Item ORANGE_MAPLE_LEAVES = registerLeaves(SuCraftBlocks.ORANGE_MAPLE_LEAVES, "Orange Maple", () -> Items.ACACIA_LEAVES);
++    public static final Item YELLOW_MAPLE_LEAVES = registerLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES, "Yellow Maple", () -> Items.ACACIA_LEAVES);
+ 
+     private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
+         return registerBlock(block, displayName, group, null);
+@@ -187,6 +194,13 @@ public class SuCraftItems {
+         return registerBlock(block, typeDisplayName + " Pillar", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(highPingHostSupplier));
+     }
+ 
++    /**
++     * Based on {@link Items#BIRCH_LEAVES}
++     */
++    private static @NotNull Item registerLeaves(@NotNull Block block, @NotNull String typeDisplayName, @NotNull Supplier<@NotNull Item> highPingHostSupplier) {
++        return registerBlock(block, typeDisplayName + " Leaves", CreativeModeTab.TAB_DECORATIONS, rule -> rule.withHighPingHost(highPingHostSupplier));
++    }
++
+     public static Item bootstrap() {
+         SNOWY_STONE_BRICKS.toString();
+         // Make sure that the item replacement rule for block items for which the block has some hosts that are potentially placed by vanilla items is registered with those vanilla items
+@@ -198,6 +212,14 @@ public class SuCraftItems {
+                 }
+             }
+         }
++        // Make sure that all item replacement rule late initializations are performed already (so that we know the order in which they are performed, and the order of for example assigning item host custom model data is consistent regardless of whether the resource pack is being newly created - i.e. regardless of whether ItemReplacementRule.addToResourcePack is called
++        // Item replacement rule late initializations that require consistent order between server sessions (within the same resource pack version), such as ItemReplacementRule.getLowPingHost, ItemReplacementRule.getLowPingHostCustomModelData, ItemReplacementRule.getHighPingHost and ItemReplacementRule.getHighPingHostCustomModelData, must never be called before this point
++        for (Item item : Registry.ITEM) {
++            ItemReplacementRule replacementRule = item.replacementRule;
++            if (replacementRule != null) {
++                replacementRule.initializeOrderSensitiveLateInitializations();
++            }
++        }
+         return SNOWY_STONE_BRICKS;
+     }
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+index d3e9311c85fcb62a60e573a1111df65235a82bb3..b926b570a95107d9c686357f71abe03b8b48011e 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+@@ -36,7 +36,7 @@ public final class CreateSuCraftResourcePack {
+ 
+     private CreateSuCraftResourcePack() {}
+ 
+-    private static final int currentResourcePackVersion = 43;
++    private static final int currentResourcePackVersion = 51;
+ 
+     private static final String RESOURCE_PACK_FOLDER_PATH = "resourcepack";
+     private static final String OUTPUT_FOLDER_PATH = RESOURCE_PACK_FOLDER_PATH + "/output";
