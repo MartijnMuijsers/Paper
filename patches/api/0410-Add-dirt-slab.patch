@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Sun, 10 Jul 2022 03:01:12 +0200
+Subject: [PATCH] Add dirt slab
+
+
+diff --git a/src/main/java/org/bukkit/Material.java b/src/main/java/org/bukkit/Material.java
+index 75b9737dc15906c997cc8a2886c7470a223c3219..16c979a584ce8101d76c96f69c60b0355b834c73 100644
+--- a/src/main/java/org/bukkit/Material.java
++++ b/src/main/java/org/bukkit/Material.java
+@@ -4124,7 +4124,8 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     SUCRAFT_ORANGE_OAK_LEAVES(78194, SUCRAFT_RED_OAK_LEAVES),
+     SUCRAFT_RED_MAPLE_LEAVES(78195, SUCRAFT_RED_OAK_LEAVES),
+     SUCRAFT_ORANGE_MAPLE_LEAVES(78196, SUCRAFT_RED_MAPLE_LEAVES),
+-    SUCRAFT_YELLOW_MAPLE_LEAVES(78197, SUCRAFT_RED_MAPLE_LEAVES);
++    SUCRAFT_YELLOW_MAPLE_LEAVES(78197, SUCRAFT_RED_MAPLE_LEAVES),
++    SUCRAFT_DIRT_SLAB(78198, MUD_BRICK_SLAB);
+ 
+     // Martijn end - custom blocks and items
+     //</editor-fold>
