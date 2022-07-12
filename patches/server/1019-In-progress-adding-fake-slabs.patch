@@ -1,0 +1,1620 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 12 Jul 2022 12:30:43 +0200
+Subject: [PATCH] In progress adding fake slabs
+
+
+diff --git a/src/main/java/net/minecraft/core/Rotations.java b/src/main/java/net/minecraft/core/Rotations.java
+index 152b1a2cb88c6456282b537611c18975d6da5f57..a353f9b9e20c0f23b04eee5885893d81f52a860d 100644
+--- a/src/main/java/net/minecraft/core/Rotations.java
++++ b/src/main/java/net/minecraft/core/Rotations.java
+@@ -3,12 +3,15 @@ package net.minecraft.core;
+ import net.minecraft.nbt.FloatTag;
+ import net.minecraft.nbt.ListTag;
+ import net.minecraft.util.Mth;
++import org.jetbrains.annotations.NotNull;
+ 
+ public class Rotations {
+     protected final float x;
+     protected final float y;
+     protected final float z;
+ 
++    public static final @NotNull Rotations ZERO = new Rotations(0, 0, 0); // Martijn - custom blocks and items
++
+     public Rotations(float pitch, float yaw, float roll) {
+         this.x = !Float.isInfinite(pitch) && !Float.isNaN(pitch) ? pitch % 360.0F : 0.0F;
+         this.y = !Float.isInfinite(yaw) && !Float.isNaN(yaw) ? yaw % 360.0F : 0.0F;
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 7e4e4ce59b6115590a519d35354b5db466961c47..07d14bf204eb04ad7430885e6d8cb0ed928fdf89 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -5,7 +5,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
+ import com.mojang.datafixers.util.Pair;
+ import com.mojang.logging.LogUtils;
+ import io.netty.bootstrap.Bootstrap;
+-import io.netty.buffer.Unpooled;
+ import io.netty.channel.Channel;
+ import io.netty.channel.ChannelException;
+ import io.netty.channel.ChannelFuture;
+@@ -22,7 +21,6 @@ import io.netty.channel.epoll.EpollSocketChannel;
+ import io.netty.channel.local.LocalChannel;
+ import io.netty.channel.local.LocalServerChannel;
+ import io.netty.channel.nio.NioEventLoopGroup;
+-import io.netty.channel.socket.SocketChannel;
+ import io.netty.channel.socket.nio.NioSocketChannel;
+ import io.netty.handler.timeout.ReadTimeoutHandler;
+ import io.netty.handler.timeout.TimeoutException;
+@@ -33,16 +31,12 @@ import java.net.InetSocketAddress;
+ import java.net.SocketAddress;
+ import java.util.BitSet;
+ import java.util.Collections;
+-import java.util.Optional;
+ import java.util.Queue;
+ import java.util.UUID;
+ import java.util.concurrent.RejectedExecutionException;
+-import java.util.stream.IntStream;
+ import javax.annotation.Nullable;
+-import javax.crypto.Cipher;
+ 
+ import io.papermc.paper.util.CoordinateUtils;
+-import it.unimi.dsi.fastutil.longs.Long2IntArrayMap;
+ import it.unimi.dsi.fastutil.longs.Long2IntMap;
+ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+@@ -51,22 +45,20 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+ import it.unimi.dsi.fastutil.longs.LongSet;
+ import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+-import net.minecraft.core.Registry;
++import net.minecraft.core.Direction;
++import net.minecraft.core.Rotations;
++import net.minecraft.core.SectionPos;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.PacketFlow;
+ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+-import net.minecraft.network.protocol.game.ClientboundBlockChangedAckPacket;
+-import net.minecraft.network.protocol.game.ClientboundBlockDestructionPacket;
+-import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+-import net.minecraft.network.protocol.game.ClientboundContainerSetContentPacket;
+-import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+ import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
+ import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
+-import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
++import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
+ import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
+ import net.minecraft.network.syncher.SynchedEntityData;
+ import net.minecraft.server.MinecraftServer;
+@@ -80,15 +72,12 @@ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.decoration.ArmorStand;
+ import net.minecraft.world.entity.player.Player;
+-import net.minecraft.world.item.ItemStack;
+-import net.minecraft.world.item.Items;
+-import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.block.state.BlockState;
+-import net.minecraft.world.level.chunk.LevelChunk;
++import net.minecraft.world.level.entity.EntityAccess;
+ import net.minecraft.world.phys.Vec3;
++import nl.martijnmuijsers.paper.resourcepack.asset.model.ResourcePackModel;
+ import org.apache.commons.lang3.Validate;
+-import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+-import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.inventory.CraftMetaItem;
+ import org.jetbrains.annotations.NotNull;
+ import org.slf4j.Logger;
+ import org.slf4j.Marker;
+@@ -150,14 +139,16 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private final @NotNull Long2IntMap blockEntityEntityIdByBlockPosKey = new Long2IntOpenHashMap();
+ 
+     /**
+-     * Stores the block state of the block entity (sent or to send) at the given block position (represented by a block key ({@link CoordinateUtils#getBlockKey}))
++     * Stores the information of the block entity that was last sent at the given block position (represented by a block key ({@link CoordinateUtils#getBlockKey}))
+      */
+-    private final @NotNull Long2ObjectMap<BlockState> blockEntityBlockStateByBlockPosKey = new Long2ObjectOpenHashMap<>(0);
++    private final @NotNull Long2ObjectMap<SentBlockEntityInformation> sentBlockEntityInformationByBlockPosKey = new Long2ObjectOpenHashMap<>(0);
++
++    private static record SentBlockEntityInformation(@NotNull BlockState blockState, boolean onPositiveXZCorner, boolean closebyModel) {}
+ 
+     /**
+      * Stores the block positions (represented by a block key ({@link CoordinateUtils#getBlockKey})) at the given chunk section position (represented by a chunk section key ({@link CoordinateUtils#getChunkSectionKey}))
+      */
+-    private final @NotNull Long2ObjectMap<@NotNull LongSet> blockEntityBlockPosKeysPerChunkSectionKey = new Long2ObjectOpenHashMap<>(0);
++    private final @NotNull Long2ObjectMap<LongSet> blockEntityBlockPosKeysPerChunkSectionKey = new Long2ObjectOpenHashMap<>(0);
+ 
+     /**
+      * Utility function used in {@link #spawnBlockEntity}
+@@ -187,54 +178,52 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         return (int) longArray[0];
+     }
+ 
+-    private void spawnBlockEntity(@NotNull BlockPos blockPos, @NotNull BlockState blockState) {
++    private void sendSetEquipmentPacket(int entityId, @NotNull SentBlockEntityInformation blockEntityInformationToSend) {
++        MinecraftServer.LOGGER.info("TEMP DEBUG - Sending " + entityId + " equipment: " + blockEntityInformationToSend.blockState + " , " + blockEntityInformationToSend.onPositiveXZCorner + " , " + blockEntityInformationToSend.closebyModel + " = " + blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemStack(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.onPositiveXZCorner, blockEntityInformationToSend.closebyModel).getTag().getInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT) + " ( " + blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemModel(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.onPositiveXZCorner, blockEntityInformationToSend.closebyModel).getKeyWithIntention() + " using custom model data " + blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemCustomModelData(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.onPositiveXZCorner, blockEntityInformationToSend.closebyModel) + " )");
++        this.send(new ClientboundSetEquipmentPacket(entityId, Collections.singletonList(new Pair<>(EquipmentSlot.HEAD, blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemStack(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.onPositiveXZCorner, blockEntityInformationToSend.closebyModel)))));
++    }
++
++    private void spawnBlockEntity(@NotNull BlockPos blockPos, @NotNull SentBlockEntityInformation blockEntityInformationToSend) {
+ 
+         long blockKey = CoordinateUtils.getBlockKey(blockPos);
+         int entityId = blockEntityEntityIdByBlockPosKey.computeIfAbsent(blockKey, $ -> Entity.ENTITY_COUNTER.incrementAndGet());
+-        blockEntityBlockStateByBlockPosKey.put(blockKey, blockState);
++        MinecraftServer.LOGGER.info("TEMP DEBUG - Spawning " + entityId + " at " + blockPos.getX() + ", " + blockPos.getY() + ", " + blockPos.getZ());
++        sentBlockEntityInformationByBlockPosKey.put(blockKey, blockEntityInformationToSend);
+         long chunkSectionKey = CoordinateUtils.getChunkSectionKey(blockPos);
+         blockEntityBlockPosKeysPerChunkSectionKey.computeIfAbsent(chunkSectionKey, $ -> new LongOpenHashSet(0)).add(blockKey);
+         UUID entityUUID = UUID.randomUUID();
+ 
+         // Send the add entity packet
+-        this.send(new ClientboundAddEntityPacket(entityId, entityUUID, blockPos.getX(), blockPos.getY(), blockPos.getZ(), 0F, 0F, EntityType.ARMOR_STAND, 0, Vec3.ZERO, 0));
++        this.send(new ClientboundAddEntityPacket(
++            entityId,
++            entityUUID,
++            blockPos.getX() + 0.5F + (blockEntityInformationToSend.onPositiveXZCorner ? ResourcePackModel.BLOCK_ENTITY_ARMOR_STAND_DXZ : -ResourcePackModel.BLOCK_ENTITY_ARMOR_STAND_DXZ),
++            blockPos.getY() + ResourcePackModel.BLOCK_ENTITY_ARMOR_STAND_DY,
++            blockPos.getZ() + 0.5F + (blockEntityInformationToSend.onPositiveXZCorner ? ResourcePackModel.BLOCK_ENTITY_ARMOR_STAND_DXZ : -ResourcePackModel.BLOCK_ENTITY_ARMOR_STAND_DXZ),
++            0F,
++            0F,
++            EntityType.ARMOR_STAND,
++            0,
++            Vec3.ZERO,
++            0
++        ));
+ 
+         // Send the set equipment packet
+-        this.send(new ClientboundSetEquipmentPacket(entityId, Collections.singletonList(new Pair<>(EquipmentSlot.HEAD, blockState.getBlock().replacementRule.getBlockEntityItemStack(blockState)))));
++        sendSetEquipmentPacket(entityId, blockEntityInformationToSend);
+ 
+         // Send the set entity data packet
+-        var setEntityDataBuf = new FriendlyByteBuf(Unpooled.buffer());
+-        setEntityDataBuf.writeVarInt(entityId);
+-        setEntityDataBuf.writeVarInt(0x4D);
+-        // Entity shared flags
+-        {
+-            var entitySharedFlagsBitset = new BitSet(8);
+-            entitySharedFlagsBitset.set(0, false); // On fire
+-            entitySharedFlagsBitset.set(5, false); // Invisible
+-            entitySharedFlagsBitset.set(6, false); // Glowing
+-            writeMetadataSharedFlags(setEntityDataBuf, 0, bitsetToInt(entitySharedFlagsBitset));
+-        }
+-        // Armor stand shared flags
+-        {
+-            var armorStandSharedFlagsBitset = new BitSet(8);
+-            armorStandSharedFlagsBitset.set(0, false); // Small
+-            armorStandSharedFlagsBitset.set(2, false); // Has arms
+-            armorStandSharedFlagsBitset.set(3, false); // Has base plate
+-            armorStandSharedFlagsBitset.set(4, false); // Marker
+-            writeMetadataSharedFlags(setEntityDataBuf, 15, bitsetToInt(armorStandSharedFlagsBitset));
+-        }
+-        // Head rotation, body rotation, left arm rotation, right arm rotation, left leg rotation and right leg rotation
+-        writeMetadataRotation(setEntityDataBuf, 16, 0, 0, 0);
+-        writeMetadataRotation(setEntityDataBuf, 17, 0, 0, 0);
+-        writeMetadataRotation(setEntityDataBuf, 18, 0, 0, 0);
+-        writeMetadataRotation(setEntityDataBuf, 19, 0, 0, 0);
+-        writeMetadataRotation(setEntityDataBuf, 20, 0, 0, 0);
+-        writeMetadataRotation(setEntityDataBuf, 21, 0, 0, 0);
+-        setEntityDataBuf.writeByte(0xFF);
+-        @NotNull ClientboundSetEntityDataPacket setEntityDataPacket = new ClientboundSetEntityDataPacket(setEntityDataBuf);
+-        setEntityDataPacket.getUnpackedData().stream().filter(it -> it.getAccessor() == ArmorStand.DATA_CLIENT_FLAGS).findFirst().ifPresent(item -> {
+-            ((SynchedEntityData.DataItem<Byte>) item).setValue((byte) (((byte) item.getValue()) & ~(1 << 3)));
+-        });
++        @NotNull ClientboundSetEntityDataPacket setEntityDataPacket = new ClientboundSetEntityDataPacket(entityId);
++        var setEntityDataUnpackedData = setEntityDataPacket.getUnpackedData();
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_SHARED_FLAGS_ID, (byte) (1 << Entity.FLAG_INVISIBLE)));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_NO_GRAVITY, true));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_SILENT, true));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_CLIENT_FLAGS, (byte) (ArmorStand.CLIENT_FLAG_NO_BASEPLATE | ArmorStand.CLIENT_FLAG_MARKER)));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_HEAD_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_BODY_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_LEFT_ARM_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_RIGHT_ARM_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_LEFT_LEG_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_RIGHT_LEG_POSE, Rotations.ZERO));
+         this.send(setEntityDataPacket);
+ 
+     }
+@@ -245,7 +234,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             return;
+         }
+         int entityId = this.blockEntityEntityIdByBlockPosKey.remove(blockKey);
+-        this.blockEntityBlockStateByBlockPosKey.remove(blockKey);
++        this.sentBlockEntityInformationByBlockPosKey.remove(blockKey);
+         if (needToRemoveFromPerChunkSectionKey) {
+             long chunkSectionKey = CoordinateUtils.getChunkSectionKey(blockPos);
+             this.blockEntityBlockPosKeysPerChunkSectionKey.computeIfPresent(chunkSectionKey, ($, blockPosKeys) -> {
+@@ -260,18 +249,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     }
+ 
+     /**
+-     * Also despawns any existing sent block entity at the position that has a different block state
++     * Updates any existing sent block entity at the position that had different information,
++     * and spawns a new block entity if no such existing sent block entity exists
+      */
+-    private void spawnBlockEntityIfNotSent(@NotNull BlockPos blockPos, @NotNull BlockState blockState) {
++    private void updateBlockEntityOrSpawnIfNotSent(@NotNull BlockPos blockPos, @NotNull SentBlockEntityInformation blockEntityInformationToSend) {
+         long blockKey = CoordinateUtils.getBlockKey(blockPos);
+-        @Nullable BlockState existingSentBlockState = blockEntityBlockStateByBlockPosKey.get(blockKey);
+-        if (existingSentBlockState != null) {
+-            if (existingSentBlockState.equals(blockState)) {
+-                return;
++        @Nullable SentBlockEntityInformation existingSentBlockEntityInformation = this.sentBlockEntityInformationByBlockPosKey.get(blockKey);
++        if (existingSentBlockEntityInformation != null) {
++            boolean updated = false;
++            Integer lookedUpEntityId = null;
++            if (!existingSentBlockEntityInformation.blockState.equals(blockEntityInformationToSend.blockState) || existingSentBlockEntityInformation.onPositiveXZCorner != blockEntityInformationToSend.onPositiveXZCorner || existingSentBlockEntityInformation.closebyModel != (blockEntityInformationToSend.closebyModel)) {
++                if (lookedUpEntityId == null) {
++                    lookedUpEntityId = this.blockEntityEntityIdByBlockPosKey.get(blockKey);
++                }
++                // Send a set equipment packet to change the observed block state
++                sendSetEquipmentPacket(lookedUpEntityId, blockEntityInformationToSend);
++                updated = true;
++            }
++            if (existingSentBlockEntityInformation.onPositiveXZCorner != blockEntityInformationToSend.onPositiveXZCorner) {
++                if (lookedUpEntityId == null) {
++                    lookedUpEntityId = this.blockEntityEntityIdByBlockPosKey.get(blockKey);
++                }
++                // Send a move packet to change the position
++                short dxz = blockEntityInformationToSend.onPositiveXZCorner ? ResourcePackModel.DOUBLE_BLOCK_ENTITY_ARMOR_STAND_DXZ_AS_POS_MOVE_SHORT : -ResourcePackModel.DOUBLE_BLOCK_ENTITY_ARMOR_STAND_DXZ_AS_POS_MOVE_SHORT;
++                this.send(new ClientboundMoveEntityPacket.Pos(lookedUpEntityId, dxz, (short) 0, dxz, false));
++                updated = true;
++            }
++            if (updated) {
++                sentBlockEntityInformationByBlockPosKey.put(blockKey, blockEntityInformationToSend);
+             }
+-            this.despawnBlockEntity(blockPos, true);
++            return;
+         }
+-        this.spawnBlockEntity(blockPos, blockState);
++        this.spawnBlockEntity(blockPos, blockEntityInformationToSend);
+     }
+ 
+     /**
+@@ -281,27 +290,72 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+      */
+     public void updatePotentialBlockEntityAtPosition(@NotNull BlockPos blockPos) {
+         long blockKey = CoordinateUtils.getBlockKey(blockPos);
+-        @NotNull BlockState state = this.getPlayer().getLevel().getBlockState(blockPos);
++        var player = this.getPlayer();
++        var level = player.getLevel();
++        @NotNull BlockState state = level.getBlockState(blockPos);
+         @Nullable var replacementRule = state.getBlock().replacementRule;
+-        if (replacementRule == null || !replacementRule.rendersAsEntity()) {
++        if (replacementRule == null || !replacementRule.hasAsReal(state.getBlock()) || !replacementRule.rendersAsEntity()) {
+             if (this.blockEntityEntityIdByBlockPosKey.containsKey(blockKey)) {
+                 this.despawnBlockEntity(blockPos, true);
+             }
+             return;
+         }
+-        spawnBlockEntityIfNotSent(blockPos, state);
++        boolean onPositiveXZCorner = true;
++        // Check if the block, the block above and the block below are opaque: because if one of them is transparent we don't need to do anything
++        if (state.isOpaque() && level.getBlockState(blockPos.above()).isOpaque() && level.getBlockState(blockPos.below()).isOpaque()) {
++            // If all three vertical blocks on the positive X, positive Z and positive XZ side are opaque, only then do we assume the negative XZ is a better position
++            BlockPos positiveXRelative = blockPos.relative(Direction.Axis.X, 1);
++            BlockPos positiveZRelative = blockPos.relative(Direction.Axis.Z, 1);
++            BlockPos positiveXZRelative = positiveXRelative.relative(Direction.Axis.Z, 1);
++            if (level.getBlockState(positiveXRelative).isOpaque() && level.getBlockState(positiveXRelative.above()).isOpaque() && level.getBlockState(positiveXRelative.below()).isOpaque() && level.getBlockState(positiveZRelative).isOpaque() && level.getBlockState(positiveZRelative.above()).isOpaque() && level.getBlockState(positiveZRelative.below()).isOpaque() && level.getBlockState(positiveXZRelative).isOpaque() && level.getBlockState(positiveXZRelative.above()).isOpaque() && level.getBlockState(positiveXZRelative.below()).isOpaque()) {
++                onPositiveXZCorner = false;
++            }
++        }
++        long sectionKey = SectionPos.blockToSection(blockKey);
++        SectionPos playerSectionPos = SectionPos.of((EntityAccess) player);
++        int sectionDX = SectionPos.x(sectionKey) - playerSectionPos.x();
++        int sectionDY = SectionPos.y(sectionKey) - playerSectionPos.y();
++        int sectionDZ = SectionPos.z(sectionKey) - playerSectionPos.z();
++        boolean closebyModel = sectionDX >= -1 && sectionDX <= 1 && sectionDY >= -1 && sectionDY <= 1 && sectionDZ >= -1 && sectionDZ <= 1;
++        updateBlockEntityOrSpawnIfNotSent(blockPos, new SentBlockEntityInformation(state, onPositiveXZCorner, closebyModel));
+     }
+ 
+     /**
+      * To be called for every chunk section of a chunk when it is being unloaded from the player
+      */
+-    public void despawnBlockEntitiesInChunkSection(@NotNull long chunkSectionKey) {
++    public void despawnBlockEntitiesInChunkSection(long chunkSectionKey) {
+         this.blockEntityBlockPosKeysPerChunkSectionKey.computeIfPresent(chunkSectionKey, ($, blockPosKeys) -> {
+             blockPosKeys.forEach(blockPosKey -> this.despawnBlockEntity(BlockPos.of(blockPosKey), false));
+             return null;
+         });
+     }
+ 
++    /**
++     * To be called for every chunk section that the player enters or leaves, or any chunk section right next to a chunk section (at most chunk section chessboard distance 1) the player enters or leaves
++     */
++    public void updateBlockEntitiesClosebyModelInChunkSection(long chunkSectionKey, @NotNull SectionPos upToDatePlayerSectionPos) {
++        LongSet blockKeys = this.blockEntityBlockPosKeysPerChunkSectionKey.get(chunkSectionKey);
++        if (blockKeys == null) {
++            return;
++        }
++        MinecraftServer.LOGGER.info("Updating closeby model for all in section " + SectionPos.x(chunkSectionKey) + ", " + SectionPos.y(chunkSectionKey) + ", " + SectionPos.z(chunkSectionKey));
++        int sectionDX = SectionPos.x(chunkSectionKey) - upToDatePlayerSectionPos.x();
++        int sectionDY = SectionPos.y(chunkSectionKey) - upToDatePlayerSectionPos.y();
++        int sectionDZ = SectionPos.z(chunkSectionKey) - upToDatePlayerSectionPos.z();
++        boolean closebyModel = sectionDX >= -1 && sectionDX <= 1 && sectionDY >= -1 && sectionDY <= 1 && sectionDZ >= -1 && sectionDZ <= 1;
++        for (long blockKey : blockKeys) {
++            this.sentBlockEntityInformationByBlockPosKey.computeIfPresent(blockKey, ($, existingSentBlockEntityInformation) -> {
++                if (existingSentBlockEntityInformation.closebyModel == closebyModel) {
++                    return existingSentBlockEntityInformation;
++                }
++                int entityId = this.blockEntityEntityIdByBlockPosKey.get(blockKey);
++                var newBlockEntityInformation = new SentBlockEntityInformation(existingSentBlockEntityInformation.blockState, existingSentBlockEntityInformation.onPositiveXZCorner, closebyModel);
++                this.sendSetEquipmentPacket(entityId, newBlockEntityInformation);
++                return newBlockEntityInformation;
++            });
++        }
++    }
++
+     // Martijn end - custom blocks and items
+ 
+     // Paper start - NetworkClient implementation
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
+index 60445aa10c329138936e2f564ea1d701ff57cf5f..12866fc2efc503b222c26a07fe7b95a17dd882e8 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
+@@ -87,7 +87,22 @@ public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketList
+                 callback.operationComplete(future);
+             }
+             if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
+-                connection.updatePotentialBlockEntityAtPosition(this.pos);
++                var level = connection.getPlayer().getLevel();
++                if (level != null) {
++                    for (int dx = -1; dx <= 1; dx++) {
++                        for (int dy = -1; dy <= 1; dy++) {
++                            for (int dz = -1; dz <= 1; dz++) {
++                                int nx = this.pos.getX() + dx;
++                                int ny = this.pos.getY() + dy;
++                                int nz = this.pos.getZ() + dz;
++                                BlockPos npos = new BlockPos(nx, ny, nz);
++                                if (level.isLoadedAndInBounds(npos)) {
++                                    connection.updatePotentialBlockEntityAtPosition(npos);
++                                }
++                            }
++                        }
++                    }
++                }
+             }
+         };
+     }
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+index cd87d1beeff027fd4c0a003da6e11a557454224f..27b996c70feb82b79bd4b16f2e24ffdae86a7661 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+@@ -156,11 +156,38 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+                 callback.operationComplete(future);
+             }
+             if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
+-                @Nullable LevelChunk chunk = connection.getPlayer().getLevel().getChunkIfLoaded(this.sectionPos.x(), this.sectionPos.z());
++                var level = connection.getPlayer().getLevel();
++                @Nullable LevelChunk chunk = level.getChunkIfLoaded(this.sectionPos.x(), this.sectionPos.z());
+                 if (chunk != null) {
+                     var section = chunk.getSection(chunk.getSectionIndexFromSectionY(this.sectionPos.y()));
+                     if (section.potentiallyContainsBlockEntity()) {
+-                        this.sectionPos.blocksInside().forEach(connection::updatePotentialBlockEntityAtPosition);
++                        boolean isBottomSection = this.sectionPos.y() == level.getMinSection();
++                        boolean isTopSection = this.sectionPos.y() == level.getMaxSection();
++                        int minYInSection = isBottomSection ? 0 : -1;
++                        int maxYInSection = isTopSection ? 15 : 16;
++                        boolean isMinXChunkLoaded = chunk.isNeighbourLoaded(-1, 0);
++                        boolean isMinXZChunkLoaded = chunk.isNeighbourLoaded(-1, -1);
++                        boolean isMinZChunkLoaded = chunk.isNeighbourLoaded(0, -1);
++                        boolean isPlusXChunkLoaded = chunk.isNeighbourLoaded(1, 0);
++                        boolean isPlusXZChunkLoaded = chunk.isNeighbourLoaded(1, 1);
++                        boolean isPlusZChunkLoaded = chunk.isNeighbourLoaded(0, 1);
++                        boolean isMinXPlusZChunkLoaded = chunk.isNeighbourLoaded(-1, 1);
++                        boolean isPlusXMinZChunkLoaded = chunk.isNeighbourLoaded(1, -1);
++                        int minXInSection = isMinXChunkLoaded && isMinXZChunkLoaded && isMinXPlusZChunkLoaded ? -1 : 0;
++                        int minZInSection = isMinZChunkLoaded && isMinXZChunkLoaded && isPlusXMinZChunkLoaded ? -1 : 0;
++                        int maxXInSection = isPlusXChunkLoaded && isPlusXZChunkLoaded && isPlusXMinZChunkLoaded ? 16 : 15;
++                        int maxZInSection = isPlusZChunkLoaded && isPlusXZChunkLoaded && isMinXPlusZChunkLoaded ? 16 : 15;
++                        for (int xInSection = minXInSection; xInSection <= maxXInSection; xInSection++) {
++                            for (int yInSection = minYInSection; yInSection <= maxYInSection; yInSection++) {
++                                for (int zInSection = minZInSection; zInSection <= maxZInSection; zInSection++) {
++                                    int blockX = sectionPos.minBlockX() + xInSection;
++                                    int blockY = sectionPos.minBlockY() + yInSection;
++                                    int blockZ = sectionPos.minBlockZ() + zInSection;
++                                    connection.updatePotentialBlockEntityAtPosition(new BlockPos(blockX, blockY, blockZ));
++                                    this.sectionPos.blocksInside().forEach(connection::updatePotentialBlockEntityAtPosition);
++                                }
++                            }
++                        }
+                     }
+                 }
+             }
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 8dfc2e103c8ea0430cde8995cf8847c90929b4a2..3974f71cff9882111124410a71376609bd33fc73 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -11,6 +11,7 @@ import com.mojang.datafixers.util.Either;
+ import com.mojang.logging.LogUtils;
+ import com.mojang.serialization.DataResult;
+ import com.mojang.serialization.JsonOps;
++import io.papermc.paper.util.CoordinateUtils;
+ import it.unimi.dsi.fastutil.Pair;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+@@ -31,6 +32,7 @@ import java.nio.file.Path;
+ import java.util.ArrayList;
+ import java.util.BitSet;
+ import java.util.Comparator;
++import java.util.HashSet;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Objects;
+@@ -59,9 +61,11 @@ import net.minecraft.CrashReport;
+ import net.minecraft.CrashReportCategory;
+ import net.minecraft.ReportedException;
+ import net.minecraft.Util;
++import net.minecraft.core.BlockPos;
+ import net.minecraft.core.Registry;
+ import net.minecraft.core.SectionPos;
+ import net.minecraft.nbt.CompoundTag;
++import net.minecraft.network.Connection;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEntityLinkPacket;
+@@ -2008,6 +2012,37 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+         int j = SectionPos.blockToSectionCoord(player.getBlockZ());
+         SectionPos sectionposition = player.getLastSectionPos();
+         SectionPos sectionposition1 = SectionPos.of((EntityAccess) player);
++        // Martijn start - custom blocks and items
++        if (!sectionposition.equals(sectionposition1)) {
++            var connection = player.connection;
++            if (connection != null) {
++                if (!connection.isDisconnected()) {
++                    var connection2 = connection.connection;
++                    if (connection2 != null && connection2.isConnected()) {
++                        LongSet fromAndToSectionsAndChessboardNeighbors = new LongOpenHashSet(108); // (3*3*3) * 2 * 2
++                        for (SectionPos oldOrNewSectionPos : new SectionPos[]{sectionposition, sectionposition1}) {
++                            for (int dx = -1; dx <= 1; dx++) {
++                                for (int dy = -1; dy <= 1; dy++) {
++                                    for (int dz = -1; dz <= 1; dz++) {
++                                        int nx = oldOrNewSectionPos.x() + dx;
++                                        int ny = oldOrNewSectionPos.y() + dy;
++                                        int nz = oldOrNewSectionPos.z() + dz;
++                                        if (ny >= level.getMinSection() && ny <= level.getMaxSection()) {
++                                            SectionPos neighbor = SectionPos.of(nx, ny, nz);
++                                            if (level.isLoadedAndInBounds(new BlockPos(neighbor.minBlockX(), neighbor.minBlockY(), neighbor.minBlockZ()))) {
++                                                fromAndToSectionsAndChessboardNeighbors.add(CoordinateUtils.getChunkSectionKey(neighbor));
++                                            }
++                                        }
++                                    }
++                                }
++                            }
++                        }
++                        fromAndToSectionsAndChessboardNeighbors.forEach(toCheck -> connection2.updateBlockEntitiesClosebyModelInChunkSection(toCheck, sectionposition1));
++                    }
++                }
++            }
++        }
++        // Martijn end - custom blocks and items
+         long k = sectionposition.chunk().toLong();
+         long l = sectionposition1.chunk().toLong();
+         boolean flag = this.playerMap.ignored(player);
+diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
+index 51b08e40d22ebc5498cdd92ba670cbc844dcf3b6..f2f73aecb5aee473c8f0709a9f55bf9c53d182d8 100644
+--- a/src/main/java/net/minecraft/world/entity/Entity.java
++++ b/src/main/java/net/minecraft/world/entity/Entity.java
+@@ -331,21 +331,23 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+     public int invulnerableTime;
+     protected boolean firstTick;
+     protected final SynchedEntityData entityData;
+-    protected static final EntityDataAccessor<Byte> DATA_SHARED_FLAGS_ID = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BYTE);
+-    protected static final int FLAG_ONFIRE = 0;
++    // Martijn start - custom blocks and item
++    public static final EntityDataAccessor<Byte> DATA_SHARED_FLAGS_ID = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BYTE);
++    private static final int FLAG_ONFIRE = 0;
+     private static final int FLAG_SHIFT_KEY_DOWN = 1;
+     private static final int FLAG_SPRINTING = 3;
+     private static final int FLAG_SWIMMING = 4;
+-    private static final int FLAG_INVISIBLE = 5;
++    public static final int FLAG_INVISIBLE = 5;
+     protected static final int FLAG_GLOWING = 6;
+     protected static final int FLAG_FALL_FLYING = 7;
+     private static final EntityDataAccessor<Integer> DATA_AIR_SUPPLY_ID = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.INT);
+     private static final EntityDataAccessor<Optional<Component>> DATA_CUSTOM_NAME = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.OPTIONAL_COMPONENT);
+     private static final EntityDataAccessor<Boolean> DATA_CUSTOM_NAME_VISIBLE = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
+-    private static final EntityDataAccessor<Boolean> DATA_SILENT = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
+-    private static final EntityDataAccessor<Boolean> DATA_NO_GRAVITY = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
++    public static final EntityDataAccessor<Boolean> DATA_SILENT = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
++    public static final EntityDataAccessor<Boolean> DATA_NO_GRAVITY = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.BOOLEAN);
+     protected static final EntityDataAccessor<net.minecraft.world.entity.Pose> DATA_POSE = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.POSE);
+     private static final EntityDataAccessor<Integer> DATA_TICKS_FROZEN = SynchedEntityData.defineId(Entity.class, EntityDataSerializers.INT);
++    // Martijn end - custom blocks and item
+     private EntityInLevelCallback levelCallback;
+     private final VecDeltaCodec packetPositionCodec;
+     public boolean noCulling;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 1a68a51b83a5d5abf32cfbdfb3be43f0710dcb8d..26d310594c2e524f94d01d8aba2870db519e2e46 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -23,6 +23,7 @@ import nl.martijnmuijsers.paper.block.replacementrule.SingleMultiStateRealBlockR
+ import nl.martijnmuijsers.paper.block.replacementrule.SingleStateRealBlockReplacementRule;
+ import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
++import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContent;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+@@ -104,7 +105,7 @@ public class SuCraftBlocks {
+         "soul_sandstone",
+         new SingleMultiStateRealBlockReplacementRuleBuilder()
+             .withNoteBlockHost()
+-            .withFallback(Blocks.SOUL_SAND)
++            .withFallback(Blocks.SOUL_SOIL)
+             .withModelCreation(Model.BottomTopPillarCube.defaultCreation().withNoParameters())
+             .withFullBlockBoundingBoxItem(),
+         new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F, 0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
+@@ -113,7 +114,7 @@ public class SuCraftBlocks {
+ 
+     public static final Block SANDSTONE_BRICKS = registerBricks("sandstone", Blocks.SANDSTONE, MaterialColor.SAND);
+     public static final Block RED_SANDSTONE_BRICKS = registerBricks("red_sandstone", Blocks.RED_SANDSTONE, MaterialColor.COLOR_ORANGE);
+-    public static final Block SOUL_SANDSTONE_BRICKS = registerBricks("soul_sandstone", Blocks.SOUL_SAND, MaterialColor.COLOR_BROWN).soulSpeed().soulFireBase();
++    public static final Block SOUL_SANDSTONE_BRICKS = registerBricks("soul_sandstone", Blocks.SOUL_SOIL, MaterialColor.COLOR_BROWN).soulSpeed().soulFireBase();
+     public static final Block ANDESITE_COBBLESTONE = registerCobblestone("andesite", Blocks.ANDESITE, MaterialColor.STONE);
+     public static final Block DIORITE_COBBLESTONE = registerCobblestone("diorite", Blocks.DIORITE, MaterialColor.QUARTZ);
+     public static final Block GRANITE_COBBLESTONE = registerCobblestone("granite", Blocks.GRANITE, MaterialColor.DIRT);
+@@ -125,7 +126,7 @@ public class SuCraftBlocks {
+         "chiseled_soul_sandstone",
+         new SingleMultiStateRealBlockReplacementRuleBuilder()
+             .withNoteBlockHost()
+-            .withFallback(Blocks.SOUL_SAND)
++            .withFallback(Blocks.SOUL_SOIL)
+             .withModelCreation(Model.YPillarCube.defaultCreationWithAlternativeEnd(new Texture(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), TextureContent.Existing.getInstance())).withNoParameters())
+             .withFullBlockBoundingBoxItem(),
+         new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
+@@ -139,7 +140,7 @@ public class SuCraftBlocks {
+         "cut_soul_sandstone",
+         new SingleMultiStateRealBlockReplacementRuleBuilder()
+             .withNoteBlockHost()
+-            .withFallback(Blocks.SOUL_SAND)
++            .withFallback(Blocks.SOUL_SOIL)
+             .withModelCreation(Model.YPillarCube.defaultCreationWithAlternativeEnd(new Texture(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), TextureContent.Existing.getInstance())).withNoParameters())
+             .withFullBlockBoundingBoxItem(),
+         new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
+@@ -367,7 +368,7 @@ public class SuCraftBlocks {
+             new SingleMultiStateRealBlockReplacementRuleBuilder()
+                 .withAnalogousHosts(host, hostReplacement)
+                 .withAnalogousFallbacks(fallback)
+-                .withDefaultModelCreationsForSlabReplacedBySlab(NamespacedKeyWithoutIntention.minecraft(textureBlock))
++                .withDefaultModelCreationsForSlabReplacedBySlab(NamespacedKeyWithoutIntention.minecraft(textureBlock), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
+                 .withRealItemRuleFromHostBlock()
+                 .withHostItemRuleFromHostBlockAndHostReplacementBlock(),
+             new SlabBlock(properties).slab(),
+@@ -386,7 +387,7 @@ public class SuCraftBlocks {
+                 .rendersAsEntity()
+                 .withAnalogousHosts(host)
+                 .withAnalogousFallbacks(fallback)
+-                .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey())
++                .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
+                 .withRealItemRuleFromHostBlock(),
+             new SlabBlock(fullBlock.properties).withAddedTagsLike(fullBlock).slab(),
+             SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
+index 22250fb9393df149646bfc53ce5e239ab9a16097..5acf96a72f606423d9f305402e0298e6ee2ef387 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
+@@ -24,6 +24,7 @@ import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithou
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
+ import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
+ import org.apache.commons.lang3.Validate;
++import org.bukkit.craftbukkit.inventory.CraftMetaItem;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -32,6 +33,7 @@ import java.util.IdentityHashMap;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
++import java.util.function.BiFunction;
+ import java.util.function.Supplier;
+ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+@@ -220,21 +222,118 @@ public interface BlockReplacementRule {
+      * <br>
+      * This method will assume (not verify) that the given state is in fact a state of this rule's real block
+      */
+-    @Nullable Model getBlockEntityItemModel(@NotNull BlockState realState);
++    default @Nullable Model getBlockEntityItemModel(@NotNull BlockState realState, boolean onPositiveXZCorner, boolean closebyModel) {
++        Model[] models = this.getBlockEntityItemModels(realState);
++        return models[(onPositiveXZCorner ? 1 : 0) + (closebyModel ? 2 : 0)];
++    }
++
++    /**
++     * Non-null if {@link #rendersAsEntity} is true, null otherwise
++     * <br>
++     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
++     */
++    @NotNull Model @Nullable [] getBlockEntityItemModels(@NotNull BlockState realState);
++
++    /**
++     * Non-null if {@link #rendersAsEntity} is true, null otherwise
++     * <br>
++     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
++     */
++    default @NotNull Model @Nullable [] computeBlockEntityItemModels(@NotNull BlockState realState) {
++        var base = this.getBlockEntityItemModelBase(realState);
++        if (base == null) {
++            return null;
++        }
++        Model[] models = new Model[4];
++        for (boolean onPositiveXZCorner : new boolean[] {false, true}) {
++            for (boolean closebyModel : new boolean[] {false, true}) {
++                models[(onPositiveXZCorner ? 1 : 0) + (closebyModel ? 2 : 0)] = base.getBlockEntityVersion(onPositiveXZCorner, closebyModel);
++            }
++        }
++        return models;
++    }
++
++    /**
++     * Non-null if {@link #rendersAsEntity} is true, null otherwise
++     * <br>
++     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
++     */
++    @Nullable Model getBlockEntityItemModelBase(@NotNull BlockState realState);
++
++    /**
++     * Non-null if {@link #rendersAsEntity} is true, null otherwise
++     * <br>
++     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
++     */
++    default @Nullable Integer getBlockEntityItemCustomModelData(@NotNull BlockState realState, boolean onPositiveXZCorner, boolean closebyModel) {
++        int[] customModelData = this.getBlockEntityItemCustomModelData(realState);
++        if (customModelData == null) {
++            return null;
++        }
++        return customModelData[(onPositiveXZCorner ? 1 : 0) + (closebyModel ? 2 : 0)];
++    }
+ 
+     /**
+      * Non-null if {@link #rendersAsEntity} is true, null otherwise
+      * <br>
+      * This method will assume (not verify) that the given state is in fact a state of this rule's real block
+      */
+-    @Nullable Integer getBlockEntityItemCustomModelData(@NotNull BlockState realState);
++    int @Nullable [] getBlockEntityItemCustomModelData(@NotNull BlockState realState);
+ 
+     /**
+      * Non-null if {@link #rendersAsEntity} is true, null otherwise
+      * <br>
+      * This method will assume (not verify) that the given state is in fact a state of this rule's real block
+      */
+-    @Nullable ItemStack getBlockEntityItemStack(@NotNull BlockState realState);
++    default @Nullable ItemStack getBlockEntityItemStack(@NotNull BlockState realState, boolean onPositiveXZCorner, boolean closebyModel) {
++        var itemStack = this.getBlockEntityItemStack(realState);
++        if (itemStack == null) {
++            return null;
++        }
++        return itemStack.getForContext(onPositiveXZCorner, closebyModel);
++    }
++
++    class BlockEntityItemStack {
++
++        private final @NotNull BiFunction<@NotNull Boolean, @NotNull Boolean, @NotNull ItemStack> forContextFunction;
++
++        /**
++         * Only null while not initialized yet
++         */
++        private @NotNull ItemStack @Nullable [] forContext;
++
++        public @NotNull ItemStack getForContext(boolean onPositiveXZCorner, boolean closebyModel) {
++            if (this.forContext == null) {
++                this.forContext = new ItemStack[4];
++                for (boolean contextOnPositiveXZCorner : new boolean[] {false, true}) {
++                    for (boolean contextClosebyModel : new boolean[] {false, true}) {
++                        this.forContext[(contextOnPositiveXZCorner ? 1 : 0) + (contextClosebyModel ? 2 : 0)] = this.forContextFunction.apply(contextOnPositiveXZCorner, contextClosebyModel);
++                    }
++                }
++            }
++            return this.forContext[(onPositiveXZCorner ? 1 : 0) + (closebyModel ? 2 : 0)];
++        }
++
++        public BlockEntityItemStack(@NotNull BiFunction<@NotNull Boolean, @NotNull Boolean, @NotNull ItemStack> forContextFunction) {
++            this.forContextFunction = forContextFunction;
++        }
++
++        public BlockEntityItemStack(@NotNull Supplier<@NotNull Item> itemSupplier, @NotNull BiFunction<@NotNull Boolean, @NotNull Boolean, @NotNull Integer> customModelDataForContextFunction) {
++            this((onPositiveXZCorner, closebyModel) -> {
++                ItemStack itemStack = new ItemStack(itemSupplier.get(), 1);
++                itemStack.getOrCreateTag().putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, customModelDataForContextFunction.apply(onPositiveXZCorner, closebyModel));
++                return itemStack;
++            });
++        }
++
++    }
++
++    /**
++     * Non-null if {@link #rendersAsEntity} is true, null otherwise
++     * <br>
++     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
++     */
++    @Nullable BlockEntityItemStack getBlockEntityItemStack(@NotNull BlockState realState);
+ 
+     default void addBlockEntityItemToResourcePack(@NotNull MutableResourcePack resourcePack) {
+         if (!this.rendersAsEntity()) {
+@@ -244,7 +343,11 @@ public interface BlockReplacementRule {
+         @NotNull NamespacedKeyWithoutIntention itemHostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.ITEM.getKey(itemHost));
+         @NotNull MutableResourcePackModel itemHostKeyMinecraftItemModel = resourcePack.getModel(ResourcePackAssetIntention.ITEM, itemHostKey);
+         for (@NotNull BlockState realState : this.getReal().getStateDefinition().getPossibleStates()) {
+-            itemHostKeyMinecraftItemModel.addModelOverride(Validate.notNull(this.getBlockEntityItemCustomModelData(realState)), Validate.notNull(this.getBlockEntityItemModel(realState)), resourcePack, false);
++            for (boolean onPositiveXZCorner : new boolean[] {false, true}) {
++                for (boolean closebyModel : new boolean[] {false, true}) {
++                    itemHostKeyMinecraftItemModel.addModelOverride(Validate.notNull(this.getBlockEntityItemCustomModelData(realState, onPositiveXZCorner, closebyModel)), Validate.notNull(this.getBlockEntityItemModel(realState, onPositiveXZCorner, closebyModel)), resourcePack, false);
++                }
++            }
+         }
+     }
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
+index c1f59f6d129e841d53418ad8079f947a759bcbba..fc2dc43c0c2941f2325cb170f9c187f7e21da8d5 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
+@@ -3,7 +3,11 @@
+ package nl.martijnmuijsers.paper.block.replacementrule;
+ 
+ import net.minecraft.world.item.Item;
++import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.state.BlockState;
++import org.apache.commons.lang3.Validate;
++import org.bukkit.craftbukkit.inventory.CraftMetaItem;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+@@ -96,4 +100,9 @@ public abstract class BlockReplacementRuleBase implements BlockReplacementRule {
+         return this.getReplacementByHostPlacingItems().get(item);
+     }
+ 
++    protected @NotNull BlockEntityItemStack computeBlockEntityItemStack(@NotNull BlockState realState) {
++        @NotNull Item item = Validate.notNull(this.getHost(this.real.defaultBlockState()).getBlock().asItem());
++        return new BlockEntityItemStack(() -> item, (onPositiveXZCorner, closebyModel) -> this.getBlockEntityItemCustomModelData(realState, onPositiveXZCorner, closebyModel));
++    }
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
+index c444447b61ffe3b80fb711c0abc2ac623355602a..c9302c950cb161831deba9970f4417a0a6531e9d 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
+@@ -277,8 +277,8 @@ public interface BlockReplacementRuleBuilder<R extends BlockReplacementRule, B e
+      * @param fullBlockTextureAndModelKey A key pointing to the full block texture (used as texture basis for the top and bottom slabs), and also pointing to the full block model (used directly as the model for the double slab)
+      * @see #withDefaultModelCreationsForSlabReplacedBySlab
+      */
+-    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlab(@NotNull NamespacedKeyWithoutIntention fullBlockTextureAndModelKey) {
+-        return this.withDefaultModelCreationsForSlabReplacedBySlab((intention, key) -> new Model(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, ModelContent.Existing.getInstance()), new Texture(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, TextureContent.Existing.getInstance()), null, null, null, null);
++    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlab(@NotNull NamespacedKeyWithoutIntention fullBlockTextureAndModelKey, @NotNull ModelContent.Existing.ExistingModelContentOutwardExpansionType doubleSlabExistingModelContentOutwardExpansionType) {
++        return this.withDefaultModelCreationsForSlabReplacedBySlab((intention, key) -> new Model(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, ModelContent.Existing.getInstance(doubleSlabExistingModelContentOutwardExpansionType)), new Texture(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, TextureContent.Existing.getInstance()), null, null, null, null);
+     }
+ 
+     /**
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
+index 6758e59654a7ae972aa167763a26b8a23058e84a..3b5c3b2068196e0d078bfe32422bd096a01ebfc2 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
+@@ -52,21 +52,27 @@ public class MultiStateRealBlockReplacementRule extends BlockReplacementRuleBase
+ 
+     private final @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost;
+ 
+-    private final @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelPerRealState;
++    private final @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState;
+ 
+     /**
+-     * Is at least null only when not initialized yet:
++     * Is at least null when not initialized yet:
+      * late initialization is used so that items are not referenced before block bootstrapping is finished
+      */
+-    private @Nullable Map<@NotNull BlockState, @NotNull Integer> blockEntityItemCustomModelDataPerRealState;
++    private @Nullable Map<@NotNull BlockState, @NotNull Model @NotNull []> blockEntityItemModelsPerRealState;
+ 
+     /**
+-     * Is at least null only when not initialized yet:
++     * Is at least null when not initialized yet:
+      * late initialization is used so that items are not referenced before block bootstrapping is finished
+      */
+-    private @Nullable Map<@NotNull BlockState, @NotNull ItemStack> blockEntityItemStackPerRealState;
++    private @Nullable Map<@NotNull BlockState, int @NotNull []> blockEntityItemCustomModelDataPerRealState;
+ 
+-    public MultiStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, boolean rendersAsEntity, @NotNull List<@NotNull BlockState> hosts, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost, @NotNull List<@NotNull BlockState> fallbacks, @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState, @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost, List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelPerRealState) {
++    /**
++     * Is at least null when not initialized yet:
++     * late initialization is used so that items are not referenced before block bootstrapping is finished
++     */
++    private @Nullable Map<@NotNull BlockState, @NotNull BlockEntityItemStack> blockEntityItemStackPerRealState;
++
++    public MultiStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, boolean rendersAsEntity, @NotNull List<@NotNull BlockState> hosts, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost, @NotNull List<@NotNull BlockState> fallbacks, @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState, @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost, List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState) {
+         super(real, realItemRule, rendersAsEntity, hostItemRules);
+         this.hostSet = Collections.newSetFromMap(new IdentityHashMap<>());
+         this.hostSet.addAll(hosts);
+@@ -82,7 +88,7 @@ public class MultiStateRealBlockReplacementRule extends BlockReplacementRuleBase
+             .distinct()
+             .toList();
+         this.modelPerHost = new IdentityHashMap<>(modelPerHost);
+-        this.blockEntityItemModelPerRealState = blockEntityItemModelPerRealState;
++        this.blockEntityItemModelBasePerRealState = blockEntityItemModelBasePerRealState;
+     }
+ 
+     @Override
+@@ -131,18 +137,37 @@ public class MultiStateRealBlockReplacementRule extends BlockReplacementRuleBase
+     }
+ 
+     @Override
+-    public @Nullable Model getBlockEntityItemModel(@NotNull BlockState realState) {
+-        return this.blockEntityItemModelPerRealState == null ? null : blockEntityItemModelPerRealState.get(realState);
++    public @Nullable Model getBlockEntityItemModelBase(@NotNull BlockState realState) {
++        return this.blockEntityItemModelBasePerRealState == null ? null : blockEntityItemModelBasePerRealState.get(realState);
+     }
+ 
+     @Override
+-    public @Nullable Integer getBlockEntityItemCustomModelData(@NotNull BlockState realState) {
++    public @NotNull Model @Nullable [] getBlockEntityItemModels(@NotNull BlockState realState) {
++        if (this.blockEntityItemModelsPerRealState == null) {
++            if (this.rendersAsEntity) {
++                this.blockEntityItemModelsPerRealState = new IdentityHashMap<>(0);
++                for (@NotNull BlockState possibleRealState : this.getReal().getStateDefinition().getPossibleStates()) {
++                    this.blockEntityItemModelsPerRealState.put(possibleRealState, this.computeBlockEntityItemModels(possibleRealState));
++                }
++            } else {
++                return null;
++            }
++        }
++        return this.blockEntityItemModelsPerRealState.get(realState);
++    }
++
++    @Override
++    public int @Nullable [] getBlockEntityItemCustomModelData(@NotNull BlockState realState) {
+         if (this.blockEntityItemCustomModelDataPerRealState == null) {
+             if (this.rendersAsEntity) {
+                 this.blockEntityItemCustomModelDataPerRealState = new IdentityHashMap<>(0);
+                 @NotNull Item item = Validate.notNull(hostPerRealState.get(this.real.defaultBlockState()).getBlock().asItem());
+                 for (@NotNull BlockState possibleRealState : this.getReal().getStateDefinition().getPossibleStates()) {
+-                    this.blockEntityItemCustomModelDataPerRealState.put(possibleRealState, UsedHostCustomModelData.generateUnusedHostCustomModelData(item));
++                    int[] customModelData = new int[4];
++                    for (int i = 0; i < customModelData.length; i++) {
++                        customModelData[i] = UsedHostCustomModelData.generateUnusedHostCustomModelData(item);
++                    }
++                    this.blockEntityItemCustomModelDataPerRealState.put(possibleRealState, customModelData);
+                 }
+             } else {
+                 return null;
+@@ -152,16 +177,12 @@ public class MultiStateRealBlockReplacementRule extends BlockReplacementRuleBase
+     }
+ 
+     @Override
+-    public @Nullable ItemStack getBlockEntityItemStack(@NotNull BlockState realState) {
++    public @Nullable BlockEntityItemStack getBlockEntityItemStack(@NotNull BlockState realState) {
+         if (this.blockEntityItemStackPerRealState == null) {
+             if (this.rendersAsEntity) {
+                 this.blockEntityItemStackPerRealState = new IdentityHashMap<>(0);
+-                @NotNull Item item = Validate.notNull(hostPerRealState.get(this.real.defaultBlockState()).getBlock().asItem());
+                 for (@NotNull BlockState possibleRealState : this.real.getStateDefinition().getPossibleStates()) {
+-                    int customModelData = this.getBlockEntityItemCustomModelData(possibleRealState);
+-                    @NotNull ItemStack itemStack = new ItemStack(item);
+-                    itemStack.getOrCreateTag().putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, customModelData);
+-                    this.blockEntityItemStackPerRealState.put(possibleRealState, itemStack);
++                    this.blockEntityItemStackPerRealState.put(possibleRealState, this.computeBlockEntityItemStack(possibleRealState));
+                 }
+             } else {
+                 return null;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
+index 8c973c9637668856637b91cf732ce5b65afddc55..a68d7ac81aa7b56fe488e05231fc13f63b09b929 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
+@@ -201,7 +201,7 @@ public class SingleMultiStateRealBlockReplacementRuleBuilder implements BlockRep
+             @NotNull BlockState hostReplacement = Validate.notNull(this.hostReplacementForHost.apply(host));
+             @NotNull BlockState fallback = Validate.notNull(this.fallbackForRealState.apply(realState));
+             @NotNull ModelWithParameters model = Validate.notNull(this.modelForRealState.apply(realState));
+-            @Nullable Model blockEntityItemModel = !this.rendersAsEntity ? null : model.model().getBlockEntityItemReference();
++            @Nullable Model blockEntityItemModelBase = !this.rendersAsEntity ? null : model.model();
+             return new SingleStateRealBlockReplacementRule(
+                 this.real,
+                 realItemRule,
+@@ -211,7 +211,7 @@ public class SingleMultiStateRealBlockReplacementRuleBuilder implements BlockRep
+                 fallback,
+                 model,
+                 hostItemRules,
+-                blockEntityItemModel
++                blockEntityItemModelBase
+             );
+         }
+         @NotNull List<@NotNull BlockState> hosts = new ArrayList<>();
+@@ -220,8 +220,7 @@ public class SingleMultiStateRealBlockReplacementRuleBuilder implements BlockRep
+         @NotNull List<@NotNull BlockState> fallbacks = new ArrayList<>();
+         @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState = new IdentityHashMap<>(0);
+         @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost = new IdentityHashMap<>(0);
+-        @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelPerRealState = this.rendersAsEntity ? new IdentityHashMap<>(0) : null;
+-        @Nullable Map<@NotNull BlockState, @NotNull Integer> blockEntityItemCustomModelDataPerRealState = this.rendersAsEntity ? new IdentityHashMap<>(0) : null;
++        @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState = this.rendersAsEntity ? new IdentityHashMap<>(0) : null;
+         for (@NotNull BlockState realState : realStates) {
+             @NotNull BlockState host = Validate.notNull(this.hostForRealState.apply(realState));
+             if (!hosts.contains(host)) {
+@@ -251,7 +250,7 @@ public class SingleMultiStateRealBlockReplacementRuleBuilder implements BlockRep
+         }
+         if (this.rendersAsEntity) {
+             for (@NotNull BlockState realState : realStates) {
+-                blockEntityItemModelPerRealState.put(realState, modelPerHost.get(hostPerRealState.get(realState)).model().getBlockEntityItemReference());
++                blockEntityItemModelBasePerRealState.put(realState, modelPerHost.get(hostPerRealState.get(realState)).model());
+             }
+         }
+         return new MultiStateRealBlockReplacementRule(
+@@ -265,7 +264,7 @@ public class SingleMultiStateRealBlockReplacementRuleBuilder implements BlockRep
+             fallbackPerRealState,
+             modelPerHost,
+             hostItemRules,
+-            blockEntityItemModelPerRealState
++            blockEntityItemModelBasePerRealState
+         );
+     }
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
+index 12ada2758dd1014330afa82b3ecaebb2038c9207..136c92d780e0869a24c19a971ad0374f74e2eafe 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
+@@ -60,21 +60,27 @@ public class SingleStateRealBlockReplacementRule extends BlockReplacementRuleBas
+ 
+     private final @NotNull ModelWithParameters model;
+ 
+-    private final @Nullable Model blockEntityItemModel;
++    private final @Nullable Model blockEntityItemModelBase;
+ 
+     /**
+-     * Is at least null only when not initialized yet:
++     * Is at least null when not initialized yet:
+      * late initialization is used so that items are not referenced before block bootstrapping is finished
+      */
+-    private @Nullable Integer blockEntityItemCustomModelData;
++    private @NotNull Model @Nullable [] blockEntityItemModels;
+ 
+     /**
+-     * Is at least null only when not initialized yet:
++     * Is at least null when not initialized yet:
+      * late initialization is used so that items are not referenced before block bootstrapping is finished
+      */
+-    private @Nullable ItemStack blockEntityItemStack;
++    private int @Nullable [] blockEntityItemCustomModelData;
+ 
+-    public SingleStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, boolean rendersAsEntity, @NotNull BlockState host, @NotNull BlockState hostReplacement, @NotNull BlockState fallback, @NotNull ModelWithParameters model, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Model blockEntityItemModel) {
++    /**
++     * Is at least null when not initialized yet:
++     * late initialization is used so that items are not referenced before block bootstrapping is finished
++     */
++    private @Nullable BlockEntityItemStack blockEntityItemStack;
++
++    public SingleStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, boolean rendersAsEntity, @NotNull BlockState host, @NotNull BlockState hostReplacement, @NotNull BlockState fallback, @NotNull ModelWithParameters model, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Model blockEntityItemModelBase) {
+         super(real, realItemRule, rendersAsEntity, hostItemRules);
+         this.host = host;
+         this.hosts = Collections.singletonList(this.host);
+@@ -88,7 +94,7 @@ public class SingleStateRealBlockReplacementRule extends BlockReplacementRuleBas
+             Pair.of(this.real, this.fallback.getBlock())
+         ).filter(pair -> !pair.left().equals(pair.right())).distinct().toList();
+         this.model = model;
+-        this.blockEntityItemModel = blockEntityItemModel;
++        this.blockEntityItemModelBase = blockEntityItemModelBase;
+     }
+ 
+     @Override
+@@ -153,16 +159,29 @@ public class SingleStateRealBlockReplacementRule extends BlockReplacementRuleBas
+     }
+ 
+     @Override
+-    public @Nullable Model getBlockEntityItemModel(@NotNull BlockState realState) {
+-        return this.blockEntityItemModel;
++    public @Nullable Model getBlockEntityItemModelBase(@NotNull BlockState realState) {
++        return this.blockEntityItemModelBase;
+     }
+ 
+     @Override
+-    public @Nullable Integer getBlockEntityItemCustomModelData(@NotNull BlockState realState) {
++    public @NotNull Model @Nullable [] getBlockEntityItemModels(@NotNull BlockState realState) {
++        if (this.blockEntityItemModels == null) {
++            if (this.rendersAsEntity) {
++                this.blockEntityItemModels = this.computeBlockEntityItemModels(realState);
++            }
++        }
++        return this.blockEntityItemModels;
++    }
++
++    @Override
++    public int @Nullable [] getBlockEntityItemCustomModelData(@NotNull BlockState realState) {
+         if (this.blockEntityItemCustomModelData == null) {
+             if (this.rendersAsEntity) {
+                 @NotNull Item item = Validate.notNull(this.host.getBlock().asItem());
+-                this.blockEntityItemCustomModelData = UsedHostCustomModelData.generateUnusedHostCustomModelData(item);
++                this.blockEntityItemCustomModelData = new int[4];
++                for (int i = 0; i < blockEntityItemCustomModelData.length; i++) {
++                    this.blockEntityItemCustomModelData[i] = UsedHostCustomModelData.generateUnusedHostCustomModelData(item);
++                }
+             } else {
+                 return null;
+             }
+@@ -171,13 +190,10 @@ public class SingleStateRealBlockReplacementRule extends BlockReplacementRuleBas
+     }
+ 
+     @Override
+-    public @Nullable ItemStack getBlockEntityItemStack(@NotNull BlockState realState) {
++    public @Nullable BlockEntityItemStack getBlockEntityItemStack(@NotNull BlockState realState) {
+         if (this.blockEntityItemStack == null) {
+             if (this.rendersAsEntity) {
+-                @NotNull Item item = Validate.notNull(this.host.getBlock().asItem());
+-                int customModelData = this.getBlockEntityItemCustomModelData(realState);
+-                this.blockEntityItemStack = new ItemStack(item);
+-                this.blockEntityItemStack.getOrCreateTag().putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, customModelData);
++                this.blockEntityItemStack = this.computeBlockEntityItemStack(realState);
+             } else {
+                 return null;
+             }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
+index 648ffc1abc1028fe2bdee7317ea00aa182310a85..521af9d296d063b7e706be332801c21a3e5a90d5 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
+@@ -38,8 +38,8 @@ public class Model extends ResourcePackIntentionedAssetDataByContent<ModelConten
+         return new Model(newIntention, this.key, new ModelContent.Reference(this));
+     }
+ 
+-    public @NotNull Model getBlockEntityItemReference() {
+-        return new Model(ResourcePackAssetIntention.ITEM, new NamespacedKeyWithoutIntention(this.key.namespace(), this.key.keyWithoutIntention() + "_as_entity"), new ModelContent.AsBlockEntityReference(this));
++    public @NotNull Model getBlockEntityVersion(boolean onPositiveXZCorner, boolean closebyModel) {
++        return new Model(ResourcePackAssetIntention.ITEM, new NamespacedKeyWithoutIntention(this.key.namespace(), this.key.keyWithoutIntention() + "_ent_" + (onPositiveXZCorner ? "pos" : "neg") + "_" + (closebyModel ? "clo" : "far")), this.content.getBlockEntityVersion(this, onPositiveXZCorner, closebyModel));
+     }
+ 
+     public void addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean overwriteExisting) {
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
+index bee142aa3a0d5a5397a31bea5ebc3309687e28ac..ef63696155eff6867e4841b7b0e58f6e4bc55fa1 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
+@@ -2,6 +2,9 @@
+ 
+ package nl.martijnmuijsers.paper.blockanditemdata.model;
+ 
++import com.google.gson.JsonArray;
++import com.google.gson.JsonObject;
++import com.google.gson.JsonParser;
+ import net.minecraft.resources.ResourceLocation;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
+@@ -14,8 +17,10 @@ import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithou
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
+ import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
+ import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ import java.util.Arrays;
++import java.util.EnumMap;
+ import java.util.function.Function;
+ import java.util.function.Supplier;
+ 
+@@ -24,6 +29,9 @@ import java.util.function.Supplier;
+  */
+ public abstract class ModelContent implements ResourcePackAssetDataContent {
+ 
++    private static final float OUTWARD_EXPANDED_ELEMENT_DISTANCE_CLOSE = 0.0075F;
++    private static final float OUTWARD_EXPANDED_ELEMENT_DISTANCE_FAR = 0.1F;
++
+     protected ModelContent() {}
+ 
+     public @NotNull Model asModel(@NotNull ResourcePackAssetIntention intention, @NotNull NamespacedKeyWithoutIntention key) {
+@@ -35,6 +43,12 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+      */
+     abstract void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack);
+ 
++    public @NotNull ModelContent getBlockEntityVersion(@NotNull Model myOwningModel, boolean onPositiveXZCorner, boolean closebyModel) throws UnsupportedOperationException {
++        return new ModelContent.AsBlockEntityReference(myOwningModel, onPositiveXZCorner, this.getOutwardExpandedElements(closebyModel ? OUTWARD_EXPANDED_ELEMENT_DISTANCE_CLOSE : OUTWARD_EXPANDED_ELEMENT_DISTANCE_FAR));
++    }
++
++    abstract @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) throws UnsupportedOperationException;
++
+     // Convenience methods for replacement rule builders
+ 
+     /**
+@@ -44,6 +58,27 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+ 
+         private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("cube_all"), Existing.getInstance());
+ 
++        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/cube.json
++        public static @NotNull JsonArray getCubeOutwardExpandedElements(float outwardDistance) {
++            float from = -outwardDistance;
++            float to = 16 + outwardDistance;
++            return JsonParser.parseString("""
++                [
++                    {   "from": [ %f, %f, %f ],
++                        "to": [ %f, %f, %f ],
++                        "faces": {
++                            "down":  { "texture": "#down", "cullface": "down" },
++                            "up":    { "texture": "#up", "cullface": "up" },
++                            "north": { "texture": "#north", "cullface": "north" },
++                            "south": { "texture": "#south", "cullface": "south" },
++                            "west":  { "texture": "#west", "cullface": "west" },
++                            "east":  { "texture": "#east", "cullface": "east" }
++                        }
++                    }
++                ]""".formatted(from, from, from, to, to, to)
++            ).getAsJsonArray();
++        }
++
+         private final @NotNull Texture texture;
+ 
+         public OneTextureCube(@NotNull Texture texture) {
+@@ -58,6 +93,11 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+             this.texture.addToResourcePack(resourcePack, false);
+         }
+ 
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
++            return getCubeOutwardExpandedElements(outwardDistance);
++        }
++
+         public static @NotNull OneTextureCube create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureCreation texture) {
+             return new OneTextureCube(texture.create(intention, key));
+         }
+@@ -102,6 +142,11 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+             this.sideTexture.addToResourcePack(resourcePack, false);
+         }
+ 
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
++            return OneTextureCube.getCubeOutwardExpandedElements(outwardDistance);
++        }
++
+         public static @NotNull YPillarCube create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureCreation endTexture, @NotNull TextureCreation sideTexture) {
+             return new YPillarCube(endTexture.create(intention, key), sideTexture.create(intention, key));
+         }
+@@ -137,6 +182,27 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+ 
+         private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("cube_column_horizontal"), Existing.getInstance());
+ 
++        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/cube_column_horizontal.json
++        public static @NotNull JsonArray getHorizontalColumnCubeOutwardExpandedElements(float outwardDistance) {
++            float from = -outwardDistance;
++            float to = 16 + outwardDistance;
++            return JsonParser.parseString("""
++                [
++                    {   "from": [ %f, %f, %f ],
++                        "to": [ %f, %f, %f ],
++                        "faces": {
++                            "down":  { "texture": "#down", "cullface": "down" },
++                            "up":    { "texture": "#up", "rotation": 180, "cullface": "up" },
++                            "north": { "texture": "#north", "cullface": "north" },
++                            "south": { "texture": "#south", "cullface": "south" },
++                            "west":  { "texture": "#west", "cullface": "west" },
++                            "east":  { "texture": "#east", "cullface": "east" }
++                        }
++                    }
++                ]""".formatted(from, from, from, to, to, to)
++            ).getAsJsonArray();
++        }
++
+         private final @NotNull Texture endTexture;
+         private final @NotNull Texture sideTexture;
+ 
+@@ -154,6 +220,11 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+             this.sideTexture.addToResourcePack(resourcePack, false);
+         }
+ 
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
++            return getHorizontalColumnCubeOutwardExpandedElements(outwardDistance);
++        }
++
+         public static @NotNull HorizontalYPillarCube create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureCreation endTexture, @NotNull TextureCreation sideTexture) {
+             return new HorizontalYPillarCube(endTexture.create(intention, key), sideTexture.create(intention, key));
+         }
+@@ -259,6 +330,11 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+             return parent;
+         }
+ 
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
++            return OneTextureCube.getCubeOutwardExpandedElements(outwardDistance);
++        }
++
+         public static final @NotNull CreationCompanion<BottomTopPillarCube> creationCompanion = new CreationCompanion<>() {
+ 
+             @Override
+@@ -277,6 +353,28 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+ 
+         private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("slab"), Existing.getInstance());
+ 
++        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/slab.json
++        public static @NotNull JsonArray getBottomSlabOutwardExpandedElements(float outwardDistance) {
++            float from = -outwardDistance;
++            float to = 16 + outwardDistance;
++            float toMiddleY = 8 + outwardDistance;
++            return JsonParser.parseString("""
++                [
++                    {   "from": [ %f, %f, %f ],
++                        "to": [ %f, %f, %f ],
++                        "faces": {
++                            "down":  { "uv": [ 0, 0, 16, 16 ], "texture": "#bottom", "cullface": "down" },
++                            "up":    { "uv": [ 0, 0, 16, 16 ], "texture": "#top" },
++                            "north": { "uv": [ 0, 8, 16, 16 ], "texture": "#side", "cullface": "north" },
++                            "south": { "uv": [ 0, 8, 16, 16 ], "texture": "#side", "cullface": "south" },
++                            "west":  { "uv": [ 0, 8, 16, 16 ], "texture": "#side", "cullface": "west" },
++                            "east":  { "uv": [ 0, 8, 16, 16 ], "texture": "#side", "cullface": "east" }
++                        }
++                    }
++                ]""".formatted(from, from, from, to, toMiddleY, to)
++            ).getAsJsonArray();
++        }
++
+         public BottomSlab(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture) {
+             super(bottomTexture, sideTexture, topTexture);
+         }
+@@ -286,6 +384,11 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+             return parent;
+         }
+ 
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
++            return getBottomSlabOutwardExpandedElements(outwardDistance);
++        }
++
+         public static final @NotNull CreationCompanion<BottomSlab> creationCompanion = new CreationCompanion<>() {
+ 
+             @Override
+@@ -304,6 +407,28 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+ 
+         private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("slab_top"), Existing.getInstance());
+ 
++        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/slab_top.json
++        public static @NotNull JsonArray getTopSlabOutwardExpandedElements(float outwardDistance) {
++            float from = -outwardDistance;
++            float fromMiddleY = 8 - outwardDistance;
++            float to = 16 + outwardDistance;
++            return JsonParser.parseString("""
++                [
++                    {   "from": [ %f, %f, %f ],
++                        "to": [ %f, %f, %f ],
++                        "faces": {
++                            "down":  { "uv": [ 0, 0, 16, 16 ], "texture": "#bottom" },
++                            "up":    { "uv": [ 0, 0, 16, 16 ], "texture": "#top", "cullface": "up" },
++                            "north": { "uv": [ 0, 0, 16,  8 ], "texture": "#side", "cullface": "north" },
++                            "south": { "uv": [ 0, 0, 16,  8 ], "texture": "#side", "cullface": "south" },
++                            "west":  { "uv": [ 0, 0, 16,  8 ], "texture": "#side", "cullface": "west" },
++                            "east":  { "uv": [ 0, 0, 16,  8 ], "texture": "#side", "cullface": "east" }
++                        }
++                    }
++                ]""".formatted(from, fromMiddleY, from, to, to, to)
++            ).getAsJsonArray();
++        }
++
+         public TopSlab(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture) {
+             super(bottomTexture, sideTexture, topTexture);
+         }
+@@ -313,6 +438,11 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+             return parent;
+         }
+ 
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
++            return getTopSlabOutwardExpandedElements(outwardDistance);
++        }
++
+         public static final @NotNull CreationCompanion<TopSlab> creationCompanion = new CreationCompanion<>() {
+ 
+             @Override
+@@ -341,36 +471,94 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+             resourcePackModel.setParent(parent);
+         }
+ 
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) throws UnsupportedOperationException {
++            try {
++                return parent.getContent().getOutwardExpandedElements(outwardDistance);
++            } catch (UnsupportedOperationException e) {
++                throw new UnsupportedOperationException("Cannot call getOutwardExpandedElements on ModelContent instance of type Reference for which the parent model itself does not support a call of getOutwarExpandedElements", e);
++            }
++        }
++
+     }
+ 
+     /**
+-     * A form of {@link ModelContent}: a model that refers to a parent, and is equal to it in every way execpt the size and position it appears with in an equipment head slot
++     * A form of {@link ModelContent}: a model that refers to a parent, and is equal to it in every way except the size and position it appears with in an equipment head slot (to place it in the right position from the perspective of an armor stand positioned at one of the block corners), and also except for the elements the model is drawn with (which determine the surface), in order to expand them a little bit to draw over the underlying physical block, but under its block break animation
+      */
+     public static final class AsBlockEntityReference extends ModelContent {
+ 
+         private final @NotNull Model parent;
++        private final boolean onPositiveXZCorner;
++        private final @NotNull JsonArray outwardExpandedElements;
+ 
+-        public AsBlockEntityReference(@NotNull Model parent) {
++        public AsBlockEntityReference(@NotNull Model parent, boolean onPositiveXZCorner, @NotNull JsonArray outwardExpandedElements) {
+             super();
+             this.parent = parent;
++            this.onPositiveXZCorner = onPositiveXZCorner;
++            this.outwardExpandedElements = outwardExpandedElements;
+         }
+ 
+         @Override
+         void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
+             resourcePackModel.setParent(parent);
+-            resourcePackModel.setBlockEntityHeadDisplay();
++            resourcePackModel.setBlockEntityHeadDisplay(onPositiveXZCorner);
++            resourcePackModel.setBlockEntityElements(this.outwardExpandedElements);
+             parent.addToResourcePack(resourcePack, false);
+         }
+ 
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) throws UnsupportedOperationException {
++            throw new UnsupportedOperationException("Cannot call getOutwardExpandedElements on ModelContent instance of type AsBlockEntityReference");
++        }
++
+     }
+ 
++//    /**
++//     * A form of {@link ModelContent}: a model that refers to a parent, and is equal to it in every way except the size and position it appears with in an equipment head slot
++//     */
++//    public static final class AsBlockEntityReference extends ModelContent {
++//
++//        private final @NotNull Model parent;
++//
++//        public AsBlockEntityReference(@NotNull Model parent) {
++//            super();
++//            this.parent = parent;
++//        }
++//
++//        @Override
++//        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
++//            resourcePackModel.setParent(parent);
++//            resourcePackModel.setBlockEntityHeadDisplay();
++//            parent.addToResourcePack(resourcePack, false);
++//        }
++//
++//    }
++
+     /**
+      * A reference to some model that is outside the scope of our own resource pack (for example a model already existing) that we do not seek to modify
+      */
+     public static final class Existing extends ModelContent {
+ 
+-        private Existing() {
++        public enum ExistingModelContentOutwardExpansionType {
++
++            CUBE(OneTextureCube::getCubeOutwardExpandedElements),
++            HORIZONTAL_COLUMN_CUBE(HorizontalYPillarCube::getHorizontalColumnCubeOutwardExpandedElements),
++            BOTTOM_SLAB(BottomSlab::getBottomSlabOutwardExpandedElements),
++            TOP_SLAB(TopSlab::getTopSlabOutwardExpandedElements);
++
++            private final @NotNull Function<@NotNull Float, @NotNull JsonArray> outwardExpandedElementsFunction;
++
++            ExistingModelContentOutwardExpansionType(@NotNull Function<@NotNull Float, @NotNull JsonArray> outwardExpandedElementsFunction) {
++                this.outwardExpandedElementsFunction = outwardExpandedElementsFunction;
++            }
++
++        }
++
++        private final @Nullable ExistingModelContentOutwardExpansionType outwardExpansionType;
++
++        private Existing(@Nullable ExistingModelContentOutwardExpansionType outwardExpansionType) {
+             super();
++            this.outwardExpansionType = outwardExpansionType;
+         }
+ 
+         /**
+@@ -379,12 +567,31 @@ public abstract class ModelContent implements ResourcePackAssetDataContent {
+         @Override
+         void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {}
+ 
+-        private static final @NotNull Existing INSTANCE = new Existing();
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) throws UnsupportedOperationException {
++            if (this.outwardExpansionType != null) {
++                return this.outwardExpansionType.outwardExpandedElementsFunction.apply(outwardDistance);
++            }
++            throw new UnsupportedOperationException("Cannot call getOutwardExpandedElements on ModelContent instance of type Existing that did not have an outwardExpansionType");
++        }
++
++        private static final @NotNull Existing INSTANCE = new Existing(null);
+ 
+         public static @NotNull Existing getInstance() {
+             return INSTANCE;
+         }
+ 
++        private static final @NotNull EnumMap<@NotNull ExistingModelContentOutwardExpansionType, @NotNull Existing> instancesWithOutwardExpansionType = new EnumMap<>(ExistingModelContentOutwardExpansionType.class);
++        static {
++            for (ExistingModelContentOutwardExpansionType type : ExistingModelContentOutwardExpansionType.values()) {
++                instancesWithOutwardExpansionType.put(type, new Existing(type));
++            }
++        }
++
++        public static @NotNull Existing getInstance(@NotNull ExistingModelContentOutwardExpansionType outwardExpansionType) {
++            return instancesWithOutwardExpansionType.get(outwardExpansionType);
++        }
++
+     }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
+index 960b2a84a67a56763f183c30a97710deae20cd6d..0617d826ed9b7072b3fa6c66f4abda3b3485d0f2 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/KeyConstants.java
+@@ -111,4 +111,9 @@ public final class KeyConstants {
+      */
+     public static final @NotNull String displayScale = "scale";
+ 
++    /**
++     * The key for a model's elements
++     */
++    public static final @NotNull String elements = "elements";
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
+index e0d6e3d54a44f45926a0c26d548dd1f33051361e..08f7adf8cb0af97fcb3d830d6dae1dc52484708e 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
+@@ -2,9 +2,11 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack.asset.model;
+ 
++import com.google.common.base.Charsets;
+ import com.google.gson.JsonArray;
+ import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
++import net.minecraft.network.Connection;
+ import nl.martijnmuijsers.paper.resourcepack.KeyConstants;
+ import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
+@@ -14,6 +16,11 @@ import nl.martijnmuijsers.paper.resourcepack.asset.json.SimpleJsonResourcePackAs
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
++import java.io.IOException;
++import java.io.OutputStream;
++import java.util.List;
++import java.util.stream.StreamSupport;
++
+ /**
+  * Concrete implementation of {@link MutableResourcePackModel}
+  */
+@@ -43,7 +50,7 @@ public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<Concr
+     }
+ 
+     @Override
+-    public void setBlockEntityHeadDisplay() {
++    public void setBlockEntityHeadDisplay(boolean onPositiveXZCorner) {
+         @NotNull JsonObject displayJson;
+         if (this.json.has(KeyConstants.display)) {
+             displayJson = this.json.getAsJsonObject(KeyConstants.display);
+@@ -59,17 +66,51 @@ public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<Concr
+             displayJson.add(KeyConstants.displayHead, headJson);
+         }
+         @NotNull JsonArray translationJson = new JsonArray(3);
+-        translationJson.add(0);
+-        translationJson.add(-30.425);
+-        translationJson.add(0);
+-        headJson.add(KeyConstants.displayTranslation, translationJson);
+         @NotNull JsonArray scaleJson = new JsonArray(3);
++        // Temp
++//        boolean isBottomSlab = true;
++//        if (isBottomSlab) {
++//            translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * 25.6F);
++//            translationJson.add(-30.425F - BLOCK_ENTITY_ARMOR_STAND_DY * 25.6F);
++//            translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * 25.6F);
++//            for (int i = 0; i < 3; i++) {
++//                scaleJson.add(1.605F);
++//            }
++//        } else {
++//            translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * 25.6F);
++//            translationJson.add(-30.425F - BLOCK_ENTITY_ARMOR_STAND_DY * 25.6F);
++//            translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * 25.6F);
++//            for (int i = 0; i < 3; i++) {
++//                scaleJson.add(1.605F);
++//            }
++//        }
++//        translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * (1.6F * 16));
++//        translationJson.add(-30.42555F - BLOCK_ENTITY_ARMOR_STAND_DY * (1.6F * 16)); // [-30.42575F, -30.4254)
++//        translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * (1.6F * 16));
++//        for (int i = 0; i < 3; i++) {
++//            scaleJson.add(1.6F);
++//        }
++        float translationX = BLOCK_ENTITY_ARMOR_STAND_DXZ * (1.6F * 16);
++        float translationZ = BLOCK_ENTITY_ARMOR_STAND_DXZ * (1.6F * 16);
++        if (!onPositiveXZCorner) {
++            translationX = -translationX;
++            translationZ = -translationZ;
++        }
++        translationJson.add(translationX);
++        translationJson.add(-30.42555F - BLOCK_ENTITY_ARMOR_STAND_DY * (1.6F * 16));
++        translationJson.add(translationZ);
+         for (int i = 0; i < 3; i++) {
+-            translationJson.add(1.605);
++            scaleJson.add(1.6F);
+         }
++        headJson.add(KeyConstants.displayTranslation, translationJson);
+         headJson.add(KeyConstants.displayScale, scaleJson);
+     }
+ 
++    @Override
++    public void setBlockEntityElements(@NotNull JsonArray elementsJson) {
++        this.json.add(KeyConstants.elements, elementsJson);
++    }
++
+     @Override
+     public void setAllTextures(@NotNull Texture texture) {
+         @NotNull JsonObject texturesJson = new JsonObject();
+@@ -130,4 +171,26 @@ public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<Concr
+         this.setDirty();
+     }
+ 
++    private void sortModelOverrides() {
++        if (!this.json.has(KeyConstants.modelOverrides)) {
++            return;
++        }
++        @NotNull JsonArray overridesJson = this.json.getAsJsonArray(KeyConstants.modelOverrides);
++        @NotNull JsonArray newOverridesJson = new JsonArray(overridesJson.size());
++        StreamSupport.stream(overridesJson.spliterator(), false).sorted((overrideJson1, overrideJson2) -> {
++            JsonObject overridePredicate1 = ((JsonObject) overrideJson1).getAsJsonObject(KeyConstants.overridePredicate);
++            JsonObject overridePredicate2 = ((JsonObject) overrideJson2).getAsJsonObject(KeyConstants.overridePredicate);
++            int customModelData1 = overridePredicate1.has(KeyConstants.customModelData) ? overridePredicate1.get(KeyConstants.customModelData).getAsInt() : Integer.MAX_VALUE;
++            int customModelData2 = overridePredicate2.has(KeyConstants.customModelData) ? overridePredicate2.get(KeyConstants.customModelData).getAsInt() : Integer.MAX_VALUE;
++            return Integer.compare(customModelData1, customModelData2);
++        }).forEach(newOverridesJson::add);
++        this.json.add(KeyConstants.modelOverrides, newOverridesJson);
++    }
++
++    @Override
++    public void writeTo(@NotNull OutputStream outputStream) throws IOException {
++        this.sortModelOverrides();
++        super.writeTo(outputStream);
++    }
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java
+index 54375ef54683365486c271504832e80b888d91ec..13438ad3ac1cb4083bdc44ef25f6e840d433d61a 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java
+@@ -2,6 +2,8 @@
+ 
+ package nl.martijnmuijsers.paper.resourcepack.asset.model;
+ 
++import com.google.gson.JsonArray;
++import com.google.gson.JsonObject;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
+ import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
+@@ -19,7 +21,9 @@ public interface MutableResourcePackModel extends MutableJsonResourcePackAsset,
+ 
+     void setParent(@NotNull Model parent);
+ 
+-    void setBlockEntityHeadDisplay();
++    void setBlockEntityHeadDisplay(boolean onPositiveXZCorner);
++
++    void setBlockEntityElements(@NotNull JsonArray elementsJson);
+ 
+     void setAllTextures(@NotNull Texture texture);
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ResourcePackModel.java
+index 319b778d805a9ab124fe0ca37dda5b9c2564c36c..5cec2099235cb119be9bd01e5f6e875f4daef399 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ResourcePackModel.java
+@@ -15,4 +15,8 @@ public interface ResourcePackModel extends JsonResourcePackAsset {
+     @Override
+     @NotNull ResourcePackModel merge(@NotNull ResourcePackAsset other);
+ 
++    float BLOCK_ENTITY_ARMOR_STAND_DY = -0.01F;
++    float BLOCK_ENTITY_ARMOR_STAND_DXZ = 0.5F;
++    short DOUBLE_BLOCK_ENTITY_ARMOR_STAND_DXZ_AS_POS_MOVE_SHORT = 32 * 128;
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+index 79a40a9fec79d4d2a2f63ef074684f0c1bd562df..81eabcc686e0f3b9189eef967b84732783b787b8 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+@@ -36,7 +36,7 @@ public final class CreateSuCraftResourcePack {
+ 
+     private CreateSuCraftResourcePack() {}
+ 
+-    private static final int currentResourcePackVersion = 59;
++    private static final int currentResourcePackVersion = 92;
+ 
+     private static final String RESOURCE_PACK_FOLDER_PATH = "resourcepack";
+     private static final String OUTPUT_FOLDER_PATH = RESOURCE_PACK_FOLDER_PATH + "/output";
+@@ -46,7 +46,7 @@ public final class CreateSuCraftResourcePack {
+     public static final String INHERITED_RESOURCE_PACKS_FOLDER_PATH = INPUT_FOLDER_PATH + "/inheritedpacks";
+     private static final String VANILLA_RESOURCE_PACK_ARCHIVE_PATH = INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/vanilla_client_1.19_only_assets_minecraft.zip";
+ 
+-    public static final int RESOURCE_PACK_FORMAT = 8;
++    public static final int RESOURCE_PACK_FORMAT = 9;
+     private static final String NAME = "SuCraft";
+     private static final JsonElement DESCRIPTION = JsonParser.parseString("[{\"text\":\"\\u2764 Made with love\",\"color\":\"gray\"},{\"text\":\"\\n\"},{\"text\":\"~SuCraft\",\"color\":\"gold\"}]");
+ 
