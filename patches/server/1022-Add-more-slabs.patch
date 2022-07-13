@@ -1,0 +1,562 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 13 Jul 2022 11:50:52 +0200
+Subject: [PATCH] Add more slabs
+
+
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 4685b04026406d1dea033de7ef6f6d106c7268c9..b1a9909a14ff8ca2abaf2a2e0956d7d90d5419aa 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -504,7 +504,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         int sectionDZ = sectionPos.z() - playerSectionPos.z();
+         if (sectionDX == 0 && sectionDY == 0 && sectionDZ == 0) {
+             return BlockEntityModelProximity.SAME_CHUNK;
+-        } else if (sectionDX >= -1 && sectionDX <= 1 && sectionDY >= -1 && sectionDY <= 1 && sectionDZ >= -1 && sectionDZ <= 1) {
++        } else if (sectionDX >= -BlockEntityModelProximity.maxSectionDistanceForNeighbors && sectionDX <= BlockEntityModelProximity.maxSectionDistanceForNeighbors && sectionDY >= -BlockEntityModelProximity.maxSectionDistanceForNeighbors && sectionDY <= BlockEntityModelProximity.maxSectionDistanceForNeighbors && sectionDZ >= -BlockEntityModelProximity.maxSectionDistanceForNeighbors && sectionDZ <= BlockEntityModelProximity.maxSectionDistanceForNeighbors) {
+             return BlockEntityModelProximity.NEIGHBOR_CHUNK;
+         } else {
+             return BlockEntityModelProximity.FAR;
+@@ -513,11 +513,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+ 
+     private static @Nullable BlockEntityModelProximity getProximityForBlocks(@NotNull BlockPos blockPos, @NotNull BlockPos playerBlockPos, @Nullable BlockEntityModelProximity defaultValue) {
+         int dx = blockPos.getX() - playerBlockPos.getX();
+-        if (dx >= -1 && dx <= 1) {
++        if (dx >= -BlockEntityModelProximity.maxBlockDistanceForNeighbors && dx <= BlockEntityModelProximity.maxBlockDistanceForNeighbors) {
+             int dy = blockPos.getY() - playerBlockPos.getY();
+-            if (dy >= -1 && dy <= 1) {
++            if (dy >= -BlockEntityModelProximity.maxBlockDistanceForNeighbors && dy <= BlockEntityModelProximity.maxBlockDistanceForNeighbors) {
+                 int dz = blockPos.getZ() - playerBlockPos.getZ();
+-                if (dz >= -1 && dz <= 1) {
++                if (dz >= -BlockEntityModelProximity.maxBlockDistanceForNeighbors && dz <= BlockEntityModelProximity.maxBlockDistanceForNeighbors) {
+                     return BlockEntityModelProximity.NEIGHBOR_BLOCK;
+                 }
+             }
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 43c92ee279ff53271aec5513ed02ba76c609e94b..f8d72c63974ceb7d886c9077a4d35f077acaf040 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -106,6 +106,7 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
+ import net.minecraft.world.level.storage.DimensionDataStorage;
+ import net.minecraft.world.level.storage.LevelStorageSource;
+ import it.unimi.dsi.fastutil.objects.ObjectRBTreeSet; // Paper
++import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelProximity;
+ import org.apache.commons.lang3.mutable.MutableBoolean;
+ import org.apache.commons.lang3.mutable.MutableObject;
+ import org.apache.commons.lang3.tuple.ImmutablePair;
+@@ -2017,11 +2018,11 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                 if (connection2 != null && connection2.isConnected()) {
+                     if (!sectionposition.equals(sectionposition1) || !connection2.hasUpdatedBlockEntitiesClosebyModelForSections) {
+                         connection2.hasUpdatedBlockEntitiesClosebyModelForSections = true;
+-                        LongSet fromAndToSectionsAndChessboardNeighbors = new LongOpenHashSet(108); // (3*3*3) * 2 * 2
++                        LongSet fromAndToSectionsAndChessboardNeighbors = new LongOpenHashSet((BlockEntityModelProximity.maxSectionDistanceForNeighbors * 2 + 1) * (BlockEntityModelProximity.maxSectionDistanceForNeighbors * 2 + 1) * (BlockEntityModelProximity.maxSectionDistanceForNeighbors * 2 + 1) * 2 * 2);
+                         for (SectionPos oldOrNewSectionPos : new SectionPos[]{sectionposition, sectionposition1}) {
+-                            for (int dx = -1; dx <= 1; dx++) {
+-                                for (int dy = -1; dy <= 1; dy++) {
+-                                    for (int dz = -1; dz <= 1; dz++) {
++                            for (int dx = -BlockEntityModelProximity.maxSectionDistanceForNeighbors; dx <= BlockEntityModelProximity.maxSectionDistanceForNeighbors; dx++) {
++                                for (int dy = -BlockEntityModelProximity.maxSectionDistanceForNeighbors; dy <= BlockEntityModelProximity.maxSectionDistanceForNeighbors; dy++) {
++                                    for (int dz = -BlockEntityModelProximity.maxSectionDistanceForNeighbors; dz <= BlockEntityModelProximity.maxSectionDistanceForNeighbors; dz++) {
+                                         int nx = oldOrNewSectionPos.x() + dx;
+                                         int ny = oldOrNewSectionPos.y() + dy;
+                                         int nz = oldOrNewSectionPos.z() + dz;
+@@ -2039,12 +2040,12 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+                             }
+                         }
+                     } else if (player.lastBlockPos == null || !player.lastBlockPos.equals(newBlockPos)) {
+-                        LongSet fromAndToBlocksAndChessboardNeighbors = new LongOpenHashSet(108); // (3*3*3) * 2 * 2
++                        LongSet fromAndToBlocksAndChessboardNeighbors = new LongOpenHashSet((BlockEntityModelProximity.maxBlockDistanceForNeighbors * 2 + 1) * (BlockEntityModelProximity.maxBlockDistanceForNeighbors * 2 + 1) * (BlockEntityModelProximity.maxBlockDistanceForNeighbors * 2 + 1) * 2 * 2);
+                         for (BlockPos oldOrNewBlockPos : new BlockPos[]{player.lastBlockPos, newBlockPos}) {
+                             if (oldOrNewBlockPos != null) {
+-                                for (int dx = -1; dx <= 1; dx++) {
+-                                    for (int dy = -1; dy <= 1; dy++) {
+-                                        for (int dz = -1; dz <= 1; dz++) {
++                                for (int dx = -BlockEntityModelProximity.maxBlockDistanceForNeighbors; dx <= BlockEntityModelProximity.maxBlockDistanceForNeighbors; dx++) {
++                                    for (int dy = -BlockEntityModelProximity.maxBlockDistanceForNeighbors; dy <= BlockEntityModelProximity.maxBlockDistanceForNeighbors; dy++) {
++                                        for (int dz = -BlockEntityModelProximity.maxBlockDistanceForNeighbors; dz <= BlockEntityModelProximity.maxBlockDistanceForNeighbors; dz++) {
+                                             int nx = oldOrNewBlockPos.getX() + dx;
+                                             int ny = oldOrNewBlockPos.getY() + dy;
+                                             int nz = oldOrNewBlockPos.getZ() + dz;
+diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
+index 7c9f160eda613b8c8fec2aabf8280f23a20d591d..b4e788c119752a774f68c5ef4a467596d3651ab0 100644
+--- a/src/main/java/net/minecraft/world/level/block/Block.java
++++ b/src/main/java/net/minecraft/world/level/block/Block.java
+@@ -210,6 +210,10 @@ public class Block extends BlockBehaviour implements ItemLike {
+         return this.withTag(() -> BlockTags.LEAVES);
+     }
+ 
++    public @NotNull Block wool() {
++        return this.withTag(() -> BlockTags.WOOL);
++    }
++
+     // Other tags
+ 
+     public @NotNull Block planks() {
+@@ -224,6 +228,10 @@ public class Block extends BlockBehaviour implements ItemLike {
+         return this.withTag(() -> BlockTags.SLABS);
+     }
+ 
++    public @NotNull Block woodenSlab() {
++        return this.withTag(() -> BlockTags.WOODEN_SLABS).slab();
++    }
++
+     public @NotNull Block dirt() {
+         return this.withTag(() -> BlockTags.DIRT);
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 26d310594c2e524f94d01d8aba2870db519e2e46..12a126bd77ade1bbc59d7e34e3f6902d72b31189 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -24,6 +24,7 @@ import nl.martijnmuijsers.paper.block.replacementrule.SingleStateRealBlockReplac
+ import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
+ import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContent;
++import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
+ import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
+ import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
+@@ -161,7 +162,119 @@ public class SuCraftBlocks {
+     public static final Block ORANGE_MAPLE_LEAVES = registerLeaves("orange_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_ORANGE);
+     public static final Block YELLOW_MAPLE_LEAVES = registerLeaves("yellow_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_YELLOW);
+     public static final Block DIRT_SLAB = registerRealSlab("dirt", null, Blocks.WAXED_CUT_COPPER_SLAB, Blocks.CUT_COPPER_SLAB, Blocks.MUD_BRICK_SLAB, BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F).sound(SoundType.GRAVEL)).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
+-    public static final Block SNOWY_STONE_BRICK_SLAB = registerFakeSlab(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_SLAB, Blocks.STONE_BRICK_SLAB);
++    public static final Block SNOWY_STONE_BRICK_SLAB = registerFakeSlab(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_SLAB);
++    public static final Block DIRTY_STONE_BRICK_SLAB = registerFakeSlab(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_SLAB);
++    public static final Block CRACKED_STONE_BRICK_SLAB = registerFakeSlab(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_SLAB);
++    public static final Block BLACK_PLANK_SLAB = registerFakeDyedPlanksSlab(BLACK_PLANKS, "black", Blocks.DARK_OAK_SLAB);
++    public static final Block BLUE_PLANK_SLAB = registerFakeDyedPlanksSlab(BLUE_PLANKS, "blue", Blocks.WARPED_SLAB);
++    public static final Block BROWN_PLANK_SLAB = registerFakeDyedPlanksSlab(BROWN_PLANKS, "brown", Blocks.SPRUCE_SLAB);
++    public static final Block CYAN_PLANK_SLAB = registerFakeDyedPlanksSlab(CYAN_PLANKS, "cyan", Blocks.WARPED_SLAB);
++    public static final Block GRAY_PLANK_SLAB = registerFakeDyedPlanksSlab(GRAY_PLANKS, "gray", Blocks.SPRUCE_SLAB);
++    public static final Block GREEN_PLANK_SLAB = registerFakeDyedPlanksSlab(GREEN_PLANKS, "green", Blocks.WARPED_SLAB);
++    public static final Block LIGHT_BLUE_PLANK_SLAB = registerFakeDyedPlanksSlab(LIGHT_BLUE_PLANKS, "light_blue", Blocks.WARPED_SLAB);
++    public static final Block LIGHT_GRAY_PLANK_SLAB = registerFakeDyedPlanksSlab(LIGHT_GRAY_PLANKS, "light_gray", Blocks.OAK_SLAB);
++    public static final Block LIME_PLANK_SLAB = registerFakeDyedPlanksSlab(LIME_PLANKS, "lime", Blocks.WARPED_SLAB);
++    public static final Block MAGENTA_PLANK_SLAB = registerFakeDyedPlanksSlab(MAGENTA_PLANKS, "magenta", Blocks.CRIMSON_SLAB);
++    public static final Block ORANGE_PLANK_SLAB = registerFakeDyedPlanksSlab(ORANGE_PLANKS, "orange", Blocks.ACACIA_SLAB);
++    public static final Block PINK_PLANK_SLAB = registerFakeDyedPlanksSlab(PINK_PLANKS, "pink", Blocks.JUNGLE_SLAB);
++    public static final Block PURPLE_PLANK_SLAB = registerFakeDyedPlanksSlab(PURPLE_PLANKS, "purple", Blocks.CRIMSON_SLAB);
++    public static final Block RED_PLANK_SLAB = registerFakeDyedPlanksSlab(RED_PLANKS, "red", Blocks.MANGROVE_SLAB);
++    public static final Block WHITE_PLANK_SLAB = registerFakeDyedPlanksSlab(WHITE_PLANKS, "white", Blocks.BIRCH_SLAB);
++    public static final Block YELLOW_PLANK_SLAB = registerFakeDyedPlanksSlab(YELLOW_PLANKS, "yellow", Blocks.BIRCH_SLAB);
++    public static final Block BLACK_WOOL_SLAB = registerFakeWoolSlab(Blocks.BLACK_WOOL, "black", Blocks.BLACKSTONE_SLAB);
++    public static final Block BLUE_WOOL_SLAB = registerFakeWoolSlab(Blocks.BLUE_WOOL, "blue", Blocks.WARPED_SLAB);
++    public static final Block BROWN_WOOL_SLAB = registerFakeWoolSlab(Blocks.BROWN_WOOL, "brown", Blocks.SPRUCE_SLAB);
++    public static final Block CYAN_WOOL_SLAB = registerFakeWoolSlab(Blocks.CYAN_WOOL, "cyan", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block GRAY_WOOL_SLAB = registerFakeWoolSlab(Blocks.GRAY_WOOL, "gray", Blocks.STONE_SLAB);
++    public static final Block GREEN_WOOL_SLAB = registerFakeWoolSlab(Blocks.GREEN_WOOL, "green", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block LIGHT_BLUE_WOOL_SLAB = registerFakeWoolSlab(Blocks.LIGHT_BLUE_WOOL, "light_blue", Blocks.PRISMARINE_BRICK_SLAB);
++    public static final Block LIGHT_GRAY_WOOL_SLAB = registerFakeWoolSlab(Blocks.LIGHT_GRAY_WOOL, "light_gray", Blocks.SMOOTH_STONE_SLAB);
++    public static final Block LIME_WOOL_SLAB = registerFakeWoolSlab(Blocks.LIME_WOOL, "lime", Blocks.OXIDIZED_CUT_COPPER_SLAB);
++    public static final Block MAGENTA_WOOL_SLAB = registerFakeWoolSlab(Blocks.MAGENTA_WOOL, "magenta", Blocks.PURPUR_SLAB);
++    public static final Block ORANGE_WOOL_SLAB = registerFakeWoolSlab(Blocks.ORANGE_WOOL, "orange", Blocks.SMOOTH_RED_SANDSTONE_SLAB);
++    public static final Block PINK_WOOL_SLAB = registerFakeWoolSlab(Blocks.PINK_WOOL, "pink", Blocks.PURPUR_SLAB);
++    public static final Block PURPLE_WOOL_SLAB = registerFakeWoolSlab(Blocks.PURPLE_WOOL, "purple", Blocks.PURPUR_SLAB);
++    public static final Block RED_WOOL_SLAB = registerFakeWoolSlab(Blocks.RED_WOOL, "red", Blocks.MANGROVE_SLAB);
++    public static final Block WHITE_WOOL_SLAB = registerFakeWoolSlab(Blocks.WHITE_WOOL, "white", Blocks.SMOOTH_QUARTZ_SLAB);
++    public static final Block YELLOW_WOOL_SLAB = registerFakeWoolSlab(Blocks.YELLOW_WOOL, "yellow", Blocks.BIRCH_SLAB);
++    public static final Block BLACK_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.BLACK_CONCRETE, "black", Blocks.BLACKSTONE_SLAB);
++    public static final Block BLUE_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.BLUE_CONCRETE, "blue", Blocks.WARPED_SLAB);
++    public static final Block BROWN_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.BROWN_CONCRETE, "brown", Blocks.SPRUCE_SLAB);
++    public static final Block CYAN_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.CYAN_CONCRETE, "cyan", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block GRAY_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.GRAY_CONCRETE, "gray", Blocks.STONE_SLAB);
++    public static final Block GREEN_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.GREEN_CONCRETE, "green", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block LIGHT_BLUE_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.LIGHT_BLUE_CONCRETE, "light_blue", Blocks.PRISMARINE_BRICK_SLAB);
++    public static final Block LIGHT_GRAY_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.LIGHT_GRAY_CONCRETE, "light_gray", Blocks.SMOOTH_STONE_SLAB);
++    public static final Block LIME_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.LIME_CONCRETE, "lime", Blocks.OXIDIZED_CUT_COPPER_SLAB);
++    public static final Block MAGENTA_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.MAGENTA_CONCRETE, "magenta", Blocks.PURPUR_SLAB);
++    public static final Block ORANGE_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.ORANGE_CONCRETE, "orange", Blocks.SMOOTH_RED_SANDSTONE_SLAB);
++    public static final Block PINK_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.PINK_CONCRETE, "pink", Blocks.PURPUR_SLAB);
++    public static final Block PURPLE_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.PURPLE_CONCRETE, "purple", Blocks.PURPUR_SLAB);
++    public static final Block RED_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.RED_CONCRETE, "red", Blocks.MANGROVE_SLAB);
++    public static final Block WHITE_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.WHITE_CONCRETE, "white", Blocks.SMOOTH_QUARTZ_SLAB);
++    public static final Block YELLOW_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.YELLOW_CONCRETE, "yellow", Blocks.BIRCH_SLAB);
++    public static final Block BLACK_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.BLACK_CONCRETE_POWDER, "black", Blocks.BLACKSTONE_SLAB);
++    public static final Block BLUE_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.BLUE_CONCRETE_POWDER, "blue", Blocks.WARPED_SLAB);
++    public static final Block BROWN_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.BROWN_CONCRETE_POWDER, "brown", Blocks.SPRUCE_SLAB);
++    public static final Block CYAN_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.CYAN_CONCRETE_POWDER, "cyan", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block GRAY_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.GRAY_CONCRETE_POWDER, "gray", Blocks.STONE_SLAB);
++    public static final Block GREEN_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.GREEN_CONCRETE_POWDER, "green", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block LIGHT_BLUE_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.LIGHT_BLUE_CONCRETE_POWDER, "light_blue", Blocks.PRISMARINE_BRICK_SLAB);
++    public static final Block LIGHT_GRAY_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.LIGHT_GRAY_CONCRETE_POWDER, "light_gray", Blocks.SMOOTH_STONE_SLAB);
++    public static final Block LIME_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.LIME_CONCRETE_POWDER, "lime", Blocks.OXIDIZED_CUT_COPPER_SLAB);
++    public static final Block MAGENTA_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.MAGENTA_CONCRETE_POWDER, "magenta", Blocks.PURPUR_SLAB);
++    public static final Block ORANGE_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.ORANGE_CONCRETE_POWDER, "orange", Blocks.SMOOTH_RED_SANDSTONE_SLAB);
++    public static final Block PINK_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.PINK_CONCRETE_POWDER, "pink", Blocks.PURPUR_SLAB);
++    public static final Block PURPLE_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.PURPLE_CONCRETE_POWDER, "purple", Blocks.PURPUR_SLAB);
++    public static final Block RED_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.RED_CONCRETE_POWDER, "red", Blocks.MANGROVE_SLAB);
++    public static final Block WHITE_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.WHITE_CONCRETE_POWDER, "white", Blocks.SMOOTH_QUARTZ_SLAB);
++    public static final Block YELLOW_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.YELLOW_CONCRETE_POWDER, "yellow", Blocks.BIRCH_SLAB);
++    public static final Block BLACK_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.BLACK_TERRACOTTA, "black", Blocks.BLACKSTONE_SLAB);
++    public static final Block BLUE_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.BLUE_TERRACOTTA, "blue", Blocks.POLISHED_BLACKSTONE_SLAB);
++    public static final Block BROWN_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.BROWN_TERRACOTTA, "brown", Blocks.DARK_OAK_SLAB);
++    public static final Block CYAN_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.CYAN_TERRACOTTA, "cyan", Blocks.STONE_SLAB);
++    public static final Block GRAY_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.GRAY_TERRACOTTA, "gray", Blocks.DARK_OAK_SLAB);
++    public static final Block GREEN_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.GREEN_TERRACOTTA, "green", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block LIGHT_BLUE_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.LIGHT_BLUE_TERRACOTTA, "light_blue", Blocks.STONE_SLAB);
++    public static final Block LIGHT_GRAY_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.LIGHT_GRAY_TERRACOTTA, "light_gray", Blocks.JUNGLE_SLAB);
++    public static final Block LIME_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.LIME_TERRACOTTA, "lime", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block MAGENTA_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.MAGENTA_TERRACOTTA, "magenta", Blocks.PURPUR_SLAB);
++    public static final Block ORANGE_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.ORANGE_TERRACOTTA, "orange", Blocks.SMOOTH_RED_SANDSTONE_SLAB);
++    public static final Block PINK_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.PINK_TERRACOTTA, "pink", Blocks.MANGROVE_SLAB);
++    public static final Block PURPLE_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.PURPLE_TERRACOTTA, "purple", Blocks.PURPUR_SLAB);
++    public static final Block RED_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.RED_TERRACOTTA, "red", Blocks.MANGROVE_SLAB);
++    public static final Block WHITE_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.WHITE_TERRACOTTA, "white", Blocks.SMOOTH_QUARTZ_SLAB);
++    public static final Block YELLOW_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.YELLOW_TERRACOTTA, "yellow", Blocks.OAK_SLAB);
++    public static final Block COARSE_DIRT_SLAB = registerFakeSlab(Blocks.COARSE_DIRT, "coarse_dirt", Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block SAND_SLAB = registerFakeSlab(Blocks.SAND, "sand", Blocks.SANDSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block RED_SAND_SLAB = registerFakeSlab(Blocks.RED_SAND, "red_sand", Blocks.RED_SANDSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block CLAY_SLAB = registerFakeSlab(Blocks.CLAY, "clay", Blocks.ANDESITE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block MUD_SLAB = registerFakeSlab(Blocks.MUD, "mud", Blocks.POLISHED_BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block PACKED_MUD_SLAB = registerFakeSlab(Blocks.PACKED_MUD, "packed_mud", Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
++    public static final Block AMETHYST_SLAB = registerFakeSlab(Blocks.AMETHYST_BLOCK, "amethyst", "amethyst_block", Blocks.PURPUR_SLAB).mineableWithPickaxe();
++    public static final Block COAL_SLAB = registerFakeSlab(Blocks.COAL_BLOCK, "coal", "coal_block", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
++    public static final Block OAK_BOOKSHELF_SLAB = registerFakeBookshelfSlab(Blocks.BOOKSHELF, "oak", Blocks.OAK_SLAB);
++    public static final Block SPRUCE_BOOKSHELF_SLAB = registerFakeBookshelfSlab(SPRUCE_BOOKSHELF, "spruce", Blocks.SPRUCE_SLAB);
++    public static final Block BIRCH_BOOKSHELF_SLAB = registerFakeBookshelfSlab(BIRCH_BOOKSHELF, "birch", Blocks.BIRCH_SLAB);
++    public static final Block JUNGLE_BOOKSHELF_SLAB = registerFakeBookshelfSlab(JUNGLE_BOOKSHELF, "jungle", Blocks.JUNGLE_SLAB);
++    public static final Block CALCITE_SLAB = registerFakeSlab(Blocks.CALCITE, "calcite", Blocks.SMOOTH_QUARTZ_SLAB).mineableWithPickaxe();
++    public static final Block DRIPSTONE_SLAB = registerFakeSlab(Blocks.DRIPSTONE_BLOCK, "dripstone", "dripstone_block", Blocks.GRANITE_SLAB).mineableWithPickaxe();
++    public static final Block TUFF_SLAB = registerFakeSlab(Blocks.TUFF, "tuff", Blocks.COBBLESTONE_SLAB).mineableWithPickaxe();
++    public static final Block POLISHED_CALCITE_SLAB = registerFakePolishedSlab(POLISHED_CALCITE, "calcite", Blocks.QUARTZ_SLAB);
++    public static final Block POLISHED_DRIPSTONE_SLAB = registerFakePolishedSlab(POLISHED_DRIPSTONE, "dripstone", Blocks.POLISHED_GRANITE_SLAB);
++    public static final Block POLISHED_TUFF_SLAB = registerFakePolishedSlab(POLISHED_TUFF, "tuff", Blocks.ANDESITE_SLAB);
++    public static final Block ANDESITE_BRICK_SLAB = registerFakeBrickSlab(ANDESITE_BRICKS, "andesite", Blocks.POLISHED_ANDESITE_SLAB);
++    public static final Block CALCITE_BRICK_SLAB = registerFakeBrickSlab(CALCITE_BRICKS, "calcite", Blocks.QUARTZ_SLAB);
++    public static final Block DIORITE_BRICK_SLAB = registerFakeBrickSlab(DIORITE_BRICKS, "diorite", Blocks.POLISHED_DIORITE_SLAB);
++    public static final Block DRIPSTONE_BRICK_SLAB = registerFakeBrickSlab(DRIPSTONE_BRICKS, "dripstone", Blocks.POLISHED_GRANITE_SLAB);
++    public static final Block GRANITE_BRICK_SLAB = registerFakeBrickSlab(GRANITE_BRICKS, "granite", Blocks.POLISHED_GRANITE_SLAB);
++    public static final Block TUFF_BRICK_SLAB = registerFakeBrickSlab(TUFF_BRICKS, "tuff", Blocks.STONE_BRICK_SLAB);
++    public static final Block ANDESITE_PILLAR_SLAB = registerFakeStonePillarSlab(ANDESITE_PILLAR, "andesite", Blocks.POLISHED_ANDESITE_SLAB);
++    public static final Block CALCITE_PILLAR_SLAB = registerFakeStonePillarSlab(CALCITE_PILLAR, "calcite", Blocks.QUARTZ_SLAB);
++    public static final Block DIORITE_PILLAR_SLAB = registerFakeStonePillarSlab(DIORITE_PILLAR, "diorite", Blocks.POLISHED_DIORITE_SLAB);
++    public static final Block DRIPSTONE_PILLAR_SLAB = registerFakeStonePillarSlab(DRIPSTONE_PILLAR, "dripstone", Blocks.POLISHED_GRANITE_SLAB);
++    public static final Block GRANITE_PILLAR_SLAB = registerFakeStonePillarSlab(GRANITE_PILLAR, "granite", Blocks.POLISHED_GRANITE_SLAB);
++    public static final Block TUFF_PILLAR_SLAB = registerFakeStonePillarSlab(TUFF_PILLAR, "tuff", Blocks.COBBLESTONE_SLAB);
+ 
+     private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
+         return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
+@@ -376,11 +489,49 @@ public class SuCraftBlocks {
+         );
+     }
+ 
++    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull ModelCreation doubleSlabModelCreation, @NotNull Texture sideTexture, @Nullable Texture bottomHalfBottomTexture, @Nullable Texture bottomHalfTopTexture, @Nullable Texture topHalfBottomTexture, @Nullable Texture topHalfTopTexture, @NotNull Block host, @Nullable Block fallback) {
++        if (fallback == null) {
++            fallback = host;
++        }
++        return register(
++            type + "_slab",
++            new SingleMultiStateRealBlockReplacementRuleBuilder()
++                .rendersAsEntity()
++                .withAnalogousHosts(host)
++                .withAnalogousFallbacks(fallback)
++                .withDefaultModelCreationsForSlabReplacedBySlab(doubleSlabModelCreation, sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture)
++                .withRealItemRuleFromHostBlock(),
++            new SlabBlock(fullBlock.properties).withAddedTagsLike(fullBlock).slab(),
++            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
++        );
++    }
++
++    private static @NotNull Block registerFakeBookshelfSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        String typedBookshelf = type + "_bookshelf";
++        String typedBookshelfIfNotOak = fullBlock.equals(Blocks.BOOKSHELF) ? "bookshelf" : typedBookshelf;
++        NamespacedKeyWithoutIntention doubleSlabNamespacedKey = fullBlock.equals(Blocks.BOOKSHELF) ? NamespacedKeyWithoutIntention.minecraft(typedBookshelfIfNotOak) : NamespacedKeyWithoutIntention.sucraft(typedBookshelfIfNotOak);
++        Texture sideTexture = new Texture(ResourcePackAssetIntention.BLOCK, doubleSlabNamespacedKey, TextureContent.Existing.getInstance());
++        Texture endTexture = new Texture(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft(type + "_planks"), TextureContent.Existing.getInstance());
++        return registerFakeSlab(fullBlock, typedBookshelf, (intention, key) -> new Model(ResourcePackAssetIntention.BLOCK, doubleSlabNamespacedKey, ModelContent.Existing.getInstance(ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)), sideTexture, endTexture, null, null, null, host, null).mineableWithAxe();
++    }
++
++    private static @NotNull Block registerFakeStonePillarSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        String typedPillar = type + "_pillar";
++        NamespacedKeyWithoutIntention doubleSlabNamespacedKey = NamespacedKeyWithoutIntention.sucraft(typedPillar);
++        Texture sideTexture = new Texture(ResourcePackAssetIntention.BLOCK, doubleSlabNamespacedKey, TextureContent.Existing.getInstance());
++        Texture endTexture = new Texture(ResourcePackAssetIntention.BLOCK, new NamespacedKeyWithoutIntention(doubleSlabNamespacedKey.namespace(), doubleSlabNamespacedKey.keyWithoutIntention() + "_top"), TextureContent.Existing.getInstance());
++        return registerFakeSlab(fullBlock, typedPillar, (intention, key) -> new Model(ResourcePackAssetIntention.BLOCK, doubleSlabNamespacedKey, ModelContent.Existing.getInstance(ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)), sideTexture, endTexture, null, null, null, host, null).mineableWithPickaxe();
++    }
++
+     /**
+      * Based on {@link Blocks#OAK_SLAB}
+      * @param textureBlock If null, will be the based on the model of the full block, else it will be assumed to be a default Minecraft model as well as texture namespaced key path (for example 'dirt' will mean the model used as double slab is 'minecraft:block/dirt' and the texture used is 'minecraft:block/dirt')
++     * @param fallback If null, will be the same as host
+      */
+-    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @NotNull String type, @Nullable String textureBlock, @NotNull Block host, @NotNull Block fallback) {
++    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @NotNull String type, @Nullable String textureBlock, @NotNull Block host, @Nullable Block fallback) {
++        if (fallback == null) {
++            fallback = host;
++        }
+         return register(
+             type + "_slab",
+             new SingleMultiStateRealBlockReplacementRuleBuilder()
+@@ -394,6 +545,42 @@ public class SuCraftBlocks {
+         );
+     }
+ 
++    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @NotNull String type, @Nullable String textureBlock, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, type, textureBlock, host, null);
++    }
++
++    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, type, type, host, null);
++    }
++
++    private static @NotNull Block registerFakeDyedPlanksSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().woodenSlab();
++    }
++
++    private static @NotNull Block registerFakeWoolSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, type + "_wool", type + "_wool", host).breakBeforeClientKnowsToBreak().wool();
++    }
++
++    private static @NotNull Block registerFakeConcreteSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, type + "_concrete", type + "_concrete", host).mineableWithPickaxe();
++    }
++
++    private static @NotNull Block registerFakeConcretePowderSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, type + "_concrete_powder", type + "_concrete_powder", host).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    }
++
++    private static @NotNull Block registerFakeTerracottaSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, type + "_terracotta", type + "_terracotta", host).mineableWithPickaxe();
++    }
++
++    private static @NotNull Block registerFakePolishedSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, "polished_" + type, null, host).mineableWithPickaxe();
++    }
++
++    private static @NotNull Block registerFakeBrickSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeSlab(fullBlock, type + "_brick", null, host).mineableWithPickaxe();
++    }
++
+     public static Block bootstrap() {
+         SNOWY_STONE_BRICKS.toString();
+         return SNOWY_STONE_BRICKS;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftObservableBlockTagsSpreader.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftObservableBlockTagsSpreader.java
+index c37cb4e4f2a922b822e4901e1115383e3ab74bba..8704a102dec8468e7dee4e342361d9b65ce5dce4 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftObservableBlockTagsSpreader.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftObservableBlockTagsSpreader.java
+@@ -33,7 +33,7 @@ public class SuCraftObservableBlockTagsSpreader extends SuCraftTagsProvider<Bloc
+     @Override
+     protected void addTags(Map<TagKey<Block>, List<Holder<Block>>> existingRegistryTagEntries) {
+         MinecraftServer.LOGGER.info("Inheriting mineable with tool tags for custom blocks...");
+-        final List<TagKey<Block>> tagsToSpread = List.of(BlockTags.MINEABLE_WITH_AXE, BlockTags.MINEABLE_WITH_HOE, BlockTags.MINEABLE_WITH_PICKAXE, BlockTags.MINEABLE_WITH_SHOVEL, BlockTags.LEAVES /* To allow custom leaves to inherit being broken by shears fast */);
++        final List<TagKey<Block>> tagsToSpread = List.of(BlockTags.MINEABLE_WITH_AXE, BlockTags.MINEABLE_WITH_HOE, BlockTags.MINEABLE_WITH_PICKAXE, BlockTags.MINEABLE_WITH_SHOVEL, BlockTags.LEAVES /* To allow custom leaves to inherit being broken by shears fast */, BlockTags.WOOL /* To allow custom wool-like blocks such as wool slabs to inherit being broken by shears fast */);
+         for (boolean observationReplacementToOriginal : new boolean[] {false, true}) {
+             for (Block block : Registry.BLOCK) {
+                 BlockReplacementRule blockReplacementRule = block.replacementRule;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java
+index 038b30bc991f81e5c56f22733fd55d7e00457396..d26bba52cbec3c1b352f3ead626cd52891c7339d 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java
+@@ -7,7 +7,7 @@ public enum BlockEntityModelProximity {
+     NEIGHBOR_BLOCK("b", 0.005F),
+     SAME_CHUNK("s", 0.01F),
+     NEIGHBOR_CHUNK("n", 0.03F),
+-    FAR("f", 0.1F);
++    FAR("f", 0.21F);
+ 
+     public final @NotNull String blockEntityModelFileSuffix;
+     public final float outwardExpandedElementDistance;
+@@ -17,4 +17,7 @@ public enum BlockEntityModelProximity {
+         this.outwardExpandedElementDistance = outwardExpandedElementDistance;
+     }
+ 
++    public static final int maxBlockDistanceForNeighbors = 2;
++    public static final int maxSectionDistanceForNeighbors = 1;
++
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+index 042cf5fe01c2ad05d8f64278916c3c9c2502b06b..78e620dc158b0d8e8b0262f5459f9c860613ee72 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
+@@ -111,6 +111,118 @@ public class SuCraftItems {
+     public static final Item YELLOW_MAPLE_LEAVES = registerLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES, "Yellow Maple", () -> Items.ACACIA_LEAVES);
+     public static final Item DIRT_SLAB = registerSlab(SuCraftBlocks.DIRT_SLAB, "Dirt");
+     public static final Item SNOWY_STONE_BRICK_SLAB = registerSlab(SuCraftBlocks.SNOWY_STONE_BRICK_SLAB, "Snowy Stone Brick");
++    public static final Item DIRTY_STONE_BRICK_SLAB = registerSlab(SuCraftBlocks.DIRTY_STONE_BRICK_SLAB, "Dirty Stone Brick");
++    public static final Item CRACKED_STONE_BRICK_SLAB = registerSlab(SuCraftBlocks.CRACKED_STONE_BRICK_SLAB, "Cracked Stone Brick");
++    public static final Item BLACK_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.BLACK_PLANK_SLAB, "Black");
++    public static final Item BLUE_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.BLUE_PLANK_SLAB, "Blue");
++    public static final Item BROWN_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.BROWN_PLANK_SLAB, "Brown");
++    public static final Item CYAN_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.CYAN_PLANK_SLAB, "Cyan");
++    public static final Item GRAY_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.GRAY_PLANK_SLAB, "Gray");
++    public static final Item GREEN_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.GREEN_PLANK_SLAB, "Green");
++    public static final Item LIGHT_BLUE_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.LIGHT_BLUE_PLANK_SLAB, "Light Blue");
++    public static final Item LIGHT_GRAY_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.LIGHT_GRAY_PLANK_SLAB, "Light Gray");
++    public static final Item LIME_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.LIME_PLANK_SLAB, "Lime");
++    public static final Item MAGENTA_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.MAGENTA_PLANK_SLAB, "Magenta");
++    public static final Item ORANGE_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.ORANGE_PLANK_SLAB, "Orange");
++    public static final Item PINK_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.PINK_PLANK_SLAB, "Pink");
++    public static final Item PURPLE_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.PURPLE_PLANK_SLAB, "Purple");
++    public static final Item RED_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.RED_PLANK_SLAB, "Red");
++    public static final Item WHITE_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.WHITE_PLANK_SLAB, "White");
++    public static final Item YELLOW_PLANK_SLAB = registerPlankSlab(SuCraftBlocks.YELLOW_PLANK_SLAB, "Yellow");
++    public static final Item BLACK_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.BLACK_WOOL_SLAB, "Black");
++    public static final Item BLUE_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.BLUE_WOOL_SLAB, "Blue");
++    public static final Item BROWN_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.BROWN_WOOL_SLAB, "Brown");
++    public static final Item CYAN_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.CYAN_WOOL_SLAB, "Cyan");
++    public static final Item GRAY_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.GRAY_WOOL_SLAB, "Gray");
++    public static final Item GREEN_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.GREEN_WOOL_SLAB, "Green");
++    public static final Item LIGHT_BLUE_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.LIGHT_BLUE_WOOL_SLAB, "Light Blue");
++    public static final Item LIGHT_GRAY_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.LIGHT_GRAY_WOOL_SLAB, "Light Gray");
++    public static final Item LIME_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.LIME_WOOL_SLAB, "Lime");
++    public static final Item MAGENTA_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.MAGENTA_WOOL_SLAB, "Magenta");
++    public static final Item ORANGE_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.ORANGE_WOOL_SLAB, "Orange");
++    public static final Item PINK_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.PINK_WOOL_SLAB, "Pink");
++    public static final Item PURPLE_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.PURPLE_WOOL_SLAB, "Purple");
++    public static final Item RED_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.RED_WOOL_SLAB, "Red");
++    public static final Item WHITE_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.WHITE_WOOL_SLAB, "White");
++    public static final Item YELLOW_WOOL_SLAB = registerWoolSlab(SuCraftBlocks.YELLOW_WOOL_SLAB, "Yellow");
++    public static final Item BLACK_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.BLACK_CONCRETE_SLAB, "Black");
++    public static final Item BLUE_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.BLUE_CONCRETE_SLAB, "Blue");
++    public static final Item BROWN_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.BROWN_CONCRETE_SLAB, "Brown");
++    public static final Item CYAN_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.CYAN_CONCRETE_SLAB, "Cyan");
++    public static final Item GRAY_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.GRAY_CONCRETE_SLAB, "Gray");
++    public static final Item GREEN_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.GREEN_CONCRETE_SLAB, "Green");
++    public static final Item LIGHT_BLUE_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.LIGHT_BLUE_CONCRETE_SLAB, "Light Blue");
++    public static final Item LIGHT_GRAY_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.LIGHT_GRAY_CONCRETE_SLAB, "Light Gray");
++    public static final Item LIME_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.LIME_CONCRETE_SLAB, "Lime");
++    public static final Item MAGENTA_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.MAGENTA_CONCRETE_SLAB, "Magenta");
++    public static final Item ORANGE_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.ORANGE_CONCRETE_SLAB, "Orange");
++    public static final Item PINK_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.PINK_CONCRETE_SLAB, "Pink");
++    public static final Item PURPLE_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.PURPLE_CONCRETE_SLAB, "Purple");
++    public static final Item RED_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.RED_CONCRETE_SLAB, "Red");
++    public static final Item WHITE_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.WHITE_CONCRETE_SLAB, "White");
++    public static final Item YELLOW_CONCRETE_SLAB = registerConcreteSlab(SuCraftBlocks.YELLOW_CONCRETE_SLAB, "Yellow");
++    public static final Item BLACK_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.BLACK_CONCRETE_POWDER_SLAB, "Black");
++    public static final Item BLUE_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.BLUE_CONCRETE_POWDER_SLAB, "Blue");
++    public static final Item BROWN_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.BROWN_CONCRETE_POWDER_SLAB, "Brown");
++    public static final Item CYAN_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.CYAN_CONCRETE_POWDER_SLAB, "Cyan");
++    public static final Item GRAY_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.GRAY_CONCRETE_POWDER_SLAB, "Gray");
++    public static final Item GREEN_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.GREEN_CONCRETE_POWDER_SLAB, "Green");
++    public static final Item LIGHT_BLUE_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.LIGHT_BLUE_CONCRETE_POWDER_SLAB, "Light Blue");
++    public static final Item LIGHT_GRAY_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.LIGHT_GRAY_CONCRETE_POWDER_SLAB, "Light Gray");
++    public static final Item LIME_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.LIME_CONCRETE_POWDER_SLAB, "Lime");
++    public static final Item MAGENTA_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.MAGENTA_CONCRETE_POWDER_SLAB, "Magenta");
++    public static final Item ORANGE_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.ORANGE_CONCRETE_POWDER_SLAB, "Orange");
++    public static final Item PINK_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.PINK_CONCRETE_POWDER_SLAB, "Pink");
++    public static final Item PURPLE_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.PURPLE_CONCRETE_POWDER_SLAB, "Purple");
++    public static final Item RED_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.RED_CONCRETE_POWDER_SLAB, "Red");
++    public static final Item WHITE_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.WHITE_CONCRETE_POWDER_SLAB, "White");
++    public static final Item YELLOW_CONCRETE_POWDER_SLAB = registerConcretePowderSlab(SuCraftBlocks.YELLOW_CONCRETE_POWDER_SLAB, "Yellow");
++    public static final Item BLACK_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.BLACK_TERRACOTTA_SLAB, "Black");
++    public static final Item BLUE_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.BLUE_TERRACOTTA_SLAB, "Blue");
++    public static final Item BROWN_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.BROWN_TERRACOTTA_SLAB, "Brown");
++    public static final Item CYAN_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.CYAN_TERRACOTTA_SLAB, "Cyan");
++    public static final Item GRAY_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.GRAY_TERRACOTTA_SLAB, "Gray");
++    public static final Item GREEN_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.GREEN_TERRACOTTA_SLAB, "Green");
++    public static final Item LIGHT_BLUE_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.LIGHT_BLUE_TERRACOTTA_SLAB, "Light Blue");
++    public static final Item LIGHT_GRAY_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.LIGHT_GRAY_TERRACOTTA_SLAB, "Light Gray");
++    public static final Item LIME_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.LIME_TERRACOTTA_SLAB, "Lime");
++    public static final Item MAGENTA_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.MAGENTA_TERRACOTTA_SLAB, "Magenta");
++    public static final Item ORANGE_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.ORANGE_TERRACOTTA_SLAB, "Orange");
++    public static final Item PINK_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.PINK_TERRACOTTA_SLAB, "Pink");
++    public static final Item PURPLE_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.PURPLE_TERRACOTTA_SLAB, "Purple");
++    public static final Item RED_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.RED_TERRACOTTA_SLAB, "Red");
++    public static final Item WHITE_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.WHITE_TERRACOTTA_SLAB, "White");
++    public static final Item YELLOW_TERRACOTTA_SLAB = registerTerracottaSlab(SuCraftBlocks.YELLOW_TERRACOTTA_SLAB, "Yellow Terracotta");
++    public static final Item COARSE_DIRT_SLAB = registerSlab(SuCraftBlocks.COARSE_DIRT_SLAB, "Coarse Dirt");
++    public static final Item SAND_SLAB = registerSlab(SuCraftBlocks.SAND_SLAB, "Sand");
++    public static final Item RED_SAND_SLAB = registerSlab(SuCraftBlocks.RED_SAND_SLAB, "Red Sand");
++    public static final Item CLAY_SLAB = registerSlab(SuCraftBlocks.CLAY_SLAB, "Clay");
++    public static final Item MUD_SLAB = registerSlab(SuCraftBlocks.MUD_SLAB, "Mud");
++    public static final Item PACKED_MUD_SLAB = registerSlab(SuCraftBlocks.PACKED_MUD_SLAB, "Packed Mud");
++    public static final Item AMETHYST_SLAB = registerSlab(SuCraftBlocks.AMETHYST_SLAB, "Amethyst");
++    public static final Item COAL_SLAB = registerSlab(SuCraftBlocks.COAL_SLAB, "Coal");
++    public static final Item OAK_BOOKSHELF_SLAB = registerBookshelfSlab(SuCraftBlocks.OAK_BOOKSHELF_SLAB, "Oak");
++    public static final Item SPRUCE_BOOKSHELF_SLAB = registerBookshelfSlab(SuCraftBlocks.SPRUCE_BOOKSHELF_SLAB, "Spruce");
++    public static final Item BIRCH_BOOKSHELF_SLAB = registerBookshelfSlab(SuCraftBlocks.BIRCH_BOOKSHELF_SLAB, "Birch");
++    public static final Item JUNGLE_BOOKSHELF_SLAB = registerBookshelfSlab(SuCraftBlocks.JUNGLE_BOOKSHELF_SLAB, "Jungle");
++    public static final Item CALCITE_SLAB = registerSlab(SuCraftBlocks.CALCITE_SLAB, "Calcite");
++    public static final Item DRIPSTONE_SLAB = registerSlab(SuCraftBlocks.DRIPSTONE_SLAB, "Dripstone");
++    public static final Item TUFF_SLAB = registerSlab(SuCraftBlocks.TUFF_SLAB, "Tuff");
++    public static final Item POLISHED_CALCITE_SLAB = registerPolishedSlab(SuCraftBlocks.POLISHED_CALCITE_SLAB, "Calcite");
++    public static final Item POLISHED_DRIPSTONE_SLAB = registerPolishedSlab(SuCraftBlocks.POLISHED_DRIPSTONE_SLAB, "Dripstone");
++    public static final Item POLISHED_TUFF_SLAB = registerPolishedSlab(SuCraftBlocks.POLISHED_TUFF_SLAB, "Tuff");
++    public static final Item ANDESITE_BRICK_SLAB = registerBrickSlab(SuCraftBlocks.ANDESITE_BRICK_SLAB, "Andesite");
++    public static final Item CALCITE_BRICK_SLAB = registerBrickSlab(SuCraftBlocks.CALCITE_BRICK_SLAB, "Calcite");
++    public static final Item DIORITE_BRICK_SLAB = registerBrickSlab(SuCraftBlocks.DIORITE_BRICK_SLAB, "Diorite");
++    public static final Item DRIPSTONE_BRICK_SLAB = registerBrickSlab(SuCraftBlocks.DRIPSTONE_BRICK_SLAB, "Dripstone");
++    public static final Item GRANITE_BRICK_SLAB = registerBrickSlab(SuCraftBlocks.GRANITE_BRICK_SLAB, "Granite");
++    public static final Item TUFF_BRICK_SLAB = registerBrickSlab(SuCraftBlocks.TUFF_BRICK_SLAB, "Tuff");
++    public static final Item ANDESITE_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.ANDESITE_PILLAR_SLAB, "Andesite");
++    public static final Item CALCITE_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.CALCITE_PILLAR_SLAB, "Calcite");
++    public static final Item DIORITE_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.DIORITE_PILLAR_SLAB, "Diorite");
++    public static final Item DRIPSTONE_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.DRIPSTONE_PILLAR_SLAB, "Dripstone");
++    public static final Item GRANITE_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.GRANITE_PILLAR_SLAB, "Granite");
++    public static final Item TUFF_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.TUFF_PILLAR_SLAB, "Tuff");
+ 
+     private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
+         return registerBlock(block, displayName, group, null);
+@@ -210,6 +322,42 @@ public class SuCraftItems {
+         return registerBlock(block, typeDisplayName + " Slab", CreativeModeTab.TAB_BUILDING_BLOCKS);
+     }
+ 
++    private static @NotNull Item registerPlankSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, typeDisplayName + " Plank");
++    }
++
++    private static @NotNull Item registerWoolSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, typeDisplayName + " Wool");
++    }
++
++    private static @NotNull Item registerConcreteSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, typeDisplayName + " Concrete");
++    }
++
++    private static @NotNull Item registerConcretePowderSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, typeDisplayName + " Concrete Powder");
++    }
++
++    private static @NotNull Item registerTerracottaSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, typeDisplayName + " Terracotta");
++    }
++
++    private static @NotNull Item registerBookshelfSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, typeDisplayName + " Bookshelf");
++    }
++
++    private static @NotNull Item registerPolishedSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, "Polished " + typeDisplayName);
++    }
++
++    private static @NotNull Item registerBrickSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, typeDisplayName + " Brick");
++    }
++
++    private static @NotNull Item registerPillarSlab(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerSlab(block, typeDisplayName + " Pillar");
++    }
++
+     public static Item bootstrap() {
+         SNOWY_STONE_BRICKS.toString();
+         // Make sure that the item replacement rule for block items for which the block has some hosts that are potentially placed by vanilla items is registered with those vanilla items
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
+index 100603887928b31d43dc5a99e7d43dee76b30a6b..5712c6ae89be40899e77e2c750ad27f6ecf1d1c2 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
+@@ -94,9 +94,9 @@ public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<Concr
+         translationJson.add(position.displayTranslationX);
+         translationJson.add(-30.42555F - BLOCK_ENTITY_ARMOR_STAND_DY * (1.6F * 16));
+         translationJson.add(position.displayTranslationZ);
+-        for (int i = 0; i < 3; i++) {
+-            scaleJson.add(1.6F);
+-        }
++        scaleJson.add(-1.6F);
++        scaleJson.add(1.6F);
++        scaleJson.add(-1.6F);
+         headJson.add(KeyConstants.displayTranslation, translationJson);
+         headJson.add(KeyConstants.displayScale, scaleJson);
+     }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+index c49abde304b211039fd113ea89a0d1692603fda0..219f7d3c23854324056d23244d5cc98516b3e1a1 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
++++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
+@@ -36,7 +36,7 @@ public final class CreateSuCraftResourcePack {
+ 
+     private CreateSuCraftResourcePack() {}
+ 
+-    private static final int currentResourcePackVersion = 98;
++    private static final int currentResourcePackVersion = 117;
+ 
+     private static final String RESOURCE_PACK_FOLDER_PATH = "resourcepack";
+     private static final String OUTPUT_FOLDER_PATH = RESOURCE_PACK_FOLDER_PATH + "/output";
