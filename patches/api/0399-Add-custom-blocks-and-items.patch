@@ -5,21 +5,292 @@ Subject: [PATCH] Add custom blocks and items
 
 
 diff --git a/src/main/java/org/bukkit/Material.java b/src/main/java/org/bukkit/Material.java
-index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495afb9a781 100644
+index 2d39ecea67cd033858eaa713e405260a87c718a3..b6df90958d9b79f69ec01f744363915d77afe061 100644
 --- a/src/main/java/org/bukkit/Material.java
 +++ b/src/main/java/org/bukkit/Material.java
-@@ -4055,6 +4055,10 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4055,7 +4055,280 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      LEGACY_RECORD_11(2266, 1),
      @Deprecated
      LEGACY_RECORD_12(2267, 1),
+-    ;
 +
 +    // Martijn start - custom blocks and items
-+    SUCRAFT_SNOWY_STONE_BRICKS(78131, MOSSY_STONE_BRICKS);
++
++    SUCRAFT_SNOWY_STONE_BRICKS(78131, MOSSY_STONE_BRICKS),
++    SUCRAFT_DIRTY_STONE_BRICKS(78132, SUCRAFT_SNOWY_STONE_BRICKS),
++    SUCRAFT_INFESTED_SNOWY_STONE_BRICKS(78133, INFESTED_MOSSY_STONE_BRICKS),
++    SUCRAFT_INFESTED_DIRTY_STONE_BRICKS(78134, SUCRAFT_INFESTED_SNOWY_STONE_BRICKS),
++    SUCRAFT_SPRUCE_BOOKSHELF(78135, BOOKSHELF),
++    SUCRAFT_BIRCH_BOOKSHELF(78136, SUCRAFT_SPRUCE_BOOKSHELF),
++    SUCRAFT_JUNGLE_BOOKSHELF(78137, SUCRAFT_SPRUCE_BOOKSHELF),
++    SUCRAFT_ACACIA_BOOKSHELF(78138, SUCRAFT_SPRUCE_BOOKSHELF),
++    SUCRAFT_DARK_OAK_BOOKSHELF(78139, SUCRAFT_SPRUCE_BOOKSHELF),
++    SUCRAFT_WARPED_BOOKSHELF(78140, SUCRAFT_SPRUCE_BOOKSHELF),
++    SUCRAFT_CRIMSON_BOOKSHELF(78141, SUCRAFT_SPRUCE_BOOKSHELF),
++    //    SUCRAFT_MANGROVE_BOOKSHELF(78142, BOOKSHELF);
++    SUCRAFT_BLACK_PLANKS(78143, OAK_PLANKS),
++    SUCRAFT_BLUE_PLANKS(78144, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_BROWN_PLANKS(78145, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_CYAN_PLANKS(78146, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_GRAY_PLANKS(78147, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_GREEN_PLANKS(78148, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_LIGHT_BLUE_PLANKS(78149, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_LIGHT_GRAY_PLANKS(78150, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_LIME_PLANKS(78151, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_MAGENTA_PLANKS(78152, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_ORANGE_PLANKS(78153, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_PINK_PLANKS(78154, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_PURPLE_PLANKS(78155, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_RED_PLANKS(78156, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_WHITE_PLANKS(78157, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_YELLOW_PLANKS(78158, SUCRAFT_BLACK_PLANKS),
++    SUCRAFT_DIRT_BRICKS(78159, DIRT),
++    SUCRAFT_POLISHED_CALCITE(78160, CALCITE),
++    SUCRAFT_POLISHED_DRIPSTONE(78161, DRIPSTONE_BLOCK),
++    SUCRAFT_POLISHED_TUFF(78162, TUFF),
++    SUCRAFT_ANDESITE_BRICKS(78163, POLISHED_ANDESITE),
++    SUCRAFT_CALCITE_BRICKS(78164, SUCRAFT_POLISHED_CALCITE),
++    SUCRAFT_DIORITE_BRICKS(78165, POLISHED_DIORITE),
++    SUCRAFT_DRIPSTONE_BRICKS(78166, SUCRAFT_POLISHED_DRIPSTONE),
++    SUCRAFT_GRANITE_BRICKS(78167, POLISHED_GRANITE),
++    SUCRAFT_TUFF_BRICKS(78168, SUCRAFT_POLISHED_TUFF),
++    SUCRAFT_CHISELED_ANDESITE_BRICKS(78169, SUCRAFT_ANDESITE_BRICKS),
++    SUCRAFT_CHISELED_CALCITE_BRICKS(78170, SUCRAFT_CALCITE_BRICKS),
++    SUCRAFT_CHISELED_DIORITE_BRICKS(78171, SUCRAFT_DIORITE_BRICKS),
++    SUCRAFT_CHISELED_DRIPSTONE_BRICKS(78172, SUCRAFT_DRIPSTONE_BRICKS),
++    SUCRAFT_CHISELED_GRANITE_BRICKS(78173, SUCRAFT_GRANITE_BRICKS),
++    SUCRAFT_CHISELED_TUFF_BRICKS(78174, SUCRAFT_TUFF_BRICKS),
++    SUCRAFT_SOUL_SANDSTONE(78175, SANDSTONE),
++    SUCRAFT_SANDSTONE_BRICKS(78176, SANDSTONE),
++    SUCRAFT_RED_SANDSTONE_BRICKS(78177, SUCRAFT_SANDSTONE_BRICKS),
++    SUCRAFT_SOUL_SANDSTONE_BRICKS(78178, SUCRAFT_SANDSTONE_BRICKS),
++    SUCRAFT_CHISELED_SOUL_SANDSTONE(78179, SUCRAFT_SOUL_SANDSTONE),
++    SUCRAFT_CUT_SOUL_SANDSTONE(78180, SUCRAFT_SOUL_SANDSTONE),
++    SUCRAFT_ANDESITE_COBBLESTONE(78181, COBBLESTONE),
++    SUCRAFT_DIORITE_COBBLESTONE(78182, SUCRAFT_ANDESITE_COBBLESTONE),
++    SUCRAFT_GRANITE_COBBLESTONE(78183, SUCRAFT_ANDESITE_COBBLESTONE),
++    SUCRAFT_CHISELED_PRISMARINE_BRICKS(78184, PRISMARINE_BRICKS),
++    SUCRAFT_ANDESITE_PILLAR(78185, QUARTZ_PILLAR),
++    SUCRAFT_CALCITE_PILLAR(78186, SUCRAFT_ANDESITE_PILLAR),
++    SUCRAFT_DIORITE_PILLAR(78187, SUCRAFT_ANDESITE_PILLAR),
++    SUCRAFT_DRIPSTONE_PILLAR(78188, SUCRAFT_ANDESITE_PILLAR),
++    SUCRAFT_GRANITE_PILLAR(78189, SUCRAFT_ANDESITE_PILLAR),
++    SUCRAFT_TUFF_PILLAR(78190, SUCRAFT_ANDESITE_PILLAR),
++    SUCRAFT_FIERY_BIRCH_LEAVES(78191, BIRCH_LEAVES),
++    SUCRAFT_YELLOW_BIRCH_LEAVES(78192, SUCRAFT_FIERY_BIRCH_LEAVES),
++    SUCRAFT_RED_OAK_LEAVES(78193, SUCRAFT_FIERY_BIRCH_LEAVES),
++    SUCRAFT_ORANGE_OAK_LEAVES(78194, SUCRAFT_RED_OAK_LEAVES),
++    SUCRAFT_RED_MAPLE_LEAVES(78195, SUCRAFT_RED_OAK_LEAVES),
++    SUCRAFT_ORANGE_MAPLE_LEAVES(78196, SUCRAFT_RED_MAPLE_LEAVES),
++    SUCRAFT_YELLOW_MAPLE_LEAVES(78197, SUCRAFT_RED_MAPLE_LEAVES),
++    SUCRAFT_DIRT_SLAB(78198, MUD_BRICK_SLAB),
++    SUCRAFT_SNOWY_STONE_BRICK_SLAB(78199, STONE_BRICK_SLAB),
++    SUCRAFT_DIRTY_STONE_BRICK_SLAB(78200, SUCRAFT_SNOWY_STONE_BRICK_SLAB),
++    SUCRAFT_CRACKED_STONE_BRICK_SLAB(78201, STONE_BRICK_SLAB),
++    SUCRAFT_BLACK_PLANK_SLAB(78202, OAK_SLAB),
++    SUCRAFT_BLUE_PLANK_SLAB(78203, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_BROWN_PLANK_SLAB(78204, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_CYAN_PLANK_SLAB(78205, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_GRAY_PLANK_SLAB(78206, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_GREEN_PLANK_SLAB(78207, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_LIGHT_BLUE_PLANK_SLAB(78208, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_LIGHT_GRAY_PLANK_SLAB(78209, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_LIME_PLANK_SLAB(78210, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_MAGENTA_PLANK_SLAB(78211, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_ORANGE_PLANK_SLAB(78212, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_PINK_PLANK_SLAB(78213, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_PURPLE_PLANK_SLAB(78214, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_RED_PLANK_SLAB(78215, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_WHITE_PLANK_SLAB(78216, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_YELLOW_PLANK_SLAB(78217, SUCRAFT_BLACK_PLANK_SLAB),
++    SUCRAFT_BLACK_WOOL_SLAB(78218, OAK_SLAB),
++    SUCRAFT_BLUE_WOOL_SLAB(78219, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_BROWN_WOOL_SLAB(78220, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_CYAN_WOOL_SLAB(78221, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_GRAY_WOOL_SLAB(78222, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_GREEN_WOOL_SLAB(78223, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_LIGHT_BLUE_WOOL_SLAB(78224, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_LIGHT_GRAY_WOOL_SLAB(78225, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_LIME_WOOL_SLAB(78226, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_MAGENTA_WOOL_SLAB(78227, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_ORANGE_WOOL_SLAB(78228, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_PINK_WOOL_SLAB(78229, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_PURPLE_WOOL_SLAB(78230, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_RED_WOOL_SLAB(78231, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_WHITE_WOOL_SLAB(78232, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_YELLOW_WOOL_SLAB(78233, SUCRAFT_BLACK_WOOL_SLAB),
++    SUCRAFT_BLACK_CONCRETE_SLAB(78234, STONE_SLAB),
++    SUCRAFT_BLUE_CONCRETE_SLAB(78235, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_BROWN_CONCRETE_SLAB(78236, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_CYAN_CONCRETE_SLAB(78237, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_GRAY_CONCRETE_SLAB(78238, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_GREEN_CONCRETE_SLAB(78239, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_LIGHT_BLUE_CONCRETE_SLAB(78240, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_LIGHT_GRAY_CONCRETE_SLAB(78241, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_LIME_CONCRETE_SLAB(78242, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_MAGENTA_CONCRETE_SLAB(78243, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_ORANGE_CONCRETE_SLAB(78244, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_PINK_CONCRETE_SLAB(78245, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_PURPLE_CONCRETE_SLAB(78246, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_RED_CONCRETE_SLAB(78247, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_WHITE_CONCRETE_SLAB(78248, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_YELLOW_CONCRETE_SLAB(78249, SUCRAFT_BLACK_CONCRETE_SLAB),
++    SUCRAFT_BLACK_CONCRETE_POWDER_SLAB(78250, STONE_SLAB),
++    SUCRAFT_BLUE_CONCRETE_POWDER_SLAB(78251, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_BROWN_CONCRETE_POWDER_SLAB(78252, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_CYAN_CONCRETE_POWDER_SLAB(78253, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_GRAY_CONCRETE_POWDER_SLAB(78254, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_GREEN_CONCRETE_POWDER_SLAB(78255, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_LIGHT_BLUE_CONCRETE_POWDER_SLAB(78256, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_LIGHT_GRAY_CONCRETE_POWDER_SLAB(78257, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_LIME_CONCRETE_POWDER_SLAB(78258, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_MAGENTA_CONCRETE_POWDER_SLAB(78259, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_ORANGE_CONCRETE_POWDER_SLAB(78260, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_PINK_CONCRETE_POWDER_SLAB(78261, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_PURPLE_CONCRETE_POWDER_SLAB(78262, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_RED_CONCRETE_POWDER_SLAB(78263, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_WHITE_CONCRETE_POWDER_SLAB(78264, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_YELLOW_CONCRETE_POWDER_SLAB(78265, SUCRAFT_BLACK_CONCRETE_POWDER_SLAB),
++    SUCRAFT_BLACK_TERRACOTTA_SLAB(78266, STONE_SLAB),
++    SUCRAFT_BLUE_TERRACOTTA_SLAB(78267, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_BROWN_TERRACOTTA_SLAB(78268, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_CYAN_TERRACOTTA_SLAB(78269, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_GRAY_TERRACOTTA_SLAB(78270, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_GREEN_TERRACOTTA_SLAB(78271, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_LIGHT_BLUE_TERRACOTTA_SLAB(78272, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_LIGHT_GRAY_TERRACOTTA_SLAB(78273, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_LIME_TERRACOTTA_SLAB(78274, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_MAGENTA_TERRACOTTA_SLAB(78275, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_ORANGE_TERRACOTTA_SLAB(78276, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_PINK_TERRACOTTA_SLAB(78277, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_PURPLE_TERRACOTTA_SLAB(78278, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_RED_TERRACOTTA_SLAB(78279, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_WHITE_TERRACOTTA_SLAB(78280, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_YELLOW_TERRACOTTA_SLAB(78281, SUCRAFT_BLACK_TERRACOTTA_SLAB),
++    SUCRAFT_COARSE_DIRT_SLAB(78282, SUCRAFT_DIRT_SLAB),
++    SUCRAFT_SAND_SLAB(78283, SUCRAFT_DIRT_SLAB),
++    SUCRAFT_RED_SAND_SLAB(78284, SUCRAFT_SAND_SLAB),
++    SUCRAFT_CLAY_SLAB(78285, SUCRAFT_DIRT_SLAB),
++    SUCRAFT_MUD_SLAB(78286, SUCRAFT_DIRT_SLAB),
++    SUCRAFT_PACKED_MUD_SLAB(78287, SUCRAFT_MUD_SLAB),
++    SUCRAFT_AMETHYST_SLAB(78288, PURPUR_SLAB),
++    SUCRAFT_COAL_SLAB(78289, BLACKSTONE_SLAB),
++    SUCRAFT_OAK_BOOKSHELF_SLAB(78290, OAK_SLAB),
++    SUCRAFT_SPRUCE_BOOKSHELF_SLAB(78291, SPRUCE_SLAB),
++    SUCRAFT_BIRCH_BOOKSHELF_SLAB(78292, BIRCH_SLAB),
++    SUCRAFT_JUNGLE_BOOKSHELF_SLAB(78293, JUNGLE_SLAB),
++    SUCRAFT_CALCITE_SLAB(78294, STONE_SLAB),
++    SUCRAFT_DRIPSTONE_SLAB(78295, SUCRAFT_CALCITE_SLAB),
++    SUCRAFT_TUFF_SLAB(78296, SUCRAFT_CALCITE_SLAB),
++    SUCRAFT_POLISHED_CALCITE_SLAB(78297, SUCRAFT_CALCITE_SLAB),
++    SUCRAFT_POLISHED_DRIPSTONE_SLAB(78298, SUCRAFT_POLISHED_CALCITE_SLAB),
++    SUCRAFT_POLISHED_TUFF_SLAB(78299, SUCRAFT_POLISHED_CALCITE_SLAB),
++    SUCRAFT_ANDESITE_BRICK_SLAB(78300, POLISHED_ANDESITE_SLAB),
++    SUCRAFT_CALCITE_BRICK_SLAB(78301, SUCRAFT_POLISHED_CALCITE_SLAB),
++    SUCRAFT_DIORITE_BRICK_SLAB(78302, POLISHED_DIORITE_SLAB),
++    SUCRAFT_DRIPSTONE_BRICK_SLAB(78303, SUCRAFT_POLISHED_DRIPSTONE_SLAB),
++    SUCRAFT_GRANITE_BRICK_SLAB(78304, POLISHED_GRANITE_SLAB),
++    SUCRAFT_TUFF_BRICK_SLAB(78305, SUCRAFT_POLISHED_TUFF_SLAB),
++    SUCRAFT_ANDESITE_PILLAR_SLAB(78306, SUCRAFT_ANDESITE_BRICK_SLAB),
++    SUCRAFT_CALCITE_PILLAR_SLAB(78307, SUCRAFT_CALCITE_BRICK_SLAB),
++    SUCRAFT_DIORITE_PILLAR_SLAB(78308, SUCRAFT_DIORITE_BRICK_SLAB),
++    SUCRAFT_DRIPSTONE_PILLAR_SLAB(78309, SUCRAFT_DRIPSTONE_BRICK_SLAB),
++    SUCRAFT_GRANITE_PILLAR_SLAB(78310, SUCRAFT_GRANITE_BRICK_SLAB),
++    SUCRAFT_TUFF_PILLAR_SLAB(78311, SUCRAFT_TUFF_BRICK_SLAB),
++    SUCRAFT_SOUL_SANDSTONE_SLAB(78312, SANDSTONE_SLAB),
++    SUCRAFT_SANDSTONE_BRICK_SLAB(78313, SANDSTONE_SLAB),
++    SUCRAFT_RED_SANDSTONE_BRICK_SLAB(78314, SUCRAFT_SANDSTONE_BRICK_SLAB),
++    SUCRAFT_SOUL_SANDSTONE_BRICK_SLAB(78315, SUCRAFT_SANDSTONE_BRICK_SLAB),
++    SUCRAFT_SMOOTH_SOUL_SANDSTONE(78316, SMOOTH_SANDSTONE),
++    SUCRAFT_SMOOTH_SOUL_SANDSTONE_SLAB(78317, SMOOTH_SANDSTONE_SLAB),
++    SUCRAFT_CUT_SOUL_SANDSTONE_SLAB(78318, CUT_SANDSTONE_SLAB),
++    SUCRAFT_GRAVEL_SLAB(78319, MUD_BRICK_SLAB),
++    SUCRAFT_NETHERRACK_SLAB(78320, MUD_BRICK_SLAB),
++    SUCRAFT_SOUL_SOIL_SLAB(78321, MUD_BRICK_SLAB),
++    SUCRAFT_RAW_COPPER_SLAB(78322, CUT_COPPER_SLAB),
++    SUCRAFT_RAW_GOLD_SLAB(78323, SUCRAFT_RAW_COPPER_SLAB),
++    SUCRAFT_RAW_IRON_SLAB(78324, SUCRAFT_RAW_COPPER_SLAB),
++    SUCRAFT_ANCIENT_DEBRIS_SLAB(78325, CUT_COPPER_SLAB),
++    SUCRAFT_DIRT_BRICK_SLAB(78326, SUCRAFT_DIRT_SLAB),
++    SUCRAFT_STONE_PILLAR(78327, SUCRAFT_ANDESITE_PILLAR),
++    SUCRAFT_STONE_PILLAR_SLAB(78328, STONE_SLAB),
++    SUCRAFT_OAK_LOG_SLAB(78329, OAK_SLAB),
++    SUCRAFT_SPRUCE_LOG_SLAB(78330, SPRUCE_SLAB),
++    SUCRAFT_BIRCH_LOG_SLAB(78331, BIRCH_SLAB),
++    SUCRAFT_JUNGLE_LOG_SLAB(78332, JUNGLE_SLAB),
++    SUCRAFT_ACACIA_LOG_SLAB(78333, ACACIA_SLAB),
++    SUCRAFT_DARK_OAK_LOG_SLAB(78334, DARK_OAK_SLAB),
++    SUCRAFT_WARPED_STEM_SLAB(78335, WARPED_SLAB),
++    SUCRAFT_CRIMSON_STEM_SLAB(78336, CRIMSON_SLAB),
++    SUCRAFT_MANGROVE_LOG_SLAB(78337, MANGROVE_SLAB),
++    SUCRAFT_STRIPPED_OAK_LOG_SLAB(78338, OAK_SLAB),
++    SUCRAFT_STRIPPED_SPRUCE_LOG_SLAB(78339, SPRUCE_SLAB),
++    SUCRAFT_STRIPPED_BIRCH_LOG_SLAB(78340, BIRCH_SLAB),
++    SUCRAFT_STRIPPED_JUNGLE_LOG_SLAB(78341, JUNGLE_SLAB),
++    SUCRAFT_STRIPPED_ACACIA_LOG_SLAB(78342, ACACIA_SLAB),
++    SUCRAFT_STRIPPED_DARK_OAK_LOG_SLAB(78343, DARK_OAK_SLAB),
++    SUCRAFT_STRIPPED_WARPED_STEM_SLAB(78344, WARPED_SLAB),
++    SUCRAFT_STRIPPED_CRIMSON_STEM_SLAB(78345, CRIMSON_SLAB),
++    SUCRAFT_STRIPPED_MANGROVE_LOG_SLAB(78346, MANGROVE_SLAB),
++    SUCRAFT_OAK_WOOD_SLAB(78347, OAK_SLAB),
++    SUCRAFT_SPRUCE_WOOD_SLAB(78348, SPRUCE_SLAB),
++    SUCRAFT_BIRCH_WOOD_SLAB(78349, BIRCH_SLAB),
++    SUCRAFT_JUNGLE_WOOD_SLAB(78350, JUNGLE_SLAB),
++    SUCRAFT_ACACIA_WOOD_SLAB(78351, ACACIA_SLAB),
++    SUCRAFT_DARK_OAK_WOOD_SLAB(78352, DARK_OAK_SLAB),
++    SUCRAFT_WARPED_HYPHAE_SLAB(78353, WARPED_SLAB),
++    SUCRAFT_CRIMSON_HYPHAE_SLAB(78354, CRIMSON_SLAB),
++    SUCRAFT_MANGROVE_WOOD_SLAB(78355, MANGROVE_SLAB),
++    SUCRAFT_STRIPPED_OAK_WOOD_SLAB(78356, OAK_SLAB),
++    SUCRAFT_STRIPPED_SPRUCE_WOOD_SLAB(78357, SPRUCE_SLAB),
++    SUCRAFT_STRIPPED_BIRCH_WOOD_SLAB(78358, BIRCH_SLAB),
++    SUCRAFT_STRIPPED_JUNGLE_WOOD_SLAB(78359, JUNGLE_SLAB),
++    SUCRAFT_STRIPPED_ACACIA_WOOD_SLAB(78360, ACACIA_SLAB),
++    SUCRAFT_STRIPPED_DARK_OAK_WOOD_SLAB(78361, DARK_OAK_SLAB),
++    SUCRAFT_STRIPPED_WARPED_HYPHAE_SLAB(78362, WARPED_SLAB),
++    SUCRAFT_STRIPPED_CRIMSON_HYPHAE_SLAB(78363, CRIMSON_SLAB),
++    SUCRAFT_STRIPPED_MANGROVE_WOOD_SLAB(78364, MANGROVE_SLAB),
++    SUCRAFT_BONE_SLAB(78365, SMOOTH_QUARTZ_SLAB),
++    SUCRAFT_WITHER_BONE_BLOCK(78366, BONE_BLOCK),
++    SUCRAFT_WITHER_BONE_SLAB(78367, SUCRAFT_BONE_SLAB),
++    SUCRAFT_BASALT_SLAB(78368, COBBLESTONE_SLAB),
++    SUCRAFT_POLISHED_BASALT_SLAB(78369, SUCRAFT_BASALT_SLAB),
++    SUCRAFT_SMOOTH_BASALT_SLAB(78370, SUCRAFT_BASALT_SLAB),
++    SUCRAFT_CHARCOAL_BLOCK(78371, COAL_BLOCK),
++    SUCRAFT_CHARCOAL_SLAB(78372, SUCRAFT_COAL_SLAB),
++    SUCRAFT_GUNPOWDER_BLOCK(78373, LIGHT_GRAY_CONCRETE_POWDER),
++    SUCRAFT_GUNPOWDER_SLAB(78374, SUCRAFT_LIGHT_GRAY_CONCRETE_POWDER_SLAB),
++    SUCRAFT_PEAT(78375, COARSE_DIRT),
++    SUCRAFT_SMOULDERING_PEAT(78376, SUCRAFT_PEAT),
++    SUCRAFT_PEAT_SLAB(78377, SUCRAFT_COARSE_DIRT_SLAB),
++    SUCRAFT_SCULK_SLAB(78378, BLACKSTONE_SLAB),
++    SUCRAFT_CHISELED_QUARTZ_SLAB(78379, QUARTZ_SLAB),
++    SUCRAFT_QUARTZ_PILLAR_SLAB(78380, QUARTZ_SLAB),
++    SUCRAFT_QUARTZ_BRICK_SLAB(78381, QUARTZ_SLAB),
++    SUCRAFT_DRIED_KELP_SLAB(78382, MUD_BRICK_SLAB),
++    SUCRAFT_RED_FIRE(78383, SOUL_FIRE),
++    SUCRAFT_ORANGE_FIRE(78384, SUCRAFT_RED_FIRE),
++    SUCRAFT_YELLOW_FIRE(78385, SUCRAFT_RED_FIRE),
++    SUCRAFT_LIME_FIRE(78386, SUCRAFT_RED_FIRE),
++    SUCRAFT_GREEN_FIRE(78387, SUCRAFT_RED_FIRE),
++    SUCRAFT_CYAN_FIRE(78388, SUCRAFT_RED_FIRE),
++    SUCRAFT_LIGHT_BLUE_FIRE(78389, SUCRAFT_RED_FIRE),
++    SUCRAFT_BLUE_FIRE(78390, SUCRAFT_RED_FIRE),
++    SUCRAFT_BLACK_FIRE(78391, SUCRAFT_RED_FIRE),
++    SUCRAFT_GRAY_FIRE(78392, SUCRAFT_RED_FIRE),
++    SUCRAFT_LIGHT_GRAY_FIRE(78393, SUCRAFT_RED_FIRE),
++    SUCRAFT_WHITE_FIRE(78394, SUCRAFT_RED_FIRE),
++    SUCRAFT_BROWN_FIRE(78395, SUCRAFT_RED_FIRE),
++    SUCRAFT_PURPLE_FIRE(78396, SUCRAFT_RED_FIRE),
++    SUCRAFT_MAGENTA_FIRE(78397, SUCRAFT_RED_FIRE),
++    SUCRAFT_PINK_FIRE(78398, SUCRAFT_RED_FIRE),
++    SUCRAFT_PAPER_BLOCK(78399, WHITE_WOOL);
++
 +    // Martijn end - custom blocks and items
-     ;
      //</editor-fold>
  
-@@ -4071,6 +4075,10 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     @Deprecated
+@@ -4071,6 +4344,10 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      private final NamespacedKey key;
      private boolean isBlock; // Paper
  
@@ -30,14 +301,14 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
      private Material(final int id) {
          this(id, 64);
      }
-@@ -4097,7 +4105,14 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4097,7 +4374,14 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          this.maxStack = stack;
          this.data = data;
          this.legacy = this.name().startsWith(LEGACY_PREFIX);
 -        this.key = NamespacedKey.minecraft(this.name().toLowerCase(Locale.ROOT));
 +        // Martijn start - custom blocks and items
 +        String lowerCaseName = this.name().toLowerCase(Locale.ROOT);
-+        if (lowerCaseName.startsWith("SUCRAFT_")) {
++        if (this.name().startsWith("SUCRAFT_")) {
 +            this.key = NamespacedKey.sucraft(lowerCaseName.substring(8));
 +        } else {
 +            this.key = NamespacedKey.minecraft(lowerCaseName);
@@ -46,12 +317,12 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          // try to cache the constructor for this material
          try {
              if (MaterialData.class.isAssignableFrom(data)) {
-@@ -4112,6 +4127,13 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4112,6 +4396,13 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          }
      }
  
 +    // Martijn start - custom blocks and items
-+    private Material(final int id, Material vanillaTarget) {
++    Material(final int id, Material vanillaTarget) {
 +        this(id);
 +        this.vanillaTarget = vanillaTarget;
 +    }
@@ -60,7 +331,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
      // Paper start
  
      /**
-@@ -4317,6 +4339,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4317,6 +4608,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      }
      private boolean isBlock0() {
      // Paper end
@@ -72,7 +343,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isBlock">
              case ACACIA_BUTTON:
-@@ -5441,6 +5468,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -5441,6 +5737,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return True if this material represents a playable music disk.
       */
      public boolean isRecord() {
@@ -84,7 +355,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isRecord">
              case MUSIC_DISC_5:
-@@ -5474,6 +5506,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -5474,6 +5775,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock() || id == 0) {
              return false;
          }
@@ -96,7 +367,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isSolid">
              case ACACIA_DOOR:
-@@ -6409,6 +6446,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -6409,6 +6715,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return True if this material is an air block.
       */
      public boolean isAir() {
@@ -108,7 +379,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isAir">
              case AIR:
-@@ -6435,6 +6477,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -6435,6 +6746,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -120,7 +391,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isTransparent">
              case ACACIA_BUTTON:
-@@ -6631,6 +6678,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -6631,6 +6947,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -132,7 +403,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isFlammable">
              case ACACIA_DOOR:
-@@ -6929,6 +6981,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -6929,6 +7250,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -144,7 +415,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isBurnable">
              case ACACIA_FENCE:
-@@ -7133,6 +7190,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -7133,6 +7459,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return true if this Material can be used as fuel.
       */
      public boolean isFuel() {
@@ -156,7 +427,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isFuel">
              case ACACIA_BOAT:
-@@ -7419,6 +7481,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -7419,6 +7750,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -168,7 +439,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isOccluding">
              case ACACIA_LOG:
-@@ -7878,6 +7945,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -7878,6 +8214,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -180,7 +451,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="hasGravity">
              case ANVIL:
-@@ -7921,6 +7993,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -7921,6 +8262,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return true if this material is an item
       */
      public boolean isItem() {
@@ -192,7 +463,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isItem">
              case ACACIA_WALL_SIGN:
-@@ -8129,6 +8206,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -8129,6 +8475,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return true if this material can be interacted with.
       */
      public boolean isInteractable() {
@@ -204,7 +475,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="isInteractable">
              case ACACIA_BUTTON:
-@@ -8425,6 +8507,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -8425,6 +8776,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       */
      public float getHardness() {
          Preconditions.checkArgument(isBlock(), "The Material is not a block!");
@@ -216,7 +487,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getBlockHardness">
              case BARRIER:
-@@ -9257,6 +9344,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -9257,6 +9613,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       */
      public float getBlastResistance() {
          Preconditions.checkArgument(isBlock(), "The Material is not a block!");
@@ -228,7 +499,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getBlastResistance">
              case BIG_DRIPLEAF:
-@@ -10090,6 +10182,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10090,6 +10451,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       */
      public float getSlipperiness() {
          Preconditions.checkArgument(isBlock(), "The Material is not a block!");
@@ -240,7 +511,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getSlipperiness">
              default:
-@@ -10117,6 +10214,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10117,6 +10483,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      @Nullable
      public Material getCraftingRemainingItem() {
          Preconditions.checkArgument(isItem(), "The Material is not an item!");
@@ -252,7 +523,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getCraftingRemainingItem">
              case WATER_BUCKET:
-@@ -10142,6 +10244,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10142,6 +10513,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      @NotNull
      public EquipmentSlot getEquipmentSlot() {
          Preconditions.checkArgument(isItem(), "The Material is not an item!");
@@ -264,7 +535,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getEquipmentSlot">
              case CARVED_PUMPKIN:
-@@ -10205,7 +10312,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10205,7 +10581,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      @NotNull
      public Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(@NotNull EquipmentSlot slot) {
          Preconditions.checkArgument(isItem(), "The Material is not an item!");
@@ -277,7 +548,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..52aa304b2d7e6680a0cb6ffa9b7c4495
          return Bukkit.getUnsafe().getDefaultAttributeModifiers(this, slot);
      }
  
-@@ -10216,6 +10327,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10216,6 +10596,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       */
      @Nullable
      public CreativeCategory getCreativeCategory() {
@@ -320,16 +591,18 @@ index 236c9aea9ffc36269e5c32eacc9f1fd6bd039c88..1121a533b31489a66b76aeeacccaed46
       * Get a NamespacedKey from the supplied string with a default namespace if
       * a namespace is not defined. This is a utility method meant to fetch a
 diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
-index 3f4d99e54a128cb05879ef5900bc6dd8a3faf6b2..8109ff8c611d8539210378a0e5412279bd8b572e 100644
+index 3f4d99e54a128cb05879ef5900bc6dd8a3faf6b2..bead606baa4f28a2c1e40c945977c996d13b7872 100644
 --- a/src/main/java/org/bukkit/entity/Player.java
 +++ b/src/main/java/org/bukkit/entity/Player.java
-@@ -2495,6 +2495,12 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+@@ -2495,6 +2495,14 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
       */
      boolean hasResourcePack();
  
 +    // Martijn start - custom blocks and items
 +
 +    public boolean hasSuCraftResourcePack();
++
++    public boolean hasHighPingForCustomBlocks();
 +
 +    // Martijn end - custom blocks and items
 +
