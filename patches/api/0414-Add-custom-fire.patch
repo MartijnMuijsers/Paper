@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 14 Jul 2022 20:11:09 +0200
+Subject: [PATCH] Add custom fire
+
+
+diff --git a/src/main/java/org/bukkit/Material.java b/src/main/java/org/bukkit/Material.java
+index 817137a1daccdda038ea2b4b8016c846dcf8e514..4f9582eeef3fc6e43f9f96263971c88199469bd0 100644
+--- a/src/main/java/org/bukkit/Material.java
++++ b/src/main/java/org/bukkit/Material.java
+@@ -4309,7 +4309,12 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+     SUCRAFT_CHISELED_QUARTZ_SLAB(78379, QUARTZ_SLAB),
+     SUCRAFT_QUARTZ_PILLAR_SLAB(78380, QUARTZ_SLAB),
+     SUCRAFT_QUARTZ_BRICK_SLAB(78381, QUARTZ_SLAB),
+-    SUCRAFT_DRIED_KELP_SLAB(78382, MUD_BRICK_SLAB);
++    SUCRAFT_DRIED_KELP_SLAB(78382, MUD_BRICK_SLAB),
++    SUCRAFT_RED_FIRE(78383, SOUL_FIRE),
++    SUCRAFT_ORANGE_FIRE(78384, SUCRAFT_RED_FIRE),
++    SUCRAFT_YELLOW_FIRE(78385, SUCRAFT_RED_FIRE),
++    SUCRAFT_LIME_FIRE(78386, SUCRAFT_RED_FIRE),
++    SUCRAFT_GREEN_FIRE(78387, SUCRAFT_RED_FIRE);
+ 
+     // Martijn end - custom blocks and items
+     //</editor-fold>
