@@ -1,0 +1,202 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 19 Jul 2022 19:39:39 +0200
+Subject: [PATCH] Y
+
+
+diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
+index 8ad65fcb2a9506af1899dad58a2a0b4cc5c58b0b..8788d48ef82f23504351a5bd5904778bdd73f95c 100644
+--- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
++++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
+@@ -603,12 +603,6 @@ public class FriendlyByteBuf extends ByteBuf {
+             this.writeBoolean(true);
+             Item item = stack.getItem();
+ 
+-            Item originalItem = stack.getItem();
+-            if (originalItem.equals(SuCraftItems.WITHER_BONE_SLAB)) {
+-                MinecraftServer.LOGGER.info("TEMP DEBUG - writing stack " + stack.getCount() + " " + stack.getItem() + " " + stack.getOrCreateTag().getAsString());
+-                MinecraftServer.LOGGER.info("TEMP DEBUG - context is " + doesNetworkTargetHaveResourcePack + " , " + doesNetworkTargetHaveHighPing);
+-            }
+-
+             // Martijn start - custom blocks and items
+             boolean tryRename = true;
+             if (item.replacementRule != null) {
+@@ -640,10 +634,6 @@ public class FriendlyByteBuf extends ByteBuf {
+                 nbttagcompound = stack.getTag();
+             }
+ 
+-            if (originalItem.equals(SuCraftItems.WITHER_BONE_SLAB)) {
+-                MinecraftServer.LOGGER.info("TEMP DEBUG - resulting is " + stack.getCount() + " " + stack.getItem() + " " + stack.getOrCreateTag().getAsString());
+-            }
+-
+             this.writeNbt(nbttagcompound);
+         }
+ 
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index dbcd50d9ed19f54a94bd2d76fd69e88be0fdacc2..8c57dc6c5848e51a97fc0cc1683e88f1bdc1d4b9 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -2950,22 +2950,24 @@ public class ServerPlayer extends Player {
+         this.getBukkitEntity().updateInventory();
+     }
+ 
+-    public void resendCraftingRecipes() {
+-        this.resendCraftingRecipes(null, true);
+-    }
+-
+-    public void resendCraftingRecipes(@Nullable ItemStack stonecutterInput, boolean first) {
++    public void resendCraftingRecipes(@Nullable ItemStack stonecutterInput, boolean first, boolean sendEvenIfOnlyAlwaysSend) {
+         if (stonecutterInput == null) {
+-            if (this.containerMenu instanceof StonecutterMenu stonecutterMenu)  {
++            if (this.containerMenu instanceof StonecutterMenu stonecutterMenu) {
+                 stonecutterInput = stonecutterMenu.container.getItem(StonecutterMenu.INPUT_SLOT);
+             }
+         }
+         final @Nullable ItemStack finalStonecutterInput = stonecutterInput;
+-        this.connection.send(new ClientboundUpdateRecipesPacket(this.server.getRecipeManager().getRecipes().stream().filter(recipe -> recipe.shouldSendToPlayerRightNow(this, finalStonecutterInput)).toList()));
+-        this.getRecipeBook().sendInitialRecipeBook(this);
+-        if (first) {
++        if (sendEvenIfOnlyAlwaysSend || finalStonecutterInput != null) {
++            List<Recipe<?>> alwaysSendRecipes = this.server.getRecipeManager().getRecipes().stream().filter(recipe -> recipe.shouldAlwaysSend()).toList();
++            List<Recipe<?>> specificSendRecipes = this.server.getRecipeManager().getRecipes().stream().filter(recipe -> recipe.shouldSendToPlayerRightNow(this, finalStonecutterInput)).toList();
++            if (sendEvenIfOnlyAlwaysSend || alwaysSendRecipes.size() != specificSendRecipes.size()) {
++                this.connection.send(new ClientboundUpdateRecipesPacket(specificSendRecipes));
++                this.getRecipeBook().sendInitialRecipeBook(this);
++            }
++        }
++        if (first && !sendEvenIfOnlyAlwaysSend) {
+             this.resendInventory();
+-            Bukkit.getScheduler().runTaskLater(Bukkit.getPluginManager().getPlugins()[0], () -> this.resendCraftingRecipes(null, false), 1);
++            Bukkit.getScheduler().runTaskLater(Bukkit.getPluginManager().getPlugins()[0], () -> this.resendCraftingRecipes(null, false, false), 1);
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 37ef39b0772790943fce409434ec5a7f784bf419..718547c6cfa7ef300da3a41c4468a6959002c54d 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2005,12 +2005,12 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+             // Resend most of the potentially already sent data if we previously thought the player had accepted the resource pack, but now they no longer do
+             this.player.resendInventory();
+             this.player.resendAllSentChunks();
+-            this.player.resendCraftingRecipes();
++            this.player.resendCraftingRecipes(null, true, true);
+             this.player.resendAdvancements();
+         } else if (oldPackStatus == null && (packStatus == PlayerResourcePackStatusEvent.Status.ACCEPTED || packStatus == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED)) {
+             // Resend their inventory (we have not sent any chunks yet if this is true, so we do not need to resend any)
+             this.player.resendInventory();
+-            this.player.resendCraftingRecipes();
++            this.player.resendCraftingRecipes(null, true, true);
+             this.player.resendAdvancements();
+         }
+         // Martijn end - custom blocks and items
+@@ -3093,8 +3093,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+                         if (this.player.containerMenu instanceof StonecutterMenu stonecutterMenu) {
+                             ItemStack intoInputStack = ItemReplacementRule.reverseReplacement(packet.getChangedSlots().get(StonecutterMenu.INPUT_SLOT));
+                             if (intoInputStack != null) {
+-                                MinecraftServer.LOGGER.info("TEMP DEBUG - resending");
+-                                this.player.resendCraftingRecipes(intoInputStack, true);
++                                this.player.resendCraftingRecipes(intoInputStack, true, false);
+                             }
+                         }
+ 
+diff --git a/src/main/java/net/minecraft/world/inventory/StonecutterMenu.java b/src/main/java/net/minecraft/world/inventory/StonecutterMenu.java
+index 004cd5529f6e523bcacb0c04e120f41c879a07b0..bb1713274b4822383b54210cf7e141ca6477d665 100644
+--- a/src/main/java/net/minecraft/world/inventory/StonecutterMenu.java
++++ b/src/main/java/net/minecraft/world/inventory/StonecutterMenu.java
+@@ -78,7 +78,7 @@ public class StonecutterMenu extends AbstractContainerMenu {
+                 StonecutterMenu.this.slotsChanged(this);
+                 StonecutterMenu.this.slotUpdateListener.run();
+                 // Martijn start - custom blocks and items
+-                ((CraftPlayer) StonecutterMenu.this.player).getHandle().resendCraftingRecipes();
++                ((CraftPlayer) StonecutterMenu.this.player).getHandle().resendCraftingRecipes(null, true, false);
+ //                Bukkit.getScheduler().runTaskLater(Bukkit.getPluginManager().getPlugins()[0], () ->
+ //                    ((CraftPlayer) StonecutterMenu.this.player).getHandle().resendCraftingRecipes(), 1
+ //                );
+diff --git a/src/main/java/net/minecraft/world/item/crafting/Recipe.java b/src/main/java/net/minecraft/world/item/crafting/Recipe.java
+index 458fb8099a859a23cc1cdd0e6b6d27738f9d1c2c..fafe5f42903f569b536d85709f564111a8fc3644 100644
+--- a/src/main/java/net/minecraft/world/item/crafting/Recipe.java
++++ b/src/main/java/net/minecraft/world/item/crafting/Recipe.java
+@@ -23,6 +23,10 @@ public interface Recipe<C extends Container> {
+ 
+     // Martijn start - custom blocks and items
+ 
++    default boolean shouldAlwaysSend() {
++        return true;
++    }
++
+     default boolean shouldSendToPlayerRightNow(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
+         return true;
+     }
+diff --git a/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java b/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
+index 9774e686bc66758e3b6e033bafd3b9cbdb1eeaef..f20706b47195460088270fc14e75c49e3bfeeb0e 100644
+--- a/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
++++ b/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
+@@ -58,6 +58,11 @@ public class StonecutterRecipe extends SingleItemRecipe {
+ 
+     // Martijn start - custom blocks and items
+ 
++    @Override
++    public boolean shouldAlwaysSend() {
++        return !isCustom;
++    }
++
+     @Override
+     public boolean shouldSendToPlayerRightNow(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
+         if (!isCustom) {
+@@ -66,11 +71,6 @@ public class StonecutterRecipe extends SingleItemRecipe {
+         if (stonecutterInput == null) {
+             return false;
+         }
+-        MinecraftServer.LOGGER.info("TEMP DEBUG - should I send? " + this.getId());
+-//        MinecraftServer.LOGGER.info("TEMP DEBUG - player " + player.getName() + " has stonecutter: " + (player.containerMenu instanceof StonecutterMenu));
+-        MinecraftServer.LOGGER.info("TEMP DEBUG - first item is: " + stonecutterInput);
+-        MinecraftServer.LOGGER.info("TEMP DEBUG - matches: " + this.ingredient.test(stonecutterInput));
+-        MinecraftServer.LOGGER.info("TEMP DEBUG - based on test: " + this.ingredient.getItems()[0]);
+         return player.containerMenu instanceof StonecutterMenu stonecutterMenu && this.ingredient.test(stonecutterInput);
+     }
+ 
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 70e34bd711bde82f282b99c2004943ac286534f9..727e8193af2e041f03a74377722863a8f73a819c 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -451,16 +451,16 @@ public class SuCraftBlocks {
+ 
+     public static final Block QUARTZ_SPIRAL_MEANDER_SLAB = registerFakeSlab(QUARTZ_SPIRAL_MEANDER, null, "quartz_spiral_meander", NamespacedKeyWithoutIntention.sucraft("quartz_spiral_meander"), NamespacedKeyWithoutIntention.minecraft("chiseled_quartz_block_top"), null, null, null, null, Blocks.QUARTZ_SLAB, null).mineableWithPickaxe();
+ 
+-//    public static final Block ENDER_PEARL_BLOCK = register(
+-//        "ender_pearl_block",
+-//        new SingleMultiStateRealBlockReplacementRuleBuilder()
+-//            .withNoteBlockHost()
+-//            .withFallback(Blocks.WARPED_PLANKS)
+-//            .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
+-//            .withFullBlockBoundingBoxItem(),
+-//        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_CYAN).strength(1.5F)).mineableWithPickaxe(),
+-//        SuCraftBlockLoot::dropSelf
+-//    );
++    public static final Block ENDER_PEARL_BLOCK = register(
++        "ender_pearl_block",
++        new SingleMultiStateRealBlockReplacementRuleBuilder()
++            .withNoteBlockHost()
++            .withFallback(Blocks.DARK_PRISMARINE)
++            .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
++            .withFullBlockBoundingBoxItem(),
++        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_CYAN).strength(1.5F)).mineableWithPickaxe(),
++        SuCraftBlockLoot::dropSelf
++    );
+ 
+     private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
+         return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
+index 5ec3dee8538c7ade8017fde61e361a7795472122..156f8cb8f3f93fe21633113e13fa3c51de1ef237 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
+@@ -46,7 +46,7 @@ public final class SuCraftCraftingRecipeProvider {
+         for (Item item : Registry.ITEM) {
+             // Add the stonecutter recipes
+             for (var stonecutterRecipe : item.customStonecutterRecipes) {
+-                MinecraftServer.LOGGER.info("Adding recipe " + stonecutterRecipe.build(item).getIngredients().stream().map(y -> Arrays.stream(y.getItems()).map(x -> x.getItem().id).toList()).toList() + " -> " + stonecutterRecipe.build(item).getType() + " " + stonecutterRecipe.build(item).getId() + " " + stonecutterRecipe.build(item).getResultItem().getItem() + " x " + stonecutterRecipe.build(item).getResultItem().getCount());
++//                MinecraftServer.LOGGER.info("TEMP DEBUG - Adding recipe " + stonecutterRecipe.build(item).getIngredients().stream().map(y -> Arrays.stream(y.getItems()).map(x -> x.getItem().id).toList()).toList() + " -> " + stonecutterRecipe.build(item).getType() + " " + stonecutterRecipe.build(item).getId() + " " + stonecutterRecipe.build(item).getResultItem().getItem() + " x " + stonecutterRecipe.build(item).getResultItem().getCount());
+                 MinecraftServer.getServer().getRecipeManager().addRecipe(stonecutterRecipe.build(item));
+             }
+         }
