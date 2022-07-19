@@ -431,7 +431,7 @@ index 2ae3cf188ed5ab1266b1aae796fecce02f517908..412ae3d0a634cbe183ee2ebeefb35dbe
  
          for(Block block : Registry.BLOCK) {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index aca0dc4ce75b25409b057fe94362276c682cdc21..b1a9909a14ff8ca2abaf2a2e0956d7d90d5419aa 100644
+index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d7770c3d98e8 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -992,7 +992,24 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..b1a9909a14ff8ca2abaf2a2e0956d7d9
      private static class InnerUtil { // Attempt to hide these methods from ProtocolLib so it doesn't accidently pick them up.
          private static java.util.List<Packet> buildExtraPackets(Packet packet) {
              java.util.List<Packet> extra = packet.getExtraPackets();
-@@ -380,6 +882,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -363,7 +865,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
+-                packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
++                // Martijn start - custom blocks and items - even more packets that can be sent immediately
++                packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundResourcePackPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundInitializeBorderPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundLoginPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundServerDataPacket;
++                // Martijn end - custom blocks and items - even more packets that can be sent immediately
+             // Martijn end - more packets that can be sent immediately
+         }
+         // Paper end
+@@ -380,6 +890,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          if (!connected && !preparing) {
              return; // Do nothing
          }
@@ -1004,7 +1021,22 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..b1a9909a14ff8ca2abaf2a2e0956d7d9
          packet.onPacketDispatch(getPlayer());
          if (connected && (InnerUtil.canSendImmediate(this, packet) || (
              net.minecraft.server.MCUtil.isMainThread() && packet.isReady() && this.queue.isEmpty() &&
-@@ -433,20 +940,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -421,6 +936,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
+             || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
+             || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
++            // Martijn start - custom blocks and items - even more packets without delay
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundResourcePackPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundInitializeBorderPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundLoginPacket
++            || packet instanceof net.minecraft.network.protocol.game.ClientboundServerDataPacket
++            // Martijn end - custom blocks and items - even more packets without delay
+             ; // no delay for certain packets
+         // Martijn end - more packets without delay
+         // Paper end - add flush parameter
+@@ -433,20 +956,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              this.channel.config().setAutoRead(false);
          }
  
@@ -1030,7 +1062,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..b1a9909a14ff8ca2abaf2a2e0956d7d9
              });
              } // Paper
          }
-@@ -558,6 +1067,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -558,6 +1083,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
@@ -1039,10 +1071,20 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..b1a9909a14ff8ca2abaf2a2e0956d7d9
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
 diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-index 35377576ed182814051c11f902e02e8e921e84e3..65455b8aca7d737fbccd88d44bea004a58e5b702 100644
+index 35377576ed182814051c11f902e02e8e921e84e3..5412f49f09d63c364db50046da95a2b03e844c21 100644
 --- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
 +++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-@@ -83,6 +83,11 @@ public class FriendlyByteBuf extends ByteBuf {
+@@ -68,7 +68,9 @@ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.Vec3;
++import nl.martijnmuijsers.paper.item.ItemReplacementRule;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack; // CraftBukkit
++import org.jetbrains.annotations.NotNull;
+ 
+ public class FriendlyByteBuf extends ByteBuf {
+ 
+@@ -83,6 +85,11 @@ public class FriendlyByteBuf extends ByteBuf {
      private static final int MAX_PUBLIC_KEY_HEADER_SIZE = 256;
      private static final int MAX_PUBLIC_KEY_LENGTH = 512;
  
@@ -1054,7 +1096,7 @@ index 35377576ed182814051c11f902e02e8e921e84e3..65455b8aca7d737fbccd88d44bea004a
      public FriendlyByteBuf(ByteBuf parent) {
          this.source = parent;
      }
-@@ -513,6 +518,28 @@ public class FriendlyByteBuf extends ByteBuf {
+@@ -513,6 +520,28 @@ public class FriendlyByteBuf extends ByteBuf {
          return this;
      }
  
@@ -1083,17 +1125,26 @@ index 35377576ed182814051c11f902e02e8e921e84e3..65455b8aca7d737fbccd88d44bea004a
      public FriendlyByteBuf writeVarLong(long value) {
          while ((value & -128L) != 0L) {
              this.writeByte((int) (value & 127L) | 128);
-@@ -572,6 +599,16 @@ public class FriendlyByteBuf extends ByteBuf {
+@@ -572,6 +601,25 @@ public class FriendlyByteBuf extends ByteBuf {
              this.writeBoolean(true);
              Item item = stack.getItem();
  
 +            // Martijn start - custom blocks and items
++            boolean tryRename = true;
 +            if (item.replacementRule != null && doesNetworkTargetHaveResourcePack != null) {
-+                ItemStack replacedStack = item.replacementRule.replace(stack, doesNetworkTargetHaveResourcePack, doesNetworkTargetHaveHighPing != null ? doesNetworkTargetHaveHighPing : false);
++                @Nullable ItemStack replacedStack = item.replacementRule.replace(stack, doesNetworkTargetHaveResourcePack, doesNetworkTargetHaveHighPing != null ? doesNetworkTargetHaveHighPing : false);
 +                if (replacedStack != null) {
++                    tryRename = false;
 +                    stack = replacedStack;
 +                    item = replacedStack.getItem();
 +                }
++            }
++            if (tryRename && item.customDisplayName != null) {
++                @NotNull ItemStack replacedStack = stack.copy();
++                CompoundTag tag = replacedStack.getOrCreateTag();
++                ItemReplacementRule.SimpleItemReplacementRule.replaceItemStackDisplayName(replacedStack, tag, null, item.customDisplayNameJSON, item.customDisplayNameInLoreJSON);
++                ItemReplacementRule.storeOriginalItemInfoInItemStackNBT(replacedStack, tag, stack);
++                stack = replacedStack;
 +            }
 +            // Martijn end - custom blocks and items
 +
@@ -2565,10 +2616,21 @@ index 79d8bcf3f9b0fe4a65ad7899f858efefac6feaa7..64066022cf8b56939096c3a66cb5e26f
                                  itemstack3.setCount(k1);
                              }
 diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
-index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6dd46468db6f4c20aaf1734284f4c3b5c71858c8 100644
+index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..dfcad2e98c3fbc1e7ec6e0b627781f9da0f42d6a 100644
 --- a/src/main/java/net/minecraft/world/item/Item.java
 +++ b/src/main/java/net/minecraft/world/item/Item.java
-@@ -17,6 +17,7 @@ import net.minecraft.core.NonNullList;
+@@ -9,6 +9,10 @@ import java.util.Map;
+ import java.util.Optional;
+ import java.util.UUID;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.adventure.PaperAdventure;
++import net.kyori.adventure.text.format.TextDecoration;
++import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+ import net.minecraft.core.BlockPos;
+@@ -17,6 +21,7 @@ import net.minecraft.core.NonNullList;
  import net.minecraft.core.Registry;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.network.chat.Component;
@@ -2576,15 +2638,20 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6dd46468db6f4c20aaf1734284f4c3b5
  import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.util.Mth;
-@@ -44,6 +45,7 @@ import net.minecraft.world.level.block.Block;
+@@ -44,8 +49,12 @@ import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.Vec3;
 +import nl.martijnmuijsers.paper.item.ItemReplacementRule;
++import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  
++import static nl.martijnmuijsers.paper.item.SuCraftItems.CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR;
++
  public class Item implements ItemLike {
-@@ -68,6 +70,39 @@ public class Item implements ItemLike {
+     private static final Logger LOGGER = LogUtils.getLogger();
+     public static final Map<Block, Item> BY_BLOCK = Maps.newHashMap();
+@@ -68,6 +77,59 @@ public class Item implements ItemLike {
      @Nullable
      private final FoodProperties foodProperties;
  
@@ -2604,6 +2671,21 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6dd46468db6f4c20aaf1734284f4c3b5
 +     */
 +    public @Nullable ItemReplacementRule replacementRule = null;
 +
++    public void setRename(@NotNull net.kyori.adventure.text.Component kyoriDisplayName, @NotNull String displayNameJSON, @NotNull net.kyori.adventure.text.Component kyoriDisplayNameInLore, @NotNull String displayNameInLoreJSON) {
++        this.customDisplayName = kyoriDisplayName;
++        this.customDisplayNameJSON = displayNameJSON;
++        this.customDisplayNameInLore = kyoriDisplayNameInLore;
++        this.customDisplayNameInLoreJSON = displayNameInLoreJSON;
++    }
++
++    public void setRename(@NotNull String displayName) {
++        var kyoriDisplayName = net.kyori.adventure.text.Component.text(displayName, PaperAdventure.asAdventure(rarity.color)).decoration(TextDecoration.ITALIC, false);
++        var displayNameJSON = GsonComponentSerializer.gson().serialize(kyoriDisplayName);
++        var kyoriDisplayNameInLore = net.kyori.adventure.text.Component.text(displayName, PaperAdventure.asAdventure(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR)).decoration(TextDecoration.ITALIC, false);
++        var displayNameInLoreJSON = GsonComponentSerializer.gson().serialize(kyoriDisplayNameInLore);
++        this.setRename(kyoriDisplayName, displayNameJSON, kyoriDisplayNameInLore, displayNameInLoreJSON);
++    }
++
 +    /**
 +     * Must be non-null for SuCraft items
 +     */
@@ -2613,6 +2695,11 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6dd46468db6f4c20aaf1734284f4c3b5
 +     * Must be non-null for SuCraft items
 +     */
 +    public @Nullable String customDisplayNameJSON = null;
++
++    /**
++     * Must be non-null for SuCraft items
++     */
++    public @Nullable net.kyori.adventure.text.Component customDisplayNameInLore = null;
 +
 +    /**
 +     * Must be non-null for SuCraft items
@@ -2655,7 +2742,7 @@ index 6b3cfc19c4fd1382ddf534265a1114995a4f6b55..fb83a6fabe65bcc57b959e3e355951f9
          return this.getItem().interactLivingEntity(this, user, entity, hand);
      }
 diff --git a/src/main/java/net/minecraft/world/item/Items.java b/src/main/java/net/minecraft/world/item/Items.java
-index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..999155078a13a755e88cdfef47539e99d658e40e 100644
+index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..d547c91f3143cd57fdc32a478208ece2c6e2dc60 100644
 --- a/src/main/java/net/minecraft/world/item/Items.java
 +++ b/src/main/java/net/minecraft/world/item/Items.java
 @@ -14,6 +14,9 @@ import net.minecraft.world.food.Foods;
@@ -2696,7 +2783,7 @@ index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..999155078a13a755e88cdfef47539e99
          BlockItem blockItem = new BlockItem(block, (new Item.Properties()).tab(group));
  
          for(Block block2 : blocks) {
-@@ -1199,23 +1202,38 @@ public class Items {
+@@ -1199,23 +1202,41 @@ public class Items {
          return registerBlock(blockItem);
      }
  
@@ -2728,6 +2815,9 @@ index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..999155078a13a755e88cdfef47539e99
 +    static {
 +        // Evaluate the last element to bootstrap Items
 +        ECHO_SHARD.asItem();
++        // Set some custom name replacements
++        BOOKSHELF.setRename("Oak Bookshelf");
++        STONECUTTER.setRename("Blockcutter");
 +        // Then bootstrap SuCraftItems
 +        SuCraftItems.bootstrap();
 +        // This is a reasonable time to create the resource pack
@@ -4160,10 +4250,10 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4523ea1483936c615c99a8850355a4a11c98c526
+index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390712c6256
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,878 @@
+@@ -0,0 +1,918 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -4576,6 +4666,46 @@ index 0000000000000000000000000000000000000000..4523ea1483936c615c99a8850355a4a1
 +    public static final Block YELLOW_FIRE = registerFire("yellow", Blocks.FIRE, DyeColor.YELLOW.getMaterialColor());
 +    public static final Block LIME_FIRE = registerFire("lime", Blocks.SOUL_FIRE, DyeColor.LIME.getMaterialColor());
 +    public static final Block GREEN_FIRE = registerFire("green", Blocks.SOUL_FIRE, DyeColor.GREEN.getMaterialColor());
++    public static final Block CYAN_FIRE = registerFire("cyan", Blocks.SOUL_FIRE, DyeColor.CYAN.getMaterialColor());
++    public static final Block LIGHT_BLUE_FIRE = registerFire("light_blue", Blocks.SOUL_FIRE, DyeColor.LIGHT_BLUE.getMaterialColor());
++    public static final Block BLUE_FIRE = registerFire("blue", Blocks.SOUL_FIRE, DyeColor.BLUE.getMaterialColor());
++    public static final Block BLACK_FIRE = registerFire("black", Blocks.SOUL_FIRE, DyeColor.BLACK.getMaterialColor());
++    public static final Block GRAY_FIRE = registerFire("gray", Blocks.SOUL_FIRE, DyeColor.GRAY.getMaterialColor());
++    public static final Block LIGHT_GRAY_FIRE = registerFire("light_gray", Blocks.SOUL_FIRE, DyeColor.LIGHT_GRAY.getMaterialColor());
++    public static final Block WHITE_FIRE = registerFire("white", Blocks.SOUL_FIRE, DyeColor.WHITE.getMaterialColor());
++    public static final Block BROWN_FIRE = registerFire("brown", Blocks.FIRE, DyeColor.BROWN.getMaterialColor());
++    public static final Block PURPLE_FIRE = registerFire("purple", Blocks.SOUL_FIRE, DyeColor.PURPLE.getMaterialColor());
++    public static final Block MAGENTA_FIRE = registerFire("magenta", Blocks.SOUL_FIRE, DyeColor.MAGENTA.getMaterialColor());
++    public static final Block PINK_FIRE = registerFire("pink", Blocks.FIRE, DyeColor.PINK.getMaterialColor());
++
++    public static final Block PAPER_BLOCK = register(
++        "paper_block",
++        new SingleMultiStateRealBlockReplacementRuleBuilder()
++            .withNoteBlockHost()
++            .withFallback(Blocks.WHITE_WOOL)
++            .withModelCreation(Model.YPillarCube.defaultCreation().withNoParameters())
++            .withFullBlockBoundingBoxItem(),
++        new Block(BlockBehaviour.Properties.of(Material.WOOL, DyeColor.WHITE).strength(0.5F).sound(SoundType.SNOW)).breakBeforeClientKnowsToBreak().mineableWithAxe(),
++        SuCraftBlockLoot::dropSelf
++    );
++
++    public static final Block PAPER_SLAB = registerFakeSlabFromYPillarCustomBlock(PAPER_BLOCK, null, "paper", "paper_block", Blocks.SMOOTH_QUARTZ_SLAB).breakBeforeClientKnowsToBreak().mineableWithAxe();
++
++    /**
++     * Based on {@link Blocks#CHISELED_QUARTZ_BLOCK}
++     */
++    public static final Block QUARTZ_SPIRAL_MEANDER = register(
++        "quartz_spiral_meander",
++        new SingleMultiStateRealBlockReplacementRuleBuilder()
++            .withNoteBlockHost()
++            .withFallback(Blocks.CHISELED_QUARTZ_BLOCK)
++            .withModelCreation(Model.creation(ModelContent.OneTextureCube.creation(new Texture(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("chiseled_quartz_block_top"), TextureContent.Existing.getInstance()))).withNoParameters())
++            .withFullBlockBoundingBoxItem(),
++        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.QUARTZ).strength(0.8F)).mineableWithPickaxe(),
++        SuCraftBlockLoot::dropSelf
++    );
++
++    public static final Block QUARTZ_SPIRAL_MEANDER_SLAB = registerFakeSlab(QUARTZ_SPIRAL_MEANDER, "quartz_spiral_meander", "chiseled_quartz_block_top", Blocks.QUARTZ_SLAB).mineableWithPickaxe();
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -8617,14 +8747,17 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0528f9f3a5f4b64212e4e3f2cf6a82572770b0ca
+index 0000000000000000000000000000000000000000..18efb79c54a128b935443284a407272b9d568960
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
-@@ -0,0 +1,407 @@
+@@ -0,0 +1,415 @@
 +package nl.martijnmuijsers.paper.item;
 +
 +import com.google.common.collect.Lists;
++import io.papermc.paper.adventure.PaperAdventure;
 +import it.unimi.dsi.fastutil.Pair;
++import net.kyori.adventure.text.format.TextDecoration;
++import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 +import net.minecraft.ChatFormatting;
 +import net.minecraft.core.Registry;
 +import net.minecraft.nbt.CompoundTag;
@@ -8639,6 +8772,7 @@ index 0000000000000000000000000000000000000000..0528f9f3a5f4b64212e4e3f2cf6a8257
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.Rarity;
 +import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.state.BlockState;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
@@ -8650,9 +8784,13 @@ index 0000000000000000000000000000000000000000..0528f9f3a5f4b64212e4e3f2cf6a8257
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
++import java.util.IdentityHashMap;
++import java.util.Map;
 +import java.util.function.Function;
 +import java.util.function.Predicate;
 +import java.util.function.Supplier;
++
++import static nl.martijnmuijsers.paper.item.SuCraftItems.CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR;
 +
 +public interface ItemReplacementRule {
 +
@@ -8818,7 +8956,7 @@ index 0000000000000000000000000000000000000000..0528f9f3a5f4b64212e4e3f2cf6a8257
 +         * @param tag Optional, just for convenience in case we already have it to avoid unnecessarily retrieving it twice
 +         * @param rarity Optional as an override, will otherwise be retrieved from the item if needed
 +         */
-+        private void replaceItemStackDisplayName(@NotNull ItemStack item, @Nullable CompoundTag tag, @Nullable Rarity rarity, @NotNull String displayNameJSON, @NotNull String displayNameInLoreJSON) {
++        public static void replaceItemStackDisplayName(@NotNull ItemStack item, @Nullable CompoundTag tag, @Nullable Rarity rarity, @NotNull String displayNameJSON, @NotNull String displayNameInLoreJSON) {
 +            if (tag == null) {
 +                tag = item.getOrCreateTag();
 +            }
@@ -8866,7 +9004,7 @@ index 0000000000000000000000000000000000000000..0528f9f3a5f4b64212e4e3f2cf6a8257
 +                clone.setItem(this.getBlockHostReplacingItemReplacement(item.getItem()));
 +                var description = Component.translatable(item.getDescriptionId());
 +                CompoundTag tag = clone.getOrCreateTag();
-+                replaceItemStackDisplayName(clone, tag, item.getRarity(), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(clone.getRarity().color).withItalic(false))), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(SuCraftItems.CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR).withItalic(false))));
++                replaceItemStackDisplayName(clone, tag, item.getRarity(), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(clone.getRarity().color).withItalic(false))), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR).withItalic(false))));
 +                storeOriginalItemInfoInItemStackNBT(clone, tag, item);
 +                return clone;
 +            }
@@ -9030,10 +9168,10 @@ index 0000000000000000000000000000000000000000..0528f9f3a5f4b64212e4e3f2cf6a8257
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f0548955eed8db28af1bbb416ad819517e77c3db
+index 0000000000000000000000000000000000000000..2a8345beb682413babb41dd5a1a5b72ef8e739a1
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,515 @@
+@@ -0,0 +1,519 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -9351,6 +9489,10 @@ index 0000000000000000000000000000000000000000..f0548955eed8db28af1bbb416ad81951
 +    public static final Item QUARTZ_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.QUARTZ_PILLAR_SLAB, "Quartz");
 +    public static final Item QUARTZ_BRICK_SLAB = registerBrickSlab(SuCraftBlocks.QUARTZ_BRICK_SLAB, "Quartz");
 +    public static final Item DRIED_KELP_SLAB = registerSlab(SuCraftBlocks.DRIED_KELP_SLAB, "Dried Kelp");
++    public static final Item PAPER_BLOCK = registerBlock(SuCraftBlocks.PAPER_BLOCK, "Paper Block", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.WHITE_WOOL));
++    public static final Item PAPER_SLAB = registerSlab(SuCraftBlocks.PAPER_SLAB, "Paper");
++    public static final Item QUARTZ_SPIRAL_MEANDER = registerBlock(SuCraftBlocks.QUARTZ_SPIRAL_MEANDER, "Quartz Meander", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.CHISELED_QUARTZ_BLOCK));
++    public static final Item QUARTZ_SPIRAL_MEANDER_SLAB = registerSlab(SuCraftBlocks.QUARTZ_SPIRAL_MEANDER_SLAB, "Quartz Meander");
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -9368,8 +9510,8 @@ index 0000000000000000000000000000000000000000..f0548955eed8db28af1bbb416ad81951
 +        registeredItem.replacementRule = replacementRuleBuilder.build();
 +        registeredItem.customDisplayName = Component.text(displayName, PaperAdventure.asAdventure(registeredItem.rarity.color)).decoration(TextDecoration.ITALIC, false);
 +        registeredItem.customDisplayNameJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayName);
-+        registeredItem.customDisplayName = Component.text(displayName, PaperAdventure.asAdventure(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR)).decoration(TextDecoration.ITALIC, false);
-+        registeredItem.customDisplayNameInLoreJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayName);
++        registeredItem.customDisplayNameInLore = Component.text(displayName, PaperAdventure.asAdventure(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR)).decoration(TextDecoration.ITALIC, false);
++        registeredItem.customDisplayNameInLoreJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayNameInLore);
 +        return registeredItem;
 +    }
 +
@@ -12495,10 +12637,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..08d7e3bc034fee3a0560cf10a17e40dd36f5f8ea
+index 0000000000000000000000000000000000000000..0215fb53a604a6c4e6ec6bc27f4e94b5aa8bfe0f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,182 @@
+@@ -0,0 +1,190 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -12537,7 +12679,15 @@ index 0000000000000000000000000000000000000000..08d7e3bc034fee3a0560cf10a17e40dd
 +
 +    private CreateSuCraftResourcePack() {}
 +
-+    private static final int currentResourcePackVersion = 143;
++    private static final boolean useRandomResourcePackVersion = true;
++    private static final int currentResourcePackVersion;
++    static {
++        if (useRandomResourcePackVersion) {
++            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
++        } else {
++            currentResourcePackVersion = 149;
++        }
++    }
 +
 +    private static final String RESOURCE_PACK_FOLDER_PATH = "resourcepack";
 +    private static final String OUTPUT_FOLDER_PATH = RESOURCE_PACK_FOLDER_PATH + "/output";
