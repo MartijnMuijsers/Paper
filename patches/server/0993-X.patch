@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 20 Jul 2022 18:52:30 +0200
+Subject: [PATCH] X
+
+
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+index 05335efe482685e6880cc7034e25f975fbf25027..ba16cfe0178ccf818a3b8ae873c1055e24f012a3 100644
+--- a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
+@@ -16,6 +16,7 @@ import net.minecraft.world.level.block.RotatedPillarBlock;
+ import net.minecraft.world.level.block.SlabBlock;
+ import net.minecraft.world.level.block.SoulFireBlock;
+ import net.minecraft.world.level.block.SoundType;
++import net.minecraft.world.level.block.StairBlock;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.material.MaterialColor;
+@@ -493,7 +494,7 @@ public class SuCraftBlocks {
+     public static final Block OBSIDIAN_SLAB = registerFakeSlab(Blocks.OBSIDIAN, "obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
+     public static final Block CRYING_OBSIDIAN_SLAB = registerFakeSlab(Blocks.CRYING_OBSIDIAN, "crying_obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
+     public static final Block GILDED_BLACKSTONE_SLAB = registerFakeSlab(Blocks.GILDED_BLACKSTONE, "gilded_blackstone", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
+-//    public static final Block SNOWY_STONE_BRICK_STAIRS = registerFakeStairs(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_STAIRS);
++    public static final Block SNOWY_STONE_BRICK_STAIRS = registerFakeStairs(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_STAIRS);
+ 
+     private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
+         return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
+@@ -721,7 +722,7 @@ public class SuCraftBlocks {
+                 .withAnalogousFallbacks(fallback)
+                 .withDefaultModelCreationsForSlabReplacedBySlab(doubleSlabModelCreation, sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture)
+                 .withRealItemRuleFromHostBlock(),
+-            new SlabBlock(properties == null ? fullBlock.properties : properties).withAddedTagsLike(fullBlock).slab(),
++            new SlabBlock(properties == null ? BlockBehaviour.Properties.copy(fullBlock) : properties).withAddedTagsLike(fullBlock).slab(),
+             SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
+         ).withCustomSlabStonecutterRecipe(fullBlock);
+     }
+@@ -869,7 +870,7 @@ public class SuCraftBlocks {
+                 .withAnalogousFallbacks(fallback)
+                 .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
+                 .withRealItemRuleFromHostBlock(),
+-            new SlabBlock(properties == null ? fullBlock.properties : properties).withAddedTagsLike(fullBlock).slab(),
++            new SlabBlock(properties == null ? BlockBehaviour.Properties.copy(fullBlock) : properties).withAddedTagsLike(fullBlock).slab(),
+             SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
+         ).withCustomSlabStonecutterRecipe(fullBlock);
+     }
+@@ -889,11 +890,11 @@ public class SuCraftBlocks {
+                 .rendersAsEntity()
+                 .withAnalogousHosts(host)
+                 .withAnalogousFallbacks(fallback)
+-                .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
++                .withDefaultModelCreationsForStairsReplacedByStairs(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
+                 .withRealItemRuleFromHostBlock(),
+-            new SlabBlock(properties == null ? fullBlock.properties : properties).withAddedTagsLike(fullBlock).slab(),
+-            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
+-        ).withCustomSlabStonecutterRecipe(fullBlock);
++            new StairBlock(fullBlock.defaultBlockState(), properties == null ? BlockBehaviour.Properties.copy(fullBlock) : properties).withAddedTagsLike(fullBlock).stairs(),
++            SuCraftBlockLoot::dropSelf
++        ).withCustomOneToOneStonecutterRecipe(fullBlock);
+     }
+ 
+     private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @NotNull String type, @Nullable String textureBlock, @NotNull Block host, @Nullable Block fallback) {
