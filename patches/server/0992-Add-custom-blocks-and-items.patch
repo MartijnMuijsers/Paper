@@ -1071,20 +1071,29 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
 diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-index 35377576ed182814051c11f902e02e8e921e84e3..5412f49f09d63c364db50046da95a2b03e844c21 100644
+index 35377576ed182814051c11f902e02e8e921e84e3..8788d48ef82f23504351a5bd5904778bdd73f95c 100644
 --- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
 +++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-@@ -68,7 +68,9 @@ import net.minecraft.world.level.ChunkPos;
+@@ -60,6 +60,7 @@ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.resources.ResourceKey;
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.Crypt;
+ import net.minecraft.util.CryptException;
+ import net.minecraft.world.item.Item;
+@@ -68,7 +69,10 @@ import net.minecraft.world.level.ChunkPos;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.Vec3;
 +import nl.martijnmuijsers.paper.item.ItemReplacementRule;
++import nl.martijnmuijsers.paper.item.SuCraftItems;
  import org.bukkit.craftbukkit.inventory.CraftItemStack; // CraftBukkit
 +import org.jetbrains.annotations.NotNull;
  
  public class FriendlyByteBuf extends ByteBuf {
  
-@@ -83,6 +85,11 @@ public class FriendlyByteBuf extends ByteBuf {
+@@ -83,6 +87,11 @@ public class FriendlyByteBuf extends ByteBuf {
      private static final int MAX_PUBLIC_KEY_HEADER_SIZE = 256;
      private static final int MAX_PUBLIC_KEY_LENGTH = 512;
  
@@ -1096,7 +1105,7 @@ index 35377576ed182814051c11f902e02e8e921e84e3..5412f49f09d63c364db50046da95a2b0
      public FriendlyByteBuf(ByteBuf parent) {
          this.source = parent;
      }
-@@ -513,6 +520,28 @@ public class FriendlyByteBuf extends ByteBuf {
+@@ -513,6 +522,28 @@ public class FriendlyByteBuf extends ByteBuf {
          return this;
      }
  
@@ -1125,14 +1134,14 @@ index 35377576ed182814051c11f902e02e8e921e84e3..5412f49f09d63c364db50046da95a2b0
      public FriendlyByteBuf writeVarLong(long value) {
          while ((value & -128L) != 0L) {
              this.writeByte((int) (value & 127L) | 128);
-@@ -572,6 +601,25 @@ public class FriendlyByteBuf extends ByteBuf {
+@@ -572,6 +603,25 @@ public class FriendlyByteBuf extends ByteBuf {
              this.writeBoolean(true);
              Item item = stack.getItem();
  
 +            // Martijn start - custom blocks and items
 +            boolean tryRename = true;
-+            if (item.replacementRule != null && doesNetworkTargetHaveResourcePack != null) {
-+                @Nullable ItemStack replacedStack = item.replacementRule.replace(stack, doesNetworkTargetHaveResourcePack, doesNetworkTargetHaveHighPing != null ? doesNetworkTargetHaveHighPing : false);
++            if (item.replacementRule != null) {
++                @Nullable ItemStack replacedStack = item.replacementRule.replace(stack, doesNetworkTargetHaveResourcePack != null ? doesNetworkTargetHaveResourcePack : false, doesNetworkTargetHaveHighPing != null ? doesNetworkTargetHaveHighPing : false);
 +                if (replacedStack != null) {
 +                    tryRename = false;
 +                    stack = replacedStack;
@@ -2035,7 +2044,7 @@ index 5aaeb05cf3f3a86530e929499dfb98a659c714b7..177b7b7d0216cfb9ceec776d71e570f7
              Thread thread = new Thread("Server Shutdown Thread") {
                  public void run() {
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 1d452417c83f4a4053faf3bb6b86d357a6403203..b75a9bd5c2ed262867fee95bb83aec5d5d35f28d 100644
+index 1d452417c83f4a4053faf3bb6b86d357a6403203..1a0721e864bb7e0c92df4e9e63c8161a007df365 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -96,6 +96,7 @@ import net.minecraft.server.players.GameProfileCache;
@@ -2054,16 +2063,30 @@ index 1d452417c83f4a4053faf3bb6b86d357a6403203..b75a9bd5c2ed262867fee95bb83aec5d
  import net.minecraft.world.level.border.WorldBorder;
  import net.minecraft.world.level.dimension.LevelStem;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
-@@ -153,7 +155,9 @@ import net.minecraft.world.level.storage.loot.LootTables;
+@@ -153,7 +155,10 @@ import net.minecraft.world.level.storage.loot.LootTables;
  import net.minecraft.world.level.storage.loot.PredicateManager;
  import net.minecraft.world.phys.Vec2;
  import net.minecraft.world.phys.Vec3;
 +import nl.martijnmuijsers.paper.block.SuCraftBlocks;
++import nl.martijnmuijsers.paper.item.SuCraftCraftingRecipeProvider;
  import org.apache.commons.lang3.Validate;
 +import org.bukkit.Material;
  import org.slf4j.Logger;
  
  // CraftBukkit start
+diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
+index de0513b38e5fa0138f1cee6bb633561be12449fc..cc4f0e64ca476435aed1e8b5dcf5300014fabdcb 100644
+--- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
++++ b/src/main/java/net/minecraft/server/PlayerAdvancements.java
+@@ -63,7 +63,7 @@ public class PlayerAdvancements {
+     private final File file;
+     public final Map<Advancement, AdvancementProgress> advancements = Maps.newLinkedHashMap();
+     private final Set<Advancement> visible = Sets.newLinkedHashSet();
+-    private final Set<Advancement> visibilityChanged = Sets.newLinkedHashSet();
++    public final Set<Advancement> visibilityChanged = Sets.newLinkedHashSet(); // Martijn - custom blocks and items // We use this to mark advancements as dirty to resend them when the resource pack status changes
+     private final Set<Advancement> progressChanged = Sets.newLinkedHashSet();
+     private ServerPlayer player;
+     @Nullable
 diff --git a/src/main/java/net/minecraft/server/commands/GiveCommand.java b/src/main/java/net/minecraft/server/commands/GiveCommand.java
 index 06e3a868e922f1b7a586d0ca28f64a67ae463b68..0feab0105d15be1847d0064aeb1186ed8a2b117a 100644
 --- a/src/main/java/net/minecraft/server/commands/GiveCommand.java
@@ -2130,6 +2153,27 @@ index 06e3a868e922f1b7a586d0ca28f64a67ae463b68..0feab0105d15be1847d0064aeb1186ed
      private static int giveItem(CommandSourceStack source, ItemInput item, Collection<ServerPlayer> targets, int count) throws CommandSyntaxException {
          int j = item.getItem().getMaxStackSize();
          int k = j * 100;
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..fd6e6c4c92b7f00cc1155e616d4232604d45c8fe 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -55,6 +55,7 @@ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.GameType;
+ import net.minecraft.world.level.block.entity.SkullBlockEntity;
+ import net.minecraft.world.level.storage.LevelStorageSource;
++import nl.martijnmuijsers.paper.item.SuCraftCraftingRecipeProvider;
+ import org.slf4j.Logger;
+ 
+ // CraftBukkit start
+@@ -275,6 +276,8 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+             return false;
+         }
+ 
++        SuCraftCraftingRecipeProvider.run(); // Martijn - custom blocks and items
++
+         // CraftBukkit start
+         // this.setPlayerList(new DedicatedPlayerList(this, this.registryHolder, this.playerDataStorage)); // Spigot - moved up
+         server.loadPlugins();
 diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
 index 94a96e5f85334b46261e2960ca2fec6c8c4bdd43..f8d72c63974ceb7d886c9077a4d35f077acaf040 100644
 --- a/src/main/java/net/minecraft/server/level/ChunkMap.java
@@ -2274,10 +2318,29 @@ index 5aae519912830ffb67c5c3d9fbe9f7f07ac2ab9d..eb875d1464ee4018513cfb4cf2127fc5
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..a901d4c272b0b48b4e354270b20f286e220a98ed 100644
+index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..5008a0270e5624c2cdaf2d1aa720f03e5802118a 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -24,6 +24,9 @@ import io.papermc.paper.chunk.PlayerChunkLoader;
+@@ -9,14 +9,18 @@ import com.mojang.logging.LogUtils;
+ import com.mojang.serialization.DataResult;
+ 
+ import java.util.ArrayDeque;
++import java.util.ArrayList;
+ import java.util.Collection;
++import java.util.Collections;
+ import java.util.Comparator;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Objects;
+ import java.util.Optional;
+ import java.util.OptionalInt;
++import java.util.Set;
+ import java.util.UUID;
++import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ 
+@@ -24,6 +28,9 @@ import io.papermc.paper.chunk.PlayerChunkLoader;
  import io.papermc.paper.configuration.GlobalConfiguration;
  import it.unimi.dsi.fastutil.Pair;
  import it.unimi.dsi.fastutil.ints.IntIntPair;
@@ -2287,7 +2350,23 @@ index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..a901d4c272b0b48b4e354270b20f286e
  import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
  import net.minecraft.BlockUtil;
  import net.minecraft.ChatFormatting;
-@@ -151,11 +154,13 @@ import net.minecraft.world.level.block.entity.CommandBlockEntity;
+@@ -85,6 +92,7 @@ import net.minecraft.network.protocol.game.ClientboundSetHealthPacket;
+ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+ import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
+ import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
++import net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket;
+ import net.minecraft.network.protocol.game.ServerboundClientInformationPacket;
+ import net.minecraft.network.protocol.status.ServerStatus;
+ import net.minecraft.resources.ResourceKey;
+@@ -128,6 +136,7 @@ import net.minecraft.world.inventory.ContainerSynchronizer;
+ import net.minecraft.world.inventory.HorseInventoryMenu;
+ import net.minecraft.world.inventory.ResultSlot;
+ import net.minecraft.world.inventory.Slot;
++import net.minecraft.world.inventory.StonecutterMenu;
+ import net.minecraft.world.item.ComplexItem;
+ import net.minecraft.world.item.ItemCooldowns;
+ import net.minecraft.world.item.ItemStack;
+@@ -151,11 +160,13 @@ import net.minecraft.world.level.block.entity.CommandBlockEntity;
  import net.minecraft.world.level.block.entity.SignBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.border.WorldBorder;
@@ -2301,7 +2380,7 @@ index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..a901d4c272b0b48b4e354270b20f286e
  import org.slf4j.Logger;
  import net.minecraft.world.Container;
  import net.minecraft.world.InteractionHand;
-@@ -504,6 +509,7 @@ public class ServerPlayer extends Player {
+@@ -504,6 +515,7 @@ public class ServerPlayer extends Player {
      @Nullable
      private Vec3 enteredLavaOnVehiclePosition;
      private SectionPos lastSectionPos;
@@ -2309,7 +2388,16 @@ index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..a901d4c272b0b48b4e354270b20f286e
      private ResourceKey<Level> respawnDimension;
      @Nullable
      private BlockPos respawnPosition;
-@@ -604,6 +610,11 @@ public class ServerPlayer extends Player {
+@@ -548,7 +560,7 @@ public class ServerPlayer extends Player {
+ 
+     private int maxNumberOfChunkPacketsInTransitBasedOnConnection = GlobalConfiguration.get().networkConstrainedChunkSending.maxChunkPacketsInTransit.initial;
+     // Keep track of chunk packets in transit
+-    private final ArrayDeque<ChunkPacketInTransit> chunkInitializationPacketsInTransitKeepaliveIds = new ArrayDeque<>();
++    public final ArrayDeque<ChunkPacketInTransit> chunkInitializationPacketsInTransitKeepaliveIds = new ArrayDeque<>(); // Martijn - custom blocks and items
+ 
+     public int getMaxNumberOfChunkPacketsInTransitBasedOnConnection() {
+         synchronized (this.networkConstrainedSendingLock) {
+@@ -604,6 +616,11 @@ public class ServerPlayer extends Player {
      }
  
      public boolean canSendChunkInitializationPacketNow(ChunkPos chunk) {
@@ -2321,7 +2409,7 @@ index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..a901d4c272b0b48b4e354270b20f286e
          if (getChessboardDistanceToChunk(chunk) <= GlobalConfiguration.get().networkConstrainedChunkSending.ignoreNetworkConditionsForChunksWithinChessboardDistance) return true;
          synchronized (this.networkConstrainedSendingLock) {
              return this.chunkInitializationPacketsInTransitKeepaliveIds.size() < this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
-@@ -2914,4 +2925,57 @@ public class ServerPlayer extends Player {
+@@ -2914,4 +2931,115 @@ public class ServerPlayer extends Player {
      // CraftBukkit end
  
      public final int getViewDistance() { throw new UnsupportedOperationException("Use PlayerChunkLoader"); } // Paper - placeholder
@@ -2346,6 +2434,64 @@ index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..a901d4c272b0b48b4e354270b20f286e
 +
 +    public void resendInventory() {
 +        this.getBukkitEntity().updateInventory();
++    }
++
++    private @Nullable Set<ResourceLocation> lastSentSpecificRecipeIds = null;
++
++    public final @NotNull Comparator<Recipe<?>> RECIPE_ORDER = (recipe1, recipe2) -> {
++        // Martijn start - custom blocks and items
++        var descriptionId1 = recipe1.getReplacedResultItemDescriptionId(this);
++        var descriptionId2 = recipe2.getReplacedResultItemDescriptionId(this);
++        int descriptionIdCompare = descriptionId1.compareTo(descriptionId2);
++        if (descriptionIdCompare != 0) {
++            return descriptionIdCompare;
++        }
++        return Integer.compare(descriptionId1.hashCode(), descriptionId2.hashCode());
++        // Martijn end - custom blocks and items
++    };
++
++    public void resendCraftingRecipes(@Nullable ItemStack stonecutterInput, int iteration) {
++        if (stonecutterInput == null) {
++            if (this.containerMenu instanceof StonecutterMenu stonecutterMenu) {
++                stonecutterInput = stonecutterMenu.container.getItem(StonecutterMenu.INPUT_SLOT);
++            }
++        }
++        final @Nullable ItemStack finalStonecutterInput = stonecutterInput;
++        Collection<Recipe<?>> allRecipes = this.server.getRecipeManager().getRecipes();
++        List<Recipe<?>> alwaysRecipesToSend = new ArrayList<>(allRecipes.size());
++        List<Recipe<?>> specificRecipesToSend = new ArrayList<>(4);
++        List<Recipe<?>> allRecipesToSend = new ArrayList<>(allRecipes.size());
++        allRecipes.forEach(recipe -> {
++            if (recipe.shouldAlwaysSend()) {
++                alwaysRecipesToSend.add(recipe);
++//                allRecipesToSend.add(recipe);
++            } else if (recipe.shouldSpecificallySend(this, finalStonecutterInput)) {
++                specificRecipesToSend.add(recipe);
++                allRecipesToSend.add(recipe);
++            }
++        });
++        Set<ResourceLocation> willSendSpecificRecipeIds = specificRecipesToSend.stream().map(recipe -> recipe.getId()).collect(Collectors.toSet());
++        if (this.lastSentSpecificRecipeIds == null || !this.lastSentSpecificRecipeIds.equals(willSendSpecificRecipeIds)) {
++            allRecipesToSend.sort(RECIPE_ORDER);
++            MinecraftServer.LOGGER.info("TEMP DEBUG - all: " + allRecipesToSend.stream().map(recipe -> recipe.getResultItem().getItem()).toList());
++//            Collections.shuffle(allRecipesToSend);
++            this.lastSentSpecificRecipeIds = willSendSpecificRecipeIds;
++            this.connection.send(new ClientboundUpdateRecipesPacket(allRecipesToSend));
++            this.getRecipeBook().sendInitialRecipeBook(this);
++            MinecraftServer.LOGGER.info("TEMP DEBUG - specific: " + specificRecipesToSend.stream().sorted(RECIPE_ORDER).map(recipe -> recipe.getResultItem().getItem()).toList());
++        }
++        if (iteration < 3 && iteration >= 0) {
++            if (this.containerMenu instanceof StonecutterMenu stonecutterMenu) {
++                this.connection.send(new ClientboundContainerSetSlotPacket(containerMenu.containerId, containerMenu.getStateId(), StonecutterMenu.INPUT_SLOT, new ItemStack(Items.AIR, 0)));
++            }
++            this.resendInventory();
++            Bukkit.getScheduler().runTaskLater(Bukkit.getPluginManager().getPlugins()[0], () -> this.resendCraftingRecipes(null, iteration + 1), 1);
++        }
++    }
++
++    public void resendAdvancements() {
++        this.advancements.visibilityChanged.addAll(this.advancements.advancements.keySet());
++        this.advancements.flushDirty(this);
 +    }
 +
 +    public void resendAllSentChunks() {
@@ -2418,7 +2564,7 @@ index 7123b7a821e2b3b75701976ed5382f4f3aaecfda..1a34ef9e4c242a8048b3d21ab73126a1
  
                      this.level.destroyBlockProgress(this.player.getId(), pos, k);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 40712b51b84a812737f6c5f58eefece1e11608a3..42e24bd61a63343da80f54ab6519fc3b91969b15 100644
+index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898fef8a0f1 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -30,6 +30,7 @@ import java.util.function.BiFunction;
@@ -2429,7 +2575,15 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..42e24bd61a63343da80f54ab6519fc3b
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
-@@ -170,6 +171,7 @@ import net.minecraft.world.phys.Vec3;
+@@ -142,6 +143,7 @@ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.MoverType;
+ import net.minecraft.world.entity.PlayerRideableJumping;
++import net.minecraft.world.inventory.StonecutterMenu;
+ import net.minecraft.world.item.BlockItem;
+ import net.minecraft.world.item.BucketItem;
+ import net.minecraft.world.item.Item;
+@@ -170,6 +172,7 @@ import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
  import net.minecraft.world.phys.shapes.VoxelShape;
@@ -2437,7 +2591,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..42e24bd61a63343da80f54ab6519fc3b
  import org.apache.commons.lang3.StringUtils;
  import org.slf4j.Logger;
  
-@@ -1990,7 +1992,24 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -1990,7 +1993,30 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
          }
          // Paper start
          PlayerResourcePackStatusEvent.Status packStatus = PlayerResourcePackStatusEvent.Status.values()[packet.action.ordinal()];
@@ -2453,16 +2607,40 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..42e24bd61a63343da80f54ab6519fc3b
 +            // Resend most of the potentially already sent data if we previously thought the player had accepted the resource pack, but now they no longer do
 +            this.player.resendInventory();
 +            this.player.resendAllSentChunks();
++            this.player.resendCraftingRecipes(null, -1);
++            this.player.resendAdvancements();
++            this.player.chunkInitializationPacketsInTransitKeepaliveIds.clear(); // Don't delay starting sending chunks even if some are already in transit
 +        } else if (oldPackStatus == null && (packStatus == PlayerResourcePackStatusEvent.Status.ACCEPTED || packStatus == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED)) {
 +            // Resend their inventory (we have not sent any chunks yet if this is true, so we do not need to resend any)
 +            this.player.resendInventory();
++            this.player.resendCraftingRecipes(null, -1);
++            this.player.resendAdvancements();
++            this.player.chunkInitializationPacketsInTransitKeepaliveIds.clear(); // Don't delay starting sending chunks even if some are already in transit
 +        }
 +        // Martijn end - custom blocks and items
 +
          this.cserver.getPluginManager().callEvent(new PlayerResourcePackStatusEvent(this.getCraftPlayer(), packStatus)); // CraftBukkit
          // Paper end
      }
-@@ -3131,10 +3150,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3064,6 +3090,17 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+                             return;
+                         }
+ 
++                        // Martijn start - custom blocks and items
++
++                        if (this.player.containerMenu instanceof StonecutterMenu stonecutterMenu) {
++                            ItemStack intoInputStack = ItemReplacementRule.reverseReplacement(packet.getChangedSlots().get(StonecutterMenu.INPUT_SLOT));
++                            if (intoInputStack != null) {
++                                this.player.resendCraftingRecipes(intoInputStack, 0);
++                            }
++                        }
++
++                        // Martijn end - custom blocks and items
++
+                         switch (event.getResult()) {
+                             case ALLOW:
+                             case DEFAULT:
+@@ -3131,10 +3168,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
                      while (objectiterator.hasNext()) {
                          Entry<ItemStack> entry = (Entry) objectiterator.next();
  
@@ -2475,7 +2653,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..42e24bd61a63343da80f54ab6519fc3b
                      this.player.containerMenu.resumeRemoteUpdates();
                      if (flag) {
                          this.player.containerMenu.broadcastFullState();
-@@ -3191,7 +3210,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3191,7 +3228,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
          PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
          if (this.player.gameMode.isCreative()) {
              boolean flag = packet.getSlotNum() < 0;
@@ -2487,7 +2665,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..42e24bd61a63343da80f54ab6519fc3b
              CompoundTag nbttagcompound = BlockItem.getBlockEntityData(itemstack);
  
              if (!itemstack.isEmpty() && nbttagcompound != null && nbttagcompound.contains("x") && nbttagcompound.contains("y") && nbttagcompound.contains("z") && this.player.getBukkitEntity().hasPermission("minecraft.nbt.copy")) { // Spigot
-@@ -3210,10 +3232,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3210,10 +3250,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
              boolean flag1 = packet.getSlotNum() >= 1 && packet.getSlotNum() <= 45;
              boolean flag2 = itemstack.isEmpty() || itemstack.getDamageValue() >= 0 && itemstack.getCount() <= 64 && !itemstack.isEmpty();
@@ -2501,10 +2679,49 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..42e24bd61a63343da80f54ab6519fc3b
                  SlotType type = SlotType.QUICKBAR;
                  if (flag) {
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index def57a2f44bf20c06b161f144e1122ad0ba4b705..be387aaca1e88bf4506ea1fea6cda9dd1b00bddd 100644
+index def57a2f44bf20c06b161f144e1122ad0ba4b705..8554b85ba84e4b5ed15d15049dd17f2a617870de 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -427,7 +427,7 @@ public abstract class PlayerList {
+@@ -275,14 +275,21 @@ public abstract class PlayerList {
+ 
+         player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
+         playerconnection.send(new ClientboundCustomPayloadPacket(ClientboundCustomPayloadPacket.BRAND, (new FriendlyByteBuf(Unpooled.buffer())).writeUtf(this.getServer().getServerModName())));
++
++        // Martijn start - custom blocks and items
++        this.server.getServerResourcePack().ifPresent((minecraftserver_serverresourcepackinfo) -> {
++            player.sendTexturePack(minecraftserver_serverresourcepackinfo.url(), minecraftserver_serverresourcepackinfo.hash(), minecraftserver_serverresourcepackinfo.isRequired(), minecraftserver_serverresourcepackinfo.prompt());
++        });
++        // Martijn end - custom blocks and items
++
+         playerconnection.send(new ClientboundChangeDifficultyPacket(worlddata.getDifficulty(), worlddata.isDifficultyLocked()));
+         playerconnection.send(new ClientboundPlayerAbilitiesPacket(player.getAbilities()));
+         playerconnection.send(new ClientboundSetCarriedItemPacket(player.getInventory().selected));
+-        playerconnection.send(new ClientboundUpdateRecipesPacket(this.server.getRecipeManager().getRecipes()));
++//        playerconnection.send(new ClientboundUpdateRecipesPacket(this.server.getRecipeManager().getRecipes())); // Martijn - custom blocks and items
+         playerconnection.send(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(this.registryHolder)));
+         this.sendPlayerPermissionLevel(player);
+         player.getStats().markAllDirty();
+-        player.getRecipeBook().sendInitialRecipeBook(player);
++//        player.getRecipeBook().sendInitialRecipeBook(player); // Martijn - custom blocks and items
+         this.updateEntireScoreboard(worldserver1.getScoreboard(), player);
+         this.server.invalidateStatus();
+         // Paper start - async load spawn in chunk
+@@ -407,9 +414,11 @@ public abstract class PlayerList {
+         worldserver1 = player.getLevel(); // CraftBukkit - Update in case join event changed it
+         // CraftBukkit end
+         this.sendLevelInfo(player, worldserver1);
+-        this.server.getServerResourcePack().ifPresent((minecraftserver_serverresourcepackinfo) -> {
+-            player.sendTexturePack(minecraftserver_serverresourcepackinfo.url(), minecraftserver_serverresourcepackinfo.hash(), minecraftserver_serverresourcepackinfo.isRequired(), minecraftserver_serverresourcepackinfo.prompt());
+-        });
++        // Martijn start - custom blocks and items
++//        this.server.getServerResourcePack().ifPresent((minecraftserver_serverresourcepackinfo) -> {
++//            player.sendTexturePack(minecraftserver_serverresourcepackinfo.url(), minecraftserver_serverresourcepackinfo.hash(), minecraftserver_serverresourcepackinfo.isRequired(), minecraftserver_serverresourcepackinfo.prompt());
++//        });
++        // Martijn end - custom blocks and items
+         player.sendServerStatus(this.server.getStatus());
+         Iterator iterator = player.getActiveEffects().iterator();
+ 
+@@ -427,7 +436,7 @@ public abstract class PlayerList {
                  .getHolderOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
              player.connection.send(new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
                  new net.minecraft.world.level.chunk.EmptyLevelChunk(worldserver1, player.chunkPosition(), plains),
@@ -2513,6 +2730,16 @@ index def57a2f44bf20c06b161f144e1122ad0ba4b705..be387aaca1e88bf4506ea1fea6cda9dd
              );
          }
          // Paper end
+diff --git a/src/main/java/net/minecraft/stats/ServerRecipeBook.java b/src/main/java/net/minecraft/stats/ServerRecipeBook.java
+index b7ebaf8c17b5075989ae04224f837c7932ec6cdd..5637ab33538d61aef40c68f92ff6e6a818989ecd 100644
+--- a/src/main/java/net/minecraft/stats/ServerRecipeBook.java
++++ b/src/main/java/net/minecraft/stats/ServerRecipeBook.java
+@@ -143,4 +143,5 @@ public class ServerRecipeBook extends RecipeBook {
+     public void sendInitialRecipeBook(ServerPlayer player) {
+         player.connection.send(new ClientboundRecipePacket(ClientboundRecipePacket.State.INIT, this.known, this.highlight, this.getBookSettings()));
+     }
++
+ }
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
 index 1b9b58557ff48b87794d66238dbf64b81c087c86..695ed363c7e783d696cc2e02956fb7cfbb067d08 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
@@ -2615,22 +2842,68 @@ index 79d8bcf3f9b0fe4a65ad7899f858efefac6feaa7..64066022cf8b56939096c3a66cb5e26f
                              if (itemstack3.getCount() > k1) {
                                  itemstack3.setCount(k1);
                              }
+diff --git a/src/main/java/net/minecraft/world/inventory/StonecutterMenu.java b/src/main/java/net/minecraft/world/inventory/StonecutterMenu.java
+index d4f71422b25f70abfe50481d6071abea6ad147c0..a5063cc97aee67887944fa9c337cc47295dd6feb 100644
+--- a/src/main/java/net/minecraft/world/inventory/StonecutterMenu.java
++++ b/src/main/java/net/minecraft/world/inventory/StonecutterMenu.java
+@@ -2,6 +2,8 @@ package net.minecraft.world.inventory;
+ 
+ import com.google.common.collect.Lists;
+ import java.util.List;
++
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.sounds.SoundSource;
+ import net.minecraft.world.Container;
+@@ -15,7 +17,9 @@ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Blocks;
+ 
+ // CraftBukkit start
++import org.bukkit.Bukkit;
+ import org.bukkit.Location;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.craftbukkit.inventory.CraftInventoryStonecutter;
+ import org.bukkit.craftbukkit.inventory.CraftInventoryView;
+ import org.bukkit.entity.Player;
+@@ -73,6 +77,12 @@ public class StonecutterMenu extends AbstractContainerMenu {
+                 super.setChanged();
+                 StonecutterMenu.this.slotsChanged(this);
+                 StonecutterMenu.this.slotUpdateListener.run();
++                // Martijn start - custom blocks and items
++                ((CraftPlayer) StonecutterMenu.this.player).getHandle().resendCraftingRecipes(null, 0);
++//                Bukkit.getScheduler().runTaskLater(Bukkit.getPluginManager().getPlugins()[0], () ->
++//                    ((CraftPlayer) StonecutterMenu.this.player).getHandle().resendCraftingRecipes(), 1
++//                );
++                // Martijn end - custom blocks and items
+             }
+ 
+             // CraftBukkit start
 diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
-index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..dfcad2e98c3fbc1e7ec6e0b627781f9da0f42d6a 100644
+index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..1cd8d8e596f0a62cde63d5966952ad0fe5ec19f1 100644
 --- a/src/main/java/net/minecraft/world/item/Item.java
 +++ b/src/main/java/net/minecraft/world/item/Item.java
-@@ -9,6 +9,10 @@ import java.util.Map;
+@@ -4,11 +4,20 @@ import com.google.common.collect.ImmutableMultimap;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Multimap;
+ import com.mojang.logging.LogUtils;
++
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
  import java.util.Optional;
  import java.util.UUID;
++import java.util.function.Supplier;
++import java.util.stream.Stream;
  import javax.annotation.Nullable;
 +
 +import io.papermc.paper.adventure.PaperAdventure;
++import it.unimi.dsi.fastutil.Pair;
 +import net.kyori.adventure.text.format.TextDecoration;
 +import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
  import net.minecraft.SharedConstants;
  import net.minecraft.Util;
  import net.minecraft.core.BlockPos;
-@@ -17,6 +21,7 @@ import net.minecraft.core.NonNullList;
+@@ -17,6 +26,7 @@ import net.minecraft.core.NonNullList;
  import net.minecraft.core.Registry;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.network.chat.Component;
@@ -2638,11 +2911,22 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..dfcad2e98c3fbc1e7ec6e0b627781f9d
  import net.minecraft.sounds.SoundEvent;
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.util.Mth;
-@@ -44,8 +49,12 @@ import net.minecraft.world.level.block.Block;
+@@ -37,6 +47,8 @@ import net.minecraft.world.inventory.ClickAction;
+ import net.minecraft.world.inventory.Slot;
+ import net.minecraft.world.inventory.tooltip.TooltipComponent;
+ import net.minecraft.world.item.context.UseOnContext;
++import net.minecraft.world.item.crafting.Ingredient;
++import net.minecraft.world.item.crafting.StonecutterRecipe;
+ import net.minecraft.world.level.ClipContext;
+ import net.minecraft.world.level.ItemLike;
+ import net.minecraft.world.level.Level;
+@@ -44,8 +56,14 @@ import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.Vec3;
 +import nl.martijnmuijsers.paper.item.ItemReplacementRule;
++import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  
@@ -2651,7 +2935,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..dfcad2e98c3fbc1e7ec6e0b627781f9d
  public class Item implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      public static final Map<Block, Item> BY_BLOCK = Maps.newHashMap();
-@@ -68,6 +77,59 @@ public class Item implements ItemLike {
+@@ -68,6 +86,83 @@ public class Item implements ItemLike {
      @Nullable
      private final FoodProperties foodProperties;
  
@@ -2665,6 +2949,13 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..dfcad2e98c3fbc1e7ec6e0b627781f9d
 +     * Must be non-null for SuCraft items
 +     */
 +    public @Nullable ResourceLocation customKey;
++
++    /**
++     * This is the {@link ResourceLocation} for this item
++     * <br>
++     * Will always be non-null after it has been registered
++     */
++    public @Nullable ResourceLocation id;
 +
 +    /**
 +     * Must be non-null for SuCraft items
@@ -2706,6 +2997,23 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..dfcad2e98c3fbc1e7ec6e0b627781f9d
 +     */
 +    public @Nullable String customDisplayNameInLoreJSON = null;
 +
++    public record CustomStonecutterRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull Item ingredient, int resultAmount) {
++
++        public @NotNull StonecutterRecipe build(@NotNull Item result) {
++            var recipeIngredient = new Ingredient(Stream.of(new Ingredient.ItemValue(new ItemStack(ingredient))));
++//            recipeIngredient.exact = true;
++            return new StonecutterRecipe(key, group == null ? key.getPath() : group, recipeIngredient, new ItemStack(result, resultAmount), true);
++        }
++
++    }
++
++    public @NotNull List<@NotNull CustomStonecutterRecipe> customStonecutterRecipes = new ArrayList<>(0);
++
++    public @NotNull Item withCustomStonecutterRecipe(@NotNull CustomStonecutterRecipe recipe) {
++        this.customStonecutterRecipes.add(recipe);
++        return this;
++    }
++
 +    // Martijn end - custom blocks and items
 +
      public static int getId(Item item) {
@@ -2742,7 +3050,7 @@ index 6b3cfc19c4fd1382ddf534265a1114995a4f6b55..fb83a6fabe65bcc57b959e3e355951f9
          return this.getItem().interactLivingEntity(this, user, entity, hand);
      }
 diff --git a/src/main/java/net/minecraft/world/item/Items.java b/src/main/java/net/minecraft/world/item/Items.java
-index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..d547c91f3143cd57fdc32a478208ece2c6e2dc60 100644
+index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..dbfff96193d2e107e5045563386f154edd505edd 100644
 --- a/src/main/java/net/minecraft/world/item/Items.java
 +++ b/src/main/java/net/minecraft/world/item/Items.java
 @@ -14,6 +14,9 @@ import net.minecraft.world.food.Foods;
@@ -2807,7 +3115,8 @@ index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..d547c91f3143cd57fdc32a478208ece2
          if (item instanceof BlockItem) {
              ((BlockItem)item).registerBlocks(Item.BY_BLOCK, item);
          }
- 
+-
++        item.id = id; // Martijn - custom blocks and items
          return Registry.register(Registry.ITEM, id, item);
      }
 +
@@ -2824,6 +3133,201 @@ index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..d547c91f3143cd57fdc32a478208ece2
 +        CreateSuCraftResourcePack.createAndWrite();
 +        // Start the HTTP server that serves the resource pack
 +        ResourcePackHTTPServer.getInstance().startIfNotStarted();
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
+diff --git a/src/main/java/net/minecraft/world/item/crafting/Recipe.java b/src/main/java/net/minecraft/world/item/crafting/Recipe.java
+index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..d8b6cf049b1422588e91598f3a0acf3a5d5a0daa 100644
+--- a/src/main/java/net/minecraft/world/item/crafting/Recipe.java
++++ b/src/main/java/net/minecraft/world/item/crafting/Recipe.java
+@@ -2,11 +2,15 @@ package net.minecraft.world.item.crafting;
+ 
+ import net.minecraft.core.NonNullList;
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.world.Container;
+ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Blocks;
++import org.bukkit.entity.Player;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ 
+ public interface Recipe<C extends Container> {
+ 
+@@ -18,6 +22,51 @@ public interface Recipe<C extends Container> {
+ 
+     ItemStack getResultItem();
+ 
++    // Martijn start - custom blocks and items
++
++    default @NotNull ItemStack getReplacedResultItem(@NotNull Player player) {
++        return this.getReplacedResultItem(player.hasSuCraftResourcePack(), player.hasHighPingForCustomBlocks());
++    }
++
++    default @NotNull ItemStack getReplacedResultItem(@NotNull ServerPlayer player) {
++        return this.getReplacedResultItem(player.hasSuCraftResourcePack(), player.hasHighPingForCustomBlocks());
++    }
++
++    default @NotNull ItemStack getReplacedResultItem(boolean hasSuCraftResourcePack, boolean hasHighPingForCustomBlocks) {
++        ItemStack result = this.getResultItem();
++        var replacementRule1 = result.getItem().replacementRule;
++        if (replacementRule1 != null) {
++            result = replacementRule1.replace(result, hasSuCraftResourcePack, hasHighPingForCustomBlocks);
++        };
++        return result;
++    }
++
++    default @NotNull String getReplacedResultItemDescriptionId(@NotNull Player player) {
++        return this.getReplacedResultItemDescriptionId(player.hasSuCraftResourcePack(), player.hasHighPingForCustomBlocks());
++    }
++
++    default @NotNull String getReplacedResultItemDescriptionId(@NotNull ServerPlayer player) {
++        return this.getReplacedResultItemDescriptionId(player.hasSuCraftResourcePack(), player.hasHighPingForCustomBlocks());
++    }
++
++    default @NotNull String getReplacedResultItemDescriptionId(boolean hasSuCraftResourcePack, boolean hasHighPingForCustomBlocks) {
++        return this.getReplacedResultItem(hasSuCraftResourcePack, hasHighPingForCustomBlocks).getDescriptionId();
++    }
++
++    default boolean shouldAlwaysSend() {
++        return true;
++    }
++
++    default boolean shouldSpecificallySend(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
++        return false;
++    }
++
++    default boolean shouldSendRightNow(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
++        return this.shouldAlwaysSend() || this.shouldSpecificallySend(player, stonecutterInput);
++    }
++
++    // Martijn end - custom blocks and items
++
+     default NonNullList<ItemStack> getRemainingItems(C inventory) {
+         NonNullList<ItemStack> nonnulllist = NonNullList.withSize(inventory.getContainerSize(), ItemStack.EMPTY);
+ 
+diff --git a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
+index 4872f70977e73c889fe6e2339d00ebc64459613d..4d9972f2fb5aa2683d5af68a80a68ef19e300462 100644
+--- a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
++++ b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
+@@ -32,6 +32,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
+ import net.minecraft.world.Container;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.Level;
++import org.bukkit.entity.Player;
+ import org.slf4j.Logger;
+ 
+ import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap; // CraftBukkit
+@@ -92,7 +93,13 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+         if (this.byName.containsKey(irecipe.getId()) || map.containsKey(irecipe.getId())) {
+             throw new IllegalStateException("Duplicate recipe ignored with ID " + irecipe.getId());
+         } else {
+-            map.putAndMoveToFirst(irecipe.getId(), irecipe); // CraftBukkit - SPIGOT-4638: last recipe gets priority
++            // Martijn start - custom blocks and items
++            if (irecipe.shouldAlwaysSend()) {
++                map.putAndMoveToFirst(irecipe.getId(), irecipe); // CraftBukkit - SPIGOT-4638: last recipe gets priority
++            } else {
++                map.putAndMoveToLast(irecipe.getId(), irecipe);
++            }
++            // Martijn end - custom blocks and items
+             this.byName.put(irecipe.getId(), irecipe);
+         }
+     }
+@@ -137,9 +144,27 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+     public <C extends Container, T extends Recipe<C>> List<T> getRecipesFor(RecipeType<T> type, C inventory, Level world) {
+         return (List) this.byType(type).values().stream().filter((irecipe) -> {
+             return irecipe.matches(inventory, world);
+-        }).sorted(Comparator.comparing((irecipe) -> {
+-            return irecipe.getResultItem().getDescriptionId();
+-        })).collect(Collectors.toList());
++            // Martijn start - custom blocks and items
++        }).sorted((recipe1, recipe2) -> {
++            var result1 = recipe1.getResultItem();
++            var result2 = recipe2.getResultItem();
++            var viewers = inventory.getViewers();
++            if (!viewers.isEmpty()) {
++                var viewer = viewers.get(0);
++                if (viewer instanceof Player player) {
++                    result1 = recipe1.getReplacedResultItem(player);
++                    result2 = recipe2.getReplacedResultItem(player);
++                }
++            }
++            String descriptionId1 = result1.getDescriptionId();
++            String descriptionId2 = result2.getDescriptionId();
++            int descriptionIdCompare = descriptionId1.compareTo(descriptionId2);
++            if (descriptionIdCompare != 0) {
++                return descriptionIdCompare;
++            }
++            return Integer.compare(descriptionId1.hashCode(), descriptionId2.hashCode());
++        }).collect(Collectors.toList());
++        // Martijn end - custom blocks and items
+     }
+ 
+     private <C extends Container, T extends Recipe<C>> Map<ResourceLocation, T> byType(RecipeType<T> type) {
+diff --git a/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java b/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
+index 6d5803fcdd0a0b2d106745e9e6b859693b2aade2..d37a02e754110e64024a204dcb4ab109326c98d6 100644
+--- a/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
++++ b/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
+@@ -1,7 +1,10 @@
+ package net.minecraft.world.item.crafting;
+ 
+ import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.server.level.ServerPlayer;
+ import net.minecraft.world.Container;
++import net.minecraft.world.inventory.StonecutterMenu;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.Blocks;
+@@ -12,12 +15,23 @@ import org.bukkit.craftbukkit.inventory.CraftRecipe;
+ import org.bukkit.craftbukkit.inventory.CraftStonecuttingRecipe;
+ import org.bukkit.craftbukkit.util.CraftNamespacedKey;
+ import org.bukkit.inventory.Recipe;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
+ // CraftBukkit end
+ 
+ public class StonecutterRecipe extends SingleItemRecipe {
+ 
++    private final boolean isCustom; // Martijn - custom blocks and items
++
+     public StonecutterRecipe(ResourceLocation id, String group, Ingredient input, ItemStack output) {
++        // Martijn start - custom blocks and items
++        this(id, group, input, output, false);
++    }
++
++    public StonecutterRecipe(ResourceLocation id, String group, Ingredient input, ItemStack output, boolean isCustom) {
+         super(RecipeType.STONECUTTING, RecipeSerializer.STONECUTTER, id, group, input, output);
++        this.isCustom = isCustom;
++        // Martijn end - custom blocks and items
+     }
+ 
+     @Override
+@@ -41,4 +55,25 @@ public class StonecutterRecipe extends SingleItemRecipe {
+         return recipe;
+     }
+     // CraftBukkit end
++
++    // Martijn start - custom blocks and items
++
++    @Override
++    public boolean shouldAlwaysSend() {
++        return !isCustom;
++    }
++
++    @Override
++    public boolean shouldSpecificallySend(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
++        if (!isCustom) {
++            return super.shouldSpecificallySend(player, stonecutterInput);
++        }
++        if (stonecutterInput == null) {
++            return false;
++        }
++        return player.containerMenu instanceof StonecutterMenu stonecutterMenu && this.ingredient.test(stonecutterInput);
 +    }
 +
 +    // Martijn end - custom blocks and items
@@ -2892,10 +3396,10 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 224ce424b9a22548212ac157ec273c6dd80d6cfb..3ac78947299f8c88ea8aeaf0afd07f16e355fcfc 100644
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..80ea871646526098f89ce27bfc9f685c52cbdcf9 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
-@@ -6,6 +6,8 @@ import com.google.common.cache.LoadingCache;
+@@ -6,10 +6,13 @@ import com.google.common.cache.LoadingCache;
  import com.google.common.collect.ImmutableMap;
  import com.mojang.logging.LogUtils;
  import it.unimi.dsi.fastutil.objects.Object2ByteLinkedOpenHashMap;
@@ -2904,7 +3408,12 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..3ac78947299f8c88ea8aeaf0afd07f16
  import java.util.Iterator;
  import java.util.List;
  import java.util.function.Function;
-@@ -21,9 +23,11 @@ import net.minecraft.core.NonNullList;
+ import java.util.function.Supplier;
++import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+ import net.minecraft.SharedConstants;
+ import net.minecraft.Util;
+@@ -21,9 +24,11 @@ import net.minecraft.core.NonNullList;
  import net.minecraft.core.Registry;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.MutableComponent;
@@ -2916,7 +3425,16 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..3ac78947299f8c88ea8aeaf0afd07f16
  import net.minecraft.util.Mth;
  import net.minecraft.util.RandomSource;
  import net.minecraft.util.valueproviders.IntProvider;
-@@ -58,11 +62,15 @@ import net.minecraft.world.level.block.state.StateDefinition;
+@@ -41,6 +46,8 @@ import net.minecraft.world.item.Item;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.TooltipFlag;
+ import net.minecraft.world.item.context.BlockPlaceContext;
++import net.minecraft.world.item.crafting.Ingredient;
++import net.minecraft.world.item.crafting.StonecutterRecipe;
+ import net.minecraft.world.item.enchantment.EnchantmentHelper;
+ import net.minecraft.world.item.enchantment.Enchantments;
+ import net.minecraft.world.level.BlockGetter;
+@@ -58,11 +65,15 @@ import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.Property;
  import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.storage.loot.LootContext;
@@ -2932,7 +3450,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..3ac78947299f8c88ea8aeaf0afd07f16
  import org.slf4j.Logger;
  
  public class Block extends BlockBehaviour implements ItemLike {
-@@ -70,6 +78,25 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -70,6 +81,25 @@ public class Block extends BlockBehaviour implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      private final Holder.Reference<Block> builtInRegistryHolder;
      public static final IdMapper<BlockState> BLOCK_STATE_REGISTRY = new IdMapper<>();
@@ -2958,7 +3476,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..3ac78947299f8c88ea8aeaf0afd07f16
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +154,116 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +157,163 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -2972,6 +3490,13 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..3ac78947299f8c88ea8aeaf0afd07f16
 +     * Must be non-null for SuCraft blocks
 +     */
 +    public @Nullable ResourceLocation customKey;
++
++    /**
++     * This is the {@link ResourceLocation} for this item
++     * <br>
++     * Will always be non-null after it has been registered
++     */
++    public @Nullable ResourceLocation id;
 +
 +    public @Nullable Item customItemForBlock = null;
 +
@@ -3070,12 +3595,52 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..3ac78947299f8c88ea8aeaf0afd07f16
 +        return this;
 +    }
 +
++    // Crafting recipes
++
++    public record CustomStonecutterRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull Block ingredient, int resultAmount) {}
++
++    public @NotNull List<@NotNull CustomStonecutterRecipe> customStonecutterRecipes = new ArrayList<>(0);
++
++    public @NotNull Block withCustomStonecutterRecipe(@NotNull CustomStonecutterRecipe recipe) {
++        if (!this.customStonecutterRecipes.stream().anyMatch(existingRecipe -> existingRecipe.ingredient.equals(recipe.ingredient))) {
++            this.customStonecutterRecipes.add(recipe);
++        }
++        return this;
++    }
++
++    public @NotNull Block withCustomStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, int resultAmount, boolean transitive) {
++        @NotNull String uniqueRecipeDescription = id.getPath() + "_from_" + ingredient.id.getPath() + "_stonecutting";
++        this.withCustomStonecutterRecipe(new CustomStonecutterRecipe(ResourceLocation.sucraft(uniqueRecipeDescription), group, ingredient, resultAmount));
++        if (transitive) {
++            for (CustomStonecutterRecipe transitiveRecipe : ingredient.customStonecutterRecipes) {
++                this.withCustomStonecutterRecipe(transitiveRecipe.ingredient(), null, resultAmount * transitiveRecipe.resultAmount(), true);
++            }
++        }
++        return this;
++    }
++
++    public @NotNull Block withCustomSlabStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, boolean transitive) {
++        return this.withCustomStonecutterRecipe(ingredient, group, 2, transitive);
++    }
++
++    public @NotNull Block withCustomSlabStonecutterRecipe(@NotNull Block ingredient) {
++        return this.withCustomSlabStonecutterRecipe(ingredient, null, true);
++    }
++
++    public @NotNull Block withCustomOneToOneStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, boolean transitive) {
++        return this.withCustomStonecutterRecipe(ingredient, group, 1, transitive);
++    }
++
++    public @NotNull Block withCustomOneToOneStonecutterRecipe(@NotNull Block ingredient) {
++        return this.withCustomOneToOneStonecutterRecipe(ingredient, null, true);
++    }
++
 +    // Martijn end - custom blocks and items
 +
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +776,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +826,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -3091,10 +3656,18 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..3ac78947299f8c88ea8aeaf0afd07f16
 +
  }
 diff --git a/src/main/java/net/minecraft/world/level/block/Blocks.java b/src/main/java/net/minecraft/world/level/block/Blocks.java
-index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..fab6eb7cd42906303980bff81be7b4db86499d0a 100644
+index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc695543d0500c8 100644
 --- a/src/main/java/net/minecraft/world/level/block/Blocks.java
 +++ b/src/main/java/net/minecraft/world/level/block/Blocks.java
-@@ -34,6 +34,7 @@ import net.minecraft.world.level.block.state.properties.WoodType;
+@@ -7,6 +7,7 @@ import net.minecraft.core.Registry;
+ import net.minecraft.core.cauldron.CauldronInteraction;
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.data.worldgen.features.TreeFeatures;
++import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.util.valueproviders.UniformInt;
+ import net.minecraft.world.effect.MobEffects;
+ import net.minecraft.world.entity.EntityType;
+@@ -34,6 +35,7 @@ import net.minecraft.world.level.block.state.properties.WoodType;
  import net.minecraft.world.level.material.Fluids;
  import net.minecraft.world.level.material.Material;
  import net.minecraft.world.level.material.MaterialColor;
@@ -3102,7 +3675,7 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..fab6eb7cd42906303980bff81be7b4db
  import org.jetbrains.annotations.NotNull;
  
  public class Blocks {
-@@ -1095,7 +1096,7 @@ public class Blocks {
+@@ -1095,7 +1097,7 @@ public class Blocks {
          return (boolean)true;
      }
  
@@ -3111,7 +3684,7 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..fab6eb7cd42906303980bff81be7b4db
          return type == EntityType.OCELOT || type == EntityType.PARROT;
      }
  
-@@ -1142,7 +1143,7 @@ public class Blocks {
+@@ -1142,7 +1144,7 @@ public class Blocks {
          return true;
      }
  
@@ -3120,7 +3693,7 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..fab6eb7cd42906303980bff81be7b4db
          return false;
      }
  
-@@ -1150,7 +1151,7 @@ public class Blocks {
+@@ -1150,7 +1152,7 @@ public class Blocks {
          return new StainedGlassBlock(color, BlockBehaviour.Properties.of(Material.GLASS, color).strength(0.3F).sound(SoundType.GLASS).noOcclusion().isValidSpawn(Blocks::never).isRedstoneConductor(Blocks::never).isSuffocating(Blocks::never).isViewBlocking(Blocks::never));
      }
  
@@ -3129,7 +3702,15 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..fab6eb7cd42906303980bff81be7b4db
          return new LeavesBlock(BlockBehaviour.Properties.of(Material.LEAVES).strength(0.2F).randomTicks().sound(soundGroup).noOcclusion().isValidSpawn(Blocks::ocelotOrParrot).isSuffocating(Blocks::never).isViewBlocking(Blocks::never));
      }
  
-@@ -1182,13 +1183,60 @@ public class Blocks {
+@@ -1174,6 +1176,7 @@ public class Blocks {
+     }
+ 
+     private static Block register(String id, Block block) {
++        block.id = new ResourceLocation(id); // Martijn - custom blocks and items
+         return Registry.register(Registry.BLOCK, id, block);
+     }
+ 
+@@ -1182,13 +1185,60 @@ public class Blocks {
      }
  
      static {
@@ -3230,6 +3811,19 @@ index c14eb4f7decdbcd6176d3bff95d595a947d4ec95..67c14254c1fca29290437c0335a11311
          }
  
      }
+diff --git a/src/main/java/net/minecraft/world/level/block/StonecutterBlock.java b/src/main/java/net/minecraft/world/level/block/StonecutterBlock.java
+index 0a95842c53a9d0286c57bcb42db97e468e30fb7d..52e1e78adc7c3fe69edb9eec0242a4e3819e074b 100644
+--- a/src/main/java/net/minecraft/world/level/block/StonecutterBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/StonecutterBlock.java
+@@ -25,7 +25,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ 
+ public class StonecutterBlock extends Block {
+-    private static final Component CONTAINER_TITLE = Component.translatable("container.stonecutter");
++    private static final Component CONTAINER_TITLE = Component.literal("Blockcutter")/*Component.translatable("container.stonecutter")*/; // Martijn - custom blocks and items
+     public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
+     protected static final VoxelShape SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 9.0D, 16.0D);
+ 
 diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
 index e8eb061181e9b5e6bde99253079864626bc8ad4b..34ccaa62a466fc7b1f96191ff59e7485f3eedb47 100644
 --- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
@@ -4250,10 +4844,10 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390712c6256
+index 0000000000000000000000000000000000000000..35e185289e3d694e75d4249aacbe0764e488a25a
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,918 @@
+@@ -0,0 +1,952 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -4340,23 +4934,23 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F, 1.0F).sound(SoundType.GRAVEL)).mineableWithShovel().dirt(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustomOneToOneStonecutterRecipe(Blocks.DIRT);
 +
-+    public static final Block POLISHED_CALCITE = registerPolished("calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
-+    public static final Block POLISHED_DRIPSTONE = registerPolished("dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
-+    public static final Block POLISHED_TUFF = registerPolished("tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
-+    public static final Block ANDESITE_BRICKS = registerBricks("andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
-+    public static final Block CALCITE_BRICKS = registerBricks("calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
-+    public static final Block DIORITE_BRICKS = registerBricks("diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
-+    public static final Block DRIPSTONE_BRICKS = registerBricks("dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
-+    public static final Block GRANITE_BRICKS = registerBricks("granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
-+    public static final Block TUFF_BRICKS = registerBricks("tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
-+    public static final Block CHISELED_ANDESITE_BRICKS = registerChiseledBricks("andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
-+    public static final Block CHISELED_CALCITE_BRICKS = registerChiseledBricks("calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
-+    public static final Block CHISELED_DIORITE_BRICKS = registerChiseledBricks("diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
-+    public static final Block CHISELED_DRIPSTONE_BRICKS = registerChiseledBricks("dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
-+    public static final Block CHISELED_GRANITE_BRICKS = registerChiseledBricks("granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
-+    public static final Block CHISELED_TUFF_BRICKS = registerChiseledBricks("tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
++    public static final Block POLISHED_CALCITE = registerPolished(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
++    public static final Block POLISHED_DRIPSTONE = registerPolished(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
++    public static final Block POLISHED_TUFF = registerPolished(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
++    public static final Block ANDESITE_BRICKS = registerBricks(Blocks.ANDESITE, "andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
++    public static final Block CALCITE_BRICKS = registerBricks(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
++    public static final Block DIORITE_BRICKS = registerBricks(Blocks.DIORITE, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
++    public static final Block DRIPSTONE_BRICKS = registerBricks(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
++    public static final Block GRANITE_BRICKS = registerBricks(Blocks.GRANITE, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
++    public static final Block TUFF_BRICKS = registerBricks(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
++    public static final Block CHISELED_ANDESITE_BRICKS = registerChiseledBricks(ANDESITE_BRICKS,"andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
++    public static final Block CHISELED_CALCITE_BRICKS = registerChiseledBricks(CALCITE_BRICKS, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
++    public static final Block CHISELED_DIORITE_BRICKS = registerChiseledBricks(DIORITE_BRICKS, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
++    public static final Block CHISELED_DRIPSTONE_BRICKS = registerChiseledBricks(DRIPSTONE_BRICKS, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
++    public static final Block CHISELED_GRANITE_BRICKS = registerChiseledBricks(GRANITE_BRICKS, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
++    public static final Block CHISELED_TUFF_BRICKS = registerChiseledBricks(TUFF_BRICKS, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
 +
 +    /**
 +     * Based on {@link Blocks#SANDSTONE} and {@link Blocks#SOUL_SAND}
@@ -4372,12 +4966,12 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +        SuCraftBlockLoot::dropSelf
 +    );
 +
-+    public static final Block SANDSTONE_BRICKS = registerBricks("sandstone", Blocks.SANDSTONE, MaterialColor.SAND);
-+    public static final Block RED_SANDSTONE_BRICKS = registerBricks("red_sandstone", Blocks.RED_SANDSTONE, MaterialColor.COLOR_ORANGE);
-+    public static final Block SOUL_SANDSTONE_BRICKS = registerBricks("soul_sandstone", Blocks.SOUL_SOIL, MaterialColor.COLOR_BROWN).soulSpeed().soulFireBase();
-+    public static final Block ANDESITE_COBBLESTONE = registerCobblestone("andesite", Blocks.ANDESITE, MaterialColor.STONE);
-+    public static final Block DIORITE_COBBLESTONE = registerCobblestone("diorite", Blocks.DIORITE, MaterialColor.QUARTZ);
-+    public static final Block GRANITE_COBBLESTONE = registerCobblestone("granite", Blocks.GRANITE, MaterialColor.DIRT);
++    public static final Block SANDSTONE_BRICKS = registerBricks(Blocks.SANDSTONE, "sandstone", Blocks.SANDSTONE, MaterialColor.SAND);
++    public static final Block RED_SANDSTONE_BRICKS = registerBricks(Blocks.RED_SANDSTONE, "red_sandstone", Blocks.RED_SANDSTONE, MaterialColor.COLOR_ORANGE);
++    public static final Block SOUL_SANDSTONE_BRICKS = registerBricks(SOUL_SANDSTONE, "soul_sandstone", Blocks.SOUL_SOIL, MaterialColor.COLOR_BROWN).soulSpeed().soulFireBase();
++    public static final Block ANDESITE_COBBLESTONE = registerCobblestone(Blocks.ANDESITE, "andesite", Blocks.ANDESITE, MaterialColor.STONE);
++    public static final Block DIORITE_COBBLESTONE = registerCobblestone(Blocks.DIORITE, "diorite", Blocks.DIORITE, MaterialColor.QUARTZ);
++    public static final Block GRANITE_COBBLESTONE = registerCobblestone(Blocks.GRANITE, "granite", Blocks.GRANITE, MaterialColor.DIRT);
 +
 +    /**
 +     * Based on {@link Blocks#CHISELED_SANDSTONE} and {@link Blocks#SOUL_SAND}
@@ -4391,7 +4985,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE);
 +
 +    /**
 +     * Based on {@link Blocks#CUT_SANDSTONE} and {@link Blocks#SOUL_SAND}
@@ -4405,14 +4999,14 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    );
-+    public static final Block CHISELED_PRISMARINE_BRICKS = registerChiseledBricks("prismarine", Blocks.PRISMARINE_BRICKS, MaterialColor.DIAMOND);
-+    public static final Block ANDESITE_PILLAR = registerStonePillar("andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
-+    public static final Block CALCITE_PILLAR = registerStonePillar("calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
-+    public static final Block DIORITE_PILLAR = registerStonePillar("diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
-+    public static final Block DRIPSTONE_PILLAR = registerStonePillar("dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
-+    public static final Block GRANITE_PILLAR = registerStonePillar("granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
-+    public static final Block TUFF_PILLAR = registerStonePillar("tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
++    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE);
++    public static final Block CHISELED_PRISMARINE_BRICKS = registerChiseledBricks(Blocks.PRISMARINE_BRICKS, "prismarine", Blocks.PRISMARINE_BRICKS, MaterialColor.DIAMOND);
++    public static final Block ANDESITE_PILLAR = registerStonePillar(Blocks.ANDESITE, "andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
++    public static final Block CALCITE_PILLAR = registerStonePillar(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
++    public static final Block DIORITE_PILLAR = registerStonePillar(Blocks.DIORITE, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
++    public static final Block DRIPSTONE_PILLAR = registerStonePillar(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
++    public static final Block GRANITE_PILLAR = registerStonePillar(Blocks.GRANITE, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
++    public static final Block TUFF_PILLAR = registerStonePillar(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
 +    public static final Block FIERY_BIRCH_LEAVES = registerLeaves("fiery_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_ORANGE);
 +    public static final Block YELLOW_BIRCH_LEAVES = registerLeaves("yellow_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_YELLOW);
 +    public static final Block RED_OAK_LEAVES = registerLeaves("red_oak", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_RED);
@@ -4420,7 +5014,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +    public static final Block RED_MAPLE_LEAVES = registerLeaves("red_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_RED);
 +    public static final Block ORANGE_MAPLE_LEAVES = registerLeaves("orange_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_ORANGE);
 +    public static final Block YELLOW_MAPLE_LEAVES = registerLeaves("yellow_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_YELLOW);
-+    public static final Block DIRT_SLAB = registerRealSlab("dirt", null, Blocks.WAXED_CUT_COPPER_SLAB, Blocks.CUT_COPPER_SLAB, Blocks.MUD_BRICK_SLAB, BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F).sound(SoundType.GRAVEL)).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
++    public static final Block DIRT_SLAB = registerRealSlab(Blocks.DIRT, "dirt", null, Blocks.WAXED_CUT_COPPER_SLAB, Blocks.CUT_COPPER_SLAB, Blocks.MUD_BRICK_SLAB, BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F).sound(SoundType.GRAVEL)).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
 +    public static final Block SNOWY_STONE_BRICK_SLAB = registerFakeSlab(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_SLAB);
 +    public static final Block DIRTY_STONE_BRICK_SLAB = registerFakeSlab(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_SLAB);
 +    public static final Block CRACKED_STONE_BRICK_SLAB = registerFakeSlab(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_SLAB);
@@ -4563,7 +5157,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +    public static final Block RAW_IRON_SLAB = registerFakeRawMetalSlab(Blocks.RAW_IRON_BLOCK, "iron", Blocks.JUNGLE_SLAB);
 +    public static final Block ANCIENT_DEBRIS_SLAB = registerFakeSlab(Blocks.ANCIENT_DEBRIS, null, "ancient_debris", NamespacedKeyWithoutIntention.minecraft("ancient_debris"), NamespacedKeyWithoutIntention.minecraft("ancient_debris_side"), NamespacedKeyWithoutIntention.minecraft("ancient_debris_top"), null, null, null, Blocks.POLISHED_GRANITE_SLAB, null).mineableWithPickaxe();
 +    public static final Block DIRT_BRICK_SLAB = registerFakeSlab(DIRT_BRICKS, "dirt_brick", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
-+    public static final Block STONE_PILLAR = registerStonePillar("stone", Blocks.STONE, MaterialColor.STONE);
++    public static final Block STONE_PILLAR = registerStonePillar(Blocks.STONE, "stone", Blocks.STONE, MaterialColor.STONE);
 +    public static final Block STONE_PILLAR_SLAB = registerFakeCustomStonePillarSlab(STONE_PILLAR, "stone", Blocks.STONE_SLAB);
 +    public static final Block OAK_LOG_SLAB = registerFakeLogSlab(Blocks.OAK_LOG, "oak", Blocks.OAK_SLAB);
 +    public static final Block SPRUCE_LOG_SLAB = registerFakeLogSlab(Blocks.SPRUCE_LOG, "spruce", Blocks.SPRUCE_SLAB);
@@ -4574,7 +5168,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +    public static final Block WARPED_STEM_SLAB = registerFakeStemSlab(Blocks.WARPED_STEM, "warped", Blocks.WARPED_SLAB);
 +    public static final Block CRIMSON_STEM_SLAB = registerFakeStemSlab(Blocks.CRIMSON_STEM, "crimson", Blocks.CRIMSON_SLAB);
 +    public static final Block MANGROVE_LOG_SLAB = registerFakeLogSlab(Blocks.MANGROVE_LOG, "mangrove", Blocks.MANGROVE_SLAB);
-+    public static final Block STRIPPED_OAK_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.OAK_LOG, "oak", Blocks.OAK_SLAB);
++    public static final Block STRIPPED_OAK_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_OAK_LOG, "oak", Blocks.OAK_SLAB);
 +    public static final Block STRIPPED_SPRUCE_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_SPRUCE_LOG, "spruce", Blocks.SPRUCE_SLAB);
 +    public static final Block STRIPPED_BIRCH_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_BIRCH_LOG, "birch", Blocks.BIRCH_SLAB);
 +    public static final Block STRIPPED_JUNGLE_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_JUNGLE_LOG, "jungle", Blocks.JUNGLE_SLAB);
@@ -4592,7 +5186,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +    public static final Block WARPED_HYPHAE_SLAB = registerFakeHyphaeSlab(Blocks.WARPED_HYPHAE, "warped", Blocks.WARPED_SLAB);
 +    public static final Block CRIMSON_HYPHAE_SLAB = registerFakeHyphaeSlab(Blocks.CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_SLAB);
 +    public static final Block MANGROVE_WOOD_SLAB = registerFakeWoodSlab(Blocks.MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_SLAB);
-+    public static final Block STRIPPED_OAK_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.OAK_WOOD, "oak", Blocks.OAK_SLAB);
++    public static final Block STRIPPED_OAK_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_OAK_WOOD, "oak", Blocks.OAK_SLAB);
 +    public static final Block STRIPPED_SPRUCE_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_SPRUCE_WOOD, "spruce", Blocks.SPRUCE_SLAB);
 +    public static final Block STRIPPED_BIRCH_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_BIRCH_WOOD, "birch", Blocks.BIRCH_SLAB);
 +    public static final Block STRIPPED_JUNGLE_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_JUNGLE_WOOD, "jungle", Blocks.JUNGLE_SLAB);
@@ -4705,7 +5299,40 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +        SuCraftBlockLoot::dropSelf
 +    );
 +
-+    public static final Block QUARTZ_SPIRAL_MEANDER_SLAB = registerFakeSlab(QUARTZ_SPIRAL_MEANDER, "quartz_spiral_meander", "chiseled_quartz_block_top", Blocks.QUARTZ_SLAB).mineableWithPickaxe();
++    public static final Block QUARTZ_SPIRAL_MEANDER_SLAB = registerFakeSlab(QUARTZ_SPIRAL_MEANDER, null, "quartz_spiral_meander", NamespacedKeyWithoutIntention.sucraft("quartz_spiral_meander"), NamespacedKeyWithoutIntention.minecraft("chiseled_quartz_block_top"), null, null, null, null, Blocks.QUARTZ_SLAB, null).mineableWithPickaxe();
++
++    public static final Block ENDER_PEARL_BLOCK = register(
++        "ender_pearl_block",
++        new SingleMultiStateRealBlockReplacementRuleBuilder()
++            .withNoteBlockHost()
++            .withFallback(Blocks.WARPED_PLANKS)
++            .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
++            .withFullBlockBoundingBoxItem(),
++        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_CYAN).strength(1.5F, 3.0F)).mineableWithPickaxe(),
++        SuCraftBlockLoot::dropSelf
++    );
++
++    public static final Block FLINT_BLOCK = register(
++        "flint_block",
++        new SingleMultiStateRealBlockReplacementRuleBuilder()
++            .withNoteBlockHost()
++            .withFallback(Blocks.GRAY_CONCRETE)
++            .withModelCreation(Model.YPillarCube.defaultCreation().withNoParameters())
++            .withFullBlockBoundingBoxItem(),
++        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_GRAY).strength(3.5F, 6.0F)).mineableWithPickaxe(),
++        SuCraftBlockLoot::dropSelf
++    );
++
++    public static final Block FLINT_PILLAR = register(
++        "flint_pillar",
++        new SingleMultiStateRealBlockReplacementRuleBuilder()
++            .withNoteBlockHost()
++            .withFallback(Blocks.POLISHED_BASALT)
++            .withModelCreation(Model.YPillarCube.defaultCreation().withNoParameters())
++            .withFullBlockBoundingBoxItem(),
++        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_GRAY).strength(3.5F, 6.0F)).mineableWithPickaxe(),
++        SuCraftBlockLoot::dropSelf
++    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK);
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -4713,6 +5340,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Function<@NotNull Block, @Nullable LootTable> lootTableFunction) {
 +        ResourceLocation key = ResourceLocation.sucraft(id);
++        block.id = key;
 +        @NotNull Block registeredBlock = Registry.register(Registry.BLOCK, key, block);
 +        registeredBlock.isVanilla = false;
 +        registeredBlock.customKey = key;
@@ -4806,7 +5434,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +    /**
 +     * Based on {@link Blocks#POLISHED_ANDESITE}
 +     */
-+    private static @NotNull Block registerPolished(@NotNull String unpolished, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
++    private static @NotNull Block registerPolished(@NotNull Block originalBlock, @NotNull String unpolished, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
 +        return register(
 +            "polished_" + unpolished,
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -4816,13 +5444,13 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +                .withFullBlockBoundingBoxItem(),
 +            new Block(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
-+        );
++        ).withCustomOneToOneStonecutterRecipe(originalBlock);
 +    }
 +
 +    /**
 +     * Based on {@link Blocks#STONE_BRICKS}
 +     */
-+    private static @NotNull Block registerBricks(@NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
++    private static @NotNull Block registerBricks(@NotNull Block originalBlock, @NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
 +        return register(
 +            type + "_bricks",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -4832,13 +5460,13 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +                .withFullBlockBoundingBoxItem(),
 +            new Block(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
-+        );
++        ).withCustomOneToOneStonecutterRecipe(originalBlock);
 +    }
 +
 +    /**
 +     * Based on {@link Blocks#CHISELED_STONE_BRICKS}
 +     */
-+    private static @NotNull Block registerChiseledBricks(@NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
++    private static @NotNull Block registerChiseledBricks(@NotNull Block bricksBlock, @NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
 +        return register(
 +            "chiseled_" + type + "_bricks",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -4848,13 +5476,13 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +                .withFullBlockBoundingBoxItem(),
 +            new Block(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
-+        );
++        ).withCustomOneToOneStonecutterRecipe(bricksBlock);
 +    }
 +
 +    /**
 +     * Based on {@link Blocks#COBBLESTONE}
 +     */
-+    private static @NotNull Block registerCobblestone(@NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
++    private static @NotNull Block registerCobblestone(@NotNull Block regularBlock, @NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
 +        return register(
 +            type + "_cobblestone",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -4864,13 +5492,13 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +                .withFullBlockBoundingBoxItem(),
 +            new Block(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(2.0F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
-+        );
++        ).withCustomOneToOneStonecutterRecipe(regularBlock);
 +    }
 +
 +    /**
 +     * Based on {@link Blocks#QUARTZ_PILLAR}
 +     */
-+    private static @NotNull Block registerStonePillar(@NotNull String stoneType, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
++    private static @NotNull Block registerStonePillar(@NotNull Block originalBlock, @NotNull String stoneType, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
 +        return register(
 +            stoneType + "_pillar",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -4880,7 +5508,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +                .withFullBlockBoundingBoxItem(),
 +            new RotatedPillarBlock(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
-+        );
++        ).withCustomOneToOneStonecutterRecipe(originalBlock);
 +    }
 +
 +    /**
@@ -4903,7 +5531,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +     * Based on {@link Blocks#OAK_SLAB}
 +     * @param textureBlock If null, will be the same as the given type, else it will be assumed to be a default Minecraft model as well as texture namespaced key path (for example 'dirt' will mean the model used as double slab is 'minecraft:block/dirt' and the texture used is 'minecraft:block/dirt')
 +     */
-+    private static @NotNull Block registerRealSlab(@NotNull String type, @Nullable String textureBlock, @NotNull Block host, @NotNull Block hostReplacement, @NotNull Block fallback, @NotNull BlockBehaviour.Properties properties) {
++    private static @NotNull Block registerRealSlab(@NotNull Block fullBlock, @NotNull String type, @Nullable String textureBlock, @NotNull Block host, @NotNull Block hostReplacement, @NotNull Block fallback, @NotNull BlockBehaviour.Properties properties) {
 +        if (textureBlock == null) {
 +            textureBlock = type;
 +        }
@@ -4917,7 +5545,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +                .withHostItemRuleFromHostBlockAndHostReplacementBlock(),
 +            new SlabBlock(properties).slab(),
 +            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
-+        );
++        ).withCustomSlabStonecutterRecipe(fullBlock);
 +    }
 +
 +    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull ModelCreation doubleSlabModelCreation, @NotNull Texture sideTexture, @Nullable Texture bottomHalfBottomTexture, @Nullable Texture bottomHalfTopTexture, @Nullable Texture topHalfBottomTexture, @Nullable Texture topHalfTopTexture, @NotNull Block host, @Nullable Block fallback) {
@@ -4934,7 +5562,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +                .withRealItemRuleFromHostBlock(),
 +            new SlabBlock(properties == null ? fullBlock.properties : properties).withAddedTagsLike(fullBlock).slab(),
 +            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
-+        );
++        ).withCustomSlabStonecutterRecipe(fullBlock);
 +    }
 +
 +    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull NamespacedKeyWithoutIntention doubleSlabKey, @Nullable NamespacedKeyWithoutIntention sideTextureKey, @Nullable NamespacedKeyWithoutIntention bottomHalfBottomTextureKey, @Nullable NamespacedKeyWithoutIntention bottomHalfTopTextureKey, @Nullable NamespacedKeyWithoutIntention topHalfBottomTextureKey, @Nullable NamespacedKeyWithoutIntention topHalfTopTextureKey, @NotNull Block host, @Nullable Block fallback) {
@@ -5082,7 +5710,7 @@ index 0000000000000000000000000000000000000000..be6ee20317574880d5b6511c40b45390
 +                .withRealItemRuleFromHostBlock(),
 +            new SlabBlock(properties == null ? fullBlock.properties : properties).withAddedTagsLike(fullBlock).slab(),
 +            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
-+        );
++        ).withCustomSlabStonecutterRecipe(fullBlock);
 +    }
 +
 +    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @NotNull String type, @Nullable String textureBlock, @NotNull Block host, @Nullable Block fallback) {
@@ -8747,10 +9375,10 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..18efb79c54a128b935443284a407272b9d568960
+index 0000000000000000000000000000000000000000..981599697140fbbb5501ab534adb63d186f99aca
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
-@@ -0,0 +1,415 @@
+@@ -0,0 +1,417 @@
 +package nl.martijnmuijsers.paper.item;
 +
 +import com.google.common.collect.Lists;
@@ -9061,11 +9689,13 @@ index 0000000000000000000000000000000000000000..18efb79c54a128b935443284a407272b
 +        }
 +
 +        public @NotNull Item getHost(boolean hasHighPing) {
-+            return hasHighPing ? this.getHighPingHost() : this.getLowPingHost();
++            return this.getLowPingHost();
++            //return hasHighPing ? this.getHighPingHost() : this.getLowPingHost();
 +        }
 +
 +        public int getHostCustomModelData(boolean hasHighPing) {
-+            return hasHighPing ? this.getHighPingHostCustomModelData() : this.getLowPingHostCustomModelData();
++            return this.getLowPingHostCustomModelData();
++            //return hasHighPing ? this.getHighPingHostCustomModelData() : this.getLowPingHostCustomModelData();
 +        }
 +
 +        public @NotNull Item getFallback() {
@@ -9166,12 +9796,160 @@ index 0000000000000000000000000000000000000000..18efb79c54a128b935443284a407272b
 +    }
 +
 +}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ce9744a601bb0835f65e02099d67ebeca72640c4
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
+@@ -0,0 +1,142 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.item;
++
++import com.google.common.collect.ImmutableMap;
++import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
++import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
++import net.minecraft.world.item.crafting.Ingredient;
++import net.minecraft.world.item.crafting.Recipe;
++import net.minecraft.world.item.crafting.RecipeManager;
++import net.minecraft.world.item.crafting.RecipeType;
++import net.minecraft.world.item.crafting.StonecutterRecipe;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Arrays;
++import java.util.Map;
++import java.util.stream.Stream;
++
++public final class SuCraftCraftingRecipeProvider {
++
++    private SuCraftCraftingRecipeProvider() {}
++
++    /**
++     * Utility method (shorter)
++     */
++    private static void addRecipe(@NotNull Recipe<?> recipe) {
++        MinecraftServer.getServer().getRecipeManager().addRecipe(recipe);
++    }
++
++    private static void addStonecutterRecipe(@Nullable String key, @Nullable String group, @NotNull Item ingredient, @NotNull Item result, int resultAmount) {
++        if (key == null) {
++            key = result.id.getPath() + "_from_" +  ingredient.id.getPath() + "_stonecutting";
++        }
++        var recipeIngredient = new Ingredient(Stream.of(new Ingredient.ItemValue(new ItemStack(ingredient))));
++        addRecipe(new StonecutterRecipe(ResourceLocation.sucraft(key), group != null ? group : key, recipeIngredient, new ItemStack(result, resultAmount), true));
++    }
++
++    private static void addStonecutterRecipe(@NotNull Item ingredient, @NotNull Item result, int resultAmount) {
++        addStonecutterRecipe(null, null, ingredient, result, resultAmount);
++    }
++
++    private static void addStonecutterRecipe(@NotNull Item ingredient, @NotNull Item result) {
++        addStonecutterRecipe(ingredient, result, 1);
++    }
++
++    public static void run() {
++
++        // Add recipes already defined in items
++
++        for (Item item : Registry.ITEM) {
++            // Add the stonecutter recipes
++            for (var stonecutterRecipe : item.customStonecutterRecipes) {
++//                MinecraftServer.LOGGER.info("TEMP DEBUG - Adding recipe " + stonecutterRecipe.build(item).getIngredients().stream().map(y -> Arrays.stream(y.getItems()).map(x -> x.getItem().id).toList()).toList() + " -> " + stonecutterRecipe.build(item).getType() + " " + stonecutterRecipe.build(item).getId() + " " + stonecutterRecipe.build(item).getResultItem().getItem() + " x " + stonecutterRecipe.build(item).getResultItem().getCount());
++                addRecipe(stonecutterRecipe.build(item));
++            }
++        }
++
++        // Add other recipes
++
++        // Working with wood in stonecutters
++        addStonecutterRecipe(Items.OAK_PLANKS, Items.OAK_STAIRS);
++        addStonecutterRecipe(Items.SPRUCE_PLANKS, Items.SPRUCE_STAIRS);
++        addStonecutterRecipe(Items.BIRCH_PLANKS, Items.BIRCH_STAIRS);
++        addStonecutterRecipe(Items.JUNGLE_PLANKS, Items.JUNGLE_STAIRS);
++        addStonecutterRecipe(Items.ACACIA_PLANKS, Items.ACACIA_STAIRS);
++        addStonecutterRecipe(Items.DARK_OAK_PLANKS, Items.DARK_OAK_STAIRS);
++        addStonecutterRecipe(Items.WARPED_PLANKS, Items.WARPED_STAIRS);
++        addStonecutterRecipe(Items.CRIMSON_PLANKS, Items.CRIMSON_STAIRS);
++        addStonecutterRecipe(Items.MANGROVE_PLANKS, Items.MANGROVE_STAIRS);
++        addStonecutterRecipe(Items.OAK_PLANKS, Items.OAK_SLAB, 2);
++        addStonecutterRecipe(Items.SPRUCE_PLANKS, Items.SPRUCE_SLAB, 2);
++        addStonecutterRecipe(Items.BIRCH_PLANKS, Items.BIRCH_SLAB, 2);
++        addStonecutterRecipe(Items.JUNGLE_PLANKS, Items.JUNGLE_SLAB, 2);
++        addStonecutterRecipe(Items.ACACIA_PLANKS, Items.ACACIA_SLAB, 2);
++        addStonecutterRecipe(Items.DARK_OAK_PLANKS, Items.DARK_OAK_SLAB, 2);
++        addStonecutterRecipe(Items.WARPED_PLANKS, Items.WARPED_SLAB, 2);
++        addStonecutterRecipe(Items.CRIMSON_PLANKS, Items.CRIMSON_SLAB, 2);
++        addStonecutterRecipe(Items.MANGROVE_PLANKS, Items.MANGROVE_SLAB, 2);
++        Stream.of(Items.OAK_LOG, Items.STRIPPED_OAK_LOG, Items.OAK_WOOD, Items.STRIPPED_OAK_WOOD).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.OAK_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.OAK_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.OAK_SLAB, 8);
++        });
++        Stream.of(Items.SPRUCE_LOG, Items.STRIPPED_SPRUCE_LOG, Items.SPRUCE_WOOD, Items.STRIPPED_SPRUCE_WOOD).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.SPRUCE_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.SPRUCE_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.SPRUCE_SLAB, 8);
++        });
++        Stream.of(Items.BIRCH_LOG, Items.STRIPPED_BIRCH_LOG, Items.BIRCH_WOOD, Items.STRIPPED_BIRCH_WOOD).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.BIRCH_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.BIRCH_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.BIRCH_SLAB, 8);
++        });
++        Stream.of(Items.JUNGLE_LOG, Items.STRIPPED_JUNGLE_LOG, Items.JUNGLE_WOOD, Items.STRIPPED_JUNGLE_WOOD).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.JUNGLE_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.JUNGLE_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.JUNGLE_SLAB, 8);
++        });
++        Stream.of(Items.ACACIA_LOG, Items.STRIPPED_ACACIA_LOG, Items.ACACIA_WOOD, Items.STRIPPED_ACACIA_WOOD).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.ACACIA_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.ACACIA_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.ACACIA_SLAB, 8);
++        });
++        Stream.of(Items.DARK_OAK_LOG, Items.STRIPPED_DARK_OAK_LOG, Items.DARK_OAK_WOOD, Items.STRIPPED_DARK_OAK_WOOD).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.DARK_OAK_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.DARK_OAK_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.DARK_OAK_SLAB, 8);
++        });
++        Stream.of(Items.WARPED_STEM, Items.STRIPPED_WARPED_STEM, Items.WARPED_HYPHAE, Items.STRIPPED_WARPED_HYPHAE).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.WARPED_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.WARPED_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.WARPED_SLAB, 8);
++        });
++        Stream.of(Items.CRIMSON_STEM, Items.STRIPPED_CRIMSON_STEM, Items.CRIMSON_HYPHAE, Items.STRIPPED_CRIMSON_HYPHAE).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.CRIMSON_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.CRIMSON_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.CRIMSON_SLAB, 8);
++        });
++        Stream.of(Items.MANGROVE_LOG, Items.STRIPPED_MANGROVE_LOG, Items.MANGROVE_WOOD, Items.STRIPPED_MANGROVE_WOOD).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, Items.MANGROVE_PLANKS, 4);
++            addStonecutterRecipe(ingredient, Items.MANGROVE_STAIRS, 4);
++            addStonecutterRecipe(ingredient, Items.MANGROVE_SLAB, 8);
++        });
++
++        // Shortcuts
++        addStonecutterRecipe(Items.BASALT, SuCraftItems.POLISHED_BASALT_SLAB, 2);
++
++        // Quartz meander
++        Stream.of(Items.QUARTZ_BLOCK, Items.CHISELED_QUARTZ_BLOCK).forEach(ingredient -> {
++            addStonecutterRecipe(ingredient, SuCraftItems.QUARTZ_SPIRAL_MEANDER);
++            addStonecutterRecipe(ingredient, SuCraftItems.QUARTZ_SPIRAL_MEANDER_SLAB, 2);
++        });
++
++    }
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2a8345beb682413babb41dd5a1a5b72ef8e739a1
+index 0000000000000000000000000000000000000000..48e41a31aae615f20a6dbc8039f0766470d5169c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,519 @@
+@@ -0,0 +1,526 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -9493,6 +10271,9 @@ index 0000000000000000000000000000000000000000..2a8345beb682413babb41dd5a1a5b72e
 +    public static final Item PAPER_SLAB = registerSlab(SuCraftBlocks.PAPER_SLAB, "Paper");
 +    public static final Item QUARTZ_SPIRAL_MEANDER = registerBlock(SuCraftBlocks.QUARTZ_SPIRAL_MEANDER, "Quartz Meander", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.CHISELED_QUARTZ_BLOCK));
 +    public static final Item QUARTZ_SPIRAL_MEANDER_SLAB = registerSlab(SuCraftBlocks.QUARTZ_SPIRAL_MEANDER_SLAB, "Quartz Meander");
++    public static final Item ENDER_PEARL_BLOCK = registerBlock(SuCraftBlocks.ENDER_PEARL_BLOCK, "Ender Pearl Block", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.WARPED_PLANKS));
++    public static final Item FLINT_BLOCK = registerBlock(SuCraftBlocks.FLINT_BLOCK, "Flint Block", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.GRAY_CONCRETE));
++    public static final Item FLINT_PILLAR = registerBlock(SuCraftBlocks.FLINT_PILLAR, "Flint Pillar", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.POLISHED_BASALT));
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -9512,6 +10293,10 @@ index 0000000000000000000000000000000000000000..2a8345beb682413babb41dd5a1a5b72e
 +        registeredItem.customDisplayNameJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayName);
 +        registeredItem.customDisplayNameInLore = Component.text(displayName, PaperAdventure.asAdventure(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR)).decoration(TextDecoration.ITALIC, false);
 +        registeredItem.customDisplayNameInLoreJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayNameInLore);
++        // Add crafting recipes
++        for (var stonecuttingRecipe : block.customStonecutterRecipes) {
++            registeredItem.withCustomStonecutterRecipe(new Item.CustomStonecutterRecipe(stonecuttingRecipe.key(), stonecuttingRecipe.group(), stonecuttingRecipe.ingredient().asItem(), stonecuttingRecipe.resultAmount()));
++        }
 +        return registeredItem;
 +    }
 +
