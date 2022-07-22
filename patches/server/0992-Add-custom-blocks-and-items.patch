@@ -2904,6 +2904,19 @@ index 1b9b58557ff48b87794d66238dbf64b81c087c86..695ed363c7e783d696cc2e02956fb7cf
      private EntityInLevelCallback levelCallback;
      private final VecDeltaCodec packetPositionCodec;
      public boolean noCulling;
+diff --git a/src/main/java/net/minecraft/world/entity/LivingEntity.java b/src/main/java/net/minecraft/world/entity/LivingEntity.java
+index 2fb5f912de5625c611dc19bf6fa12f5e04d3ddfb..00df8726cfde6c8cf0bfcaafbb5d7ba1f830a2b6 100644
+--- a/src/main/java/net/minecraft/world/entity/LivingEntity.java
++++ b/src/main/java/net/minecraft/world/entity/LivingEntity.java
+@@ -512,7 +512,7 @@ public abstract class LivingEntity extends Entity {
+     }
+ 
+     protected boolean onSoulSpeedBlock() {
+-        return this.level.getBlockState(this.getBlockPosBelowThatAffectsMyMovement()).is(BlockTags.SOUL_SPEED_BLOCKS);
++        return this.level.getBlockState(this.getBlockPosBelowThatAffectsMyMovement()).is(BlockTags.SOUL_SPEED_BLOCKS) || this.level.getBlockState(new BlockPos(this.getX(), this.getBoundingBox().minY - 0.25, this.getZ())).is(BlockTags.SOUL_SPEED_BLOCKS); // Martijn - custom blocks and items
+     }
+ 
+     @Override
 diff --git a/src/main/java/net/minecraft/world/entity/monster/Silverfish.java b/src/main/java/net/minecraft/world/entity/monster/Silverfish.java
 index 2dcda3b03796655da443e1b3dd68c6f6bca20d21..75f071fbeea888d2f37e3fa9f8801d6faa2e2951 100644
 --- a/src/main/java/net/minecraft/world/entity/monster/Silverfish.java
