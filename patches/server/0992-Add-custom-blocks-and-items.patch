@@ -5085,10 +5085,10 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cdc84463a94ed25312296540f6e7df6b1b1e0d90
+index 0000000000000000000000000000000000000000..b17c849a2344a0748e5a626826eb062e0e7a1901
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,992 @@
+@@ -0,0 +1,1122 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -5258,26 +5258,26 @@ index 0000000000000000000000000000000000000000..cdc84463a94ed25312296540f6e7df6b
 +    public static final Block SNOWY_STONE_BRICK_SLAB = registerFakeSlab(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_SLAB);
 +    public static final Block DIRTY_STONE_BRICK_SLAB = registerFakeSlab(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_SLAB);
 +    public static final Block CRACKED_STONE_BRICK_SLAB = registerFakeSlab(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_SLAB);
-+    public static final Block BLACK_PLANK_SLAB = registerFakeDyedPlanksSlab(BLACK_PLANKS, "black", Blocks.DARK_OAK_SLAB);
-+    public static final Block BLUE_PLANK_SLAB = registerFakeDyedPlanksSlab(BLUE_PLANKS, "blue", Blocks.WARPED_SLAB);
-+    public static final Block BROWN_PLANK_SLAB = registerFakeDyedPlanksSlab(BROWN_PLANKS, "brown", Blocks.SPRUCE_SLAB);
-+    public static final Block CYAN_PLANK_SLAB = registerFakeDyedPlanksSlab(CYAN_PLANKS, "cyan", Blocks.WARPED_SLAB);
-+    public static final Block GRAY_PLANK_SLAB = registerFakeDyedPlanksSlab(GRAY_PLANKS, "gray", Blocks.SPRUCE_SLAB);
-+    public static final Block GREEN_PLANK_SLAB = registerFakeDyedPlanksSlab(GREEN_PLANKS, "green", Blocks.WARPED_SLAB);
-+    public static final Block LIGHT_BLUE_PLANK_SLAB = registerFakeDyedPlanksSlab(LIGHT_BLUE_PLANKS, "light_blue", Blocks.WARPED_SLAB);
-+    public static final Block LIGHT_GRAY_PLANK_SLAB = registerFakeDyedPlanksSlab(LIGHT_GRAY_PLANKS, "light_gray", Blocks.OAK_SLAB);
-+    public static final Block LIME_PLANK_SLAB = registerFakeDyedPlanksSlab(LIME_PLANKS, "lime", Blocks.WARPED_SLAB);
-+    public static final Block MAGENTA_PLANK_SLAB = registerFakeDyedPlanksSlab(MAGENTA_PLANKS, "magenta", Blocks.CRIMSON_SLAB);
-+    public static final Block ORANGE_PLANK_SLAB = registerFakeDyedPlanksSlab(ORANGE_PLANKS, "orange", Blocks.ACACIA_SLAB);
-+    public static final Block PINK_PLANK_SLAB = registerFakeDyedPlanksSlab(PINK_PLANKS, "pink", Blocks.JUNGLE_SLAB);
-+    public static final Block PURPLE_PLANK_SLAB = registerFakeDyedPlanksSlab(PURPLE_PLANKS, "purple", Blocks.CRIMSON_SLAB);
-+    public static final Block RED_PLANK_SLAB = registerFakeDyedPlanksSlab(RED_PLANKS, "red", Blocks.MANGROVE_SLAB);
-+    public static final Block WHITE_PLANK_SLAB = registerFakeDyedPlanksSlab(WHITE_PLANKS, "white", Blocks.BIRCH_SLAB);
-+    public static final Block YELLOW_PLANK_SLAB = registerFakeDyedPlanksSlab(YELLOW_PLANKS, "yellow", Blocks.BIRCH_SLAB);
++    public static final Block BLACK_PLANK_SLAB = registerFakeDyedPlankSlab(BLACK_PLANKS, "black", Blocks.DARK_OAK_SLAB);
++    public static final Block BLUE_PLANK_SLAB = registerFakeDyedPlankSlab(BLUE_PLANKS, "blue", Blocks.WARPED_SLAB);
++    public static final Block BROWN_PLANK_SLAB = registerFakeDyedPlankSlab(BROWN_PLANKS, "brown", Blocks.SPRUCE_SLAB);
++    public static final Block CYAN_PLANK_SLAB = registerFakeDyedPlankSlab(CYAN_PLANKS, "cyan", Blocks.WARPED_SLAB);
++    public static final Block GRAY_PLANK_SLAB = registerFakeDyedPlankSlab(GRAY_PLANKS, "gray", Blocks.SPRUCE_SLAB);
++    public static final Block GREEN_PLANK_SLAB = registerFakeDyedPlankSlab(GREEN_PLANKS, "green", Blocks.WARPED_SLAB);
++    public static final Block LIGHT_BLUE_PLANK_SLAB = registerFakeDyedPlankSlab(LIGHT_BLUE_PLANKS, "light_blue", Blocks.WARPED_SLAB);
++    public static final Block LIGHT_GRAY_PLANK_SLAB = registerFakeDyedPlankSlab(LIGHT_GRAY_PLANKS, "light_gray", Blocks.OAK_SLAB);
++    public static final Block LIME_PLANK_SLAB = registerFakeDyedPlankSlab(LIME_PLANKS, "lime", Blocks.WARPED_SLAB);
++    public static final Block MAGENTA_PLANK_SLAB = registerFakeDyedPlankSlab(MAGENTA_PLANKS, "magenta", Blocks.CRIMSON_SLAB);
++    public static final Block ORANGE_PLANK_SLAB = registerFakeDyedPlankSlab(ORANGE_PLANKS, "orange", Blocks.ACACIA_SLAB);
++    public static final Block PINK_PLANK_SLAB = registerFakeDyedPlankSlab(PINK_PLANKS, "pink", Blocks.JUNGLE_SLAB);
++    public static final Block PURPLE_PLANK_SLAB = registerFakeDyedPlankSlab(PURPLE_PLANKS, "purple", Blocks.CRIMSON_SLAB);
++    public static final Block RED_PLANK_SLAB = registerFakeDyedPlankSlab(RED_PLANKS, "red", Blocks.MANGROVE_SLAB);
++    public static final Block WHITE_PLANK_SLAB = registerFakeDyedPlankSlab(WHITE_PLANKS, "white", Blocks.BIRCH_SLAB);
++    public static final Block YELLOW_PLANK_SLAB = registerFakeDyedPlankSlab(YELLOW_PLANKS, "yellow", Blocks.BIRCH_SLAB);
 +    public static final Block BLACK_WOOL_SLAB = registerFakeWoolSlab(Blocks.BLACK_WOOL, "black", Blocks.BLACKSTONE_SLAB);
 +    public static final Block BLUE_WOOL_SLAB = registerFakeWoolSlab(Blocks.BLUE_WOOL, "blue", Blocks.WARPED_SLAB);
 +    public static final Block BROWN_WOOL_SLAB = registerFakeWoolSlab(Blocks.BROWN_WOOL, "brown", Blocks.SPRUCE_SLAB);
-+    public static final Block CYAN_WOOL_SLAB = registerFakeWoolSlab(Blocks.CYAN_WOOL, "cyan", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block CYAN_WOOL_SLAB = registerFakeWoolSlab(Blocks.CYAN_WOOL, "cyan", Blocks.WARPED_SLAB);
 +    public static final Block GRAY_WOOL_SLAB = registerFakeWoolSlab(Blocks.GRAY_WOOL, "gray", Blocks.STONE_SLAB);
 +    public static final Block GREEN_WOOL_SLAB = registerFakeWoolSlab(Blocks.GREEN_WOOL, "green", Blocks.DARK_PRISMARINE_SLAB);
 +    public static final Block LIGHT_BLUE_WOOL_SLAB = registerFakeWoolSlab(Blocks.LIGHT_BLUE_WOOL, "light_blue", Blocks.PRISMARINE_BRICK_SLAB);
@@ -5293,7 +5293,7 @@ index 0000000000000000000000000000000000000000..cdc84463a94ed25312296540f6e7df6b
 +    public static final Block BLACK_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.BLACK_CONCRETE, "black", Blocks.BLACKSTONE_SLAB);
 +    public static final Block BLUE_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.BLUE_CONCRETE, "blue", Blocks.WARPED_SLAB);
 +    public static final Block BROWN_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.BROWN_CONCRETE, "brown", Blocks.SPRUCE_SLAB);
-+    public static final Block CYAN_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.CYAN_CONCRETE, "cyan", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block CYAN_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.CYAN_CONCRETE, "cyan", Blocks.WARPED_SLAB);
 +    public static final Block GRAY_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.GRAY_CONCRETE, "gray", Blocks.STONE_SLAB);
 +    public static final Block GREEN_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.GREEN_CONCRETE, "green", Blocks.DARK_PRISMARINE_SLAB);
 +    public static final Block LIGHT_BLUE_CONCRETE_SLAB = registerFakeConcreteSlab(Blocks.LIGHT_BLUE_CONCRETE, "light_blue", Blocks.PRISMARINE_BRICK_SLAB);
@@ -5309,7 +5309,7 @@ index 0000000000000000000000000000000000000000..cdc84463a94ed25312296540f6e7df6b
 +    public static final Block BLACK_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.BLACK_CONCRETE_POWDER, "black", Blocks.BLACKSTONE_SLAB);
 +    public static final Block BLUE_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.BLUE_CONCRETE_POWDER, "blue", Blocks.WARPED_SLAB);
 +    public static final Block BROWN_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.BROWN_CONCRETE_POWDER, "brown", Blocks.SPRUCE_SLAB);
-+    public static final Block CYAN_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.CYAN_CONCRETE_POWDER, "cyan", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block CYAN_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.CYAN_CONCRETE_POWDER, "cyan", Blocks.WARPED_SLAB);
 +    public static final Block GRAY_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.GRAY_CONCRETE_POWDER, "gray", Blocks.STONE_SLAB);
 +    public static final Block GREEN_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.GREEN_CONCRETE_POWDER, "green", Blocks.DARK_PRISMARINE_SLAB);
 +    public static final Block LIGHT_BLUE_CONCRETE_POWDER_SLAB = registerFakeConcretePowderSlab(Blocks.LIGHT_BLUE_CONCRETE_POWDER, "light_blue", Blocks.PRISMARINE_BRICK_SLAB);
@@ -5387,7 +5387,7 @@ index 0000000000000000000000000000000000000000..cdc84463a94ed25312296540f6e7df6b
 +        SuCraftBlockLoot::dropSelf
 +    );
 +
-+    public static final Block SMOOTH_SOUL_SANDSTONE_SLAB = registerFakeSlab(SMOOTH_SOUL_SANDSTONE, null, "smooth_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("smooth_soul_sandstone"), NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, null, Blocks.OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
++    public static final Block SMOOTH_SOUL_SANDSTONE_SLAB = registerFakeSlab(SMOOTH_SOUL_SANDSTONE, null, "smooth_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("smooth_soul_sandstone"), NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, null, Blocks.DARK_OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
 +    public static final Block CUT_SOUL_SANDSTONE_SLAB = registerFakeSlab(CUT_SOUL_SANDSTONE, null, "cut_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("cut_soul_sandstone"), null, NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, Blocks.DARK_OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
 +    public static final Block GRAVEL_SLAB = registerFakeSlab(Blocks.GRAVEL, "gravel", Blocks.ANDESITE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block NETHERRACK_SLAB = registerFakeSlab(Blocks.NETHERRACK, "netherrack", Blocks.RED_NETHER_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
@@ -5584,6 +5584,96 @@ index 0000000000000000000000000000000000000000..cdc84463a94ed25312296540f6e7df6b
 +    public static final Block CRYING_OBSIDIAN_SLAB = registerFakeSlab(Blocks.CRYING_OBSIDIAN, "crying_obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block GILDED_BLACKSTONE_SLAB = registerFakeSlab(Blocks.GILDED_BLACKSTONE, "gilded_blackstone", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block SNOWY_STONE_BRICK_STAIRS = registerFakeStairs(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_STAIRS);
++    public static final Block DIRTY_STONE_BRICK_STAIRS = registerFakeStairs(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_STAIRS);
++    public static final Block CRACKED_STONE_BRICK_STAIRS = registerFakeStairs(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_STAIRS);
++    public static final Block AMETHYST_STAIRS = registerFakeStairs(Blocks.AMETHYST_BLOCK, "amethyst", "amethyst_block", Blocks.PURPUR_STAIRS).mineableWithPickaxe();
++    public static final Block COAL_STAIRS = registerFakeStairs(Blocks.COAL_BLOCK, "coal", "coal_block", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
++    public static final Block DRIPSTONE_STAIRS = registerFakeStairs(Blocks.DRIPSTONE_BLOCK, "dripstone", "dripstone_block", Blocks.GRANITE_STAIRS).mineableWithPickaxe();
++    public static final Block DIRT_BRICK_STAIRS = registerFakeStairs(DIRT_BRICKS, "dirt_brick", null, Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
++    public static final Block CHARCOAL_STAIRS = registerFakeStairs(CHARCOAL_BLOCK, "charcoal", null, Blocks.BLACKSTONE_STAIRS);
++    public static final Block GUNPOWDER_STAIRS = registerFakeStairs(GUNPOWDER_BLOCK, "gunpowder", null, Blocks.ANDESITE_STAIRS);
++    public static final Block PEAT_STAIRS = registerFakeStairs(PEAT, "peat", null, Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block FLINT_TILE_STAIRS = registerFakeStairs(FLINT_TILES, "flint_tile", null, Blocks.DEEPSLATE_TILE_STAIRS).mineableWithPickaxe();
++    public static final Block BLACK_PLANK_STAIRS = registerFakeDyedPlankStairs(BLACK_PLANKS, "black", Blocks.DARK_OAK_STAIRS);
++    public static final Block BLUE_PLANK_STAIRS = registerFakeDyedPlankStairs(BLUE_PLANKS, "blue", Blocks.WARPED_STAIRS);
++    public static final Block BROWN_PLANK_STAIRS = registerFakeDyedPlankStairs(BROWN_PLANKS, "brown", Blocks.SPRUCE_STAIRS);
++    public static final Block CYAN_PLANK_STAIRS = registerFakeDyedPlankStairs(CYAN_PLANKS, "cyan", Blocks.WARPED_STAIRS);
++    public static final Block GRAY_PLANK_STAIRS = registerFakeDyedPlankStairs(GRAY_PLANKS, "gray", Blocks.SPRUCE_STAIRS);
++    public static final Block GREEN_PLANK_STAIRS = registerFakeDyedPlankStairs(GREEN_PLANKS, "green", Blocks.WARPED_STAIRS);
++    public static final Block LIGHT_BLUE_PLANK_STAIRS = registerFakeDyedPlankStairs(LIGHT_BLUE_PLANKS, "light_blue", Blocks.WARPED_STAIRS);
++    public static final Block LIGHT_GRAY_PLANK_STAIRS = registerFakeDyedPlankStairs(LIGHT_GRAY_PLANKS, "light_gray", Blocks.OAK_STAIRS);
++    public static final Block LIME_PLANK_STAIRS = registerFakeDyedPlankStairs(LIME_PLANKS, "lime", Blocks.WARPED_STAIRS);
++    public static final Block MAGENTA_PLANK_STAIRS = registerFakeDyedPlankStairs(MAGENTA_PLANKS, "magenta", Blocks.CRIMSON_STAIRS);
++    public static final Block ORANGE_PLANK_STAIRS = registerFakeDyedPlankStairs(ORANGE_PLANKS, "orange", Blocks.ACACIA_STAIRS);
++    public static final Block PINK_PLANK_STAIRS = registerFakeDyedPlankStairs(PINK_PLANKS, "pink", Blocks.JUNGLE_STAIRS);
++    public static final Block PURPLE_PLANK_STAIRS = registerFakeDyedPlankStairs(PURPLE_PLANKS, "purple", Blocks.CRIMSON_STAIRS);
++    public static final Block RED_PLANK_STAIRS = registerFakeDyedPlankStairs(RED_PLANKS, "red", Blocks.MANGROVE_STAIRS);
++    public static final Block WHITE_PLANK_STAIRS = registerFakeDyedPlankStairs(WHITE_PLANKS, "white", Blocks.BIRCH_STAIRS);
++    public static final Block YELLOW_PLANK_STAIRS = registerFakeDyedPlankStairs(YELLOW_PLANKS, "yellow", Blocks.BIRCH_STAIRS);
++    public static final Block BLACK_WOOL_STAIRS = registerFakeWoolStairs(Blocks.BLACK_WOOL, "black", Blocks.BLACKSTONE_STAIRS);
++    public static final Block BLUE_WOOL_STAIRS = registerFakeWoolStairs(Blocks.BLUE_WOOL, "blue", Blocks.WARPED_STAIRS);
++    public static final Block BROWN_WOOL_STAIRS = registerFakeWoolStairs(Blocks.BROWN_WOOL, "brown", Blocks.SPRUCE_STAIRS);
++    public static final Block CYAN_WOOL_STAIRS = registerFakeWoolStairs(Blocks.CYAN_WOOL, "cyan", Blocks.WARPED_STAIRS);
++    public static final Block GRAY_WOOL_STAIRS = registerFakeWoolStairs(Blocks.GRAY_WOOL, "gray", Blocks.STONE_STAIRS);
++    public static final Block GREEN_WOOL_STAIRS = registerFakeWoolStairs(Blocks.GREEN_WOOL, "green", Blocks.DARK_PRISMARINE_STAIRS);
++    public static final Block LIGHT_BLUE_WOOL_STAIRS = registerFakeWoolStairs(Blocks.LIGHT_BLUE_WOOL, "light_blue", Blocks.PRISMARINE_BRICK_STAIRS);
++    public static final Block LIGHT_GRAY_WOOL_STAIRS = registerFakeWoolStairs(Blocks.LIGHT_GRAY_WOOL, "light_gray", Blocks.ANDESITE_STAIRS);
++    public static final Block LIME_WOOL_STAIRS = registerFakeWoolStairs(Blocks.LIME_WOOL, "lime", Blocks.OXIDIZED_CUT_COPPER_STAIRS);
++    public static final Block MAGENTA_WOOL_STAIRS = registerFakeWoolStairs(Blocks.MAGENTA_WOOL, "magenta", Blocks.PURPUR_STAIRS);
++    public static final Block ORANGE_WOOL_STAIRS = registerFakeWoolStairs(Blocks.ORANGE_WOOL, "orange", Blocks.SMOOTH_RED_SANDSTONE_STAIRS);
++    public static final Block PINK_WOOL_STAIRS = registerFakeWoolStairs(Blocks.PINK_WOOL, "pink", Blocks.PURPUR_STAIRS);
++    public static final Block PURPLE_WOOL_STAIRS = registerFakeWoolStairs(Blocks.PURPLE_WOOL, "purple", Blocks.PURPUR_STAIRS);
++    public static final Block RED_WOOL_STAIRS = registerFakeWoolStairs(Blocks.RED_WOOL, "red", Blocks.MANGROVE_STAIRS);
++    public static final Block WHITE_WOOL_STAIRS = registerFakeWoolStairs(Blocks.WHITE_WOOL, "white", Blocks.SMOOTH_QUARTZ_STAIRS);
++    public static final Block YELLOW_WOOL_STAIRS = registerFakeWoolStairs(Blocks.YELLOW_WOOL, "yellow", Blocks.BIRCH_STAIRS);
++    public static final Block BLACK_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.BLACK_CONCRETE, "black", Blocks.BLACKSTONE_STAIRS);
++    public static final Block BLUE_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.BLUE_CONCRETE, "blue", Blocks.WARPED_STAIRS);
++    public static final Block BROWN_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.BROWN_CONCRETE, "brown", Blocks.SPRUCE_STAIRS);
++    public static final Block CYAN_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.CYAN_CONCRETE, "cyan", Blocks.WARPED_STAIRS);
++    public static final Block GRAY_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.GRAY_CONCRETE, "gray", Blocks.STONE_STAIRS);
++    public static final Block GREEN_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.GREEN_CONCRETE, "green", Blocks.DARK_PRISMARINE_STAIRS);
++    public static final Block LIGHT_BLUE_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.LIGHT_BLUE_CONCRETE, "light_blue", Blocks.PRISMARINE_BRICK_STAIRS);
++    public static final Block LIGHT_GRAY_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.LIGHT_GRAY_CONCRETE, "light_gray", Blocks.ANDESITE_STAIRS);
++    public static final Block LIME_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.LIME_CONCRETE, "lime", Blocks.OXIDIZED_CUT_COPPER_STAIRS);
++    public static final Block MAGENTA_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.MAGENTA_CONCRETE, "magenta", Blocks.PURPUR_STAIRS);
++    public static final Block ORANGE_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.ORANGE_CONCRETE, "orange", Blocks.SMOOTH_RED_SANDSTONE_STAIRS);
++    public static final Block PINK_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.PINK_CONCRETE, "pink", Blocks.PURPUR_STAIRS);
++    public static final Block PURPLE_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.PURPLE_CONCRETE, "purple", Blocks.PURPUR_STAIRS);
++    public static final Block RED_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.RED_CONCRETE, "red", Blocks.MANGROVE_STAIRS);
++    public static final Block WHITE_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.WHITE_CONCRETE, "white", Blocks.SMOOTH_QUARTZ_STAIRS);
++    public static final Block YELLOW_CONCRETE_STAIRS = registerFakeConcreteStairs(Blocks.YELLOW_CONCRETE, "yellow", Blocks.BIRCH_STAIRS);
++    public static final Block BLACK_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.BLACK_CONCRETE_POWDER, "black", Blocks.BLACKSTONE_STAIRS);
++    public static final Block BLUE_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.BLUE_CONCRETE_POWDER, "blue", Blocks.WARPED_STAIRS);
++    public static final Block BROWN_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.BROWN_CONCRETE_POWDER, "brown", Blocks.SPRUCE_STAIRS);
++    public static final Block CYAN_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.CYAN_CONCRETE_POWDER, "cyan", Blocks.WARPED_STAIRS);
++    public static final Block GRAY_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.GRAY_CONCRETE_POWDER, "gray", Blocks.STONE_STAIRS);
++    public static final Block GREEN_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.GREEN_CONCRETE_POWDER, "green", Blocks.DARK_PRISMARINE_STAIRS);
++    public static final Block LIGHT_BLUE_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.LIGHT_BLUE_CONCRETE_POWDER, "light_blue", Blocks.PRISMARINE_BRICK_STAIRS);
++    public static final Block LIGHT_GRAY_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.LIGHT_GRAY_CONCRETE_POWDER, "light_gray", Blocks.ANDESITE_STAIRS);
++    public static final Block LIME_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.LIME_CONCRETE_POWDER, "lime", Blocks.OXIDIZED_CUT_COPPER_STAIRS);
++    public static final Block MAGENTA_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.MAGENTA_CONCRETE_POWDER, "magenta", Blocks.PURPUR_STAIRS);
++    public static final Block ORANGE_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.ORANGE_CONCRETE_POWDER, "orange", Blocks.SMOOTH_RED_SANDSTONE_STAIRS);
++    public static final Block PINK_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.PINK_CONCRETE_POWDER, "pink", Blocks.PURPUR_STAIRS);
++    public static final Block PURPLE_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.PURPLE_CONCRETE_POWDER, "purple", Blocks.PURPUR_STAIRS);
++    public static final Block RED_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.RED_CONCRETE_POWDER, "red", Blocks.MANGROVE_STAIRS);
++    public static final Block WHITE_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.WHITE_CONCRETE_POWDER, "white", Blocks.SMOOTH_QUARTZ_STAIRS);
++    public static final Block YELLOW_CONCRETE_POWDER_STAIRS = registerFakeConcretePowderStairs(Blocks.YELLOW_CONCRETE_POWDER, "yellow", Blocks.BIRCH_STAIRS);
++    public static final Block BLACK_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.BLACK_TERRACOTTA, "black", Blocks.BLACKSTONE_STAIRS);
++    public static final Block BLUE_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.BLUE_TERRACOTTA, "blue", Blocks.POLISHED_BLACKSTONE_STAIRS);
++    public static final Block BROWN_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.BROWN_TERRACOTTA, "brown", Blocks.DARK_OAK_STAIRS);
++    public static final Block CYAN_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.CYAN_TERRACOTTA, "cyan", Blocks.STONE_STAIRS);
++    public static final Block GRAY_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.GRAY_TERRACOTTA, "gray", Blocks.DARK_OAK_STAIRS);
++    public static final Block GREEN_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.GREEN_TERRACOTTA, "green", Blocks.DARK_PRISMARINE_STAIRS);
++    public static final Block LIGHT_BLUE_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.LIGHT_BLUE_TERRACOTTA, "light_blue", Blocks.STONE_STAIRS);
++    public static final Block LIGHT_GRAY_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.LIGHT_GRAY_TERRACOTTA, "light_gray", Blocks.JUNGLE_STAIRS);
++    public static final Block LIME_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.LIME_TERRACOTTA, "lime", Blocks.DARK_PRISMARINE_STAIRS);
++    public static final Block MAGENTA_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.MAGENTA_TERRACOTTA, "magenta", Blocks.PURPUR_STAIRS);
++    public static final Block ORANGE_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.ORANGE_TERRACOTTA, "orange", Blocks.SMOOTH_RED_SANDSTONE_STAIRS);
++    public static final Block PINK_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.PINK_TERRACOTTA, "pink", Blocks.MANGROVE_STAIRS);
++    public static final Block PURPLE_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.PURPLE_TERRACOTTA, "purple", Blocks.PURPUR_STAIRS);
++    public static final Block RED_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.RED_TERRACOTTA, "red", Blocks.MANGROVE_STAIRS);
++    public static final Block WHITE_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.WHITE_TERRACOTTA, "white", Blocks.SMOOTH_QUARTZ_STAIRS);
++    public static final Block YELLOW_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.YELLOW_TERRACOTTA, "yellow", Blocks.OAK_STAIRS);
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -6006,44 +6096,84 @@ index 0000000000000000000000000000000000000000..cdc84463a94ed25312296540f6e7df6b
 +        return registerFakeSlab(fullBlock, type, type, host, null);
 +    }
 +
-+    private static @NotNull Block registerFakeDyedPlanksSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++    private static @NotNull Block registerFakeDyedPlankSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().woodenSlab();
++    }
++
++    private static @NotNull Block registerFakeDyedPlankStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().woodenStairs();
 +    }
 +
 +    private static @NotNull Block registerFakeWoolSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, type + "_wool", type + "_wool", host).breakBeforeClientKnowsToBreak().wool();
 +    }
 +
++    private static @NotNull Block registerFakeWoolStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, type + "_wool", type + "_wool", host).breakBeforeClientKnowsToBreak().wool();
++    }
++
 +    private static @NotNull Block registerFakeConcreteSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, type + "_concrete", type + "_concrete", host).mineableWithPickaxe();
++    }
++
++    private static @NotNull Block registerFakeConcreteStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, type + "_concrete", type + "_concrete", host).mineableWithPickaxe();
 +    }
 +
 +    private static @NotNull Block registerFakeConcretePowderSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, type + "_concrete_powder", type + "_concrete_powder", host).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    }
 +
++    private static @NotNull Block registerFakeConcretePowderStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, type + "_concrete_powder", type + "_concrete_powder", host).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    }
++
 +    private static @NotNull Block registerFakeTerracottaSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, type + "_terracotta", type + "_terracotta", host).mineableWithPickaxe();
++    }
++
++    private static @NotNull Block registerFakeTerracottaStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, type + "_terracotta", type + "_terracotta", host).mineableWithPickaxe();
 +    }
 +
 +    private static @NotNull Block registerFakePolishedSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, "polished_" + type, null, host).mineableWithPickaxe();
 +    }
 +
++    private static @NotNull Block registerFakePolishedStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, "polished_" + type, null, host).mineableWithPickaxe();
++    }
++
 +    private static @NotNull Block registerFakeCustomBrickSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, type + "_brick", null, host).mineableWithPickaxe();
++    }
++
++    private static @NotNull Block registerFakeCustomBrickStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, type + "_brick", null, host).mineableWithPickaxe();
 +    }
 +
 +    private static @NotNull Block registerFakeVanillaBrickSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, type + "_brick", type + "_bricks", host).mineableWithPickaxe();
 +    }
 +
++    private static @NotNull Block registerFakeVanillaBrickStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, type + "_brick", type + "_bricks", host).mineableWithPickaxe();
++    }
++
 +    private static @NotNull Block registerFakeSandstoneBrickSlab(@NotNull Block fullBlock, @Nullable String type, @NotNull Block host) {
 +        return registerFakeCustomBrickSlab(fullBlock, (type == null ? "" : type + "_") + "sandstone", host);
 +    }
 +
++    private static @NotNull Block registerFakeSandstoneBrickStairs(@NotNull Block fullBlock, @Nullable String type, @NotNull Block host) {
++        return registerFakeCustomBrickStairs(fullBlock, (type == null ? "" : type + "_") + "sandstone", host);
++    }
++
 +    private static @NotNull Block registerFakeRawMetalSlab(@NotNull Block fullBlock, @Nullable String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, "raw_" + type, "raw_" + type + "_block", host).mineableWithPickaxe();
++    }
++
++    private static @NotNull Block registerFakeRawMetalStairs(@NotNull Block fullBlock, @Nullable String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, "raw_" + type, "raw_" + type + "_block", host).mineableWithPickaxe();
 +    }
 +
 +    private static @NotNull Block registerPeat(@NotNull String type) {
@@ -11036,10 +11166,10 @@ index 0000000000000000000000000000000000000000..ce9744a601bb0835f65e02099d67ebec
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..736cf46f2b2330b8301179f380d308f3348136c7
+index 0000000000000000000000000000000000000000..5e9beba4492227ae725435a30bc8bdeb6a724425
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,540 @@
+@@ -0,0 +1,650 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -11371,6 +11501,96 @@ index 0000000000000000000000000000000000000000..736cf46f2b2330b8301179f380d308f3
 +    public static final Item CRYING_OBSIDIAN_SLAB = registerSlab(SuCraftBlocks.CRYING_OBSIDIAN_SLAB, "Crying Obsidian");
 +    public static final Item GILDED_BLACKSTONE_SLAB = registerSlab(SuCraftBlocks.GILDED_BLACKSTONE_SLAB, "Gilded Blackstone");
 +    public static final Item SNOWY_STONE_BRICK_STAIRS = registerStairs(SuCraftBlocks.SNOWY_STONE_BRICK_STAIRS, "Snowy Stone Brick");
++    public static final Item DIRTY_STONE_BRICK_STAIRS = registerStairs(SuCraftBlocks.DIRTY_STONE_BRICK_STAIRS, "Dirty Stone Brick");
++    public static final Item CRACKED_STONE_BRICK_STAIRS = registerStairs(SuCraftBlocks.CRACKED_STONE_BRICK_STAIRS, "Cracked Stone Brick");
++    public static final Item AMETHYST_STAIRS = registerStairs(SuCraftBlocks.AMETHYST_STAIRS, "Amethyst");
++    public static final Item COAL_STAIRS = registerStairs(SuCraftBlocks.COAL_STAIRS, "Coal");
++    public static final Item DRIPSTONE_STAIRS = registerStairs(SuCraftBlocks.DRIPSTONE_STAIRS, "Dripstone");
++    public static final Item DIRT_BRICK_STAIRS = registerStairs(SuCraftBlocks.DIRT_BRICK_STAIRS, "Dirt Brick");
++    public static final Item CHARCOAL_STAIRS = registerStairs(SuCraftBlocks.CHARCOAL_STAIRS, "Charcoal");
++    public static final Item GUNPOWDER_STAIRS = registerStairs(SuCraftBlocks.GUNPOWDER_STAIRS, "Gunpowder");
++    public static final Item PEAT_STAIRS = registerStairs(SuCraftBlocks.PEAT_STAIRS, "Peat");
++    public static final Item FLINT_TILE_STAIRS = registerStairs(SuCraftBlocks.FLINT_TILE_STAIRS, "Flint Tile");
++    public static final Item BLACK_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.BLACK_PLANK_STAIRS, "Black");
++    public static final Item BLUE_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.BLUE_PLANK_STAIRS, "Blue");
++    public static final Item BROWN_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.BROWN_PLANK_STAIRS, "Brown");
++    public static final Item CYAN_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.CYAN_PLANK_STAIRS, "Cyan");
++    public static final Item GRAY_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.GRAY_PLANK_STAIRS, "Gray");
++    public static final Item GREEN_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.GREEN_PLANK_STAIRS, "Green");
++    public static final Item LIGHT_BLUE_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.LIGHT_BLUE_PLANK_STAIRS, "Light Blue");
++    public static final Item LIGHT_GRAY_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.LIGHT_GRAY_PLANK_STAIRS, "Light Gray");
++    public static final Item LIME_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.LIME_PLANK_STAIRS, "Lime");
++    public static final Item MAGENTA_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.MAGENTA_PLANK_STAIRS, "Magenta");
++    public static final Item ORANGE_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.ORANGE_PLANK_STAIRS, "Orange");
++    public static final Item PINK_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.PINK_PLANK_STAIRS, "Pink");
++    public static final Item PURPLE_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.PURPLE_PLANK_STAIRS, "Purple");
++    public static final Item RED_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.RED_PLANK_STAIRS, "Red");
++    public static final Item WHITE_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.WHITE_PLANK_STAIRS, "White");
++    public static final Item YELLOW_PLANK_STAIRS = registerPlankStairs(SuCraftBlocks.YELLOW_PLANK_STAIRS, "Yellow");
++    public static final Item BLACK_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.BLACK_WOOL_STAIRS, "Black");
++    public static final Item BLUE_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.BLUE_WOOL_STAIRS, "Blue");
++    public static final Item BROWN_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.BROWN_WOOL_STAIRS, "Brown");
++    public static final Item CYAN_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.CYAN_WOOL_STAIRS, "Cyan");
++    public static final Item GRAY_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.GRAY_WOOL_STAIRS, "Gray");
++    public static final Item GREEN_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.GREEN_WOOL_STAIRS, "Green");
++    public static final Item LIGHT_BLUE_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.LIGHT_BLUE_WOOL_STAIRS, "Light Blue");
++    public static final Item LIGHT_GRAY_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.LIGHT_GRAY_WOOL_STAIRS, "Light Gray");
++    public static final Item LIME_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.LIME_WOOL_STAIRS, "Lime");
++    public static final Item MAGENTA_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.MAGENTA_WOOL_STAIRS, "Magenta");
++    public static final Item ORANGE_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.ORANGE_WOOL_STAIRS, "Orange");
++    public static final Item PINK_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.PINK_WOOL_STAIRS, "Pink");
++    public static final Item PURPLE_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.PURPLE_WOOL_STAIRS, "Purple");
++    public static final Item RED_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.RED_WOOL_STAIRS, "Red");
++    public static final Item WHITE_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.WHITE_WOOL_STAIRS, "White");
++    public static final Item YELLOW_WOOL_STAIRS = registerWoolStairs(SuCraftBlocks.YELLOW_WOOL_STAIRS, "Yellow");
++    public static final Item BLACK_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.BLACK_CONCRETE_STAIRS, "Black");
++    public static final Item BLUE_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.BLUE_CONCRETE_STAIRS, "Blue");
++    public static final Item BROWN_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.BROWN_CONCRETE_STAIRS, "Brown");
++    public static final Item CYAN_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.CYAN_CONCRETE_STAIRS, "Cyan");
++    public static final Item GRAY_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.GRAY_CONCRETE_STAIRS, "Gray");
++    public static final Item GREEN_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.GREEN_CONCRETE_STAIRS, "Green");
++    public static final Item LIGHT_BLUE_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.LIGHT_BLUE_CONCRETE_STAIRS, "Light Blue");
++    public static final Item LIGHT_GRAY_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.LIGHT_GRAY_CONCRETE_STAIRS, "Light Gray");
++    public static final Item LIME_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.LIME_CONCRETE_STAIRS, "Lime");
++    public static final Item MAGENTA_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.MAGENTA_CONCRETE_STAIRS, "Magenta");
++    public static final Item ORANGE_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.ORANGE_CONCRETE_STAIRS, "Orange");
++    public static final Item PINK_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.PINK_CONCRETE_STAIRS, "Pink");
++    public static final Item PURPLE_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.PURPLE_CONCRETE_STAIRS, "Purple");
++    public static final Item RED_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.RED_CONCRETE_STAIRS, "Red");
++    public static final Item WHITE_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.WHITE_CONCRETE_STAIRS, "White");
++    public static final Item YELLOW_CONCRETE_STAIRS = registerConcreteStairs(SuCraftBlocks.YELLOW_CONCRETE_STAIRS, "Yellow");
++    public static final Item BLACK_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.BLACK_CONCRETE_POWDER_STAIRS, "Black");
++    public static final Item BLUE_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.BLUE_CONCRETE_POWDER_STAIRS, "Blue");
++    public static final Item BROWN_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.BROWN_CONCRETE_POWDER_STAIRS, "Brown");
++    public static final Item CYAN_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.CYAN_CONCRETE_POWDER_STAIRS, "Cyan");
++    public static final Item GRAY_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.GRAY_CONCRETE_POWDER_STAIRS, "Gray");
++    public static final Item GREEN_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.GREEN_CONCRETE_POWDER_STAIRS, "Green");
++    public static final Item LIGHT_BLUE_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.LIGHT_BLUE_CONCRETE_POWDER_STAIRS, "Light Blue");
++    public static final Item LIGHT_GRAY_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.LIGHT_GRAY_CONCRETE_POWDER_STAIRS, "Light Gray");
++    public static final Item LIME_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.LIME_CONCRETE_POWDER_STAIRS, "Lime");
++    public static final Item MAGENTA_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.MAGENTA_CONCRETE_POWDER_STAIRS, "Magenta");
++    public static final Item ORANGE_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.ORANGE_CONCRETE_POWDER_STAIRS, "Orange");
++    public static final Item PINK_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.PINK_CONCRETE_POWDER_STAIRS, "Pink");
++    public static final Item PURPLE_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.PURPLE_CONCRETE_POWDER_STAIRS, "Purple");
++    public static final Item RED_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.RED_CONCRETE_POWDER_STAIRS, "Red");
++    public static final Item WHITE_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.WHITE_CONCRETE_POWDER_STAIRS, "White");
++    public static final Item YELLOW_CONCRETE_POWDER_STAIRS = registerConcretePowderStairs(SuCraftBlocks.YELLOW_CONCRETE_POWDER_STAIRS, "Yellow");
++    public static final Item BLACK_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.BLACK_TERRACOTTA_STAIRS, "Black");
++    public static final Item BLUE_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.BLUE_TERRACOTTA_STAIRS, "Blue");
++    public static final Item BROWN_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.BROWN_TERRACOTTA_STAIRS, "Brown");
++    public static final Item CYAN_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.CYAN_TERRACOTTA_STAIRS, "Cyan");
++    public static final Item GRAY_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.GRAY_TERRACOTTA_STAIRS, "Gray");
++    public static final Item GREEN_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.GREEN_TERRACOTTA_STAIRS, "Green");
++    public static final Item LIGHT_BLUE_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.LIGHT_BLUE_TERRACOTTA_STAIRS, "Light Blue");
++    public static final Item LIGHT_GRAY_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.LIGHT_GRAY_TERRACOTTA_STAIRS, "Light Gray");
++    public static final Item LIME_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.LIME_TERRACOTTA_STAIRS, "Lime");
++    public static final Item MAGENTA_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.MAGENTA_TERRACOTTA_STAIRS, "Magenta");
++    public static final Item ORANGE_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.ORANGE_TERRACOTTA_STAIRS, "Orange");
++    public static final Item PINK_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.PINK_TERRACOTTA_STAIRS, "Pink");
++    public static final Item PURPLE_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.PURPLE_TERRACOTTA_STAIRS, "Purple");
++    public static final Item RED_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.RED_TERRACOTTA_STAIRS, "Red");
++    public static final Item WHITE_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.WHITE_TERRACOTTA_STAIRS, "White");
++    public static final Item YELLOW_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.YELLOW_TERRACOTTA_STAIRS, "Yellow Terracotta");
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -11485,20 +11705,40 @@ index 0000000000000000000000000000000000000000..736cf46f2b2330b8301179f380d308f3
 +        return registerSlab(block, typeDisplayName + " Plank");
 +    }
 +
++    private static @NotNull Item registerPlankStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Plank");
++    }
++
 +    private static @NotNull Item registerWoolSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, typeDisplayName + " Wool");
++    }
++
++    private static @NotNull Item registerWoolStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Wool");
 +    }
 +
 +    private static @NotNull Item registerConcreteSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, typeDisplayName + " Concrete");
 +    }
 +
++    private static @NotNull Item registerConcreteStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Concrete");
++    }
++
 +    private static @NotNull Item registerConcretePowderSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, typeDisplayName + " Concrete Powder");
 +    }
 +
++    private static @NotNull Item registerConcretePowderStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Concrete Powder");
++    }
++
 +    private static @NotNull Item registerTerracottaSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, typeDisplayName + " Terracotta");
++    }
++
++    private static @NotNull Item registerTerracottaStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Terracotta");
 +    }
 +
 +    private static @NotNull Item registerBookshelfSlab(@NotNull Block block, @NotNull String typeDisplayName) {
