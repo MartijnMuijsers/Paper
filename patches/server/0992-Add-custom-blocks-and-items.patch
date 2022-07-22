@@ -5085,10 +5085,10 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b17c849a2344a0748e5a626826eb062e0e7a1901
+index 0000000000000000000000000000000000000000..248a14b5ad9e6b97280c4d467620b4df08a2f339
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1122 @@
+@@ -0,0 +1,1259 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -5674,6 +5674,52 @@ index 0000000000000000000000000000000000000000..b17c849a2344a0748e5a626826eb062e
 +    public static final Block RED_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.RED_TERRACOTTA, "red", Blocks.MANGROVE_STAIRS);
 +    public static final Block WHITE_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.WHITE_TERRACOTTA, "white", Blocks.SMOOTH_QUARTZ_STAIRS);
 +    public static final Block YELLOW_TERRACOTTA_STAIRS = registerFakeTerracottaStairs(Blocks.YELLOW_TERRACOTTA, "yellow", Blocks.OAK_STAIRS);
++    public static final Block POLISHED_CALCITE_STAIRS = registerFakePolishedStairs(POLISHED_CALCITE, "calcite", Blocks.QUARTZ_STAIRS);
++    public static final Block POLISHED_DRIPSTONE_STAIRS = registerFakePolishedStairs(POLISHED_DRIPSTONE, "dripstone", Blocks.POLISHED_GRANITE_STAIRS);
++    public static final Block POLISHED_TUFF_STAIRS = registerFakePolishedStairs(POLISHED_TUFF, "tuff", Blocks.ANDESITE_STAIRS);
++    public static final Block ANDESITE_BRICK_STAIRS = registerFakeCustomBrickStairs(ANDESITE_BRICKS, "andesite", Blocks.POLISHED_ANDESITE_STAIRS);
++    public static final Block CALCITE_BRICK_STAIRS = registerFakeCustomBrickStairs(CALCITE_BRICKS, "calcite", Blocks.QUARTZ_STAIRS);
++    public static final Block DIORITE_BRICK_STAIRS = registerFakeCustomBrickStairs(DIORITE_BRICKS, "diorite", Blocks.POLISHED_DIORITE_STAIRS);
++    public static final Block DRIPSTONE_BRICK_STAIRS = registerFakeCustomBrickStairs(DRIPSTONE_BRICKS, "dripstone", Blocks.POLISHED_GRANITE_STAIRS);
++    public static final Block GRANITE_BRICK_STAIRS = registerFakeCustomBrickStairs(GRANITE_BRICKS, "granite", Blocks.POLISHED_GRANITE_STAIRS);
++    public static final Block TUFF_BRICK_STAIRS = registerFakeCustomBrickStairs(TUFF_BRICKS, "tuff", Blocks.STONE_BRICK_STAIRS);
++    public static final Block QUARTZ_BRICK_STAIRS = registerFakeVanillaBrickStairs(Blocks.QUARTZ_BRICKS, "quartz", Blocks.QUARTZ_STAIRS);
++    public static final Block SANDSTONE_BRICK_STAIRS = registerFakeSandstoneBrickStairs(SANDSTONE_BRICKS, null, Blocks.SANDSTONE_STAIRS);
++    public static final Block RED_SANDSTONE_BRICK_STAIRS = registerFakeSandstoneBrickStairs(RED_SANDSTONE_BRICKS, "red", Blocks.RED_SANDSTONE_STAIRS);
++    public static final Block SOUL_SANDSTONE_BRICK_STAIRS = registerFakeSandstoneBrickStairs(SOUL_SANDSTONE_BRICKS, "soul", Blocks.DARK_OAK_STAIRS).soulSpeed().soulFireBase();
++    public static final Block RAW_COPPER_STAIRS = registerFakeRawMetalStairs(Blocks.RAW_COPPER_BLOCK, "copper", Blocks.CUT_COPPER_STAIRS);
++    public static final Block RAW_GOLD_STAIRS = registerFakeRawMetalStairs(Blocks.RAW_GOLD_BLOCK, "gold", Blocks.OAK_STAIRS).guardedByPiglins();
++    public static final Block RAW_IRON_STAIRS = registerFakeRawMetalStairs(Blocks.RAW_IRON_BLOCK, "iron", Blocks.JUNGLE_STAIRS);
++    public static final Block DIRT_STAIRS = registerFakeStairs(Blocks.DIRT, "dirt", Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block COARSE_DIRT_STAIRS = registerFakeStairs(Blocks.COARSE_DIRT, "coarse_dirt", Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block SAND_STAIRS = registerFakeStairs(Blocks.SAND, "sand", Blocks.SANDSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block RED_SAND_STAIRS = registerFakeStairs(Blocks.RED_SAND, "red_sand", Blocks.RED_SANDSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block CLAY_STAIRS = registerFakeStairs(Blocks.CLAY, "clay", Blocks.ANDESITE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block MUD_STAIRS = registerFakeStairs(Blocks.MUD, "mud", Blocks.POLISHED_BLACKSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block PACKED_MUD_STAIRS = registerFakeStairs(Blocks.PACKED_MUD, "packed_mud", Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
++    public static final Block CALCITE_STAIRS = registerFakeStairs(Blocks.CALCITE, "calcite", Blocks.SMOOTH_QUARTZ_STAIRS).mineableWithPickaxe();
++    public static final Block TUFF_STAIRS = registerFakeStairs(Blocks.TUFF, "tuff", Blocks.COBBLESTONE_STAIRS).mineableWithPickaxe();
++    public static final Block GRAVEL_STAIRS = registerFakeStairs(Blocks.GRAVEL, "gravel", Blocks.ANDESITE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block NETHERRACK_STAIRS = registerFakeStairs(Blocks.NETHERRACK, "netherrack", Blocks.RED_NETHER_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
++    public static final Block SOUL_SOIL_STAIRS = registerFakeStairs(Blocks.SOUL_SOIL, "soul_soil", Blocks.DARK_OAK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel().soulSpeed().soulFireBase();
++    public static final Block SMOOTH_BASALT_STAIRS = registerFakeStairs(Blocks.SMOOTH_BASALT, "smooth_basalt", Blocks.COBBLED_DEEPSLATE_STAIRS);
++    public static final Block SCULK_STAIRS = registerFakeStairs(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block OBSIDIAN_STAIRS = registerFakeStairs(Blocks.OBSIDIAN, "obsidian", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
++    public static final Block CRYING_OBSIDIAN_STAIRS = registerFakeStairs(Blocks.CRYING_OBSIDIAN, "crying_obsidian", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
++    public static final Block GILDED_BLACKSTONE_STAIRS = registerFakeStairs(Blocks.GILDED_BLACKSTONE, "gilded_blackstone", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
++    public static final Block SOUL_SANDSTONE_STAIRS = registerFakeStairs(SOUL_SANDSTONE, null, "soul_sandstone", NamespacedKeyWithoutIntention.sucraft("soul_sandstone"), null, NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), Blocks.DARK_OAK_STAIRS, null).mineableWithPickaxe().soulSpeed().soulFireBase();
++    public static final Block SMOOTH_SOUL_SANDSTONE_STAIRS = registerFakeStairs(SMOOTH_SOUL_SANDSTONE, null, "smooth_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, Blocks.DARK_OAK_STAIRS, null).mineableWithPickaxe().soulSpeed().soulFireBase();
++    public static final Block CUT_SOUL_SANDSTONE_STAIRS = registerFakeStairs(CUT_SOUL_SANDSTONE, null, "cut_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("cut_soul_sandstone"), NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, Blocks.DARK_OAK_STAIRS, null).mineableWithPickaxe().soulSpeed().soulFireBase();
++    public static final Block ANCIENT_DEBRIS_STAIRS = registerFakeStairs(Blocks.ANCIENT_DEBRIS, null, "ancient_debris", NamespacedKeyWithoutIntention.minecraft("ancient_debris_side"), NamespacedKeyWithoutIntention.minecraft("ancient_debris_top"), null, Blocks.POLISHED_GRANITE_STAIRS, null).mineableWithPickaxe();
++    public static final Block QUARTZ_SPIRAL_MEANDER_STAIRS = registerFakeStairs(QUARTZ_SPIRAL_MEANDER, null, "quartz_spiral_meander", NamespacedKeyWithoutIntention.minecraft("chiseled_quartz_block_top"), null, null, Blocks.QUARTZ_STAIRS, null).mineableWithPickaxe();
++    public static final Block CHISELED_QUARTZ_STAIRS = registerFakeStairsFromYPillarVanillaBlock(Blocks.CHISELED_QUARTZ_BLOCK, null, "chiseled_quartz", "chiseled_quartz_block", Blocks.QUARTZ_STAIRS).mineableWithPickaxe();
++    public static final Block WITHER_BONE_STAIRS = registerFakeStairsFromYPillarCustomBlock(WITHER_BONE_BLOCK, null, "wither_bone", "wither_bone_block", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
++    public static final Block PAPER_STAIRS = registerFakeStairsFromYPillarCustomBlock(PAPER_BLOCK, null, "paper", "paper_block", Blocks.SMOOTH_QUARTZ_STAIRS).breakBeforeClientKnowsToBreak().mineableWithAxe();
++    public static final Block FLINT_PILLAR_STAIRS = registerFakeStairsFromYPillarCustomBlock(FLINT_PILLAR, null, "flint_pillar", Blocks.DEEPSLATE_TILE_STAIRS).mineableWithPickaxe();
++    public static final Block OAK_BOOKSHELF_STAIRS = registerFakeBookshelfStairs(Blocks.BOOKSHELF, "oak", Blocks.OAK_STAIRS);
++    public static final Block SPRUCE_BOOKSHELF_STAIRS = registerFakeBookshelfStairs(SPRUCE_BOOKSHELF, "spruce", Blocks.SPRUCE_STAIRS);
++    public static final Block BIRCH_BOOKSHELF_STAIRS = registerFakeBookshelfStairs(BIRCH_BOOKSHELF, "birch", Blocks.BIRCH_STAIRS);
++    public static final Block JUNGLE_BOOKSHELF_STAIRS = registerFakeBookshelfStairs(JUNGLE_BOOKSHELF, "jungle", Blocks.JUNGLE_STAIRS);
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -5906,6 +5952,23 @@ index 0000000000000000000000000000000000000000..b17c849a2344a0748e5a626826eb062e
 +        ).withCustomSlabStonecutterRecipe(fullBlock);
 +    }
 +
++    private static @NotNull Block registerFakeStairs(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Texture sideTexture, @Nullable Texture bottomTexture, @Nullable Texture topTexture, @NotNull Block host, @Nullable Block fallback) {
++        if (fallback == null) {
++            fallback = host;
++        }
++        return register(
++            type + "_stairs",
++            new SingleMultiStateRealBlockReplacementRuleBuilder()
++                .rendersAsEntity()
++                .withAnalogousHosts(host)
++                .withAnalogousFallbacks(fallback)
++                .withDefaultModelCreationsForStairsReplacedByStairs(sideTexture, bottomTexture, topTexture)
++                .withRealItemRuleFromHostBlock(),
++            new StairBlock(fullBlock.defaultBlockState(), properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties).withAddedTagsLike(fullBlock).stairs(),
++            SuCraftBlockLoot::dropSelf
++        ).withCustomOneToOneStonecutterRecipe(fullBlock);
++    }
++
 +    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull NamespacedKeyWithoutIntention doubleSlabKey, @Nullable NamespacedKeyWithoutIntention sideTextureKey, @Nullable NamespacedKeyWithoutIntention bottomHalfBottomTextureKey, @Nullable NamespacedKeyWithoutIntention bottomHalfTopTextureKey, @Nullable NamespacedKeyWithoutIntention topHalfBottomTextureKey, @Nullable NamespacedKeyWithoutIntention topHalfTopTextureKey, @NotNull Block host, @Nullable Block fallback) {
 +        if (sideTextureKey == null) {
 +            sideTextureKey = doubleSlabKey;
@@ -5925,24 +5988,61 @@ index 0000000000000000000000000000000000000000..b17c849a2344a0748e5a626826eb062e
 +        );
 +    }
 +
++    private static @NotNull Block registerFakeStairs(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull NamespacedKeyWithoutIntention sideTextureKey, @Nullable NamespacedKeyWithoutIntention bottomTextureKey, @Nullable NamespacedKeyWithoutIntention topTextureKey, @NotNull Block host, @Nullable Block fallback) {
++        return registerFakeStairs(
++            fullBlock,
++            properties,
++            type,
++            new Texture(ResourcePackAssetIntention.BLOCK, sideTextureKey, TextureContent.Existing.getInstance()),
++            bottomTextureKey == null ? null : new Texture(ResourcePackAssetIntention.BLOCK, bottomTextureKey, TextureContent.Existing.getInstance()),
++            topTextureKey == null ? null : new Texture(ResourcePackAssetIntention.BLOCK, topTextureKey, TextureContent.Existing.getInstance()),
++            host,
++            fallback
++        );
++    }
++
 +    private static @NotNull Block registerFakeSlabFromYPillar(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull NamespacedKeyWithoutIntention doubleSlabNamespacedKey, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, properties, type, doubleSlabNamespacedKey, doubleSlabNamespacedKey, doubleSlabNamespacedKey.withKeySuffix("_top"), null, null, null, host, null);
++    }
++
++    private static @NotNull Block registerFakeStairsFromYPillar(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, NamespacedKeyWithoutIntention fullBlockNamespacedKey, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, properties, type, fullBlockNamespacedKey, fullBlockNamespacedKey.withKeySuffix("_top"), null, host, null);
++    }
++
++    private static @NotNull Block registerFakeStairsFromYPillar(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromYPillar(fullBlock, properties, type, NamespacedKeyWithoutIntention.forMinecraft(fullBlock.id), host);
 +    }
 +
 +    private static @NotNull Block registerFakeSlabFromYPillarVanillaBlock(@NotNull Block fullVanillaBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
 +        return registerFakeSlabFromYPillar(fullVanillaBlock, properties, type, NamespacedKeyWithoutIntention.minecraft(textureType), host);
 +    }
 +
++    private static @NotNull Block registerFakeStairsFromYPillarVanillaBlock(@NotNull Block fullVanillaBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
++        return registerFakeStairsFromYPillar(fullVanillaBlock, properties, type, NamespacedKeyWithoutIntention.minecraft(textureType), host);
++    }
++
 +    private static @NotNull Block registerFakeSlabFromYPillarVanillaBlock(@NotNull Block fullVanillaBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlabFromYPillarVanillaBlock(fullVanillaBlock, properties, type, type, host);
++    }
++
++    private static @NotNull Block registerFakeStairsFromYPillarVanillaBlock(@NotNull Block fullVanillaBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromYPillar(fullVanillaBlock, properties, type, host);
 +    }
 +
 +    private static @NotNull Block registerFakeSlabFromYPillarCustomBlock(@NotNull Block fullCustomBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
 +        return registerFakeSlabFromYPillar(fullCustomBlock, properties, type, NamespacedKeyWithoutIntention.sucraft(textureType), host);
 +    }
 +
++    private static @NotNull Block registerFakeStairsFromYPillarCustomBlock(@NotNull Block fullCustomBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
++        return registerFakeStairsFromYPillar(fullCustomBlock, properties, type, NamespacedKeyWithoutIntention.sucraft(textureType), host);
++    }
++
 +    private static @NotNull Block registerFakeSlabFromYPillarCustomBlock(@NotNull Block fullCustomBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlabFromYPillarCustomBlock(fullCustomBlock, properties, type, type, host);
++    }
++
++    private static @NotNull Block registerFakeStairsFromYPillarCustomBlock(@NotNull Block fullCustomBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromYPillar(fullCustomBlock, properties, type, host);
 +    }
 +
 +    private static @NotNull Block registerFakeSlabFromBottomTopPillar(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull NamespacedKeyWithoutIntention doubleSlabNamespacedKey, @NotNull Block host) {
@@ -5951,20 +6051,46 @@ index 0000000000000000000000000000000000000000..b17c849a2344a0748e5a626826eb062e
 +        return registerFakeSlab(fullBlock, properties, type, doubleSlabNamespacedKey, doubleSlabNamespacedKey, bottomKey, topKey, bottomKey, topKey, host, null);
 +    }
 +
++    private static @NotNull Block registerFakeStairsFromBottomTopPillar(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull NamespacedKeyWithoutIntention fullBlockNamespacedKey, @NotNull Block host) {
++        NamespacedKeyWithoutIntention bottomKey = fullBlockNamespacedKey.withKeySuffix("_bottom");
++        NamespacedKeyWithoutIntention topKey = fullBlockNamespacedKey.withKeySuffix("_top");
++        return registerFakeStairs(fullBlock, properties, type, fullBlockNamespacedKey, bottomKey, topKey, host, null);
++    }
++
++    private static @NotNull Block registerFakeStairsFromBottomTopPillar(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromBottomTopPillar(fullBlock, properties, type, NamespacedKeyWithoutIntention.forMinecraft(fullBlock.id), host);
++    }
++
 +    private static @NotNull Block registerFakeSlabFromBottomTopPillarVanillaBlock(@NotNull Block fullVanillaBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
 +        return registerFakeSlabFromBottomTopPillar(fullVanillaBlock, properties, type, NamespacedKeyWithoutIntention.minecraft(textureType), host);
++    }
++
++    private static @NotNull Block registerFakeStairsFromBottomTopPillarVanillaBlock(@NotNull Block fullVanillaBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
++        return registerFakeStairsFromBottomTopPillar(fullVanillaBlock, properties, type, NamespacedKeyWithoutIntention.minecraft(textureType), host);
 +    }
 +
 +    private static @NotNull Block registerFakeSlabFromBottomTopPillarVanillaBlock(@NotNull Block fullVanillaBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlabFromBottomTopPillarVanillaBlock(fullVanillaBlock, properties, type, type, host);
 +    }
 +
++    private static @NotNull Block registerFakeStairsFromBottomTopPillarVanillaBlock(@NotNull Block fullVanillaBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromBottomTopPillar(fullVanillaBlock, properties, type, host);
++    }
++
 +    private static @NotNull Block registerFakeSlabFromBottomTopPillarCustomBlock(@NotNull Block fullCustomBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
 +        return registerFakeSlabFromBottomTopPillar(fullCustomBlock, properties, type, NamespacedKeyWithoutIntention.sucraft(textureType), host);
 +    }
 +
++    private static @NotNull Block registerFakeStairsFromBottomTopPillarCustomBlock(@NotNull Block fullCustomBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
++        return registerFakeStairsFromBottomTopPillar(fullCustomBlock, properties, type, NamespacedKeyWithoutIntention.sucraft(textureType), host);
++    }
++
 +    private static @NotNull Block registerFakeSlabFromBottomTopPillarCustomBlock(@NotNull Block fullCustomBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlabFromBottomTopPillarCustomBlock(fullCustomBlock, properties, type, type, host);
++    }
++
++    private static @NotNull Block registerFakeStairsFromBottomTopPillarCustomBlock(@NotNull Block fullCustomBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromBottomTopPillar(fullCustomBlock, properties, type, host);
 +    }
 +
 +    private static @NotNull Block registerFakeBookshelfSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -5972,6 +6098,13 @@ index 0000000000000000000000000000000000000000..b17c849a2344a0748e5a626826eb062e
 +        String typedBookshelfIfNotOak = fullBlock.equals(Blocks.BOOKSHELF) ? "bookshelf" : typedBookshelf;
 +        NamespacedKeyWithoutIntention doubleSlabNamespacedKey = fullBlock.equals(Blocks.BOOKSHELF) ? NamespacedKeyWithoutIntention.minecraft(typedBookshelfIfNotOak) : NamespacedKeyWithoutIntention.sucraft(typedBookshelfIfNotOak);
 +        return registerFakeSlab(fullBlock, null, typedBookshelf, doubleSlabNamespacedKey, doubleSlabNamespacedKey,  NamespacedKeyWithoutIntention.minecraft(type + "_planks"), null, null, null, host, null).mineableWithAxe();
++    }
++
++    private static @NotNull Block registerFakeBookshelfStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        String typedBookshelf = type + "_bookshelf";
++        String typedBookshelfIfNotOak = fullBlock.equals(Blocks.BOOKSHELF) ? "bookshelf" : typedBookshelf;
++        NamespacedKeyWithoutIntention fullBlockNamespacedKey = fullBlock.equals(Blocks.BOOKSHELF) ? NamespacedKeyWithoutIntention.minecraft(typedBookshelfIfNotOak) : NamespacedKeyWithoutIntention.sucraft(typedBookshelfIfNotOak);
++        return registerFakeStairs(fullBlock, null, typedBookshelf, fullBlockNamespacedKey, NamespacedKeyWithoutIntention.minecraft(type + "_planks"), null, host, null).mineableWithAxe();
 +    }
 +
 +    private static @NotNull Block registerFakeCustomStonePillarSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -6094,6 +6227,10 @@ index 0000000000000000000000000000000000000000..b17c849a2344a0748e5a626826eb062e
 +
 +    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlab(fullBlock, type, type, host, null);
++    }
++
++    private static @NotNull Block registerFakeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairs(fullBlock, type, type, host, null);
 +    }
 +
 +    private static @NotNull Block registerFakeDyedPlankSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -11166,10 +11303,10 @@ index 0000000000000000000000000000000000000000..ce9744a601bb0835f65e02099d67ebec
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5e9beba4492227ae725435a30bc8bdeb6a724425
+index 0000000000000000000000000000000000000000..1e812c4cb0d36f8af048ad18b6a8560070c60a3c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,650 @@
+@@ -0,0 +1,716 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -11591,6 +11728,52 @@ index 0000000000000000000000000000000000000000..5e9beba4492227ae725435a30bc8bdeb
 +    public static final Item RED_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.RED_TERRACOTTA_STAIRS, "Red");
 +    public static final Item WHITE_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.WHITE_TERRACOTTA_STAIRS, "White");
 +    public static final Item YELLOW_TERRACOTTA_STAIRS = registerTerracottaStairs(SuCraftBlocks.YELLOW_TERRACOTTA_STAIRS, "Yellow Terracotta");
++    public static final Item POLISHED_CALCITE_STAIRS = registerPolishedStairs(SuCraftBlocks.POLISHED_CALCITE_STAIRS, "Calcite");
++    public static final Item POLISHED_DRIPSTONE_STAIRS = registerPolishedStairs(SuCraftBlocks.POLISHED_DRIPSTONE_STAIRS, "Dripstone");
++    public static final Item POLISHED_TUFF_STAIRS = registerPolishedStairs(SuCraftBlocks.POLISHED_TUFF_STAIRS, "Tuff");
++    public static final Item ANDESITE_BRICK_STAIRS = registerBrickStairs(SuCraftBlocks.ANDESITE_BRICK_STAIRS, "Andesite");
++    public static final Item CALCITE_BRICK_STAIRS = registerBrickStairs(SuCraftBlocks.CALCITE_BRICK_STAIRS, "Calcite");
++    public static final Item DIORITE_BRICK_STAIRS = registerBrickStairs(SuCraftBlocks.DIORITE_BRICK_STAIRS, "Diorite");
++    public static final Item DRIPSTONE_BRICK_STAIRS = registerBrickStairs(SuCraftBlocks.DRIPSTONE_BRICK_STAIRS, "Dripstone");
++    public static final Item GRANITE_BRICK_STAIRS = registerBrickStairs(SuCraftBlocks.GRANITE_BRICK_STAIRS, "Granite");
++    public static final Item TUFF_BRICK_STAIRS = registerBrickStairs(SuCraftBlocks.TUFF_BRICK_STAIRS, "Tuff");
++    public static final Item QUARTZ_BRICK_STAIRS = registerBrickStairs(SuCraftBlocks.QUARTZ_BRICK_STAIRS, "Quartz");
++    public static final Item SANDSTONE_BRICK_STAIRS = registerSandstoneBrickStairs(SuCraftBlocks.SANDSTONE_BRICK_STAIRS, null);
++    public static final Item RED_SANDSTONE_BRICK_STAIRS = registerSandstoneBrickStairs(SuCraftBlocks.RED_SANDSTONE_BRICK_STAIRS, "Red");
++    public static final Item SOUL_SANDSTONE_BRICK_STAIRS = registerSandstoneBrickStairs(SuCraftBlocks.SOUL_SANDSTONE_BRICK_STAIRS, "Soul");
++    public static final Item RAW_COPPER_STAIRS = registerRawMetalStairs(SuCraftBlocks.RAW_COPPER_STAIRS, "Copper");
++    public static final Item RAW_GOLD_STAIRS = registerRawMetalStairs(SuCraftBlocks.RAW_GOLD_STAIRS, "Gold");
++    public static final Item RAW_IRON_STAIRS = registerRawMetalStairs(SuCraftBlocks.RAW_IRON_STAIRS, "Iron");
++    public static final Item DIRT_STAIRS = registerStairs(SuCraftBlocks.DIRT_STAIRS, "Dirt");
++    public static final Item COARSE_DIRT_STAIRS = registerStairs(SuCraftBlocks.COARSE_DIRT_STAIRS, "Coarse Dirt");
++    public static final Item SAND_STAIRS = registerStairs(SuCraftBlocks.SAND_STAIRS, "Sand");
++    public static final Item RED_SAND_STAIRS = registerStairs(SuCraftBlocks.RED_SAND_STAIRS, "Red Sand");
++    public static final Item CLAY_STAIRS = registerStairs(SuCraftBlocks.CLAY_STAIRS, "Clay");
++    public static final Item MUD_STAIRS = registerStairs(SuCraftBlocks.MUD_STAIRS, "Mud");
++    public static final Item PACKED_MUD_STAIRS = registerStairs(SuCraftBlocks.PACKED_MUD_STAIRS, "Packed Mud");
++    public static final Item CALCITE_STAIRS = registerStairs(SuCraftBlocks.CALCITE_STAIRS, "Calcite");
++    public static final Item TUFF_STAIRS = registerStairs(SuCraftBlocks.TUFF_STAIRS, "Tuff");
++    public static final Item GRAVEL_STAIRS = registerStairs(SuCraftBlocks.GRAVEL_STAIRS, "Gravel");
++    public static final Item NETHERRACK_STAIRS = registerStairs(SuCraftBlocks.NETHERRACK_STAIRS, "Netherrack");
++    public static final Item SOUL_SOIL_STAIRS = registerStairs(SuCraftBlocks.SOUL_SOIL_STAIRS, "Soul Soil");
++    public static final Item SMOOTH_BASALT_STAIRS = registerStairs(SuCraftBlocks.SMOOTH_BASALT_STAIRS, "Smooth Basalt");
++    public static final Item SCULK_STAIRS = registerStairs(SuCraftBlocks.SCULK_STAIRS, "Sculk");
++    public static final Item OBSIDIAN_STAIRS = registerStairs(SuCraftBlocks.OBSIDIAN_STAIRS, "Obsidian");
++    public static final Item CRYING_OBSIDIAN_STAIRS = registerStairs(SuCraftBlocks.CRYING_OBSIDIAN_STAIRS, "Crying Obsidian");
++    public static final Item GILDED_BLACKSTONE_STAIRS = registerStairs(SuCraftBlocks.GILDED_BLACKSTONE_STAIRS, "Gilded Blackstone");
++    public static final Item SOUL_SANDSTONE_STAIRS = registerStairs(SuCraftBlocks.SOUL_SANDSTONE_STAIRS, "Soul Sandstone");
++    public static final Item SMOOTH_SOUL_SANDSTONE_STAIRS = registerStairs(SuCraftBlocks.SMOOTH_SOUL_SANDSTONE_STAIRS, "Smooth Soul Sandstone");
++    public static final Item CUT_SOUL_SANDSTONE_STAIRS = registerStairs(SuCraftBlocks.CUT_SOUL_SANDSTONE_STAIRS, "Cut Soul Sandstone");
++    public static final Item ANCIENT_DEBRIS_STAIRS = registerStairs(SuCraftBlocks.ANCIENT_DEBRIS_STAIRS, "Ancient Debris");
++    public static final Item QUARTZ_SPIRAL_MEANDER_STAIRS = registerStairs(SuCraftBlocks.QUARTZ_SPIRAL_MEANDER_STAIRS, "Quartz Meander");
++    public static final Item CHISELED_QUARTZ_STAIRS = registerStairs(SuCraftBlocks.CHISELED_QUARTZ_STAIRS, "Chiseled Quartz");
++    public static final Item WITHER_BONE_STAIRS = registerStairs(SuCraftBlocks.WITHER_BONE_STAIRS, "Wither Bone");
++    public static final Item PAPER_STAIRS = registerStairs(SuCraftBlocks.PAPER_STAIRS, "Paper");
++    public static final Item FLINT_PILLAR_STAIRS = registerStairs(SuCraftBlocks.FLINT_PILLAR_STAIRS, "Flint Pillar");
++    public static final Item OAK_BOOKSHELF_STAIRS = registerBookshelfStairs(SuCraftBlocks.OAK_BOOKSHELF_STAIRS, "Oak");
++    public static final Item SPRUCE_BOOKSHELF_STAIRS = registerBookshelfStairs(SuCraftBlocks.SPRUCE_BOOKSHELF_STAIRS, "Spruce");
++    public static final Item BIRCH_BOOKSHELF_STAIRS = registerBookshelfStairs(SuCraftBlocks.BIRCH_BOOKSHELF_STAIRS, "Birch");
++    public static final Item JUNGLE_BOOKSHELF_STAIRS = registerBookshelfStairs(SuCraftBlocks.JUNGLE_BOOKSHELF_STAIRS, "Jungle");
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -11745,12 +11928,24 @@ index 0000000000000000000000000000000000000000..5e9beba4492227ae725435a30bc8bdeb
 +        return registerSlab(block, typeDisplayName + " Bookshelf");
 +    }
 +
++    private static @NotNull Item registerBookshelfStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Bookshelf");
++    }
++
 +    private static @NotNull Item registerPolishedSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, "Polished " + typeDisplayName);
 +    }
 +
++    private static @NotNull Item registerPolishedStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, "Polished " + typeDisplayName);
++    }
++
 +    private static @NotNull Item registerBrickSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, typeDisplayName + " Brick");
++    }
++
++    private static @NotNull Item registerBrickStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Brick");
 +    }
 +
 +    private static @NotNull Item registerPillarSlab(@NotNull Block block, @NotNull String typeDisplayName) {
@@ -11761,8 +11956,16 @@ index 0000000000000000000000000000000000000000..5e9beba4492227ae725435a30bc8bdeb
 +        return registerBrickSlab(block, (typeDisplayName == null ? "" : typeDisplayName + " ") + "Sandstone");
 +    }
 +
++    private static @NotNull Item registerSandstoneBrickStairs(@NotNull Block block, @Nullable String typeDisplayName) {
++        return registerBrickStairs(block, (typeDisplayName == null ? "" : typeDisplayName + " ") + "Sandstone");
++    }
++
 +    private static @NotNull Item registerRawMetalSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, "Raw " + typeDisplayName);
++    }
++
++    private static @NotNull Item registerRawMetalStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, "Raw " + typeDisplayName);
 +    }
 +
 +    private static @NotNull Item registerLogSlab(@NotNull Block block, @NotNull String typeDisplayName) {
