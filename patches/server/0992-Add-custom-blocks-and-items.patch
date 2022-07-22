@@ -4873,10 +4873,10 @@ index 0000000000000000000000000000000000000000..ea2f292f7d26674b1bb834211af7a399
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/FallingSlabBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/FallingSlabBlock.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..691a2393f0b2127b80224269ddc2dc03e8c47edc
+index 0000000000000000000000000000000000000000..745b96e61f87fc7116cf2cb4dd85210bd6a548a3
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/FallingSlabBlock.java
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,76 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -4895,6 +4895,8 @@ index 0000000000000000000000000000000000000000..691a2393f0b2127b80224269ddc2dc03
 +import net.minecraft.world.level.block.SlabBlock;
 +import net.minecraft.world.level.block.StairBlock;
 +import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.SlabType;
 +import net.minecraft.world.level.material.Material;
 +
 +/**
@@ -4919,7 +4921,7 @@ index 0000000000000000000000000000000000000000..691a2393f0b2127b80224269ddc2dc03
 +
 +    @Override
 +    public void tick(BlockState state, ServerLevel world, BlockPos pos, RandomSource random) {
-+        if (isFree(world.getBlockState(pos.below())) && pos.getY() >= world.getMinBuildHeight()) {
++        if ((isFree(world.getBlockState(pos.below())) || state.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.TOP) && pos.getY() >= world.getMinBuildHeight()) {
 +            FallingBlockEntity fallingBlockEntity = FallingBlockEntity.fall(world, pos, state);
 +            this.falling(fallingBlockEntity);
 +        }
