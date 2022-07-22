@@ -5299,7 +5299,7 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a106a71a64722a526e95addd641690bebe152a22
+index 0000000000000000000000000000000000000000..8a923021ebd10a415873704580bdef654331159e
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 @@ -0,0 +1,1398 @@
@@ -5553,8 +5553,8 @@ index 0000000000000000000000000000000000000000..a106a71a64722a526e95addd641690be
 +    public static final Block WHITE_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.WHITE_TERRACOTTA, "white", Blocks.SMOOTH_QUARTZ_SLAB);
 +    public static final Block YELLOW_TERRACOTTA_SLAB = registerFakeTerracottaSlab(Blocks.YELLOW_TERRACOTTA, "yellow", Blocks.OAK_SLAB);
 +    public static final Block COARSE_DIRT_SLAB = registerFakeSlab(Blocks.COARSE_DIRT, "coarse_dirt", Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
-+    public static final Block SAND_SLAB = registerFakeSlab(Blocks.SAND, "sand", Blocks.SANDSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
-+    public static final Block RED_SAND_SLAB = registerFakeSlab(Blocks.RED_SAND, "red_sand", Blocks.RED_SANDSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block SAND_SLAB = registerFakeFallingSlab(Blocks.SAND, null, "sand", "sand", Blocks.SANDSTONE_SLAB, null).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block RED_SAND_SLAB = registerFakeFallingSlab(Blocks.RED_SAND, null, "red_sand", "red_sand", Blocks.RED_SANDSTONE_SLAB, null).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block CLAY_SLAB = registerFakeSlab(Blocks.CLAY, "clay", Blocks.ANDESITE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block MUD_SLAB = registerFakeSlab(Blocks.MUD, "mud", Blocks.POLISHED_BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block PACKED_MUD_SLAB = registerFakeSlab(Blocks.PACKED_MUD, "packed_mud", Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
@@ -5603,7 +5603,7 @@ index 0000000000000000000000000000000000000000..a106a71a64722a526e95addd641690be
 +
 +    public static final Block SMOOTH_SOUL_SANDSTONE_SLAB = registerFakeSlab(SMOOTH_SOUL_SANDSTONE, null, "smooth_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("smooth_soul_sandstone"), NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, null, Blocks.DARK_OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
 +    public static final Block CUT_SOUL_SANDSTONE_SLAB = registerFakeSlab(CUT_SOUL_SANDSTONE, null, "cut_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("cut_soul_sandstone"), null, NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, Blocks.DARK_OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
-+    public static final Block GRAVEL_SLAB = registerFakeSlab(Blocks.GRAVEL, "gravel", Blocks.ANDESITE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block GRAVEL_SLAB = registerFakeFallingSlab(Blocks.GRAVEL, null, "gravel", "gravel", Blocks.ANDESITE_SLAB, null).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block NETHERRACK_SLAB = registerFakeSlab(Blocks.NETHERRACK, "netherrack", Blocks.RED_NETHER_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
 +    public static final Block SOUL_SOIL_SLAB = registerFakeSlab(Blocks.SOUL_SOIL, "soul_soil", Blocks.DARK_OAK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel().soulSpeed().soulFireBase();
 +    public static final Block RAW_COPPER_SLAB = registerFakeRawMetalSlab(Blocks.RAW_COPPER_BLOCK, "copper", Blocks.CUT_COPPER_SLAB);
@@ -5906,14 +5906,14 @@ index 0000000000000000000000000000000000000000..a106a71a64722a526e95addd641690be
 +    public static final Block RAW_IRON_STAIRS = registerFakeRawMetalStairs(Blocks.RAW_IRON_BLOCK, "iron", Blocks.JUNGLE_STAIRS);
 +    public static final Block DIRT_STAIRS = registerFakeStairs(Blocks.DIRT, "dirt", Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block COARSE_DIRT_STAIRS = registerFakeStairs(Blocks.COARSE_DIRT, "coarse_dirt", Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
-+    public static final Block SAND_STAIRS = registerFakeStairs(Blocks.SAND, "sand", Blocks.SANDSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
-+    public static final Block RED_SAND_STAIRS = registerFakeStairs(Blocks.RED_SAND, "red_sand", Blocks.RED_SANDSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block SAND_STAIRS = registerFakeFallingStairs(Blocks.SAND, null, "sand", "sand", Blocks.SANDSTONE_STAIRS, null).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block RED_SAND_STAIRS = registerFakeFallingStairs(Blocks.RED_SAND, null, "red_sand", "red_sand", Blocks.RED_SANDSTONE_STAIRS, null).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block CLAY_STAIRS = registerFakeStairs(Blocks.CLAY, "clay", Blocks.ANDESITE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block MUD_STAIRS = registerFakeStairs(Blocks.MUD, "mud", Blocks.POLISHED_BLACKSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block PACKED_MUD_STAIRS = registerFakeStairs(Blocks.PACKED_MUD, "packed_mud", Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
 +    public static final Block CALCITE_STAIRS = registerFakeStairs(Blocks.CALCITE, "calcite", Blocks.SMOOTH_QUARTZ_STAIRS).mineableWithPickaxe();
 +    public static final Block TUFF_STAIRS = registerFakeStairs(Blocks.TUFF, "tuff", Blocks.COBBLESTONE_STAIRS).mineableWithPickaxe();
-+    public static final Block GRAVEL_STAIRS = registerFakeStairs(Blocks.GRAVEL, "gravel", Blocks.ANDESITE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block GRAVEL_STAIRS = registerFakeFallingStairs(Blocks.GRAVEL, null, "gravel", "gravel", Blocks.ANDESITE_STAIRS, null).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block NETHERRACK_STAIRS = registerFakeStairs(Blocks.NETHERRACK, "netherrack", Blocks.RED_NETHER_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
 +    public static final Block SOUL_SOIL_STAIRS = registerFakeStairs(Blocks.SOUL_SOIL, "soul_soil", Blocks.DARK_OAK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel().soulSpeed().soulFireBase();
 +    public static final Block SMOOTH_BASALT_STAIRS = registerFakeStairs(Blocks.SMOOTH_BASALT, "smooth_basalt", Blocks.COBBLED_DEEPSLATE_STAIRS);
