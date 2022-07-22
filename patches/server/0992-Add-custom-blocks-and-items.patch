@@ -2917,6 +2917,38 @@ index 2fb5f912de5625c611dc19bf6fa12f5e04d3ddfb..00df8726cfde6c8cf0bfcaafbb5d7ba1
      }
  
      @Override
+diff --git a/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java b/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
+index ef07967b64180c54338b8fb2ba1780adec87f333..ad786ae74d578d93b3b4b60d0926a95c4e8dabfb 100644
+--- a/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
++++ b/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
+@@ -40,6 +40,7 @@ import net.minecraft.world.level.block.FallingBlock;
+ import net.minecraft.world.level.block.entity.BlockEntity;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.SlabType;
+ import net.minecraft.world.level.material.Fluids;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.HitResult;
+@@ -89,7 +90,18 @@ public class FallingBlockEntity extends Entity {
+ 
+     public static FallingBlockEntity fall(Level world, BlockPos blockposition, BlockState iblockdata, org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason spawnReason) {
+         // CraftBukkit end
+-        FallingBlockEntity entityfallingblock = new FallingBlockEntity(world, (double) blockposition.getX() + 0.5D, (double) blockposition.getY(), (double) blockposition.getZ() + 0.5D, iblockdata.hasProperty(BlockStateProperties.WATERLOGGED) ? (BlockState) iblockdata.setValue(BlockStateProperties.WATERLOGGED, false) : iblockdata);
++        // Martijn start - custom blocks and items
++        BlockState fallingBlockState = iblockdata;
++        double fallingBlockEntityY = (double) blockposition.getY();
++        if (iblockdata.hasProperty(BlockStateProperties.WATERLOGGED)) {
++            fallingBlockState = (BlockState) iblockdata.setValue(BlockStateProperties.WATERLOGGED, false);
++        }
++        if (iblockdata.hasProperty(BlockStateProperties.SLAB_TYPE) && iblockdata.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.TOP) {
++            fallingBlockState = (BlockState) iblockdata.setValue(BlockStateProperties.SLAB_TYPE, SlabType.BOTTOM);
++            fallingBlockEntityY += 0.5;
++        }
++        FallingBlockEntity entityfallingblock = new FallingBlockEntity(world, (double) blockposition.getX() + 0.5D, fallingBlockEntityY, (double) blockposition.getZ() + 0.5D, fallingBlockState);
++        // Martijn end - custom blocks and items
+         if (CraftEventFactory.callEntityChangeBlockEvent(entityfallingblock, blockposition, iblockdata.getFluidState().createLegacyBlock()).isCancelled()) return entityfallingblock; // CraftBukkit
+ 
+         world.setBlock(blockposition, iblockdata.getFluidState().createLegacyBlock(), 3);
 diff --git a/src/main/java/net/minecraft/world/entity/monster/Silverfish.java b/src/main/java/net/minecraft/world/entity/monster/Silverfish.java
 index 2dcda3b03796655da443e1b3dd68c6f6bca20d21..75f071fbeea888d2f37e3fa9f8801d6faa2e2951 100644
 --- a/src/main/java/net/minecraft/world/entity/monster/Silverfish.java
@@ -3571,7 +3603,7 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4a6e1e7a8915f48edff111c3028fda68ac106cd8 100644
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..985c34cb063de19e3c3b209c1414eef2a9f494bf 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
 @@ -6,10 +6,13 @@ import com.google.common.cache.LoadingCache;
@@ -3651,7 +3683,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4a6e1e7a8915f48edff111c3028fda68
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +157,171 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +157,179 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -3734,6 +3766,10 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4a6e1e7a8915f48edff111c3028fda68
 +        return this.withTag(() -> BlockTags.STONE_BRICKS);
 +    }
 +
++    public @NotNull Block crystalSound() {
++        return this.withTag(() -> BlockTags.CRYSTAL_SOUND_BLOCKS);
++    }
++
 +    public @NotNull Block slab() {
 +        return this.withTag(() -> BlockTags.SLABS);
 +    }
@@ -3752,6 +3788,10 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4a6e1e7a8915f48edff111c3028fda68
 +
 +    public @NotNull Block dirt() {
 +        return this.withTag(() -> BlockTags.DIRT);
++    }
++
++    public @NotNull Block fire() {
++        return this.withTag(() -> BlockTags.FIRE);
 +    }
 +
 +    public @NotNull Block soulSpeed() {
@@ -3823,7 +3863,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4a6e1e7a8915f48edff111c3028fda68
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +834,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +842,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -4831,6 +4871,165 @@ index 0000000000000000000000000000000000000000..ea2f292f7d26674b1bb834211af7a399
 +    }
 +
 +}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/FallingSlabBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/FallingSlabBlock.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..691a2393f0b2127b80224269ddc2dc03e8c47edc
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/FallingSlabBlock.java
+@@ -0,0 +1,74 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.core.particles.BlockParticleOption;
++import net.minecraft.core.particles.ParticleTypes;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.tags.BlockTags;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.entity.item.FallingBlockEntity;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.LevelAccessor;
++import net.minecraft.world.level.block.Fallable;
++import net.minecraft.world.level.block.SlabBlock;
++import net.minecraft.world.level.block.StairBlock;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.material.Material;
++
++/**
++ * Based on {@link net.minecraft.world.level.block.FallingBlock}
++ */
++public class FallingSlabBlock extends SlabBlock implements Fallable {
++
++    public FallingSlabBlock(Properties settings) {
++        super(settings);
++    }
++
++    @Override
++    public void onPlace(BlockState state, Level world, BlockPos pos, BlockState oldState, boolean notify) {
++        world.scheduleTick(pos, this, this.getDelayAfterPlace());
++    }
++
++    @Override
++    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
++        world.scheduleTick(pos, this, this.getDelayAfterPlace());
++        return super.updateShape(state, direction, neighborState, world, pos, neighborPos);
++    }
++
++    @Override
++    public void tick(BlockState state, ServerLevel world, BlockPos pos, RandomSource random) {
++        if (isFree(world.getBlockState(pos.below())) && pos.getY() >= world.getMinBuildHeight()) {
++            FallingBlockEntity fallingBlockEntity = FallingBlockEntity.fall(world, pos, state);
++            this.falling(fallingBlockEntity);
++        }
++    }
++
++    protected void falling(FallingBlockEntity entity) {
++    }
++
++    protected int getDelayAfterPlace() {
++        return 2;
++    }
++
++    public static boolean isFree(BlockState state) {
++        Material material = state.getMaterial();
++        return state.isAir() || state.is(BlockTags.FIRE) || material.isLiquid() || material.isReplaceable();
++    }
++
++    @Override
++    public void animateTick(BlockState state, Level world, BlockPos pos, RandomSource random) {
++        if (random.nextInt(16) == 0) {
++            BlockPos blockPos = pos.below();
++            if (isFree(world.getBlockState(blockPos))) {
++                double d = (double)pos.getX() + random.nextDouble();
++                double e = (double)pos.getY() - 0.05D;
++                double f = (double)pos.getZ() + random.nextDouble();
++                world.addParticle(new BlockParticleOption(ParticleTypes.FALLING_DUST, state), d, e, f, 0.0D, 0.0D, 0.0D);
++            }
++        }
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/FallingStairBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/FallingStairBlock.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b5c3f679c8a3d0abbd6dbccfba6c7437f3674b8a
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/FallingStairBlock.java
+@@ -0,0 +1,73 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.core.particles.BlockParticleOption;
++import net.minecraft.core.particles.ParticleTypes;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.tags.BlockTags;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.entity.item.FallingBlockEntity;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.LevelAccessor;
++import net.minecraft.world.level.block.Fallable;
++import net.minecraft.world.level.block.StairBlock;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.material.Material;
++
++/**
++ * Based on {@link net.minecraft.world.level.block.FallingBlock}
++ */
++public class FallingStairBlock extends StairBlock implements Fallable {
++
++    public FallingStairBlock(BlockState baseBlockState, Properties settings) {
++        super(baseBlockState, settings);
++    }
++
++    @Override
++    public void onPlace(BlockState state, Level world, BlockPos pos, BlockState oldState, boolean notify) {
++        world.scheduleTick(pos, this, this.getDelayAfterPlace());
++    }
++
++    @Override
++    public BlockState updateShape(BlockState state, Direction direction, BlockState neighborState, LevelAccessor world, BlockPos pos, BlockPos neighborPos) {
++        world.scheduleTick(pos, this, this.getDelayAfterPlace());
++        return super.updateShape(state, direction, neighborState, world, pos, neighborPos);
++    }
++
++    @Override
++    public void tick(BlockState state, ServerLevel world, BlockPos pos, RandomSource random) {
++        if (isFree(world.getBlockState(pos.below())) && pos.getY() >= world.getMinBuildHeight()) {
++            FallingBlockEntity fallingBlockEntity = FallingBlockEntity.fall(world, pos, state);
++            this.falling(fallingBlockEntity);
++        }
++    }
++
++    protected void falling(FallingBlockEntity entity) {
++    }
++
++    protected int getDelayAfterPlace() {
++        return 2;
++    }
++
++    public static boolean isFree(BlockState state) {
++        Material material = state.getMaterial();
++        return state.isAir() || state.is(BlockTags.FIRE) || material.isLiquid() || material.isReplaceable();
++    }
++
++    @Override
++    public void animateTick(BlockState state, Level world, BlockPos pos, RandomSource random) {
++        if (random.nextInt(16) == 0) {
++            BlockPos blockPos = pos.below();
++            if (isFree(world.getBlockState(blockPos))) {
++                double d = (double)pos.getX() + random.nextDouble();
++                double e = (double)pos.getY() - 0.05D;
++                double f = (double)pos.getZ() + random.nextDouble();
++                world.addParticle(new BlockParticleOption(ParticleTypes.FALLING_DUST, state), d, e, f, 0.0D, 0.0D, 0.0D);
++            }
++        }
++    }
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..5a2e8c0c52ee2e6109d85445f1e4242fe6a1b851
@@ -5098,10 +5297,10 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..acc0b86754f3e83dfc47639ce3b2e8ac7701203a
+index 0000000000000000000000000000000000000000..a106a71a64722a526e95addd641690bebe152a22
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1358 @@
+@@ -0,0 +1,1398 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -5357,7 +5556,7 @@ index 0000000000000000000000000000000000000000..acc0b86754f3e83dfc47639ce3b2e8ac
 +    public static final Block CLAY_SLAB = registerFakeSlab(Blocks.CLAY, "clay", Blocks.ANDESITE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block MUD_SLAB = registerFakeSlab(Blocks.MUD, "mud", Blocks.POLISHED_BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block PACKED_MUD_SLAB = registerFakeSlab(Blocks.PACKED_MUD, "packed_mud", Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
-+    public static final Block AMETHYST_SLAB = registerFakeSlab(Blocks.AMETHYST_BLOCK, "amethyst", "amethyst_block", Blocks.PURPUR_SLAB).mineableWithPickaxe();
++    public static final Block AMETHYST_SLAB = registerFakeSlab(Blocks.AMETHYST_BLOCK, "amethyst", "amethyst_block", Blocks.PURPUR_SLAB).mineableWithPickaxe().crystalSound();
 +    public static final Block COAL_SLAB = registerFakeSlab(Blocks.COAL_BLOCK, "coal", "coal_block", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block OAK_BOOKSHELF_SLAB = registerFakeBookshelfSlab(Blocks.BOOKSHELF, "oak", Blocks.OAK_SLAB);
 +    public static final Block SPRUCE_BOOKSHELF_SLAB = registerFakeBookshelfSlab(SPRUCE_BOOKSHELF, "spruce", Blocks.SPRUCE_SLAB);
@@ -5599,7 +5798,7 @@ index 0000000000000000000000000000000000000000..acc0b86754f3e83dfc47639ce3b2e8ac
 +    public static final Block SNOWY_STONE_BRICK_STAIRS = registerFakeStairs(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_STAIRS);
 +    public static final Block DIRTY_STONE_BRICK_STAIRS = registerFakeStairs(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_STAIRS);
 +    public static final Block CRACKED_STONE_BRICK_STAIRS = registerFakeStairs(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_STAIRS);
-+    public static final Block AMETHYST_STAIRS = registerFakeStairs(Blocks.AMETHYST_BLOCK, "amethyst", "amethyst_block", Blocks.PURPUR_STAIRS).mineableWithPickaxe();
++    public static final Block AMETHYST_STAIRS = registerFakeStairs(Blocks.AMETHYST_BLOCK, "amethyst", "amethyst_block", Blocks.PURPUR_STAIRS).mineableWithPickaxe().crystalSound();
 +    public static final Block COAL_STAIRS = registerFakeStairs(Blocks.COAL_BLOCK, "coal", "coal_block", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
 +    public static final Block DRIPSTONE_STAIRS = registerFakeStairs(Blocks.DRIPSTONE_BLOCK, "dripstone", "dripstone_block", Blocks.GRANITE_STAIRS).mineableWithPickaxe();
 +    public static final Block DIRT_BRICK_STAIRS = registerFakeStairs(DIRT_BRICKS, "dirt_brick", null, Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
@@ -6369,12 +6568,52 @@ index 0000000000000000000000000000000000000000..acc0b86754f3e83dfc47639ce3b2e8ac
 +        return registerFakeStairs(fullBlock, type + "_concrete", type + "_concrete", host).mineableWithPickaxe();
 +    }
 +
++    /**
++     * @see #registerFakeSlab
++     */
++    private static @NotNull Block registerFakeFallingSlab(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @Nullable String textureBlock, @NotNull Block host, @Nullable Block fallback) {
++        if (fallback == null) {
++            fallback = host;
++        }
++        return register(
++            type + "_slab",
++            new SingleMultiStateRealBlockReplacementRuleBuilder()
++                .rendersAsEntity()
++                .withAnalogousHosts(host)
++                .withAnalogousFallbacks(fallback)
++                .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
++                .withRealItemRuleFromHostBlock(),
++            new FallingSlabBlock(properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties).withAddedTagsLike(fullBlock).slab(),
++            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
++        ).withCustomSlabStonecutterRecipe(fullBlock);
++    }
++
++    /**
++     * @see #registerFakeStairs
++     */
++    private static @NotNull Block registerFakeFallingStairs(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @Nullable String textureBlock, @NotNull Block host, @Nullable Block fallback) {
++        if (fallback == null) {
++            fallback = host;
++        }
++        return register(
++            type + "_stairs",
++            new SingleMultiStateRealBlockReplacementRuleBuilder()
++                .rendersAsEntity()
++                .withAnalogousHosts(host)
++                .withAnalogousFallbacks(fallback)
++                .withDefaultModelCreationsForStairsReplacedByStairs(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey())
++                .withRealItemRuleFromHostBlock(),
++            new FallingStairBlock(fullBlock.defaultBlockState(), properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties).withAddedTagsLike(fullBlock).stairs(),
++            SuCraftBlockLoot::dropSelf
++        ).withCustomOneToOneStonecutterRecipe(fullBlock);
++    }
++
 +    private static @NotNull Block registerFakeConcretePowderSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeSlab(fullBlock, type + "_concrete_powder", type + "_concrete_powder", host).breakBeforeClientKnowsToBreak().mineableWithShovel();
++        return registerFakeFallingSlab(fullBlock, null, type + "_concrete_powder", type + "_concrete_powder", host, null).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    }
 +
 +    private static @NotNull Block registerFakeConcretePowderStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStairs(fullBlock, type + "_concrete_powder", type + "_concrete_powder", host).breakBeforeClientKnowsToBreak().mineableWithShovel();
++        return registerFakeFallingStairs(fullBlock, null, type + "_concrete_powder", type + "_concrete_powder", host, null).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    }
 +
 +    private static @NotNull Block registerFakeTerracottaSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -6447,7 +6686,7 @@ index 0000000000000000000000000000000000000000..acc0b86754f3e83dfc47639ce3b2e8ac
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .withFireHost()
 +                .withFallback(fallback),
-+            new SoulFireBlock(BlockBehaviour.Properties.of(Material.FIRE, materialColor).noCollission().instabreak().sound(SoundType.WOOL).lightLevel(state -> 10)),
++            new SoulFireBlock(BlockBehaviour.Properties.of(Material.FIRE, materialColor).noCollission().instabreak().sound(SoundType.WOOL).lightLevel(state -> 10)).fire(),
 +            () -> null
 +        );
 +        block.customFireType = fireType;
