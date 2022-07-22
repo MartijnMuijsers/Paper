@@ -5098,10 +5098,10 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..248a14b5ad9e6b97280c4d467620b4df08a2f339
+index 0000000000000000000000000000000000000000..acc0b86754f3e83dfc47639ce3b2e8ac7701203a
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1259 @@
+@@ -0,0 +1,1358 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -5733,6 +5733,48 @@ index 0000000000000000000000000000000000000000..248a14b5ad9e6b97280c4d467620b4df
 +    public static final Block SPRUCE_BOOKSHELF_STAIRS = registerFakeBookshelfStairs(SPRUCE_BOOKSHELF, "spruce", Blocks.SPRUCE_STAIRS);
 +    public static final Block BIRCH_BOOKSHELF_STAIRS = registerFakeBookshelfStairs(BIRCH_BOOKSHELF, "birch", Blocks.BIRCH_STAIRS);
 +    public static final Block JUNGLE_BOOKSHELF_STAIRS = registerFakeBookshelfStairs(JUNGLE_BOOKSHELF, "jungle", Blocks.JUNGLE_STAIRS);
++    public static final Block OAK_LOG_STAIRS = registerFakeLogStairs(Blocks.OAK_LOG, "oak", Blocks.OAK_STAIRS);
++    public static final Block SPRUCE_LOG_STAIRS = registerFakeLogStairs(Blocks.SPRUCE_LOG, "spruce", Blocks.SPRUCE_STAIRS);
++    public static final Block BIRCH_LOG_STAIRS = registerFakeLogStairs(Blocks.BIRCH_LOG, "birch", Blocks.BIRCH_STAIRS);
++    public static final Block JUNGLE_LOG_STAIRS = registerFakeLogStairs(Blocks.JUNGLE_LOG, "jungle", Blocks.JUNGLE_STAIRS);
++    public static final Block ACACIA_LOG_STAIRS = registerFakeLogStairs(Blocks.ACACIA_LOG, "acacia", Blocks.ACACIA_STAIRS);
++    public static final Block DARK_OAK_LOG_STAIRS = registerFakeLogStairs(Blocks.DARK_OAK_LOG, "dark_oak", Blocks.DARK_OAK_STAIRS);
++    public static final Block WARPED_STEM_STAIRS = registerFakeStemStairs(Blocks.WARPED_STEM, "warped", Blocks.WARPED_STAIRS);
++    public static final Block CRIMSON_STEM_STAIRS = registerFakeStemStairs(Blocks.CRIMSON_STEM, "crimson", Blocks.CRIMSON_STAIRS);
++    public static final Block MANGROVE_LOG_STAIRS = registerFakeLogStairs(Blocks.MANGROVE_LOG, "mangrove", Blocks.MANGROVE_STAIRS);
++    public static final Block STRIPPED_OAK_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_OAK_LOG, "oak", Blocks.OAK_STAIRS);
++    public static final Block STRIPPED_SPRUCE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_SPRUCE_LOG, "spruce", Blocks.SPRUCE_STAIRS);
++    public static final Block STRIPPED_BIRCH_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_BIRCH_LOG, "birch", Blocks.BIRCH_STAIRS);
++    public static final Block STRIPPED_JUNGLE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_JUNGLE_LOG, "jungle", Blocks.JUNGLE_STAIRS);
++    public static final Block STRIPPED_ACACIA_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_ACACIA_LOG, "acacia", Blocks.ACACIA_STAIRS);
++    public static final Block STRIPPED_DARK_OAK_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_DARK_OAK_LOG, "dark_oak", Blocks.DARK_OAK_STAIRS);
++    public static final Block STRIPPED_WARPED_STEM_STAIRS = registerFakeStrippedStemStairs(Blocks.STRIPPED_WARPED_STEM, "warped", Blocks.WARPED_STAIRS);
++    public static final Block STRIPPED_CRIMSON_STEM_STAIRS = registerFakeStrippedStemStairs(Blocks.STRIPPED_CRIMSON_STEM, "crimson", Blocks.CRIMSON_STAIRS);
++    public static final Block STRIPPED_MANGROVE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_MANGROVE_LOG, "mangrove", Blocks.MANGROVE_STAIRS);
++    public static final Block OAK_WOOD_STAIRS = registerFakeWoodStairs(Blocks.OAK_WOOD, "oak", Blocks.OAK_STAIRS);
++    public static final Block SPRUCE_WOOD_STAIRS = registerFakeWoodStairs(Blocks.SPRUCE_WOOD, "spruce", Blocks.SPRUCE_STAIRS);
++    public static final Block BIRCH_WOOD_STAIRS = registerFakeWoodStairs(Blocks.BIRCH_WOOD, "birch", Blocks.BIRCH_STAIRS);
++    public static final Block JUNGLE_WOOD_STAIRS = registerFakeWoodStairs(Blocks.JUNGLE_WOOD, "jungle", Blocks.JUNGLE_STAIRS);
++    public static final Block ACACIA_WOOD_STAIRS = registerFakeWoodStairs(Blocks.ACACIA_WOOD, "acacia", Blocks.ACACIA_STAIRS);
++    public static final Block DARK_OAK_WOOD_STAIRS = registerFakeWoodStairs(Blocks.DARK_OAK_WOOD, "dark_oak", Blocks.DARK_OAK_STAIRS);
++    public static final Block WARPED_HYPHAE_STAIRS = registerFakeHyphaeStairs(Blocks.WARPED_HYPHAE, "warped", Blocks.WARPED_STAIRS);
++    public static final Block CRIMSON_HYPHAE_STAIRS = registerFakeHyphaeStairs(Blocks.CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_STAIRS);
++    public static final Block MANGROVE_WOOD_STAIRS = registerFakeWoodStairs(Blocks.MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_STAIRS);
++    public static final Block STRIPPED_OAK_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_OAK_WOOD, "oak", Blocks.OAK_STAIRS);
++    public static final Block STRIPPED_SPRUCE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_SPRUCE_WOOD, "spruce", Blocks.SPRUCE_STAIRS);
++    public static final Block STRIPPED_BIRCH_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_BIRCH_WOOD, "birch", Blocks.BIRCH_STAIRS);
++    public static final Block STRIPPED_JUNGLE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_JUNGLE_WOOD, "jungle", Blocks.JUNGLE_STAIRS);
++    public static final Block STRIPPED_ACACIA_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_ACACIA_WOOD, "acacia", Blocks.ACACIA_STAIRS);
++    public static final Block STRIPPED_DARK_OAK_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_DARK_OAK_WOOD, "dark_oak", Blocks.DARK_OAK_STAIRS);
++    public static final Block STRIPPED_WARPED_HYPHAE_STAIRS = registerFakeStrippedHyphaeStairs(Blocks.STRIPPED_WARPED_HYPHAE, "warped", Blocks.WARPED_STAIRS);
++    public static final Block STRIPPED_CRIMSON_HYPHAE_STAIRS = registerFakeStrippedHyphaeStairs(Blocks.STRIPPED_CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_STAIRS);
++    public static final Block STRIPPED_MANGROVE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_STAIRS);
++    public static final Block ANDESITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(ANDESITE_PILLAR, "andesite", Blocks.POLISHED_ANDESITE_STAIRS);
++    public static final Block CALCITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(CALCITE_PILLAR, "calcite", Blocks.QUARTZ_STAIRS);
++    public static final Block DIORITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(DIORITE_PILLAR, "diorite", Blocks.POLISHED_DIORITE_STAIRS);
++    public static final Block DRIPSTONE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(DRIPSTONE_PILLAR, "dripstone", Blocks.POLISHED_GRANITE_STAIRS);
++    public static final Block GRANITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(GRANITE_PILLAR, "granite", Blocks.POLISHED_GRANITE_STAIRS);
++    public static final Block TUFF_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(TUFF_PILLAR, "tuff", Blocks.COBBLESTONE_STAIRS);
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -6124,32 +6166,64 @@ index 0000000000000000000000000000000000000000..248a14b5ad9e6b97280c4d467620b4df
 +        return registerFakeSlabFromYPillarCustomBlock(fullBlock, null, type + "_pillar", host).mineableWithPickaxe();
 +    }
 +
++    private static @NotNull Block registerFakeCustomStonePillarStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromYPillarCustomBlock(fullBlock, null, type + "_pillar", host).mineableWithPickaxe();
++    }
++
 +    private static @NotNull Block registerFakeVanillaStonePillarSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlabFromYPillarVanillaBlock(fullBlock, null, type + "_pillar", host).mineableWithPickaxe();
++    }
++
++    private static @NotNull Block registerFakeVanillaStonePillarStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromYPillarVanillaBlock(fullBlock, null, type + "_pillar", host).mineableWithPickaxe();
 +    }
 +
 +    private static @NotNull Block registerFakeLogOrStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeSlabFromYPillarVanillaBlock(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, host).mineableWithAxe();
 +    }
 +
++    private static @NotNull Block registerFakeLogOrStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStairsFromYPillarVanillaBlock(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, host).mineableWithAxe();
++    }
++
 +    private static @NotNull Block registerFakeLogSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeLogOrStemSlab(fullBlock, type + "_log", host);
++    }
++
++    private static @NotNull Block registerFakeLogStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeLogOrStemStairs(fullBlock, type + "_log", host);
 +    }
 +
 +    private static @NotNull Block registerFakeStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeLogOrStemSlab(fullBlock, type + "_stem", host);
 +    }
 +
++    private static @NotNull Block registerFakeStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeLogOrStemStairs(fullBlock, type + "_stem", host);
++    }
++
 +    private static @NotNull Block registerFakeStrippedLogOrStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeLogOrStemSlab(fullBlock, "stripped_" + type, host);
++    }
++
++    private static @NotNull Block registerFakeStrippedLogOrStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeLogOrStemStairs(fullBlock, "stripped_" + type, host);
 +    }
 +
 +    private static @NotNull Block registerFakeStrippedLogSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeStrippedLogOrStemSlab(fullBlock, type + "_log", host);
 +    }
 +
++    private static @NotNull Block registerFakeStrippedLogStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStrippedLogOrStemStairs(fullBlock, type + "_log", host);
++    }
++
 +    private static @NotNull Block registerFakeStrippedStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeStrippedLogOrStemSlab(fullBlock, type + "_stem", host);
++    }
++
++    private static @NotNull Block registerFakeStrippedStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStrippedLogOrStemStairs(fullBlock, type + "_stem", host);
 +    }
 +
 +    private static @NotNull Block registerFakeWoodOrHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
@@ -6158,24 +6232,49 @@ index 0000000000000000000000000000000000000000..248a14b5ad9e6b97280c4d467620b4df
 +        return registerFakeSlab(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, doubleSlabKey, textureKey, null, null, null, null, host, null).mineableWithAxe();
 +    }
 +
++    private static @NotNull Block registerFakeWoodOrHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
++        NamespacedKeyWithoutIntention textureKey = NamespacedKeyWithoutIntention.minecraft(textureType);
++        return registerFakeStairs(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, textureKey, null, null, host, null).mineableWithAxe();
++    }
++
 +    private static @NotNull Block registerFakeWoodSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeWoodOrHyphaeSlab(fullBlock, type + "_wood", type + "_log", host);
++    }
++
++    private static @NotNull Block registerFakeWoodStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeWoodOrHyphaeStairs(fullBlock, type + "_wood", type + "_log", host);
 +    }
 +
 +    private static @NotNull Block registerFakeHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeWoodOrHyphaeSlab(fullBlock, type + "_hyphae", type + "_stem", host);
 +    }
 +
++    private static @NotNull Block registerFakeHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeWoodOrHyphaeStairs(fullBlock, type + "_hyphae", type + "_stem", host);
++    }
++
 +    private static @NotNull Block registerFakeStrippedWoodOrHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
 +        return registerFakeWoodOrHyphaeSlab(fullBlock, "stripped_" + type, "stripped_" + textureType, host);
++    }
++
++    private static @NotNull Block registerFakeStrippedWoodOrHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
++        return registerFakeWoodOrHyphaeStairs(fullBlock, "stripped_" + type, "stripped_" + textureType, host);
 +    }
 +
 +    private static @NotNull Block registerFakeStrippedWoodSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeStrippedWoodOrHyphaeSlab(fullBlock, type + "_wood", type + "_log", host);
 +    }
 +
++    private static @NotNull Block registerFakeStrippedWoodStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStrippedWoodOrHyphaeStairs(fullBlock, type + "_wood", type + "_log", host);
++    }
++
 +    private static @NotNull Block registerFakeStrippedHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        return registerFakeStrippedWoodOrHyphaeSlab(fullBlock, type + "_hyphae", type + "_stem", host);
++    }
++
++    private static @NotNull Block registerFakeStrippedHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
++        return registerFakeStrippedWoodOrHyphaeStairs(fullBlock, type + "_hyphae", type + "_stem", host);
 +    }
 +
 +    /**
@@ -11316,10 +11415,10 @@ index 0000000000000000000000000000000000000000..ce9744a601bb0835f65e02099d67ebec
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1e812c4cb0d36f8af048ad18b6a8560070c60a3c
+index 0000000000000000000000000000000000000000..60551d3c04182e3e3f080cb064ebcfc14569e189
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,716 @@
+@@ -0,0 +1,794 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -11787,6 +11886,48 @@ index 0000000000000000000000000000000000000000..1e812c4cb0d36f8af048ad18b6a85600
 +    public static final Item SPRUCE_BOOKSHELF_STAIRS = registerBookshelfStairs(SuCraftBlocks.SPRUCE_BOOKSHELF_STAIRS, "Spruce");
 +    public static final Item BIRCH_BOOKSHELF_STAIRS = registerBookshelfStairs(SuCraftBlocks.BIRCH_BOOKSHELF_STAIRS, "Birch");
 +    public static final Item JUNGLE_BOOKSHELF_STAIRS = registerBookshelfStairs(SuCraftBlocks.JUNGLE_BOOKSHELF_STAIRS, "Jungle");
++    public static final Item OAK_LOG_STAIRS = registerLogStairs(SuCraftBlocks.OAK_LOG_STAIRS, "Oak");
++    public static final Item SPRUCE_LOG_STAIRS = registerLogStairs(SuCraftBlocks.SPRUCE_LOG_STAIRS, "Spruce");
++    public static final Item BIRCH_LOG_STAIRS = registerLogStairs(SuCraftBlocks.BIRCH_LOG_STAIRS, "Birch");
++    public static final Item JUNGLE_LOG_STAIRS = registerLogStairs(SuCraftBlocks.JUNGLE_LOG_STAIRS, "Jungle");
++    public static final Item ACACIA_LOG_STAIRS = registerLogStairs(SuCraftBlocks.ACACIA_LOG_STAIRS, "Acacia");
++    public static final Item DARK_OAK_LOG_STAIRS = registerLogStairs(SuCraftBlocks.DARK_OAK_LOG_STAIRS, "Dark Oak");
++    public static final Item WARPED_STEM_STAIRS = registerStemStairs(SuCraftBlocks.WARPED_STEM_STAIRS, "Warped");
++    public static final Item CRIMSON_STEM_STAIRS = registerStemStairs(SuCraftBlocks.CRIMSON_STEM_STAIRS, "Crimson");
++    public static final Item MANGROVE_LOG_STAIRS = registerLogStairs(SuCraftBlocks.MANGROVE_LOG_STAIRS, "Mangrove");
++    public static final Item STRIPPED_OAK_LOG_STAIRS = registerStrippedLogStairs(SuCraftBlocks.STRIPPED_OAK_LOG_STAIRS, "Oak");
++    public static final Item STRIPPED_SPRUCE_LOG_STAIRS = registerStrippedLogStairs(SuCraftBlocks.STRIPPED_SPRUCE_LOG_STAIRS, "Spruce");
++    public static final Item STRIPPED_BIRCH_LOG_STAIRS = registerStrippedLogStairs(SuCraftBlocks.STRIPPED_BIRCH_LOG_STAIRS, "Birch");
++    public static final Item STRIPPED_JUNGLE_LOG_STAIRS = registerStrippedLogStairs(SuCraftBlocks.STRIPPED_JUNGLE_LOG_STAIRS, "Jungle");
++    public static final Item STRIPPED_ACACIA_LOG_STAIRS = registerStrippedLogStairs(SuCraftBlocks.STRIPPED_ACACIA_LOG_STAIRS, "Acacia");
++    public static final Item STRIPPED_DARK_OAK_LOG_STAIRS = registerStrippedLogStairs(SuCraftBlocks.STRIPPED_DARK_OAK_LOG_STAIRS, "Dark Oak");
++    public static final Item STRIPPED_WARPED_STEM_STAIRS = registerStrippedStemStairs(SuCraftBlocks.STRIPPED_WARPED_STEM_STAIRS, "Warped");
++    public static final Item STRIPPED_CRIMSON_STEM_STAIRS = registerStrippedStemStairs(SuCraftBlocks.STRIPPED_CRIMSON_STEM_STAIRS, "Crimson");
++    public static final Item STRIPPED_MANGROVE_LOG_STAIRS = registerStrippedLogStairs(SuCraftBlocks.STRIPPED_MANGROVE_LOG_STAIRS, "Mangrove");
++    public static final Item OAK_WOOD_STAIRS = registerWoodStairs(SuCraftBlocks.OAK_WOOD_STAIRS, "Oak");
++    public static final Item SPRUCE_WOOD_STAIRS = registerWoodStairs(SuCraftBlocks.SPRUCE_WOOD_STAIRS, "Spruce");
++    public static final Item BIRCH_WOOD_STAIRS = registerWoodStairs(SuCraftBlocks.BIRCH_WOOD_STAIRS, "Birch");
++    public static final Item JUNGLE_WOOD_STAIRS = registerWoodStairs(SuCraftBlocks.JUNGLE_WOOD_STAIRS, "Jungle");
++    public static final Item ACACIA_WOOD_STAIRS = registerWoodStairs(SuCraftBlocks.ACACIA_WOOD_STAIRS, "Acacia");
++    public static final Item DARK_OAK_WOOD_STAIRS = registerWoodStairs(SuCraftBlocks.DARK_OAK_WOOD_STAIRS, "Dark Oak");
++    public static final Item WARPED_HYPHAE_STAIRS = registerHyphaeStairs(SuCraftBlocks.WARPED_HYPHAE_STAIRS, "Warped");
++    public static final Item CRIMSON_HYPHAE_STAIRS = registerHyphaeStairs(SuCraftBlocks.CRIMSON_HYPHAE_STAIRS, "Crimson");
++    public static final Item MANGROVE_WOOD_STAIRS = registerWoodStairs(SuCraftBlocks.MANGROVE_WOOD_STAIRS, "Mangrove");
++    public static final Item STRIPPED_OAK_WOOD_STAIRS = registerStrippedWoodStairs(SuCraftBlocks.STRIPPED_OAK_WOOD_STAIRS, "Oak");
++    public static final Item STRIPPED_SPRUCE_WOOD_STAIRS = registerStrippedWoodStairs(SuCraftBlocks.STRIPPED_SPRUCE_WOOD_STAIRS, "Spruce");
++    public static final Item STRIPPED_BIRCH_WOOD_STAIRS = registerStrippedWoodStairs(SuCraftBlocks.STRIPPED_BIRCH_WOOD_STAIRS, "Birch");
++    public static final Item STRIPPED_JUNGLE_WOOD_STAIRS = registerStrippedWoodStairs(SuCraftBlocks.STRIPPED_JUNGLE_WOOD_STAIRS, "Jungle");
++    public static final Item STRIPPED_ACACIA_WOOD_STAIRS = registerStrippedWoodStairs(SuCraftBlocks.STRIPPED_ACACIA_WOOD_STAIRS, "Acacia");
++    public static final Item STRIPPED_DARK_OAK_WOOD_STAIRS = registerStrippedWoodStairs(SuCraftBlocks.STRIPPED_DARK_OAK_WOOD_STAIRS, "Dark Oak");
++    public static final Item STRIPPED_WARPED_HYPHAE_STAIRS = registerStrippedHyphaeStairs(SuCraftBlocks.STRIPPED_WARPED_HYPHAE_STAIRS, "Warped");
++    public static final Item STRIPPED_CRIMSON_HYPHAE_STAIRS = registerStrippedHyphaeStairs(SuCraftBlocks.STRIPPED_CRIMSON_HYPHAE_STAIRS, "Crimson");
++    public static final Item STRIPPED_MANGROVE_WOOD_STAIRS = registerStrippedWoodStairs(SuCraftBlocks.STRIPPED_MANGROVE_WOOD_STAIRS, "Mangrove");
++    public static final Item ANDESITE_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.ANDESITE_PILLAR_STAIRS, "Andesite");
++    public static final Item CALCITE_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.CALCITE_PILLAR_STAIRS, "Calcite");
++    public static final Item DIORITE_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.DIORITE_PILLAR_STAIRS, "Diorite");
++    public static final Item DRIPSTONE_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.DRIPSTONE_PILLAR_STAIRS, "Dripstone");
++    public static final Item GRANITE_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.GRANITE_PILLAR_STAIRS, "Granite");
++    public static final Item TUFF_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.TUFF_PILLAR_STAIRS, "Tuff");
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -11965,6 +12106,10 @@ index 0000000000000000000000000000000000000000..1e812c4cb0d36f8af048ad18b6a85600
 +        return registerSlab(block, typeDisplayName + " Pillar");
 +    }
 +
++    private static @NotNull Item registerPillarStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Pillar");
++    }
++
 +    private static @NotNull Item registerSandstoneBrickSlab(@NotNull Block block, @Nullable String typeDisplayName) {
 +        return registerBrickSlab(block, (typeDisplayName == null ? "" : typeDisplayName + " ") + "Sandstone");
 +    }
@@ -11985,32 +12130,64 @@ index 0000000000000000000000000000000000000000..1e812c4cb0d36f8af048ad18b6a85600
 +        return registerSlab(block, typeDisplayName + " Log");
 +    }
 +
++    private static @NotNull Item registerLogStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Log");
++    }
++
 +    private static @NotNull Item registerStemSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, typeDisplayName + " Stem");
++    }
++
++    private static @NotNull Item registerStemStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Stem");
 +    }
 +
 +    private static @NotNull Item registerStrippedLogSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerLogSlab(block, "Stripped " + typeDisplayName);
 +    }
 +
++    private static @NotNull Item registerStrippedLogStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerLogStairs(block, "Stripped " + typeDisplayName);
++    }
++
 +    private static @NotNull Item registerStrippedStemSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerStemSlab(block, "Stripped " + typeDisplayName);
++    }
++
++    private static @NotNull Item registerStrippedStemStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStemStairs(block, "Stripped " + typeDisplayName);
 +    }
 +
 +    private static @NotNull Item registerWoodSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, typeDisplayName + " Wood");
 +    }
 +
++    private static @NotNull Item registerWoodStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Wood");
++    }
++
 +    private static @NotNull Item registerHyphaeSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerSlab(block, typeDisplayName + " Hyphae");
++    }
++
++    private static @NotNull Item registerHyphaeStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerStairs(block, typeDisplayName + " Hyphae");
 +    }
 +
 +    private static @NotNull Item registerStrippedWoodSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerWoodSlab(block, "Stripped " + typeDisplayName);
 +    }
 +
++    private static @NotNull Item registerStrippedWoodStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerWoodStairs(block, "Stripped " + typeDisplayName);
++    }
++
 +    private static @NotNull Item registerStrippedHyphaeSlab(@NotNull Block block, @NotNull String typeDisplayName) {
 +        return registerHyphaeSlab(block, "Stripped " + typeDisplayName);
++    }
++
++    private static @NotNull Item registerStrippedHyphaeStairs(@NotNull Block block, @NotNull String typeDisplayName) {
++        return registerHyphaeStairs(block, "Stripped " + typeDisplayName);
 +    }
 +
 +    public static Item bootstrap() {
