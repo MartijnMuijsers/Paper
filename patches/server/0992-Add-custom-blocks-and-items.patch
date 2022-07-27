@@ -430,6 +430,35 @@ index 2ae3cf188ed5ab1266b1aae796fecce02f517908..412ae3d0a634cbe183ee2ebeefb35dbe
          Set<ResourceLocation> set = Sets.newHashSet();
  
          for(Block block : Registry.BLOCK) {
+diff --git a/src/main/java/net/minecraft/nbt/NbtUtils.java b/src/main/java/net/minecraft/nbt/NbtUtils.java
+index 5dda064813a0eb00438a7df909d51a4b2d48942e..a04b1f9fb6121cd99182c1f57fabc6b233744ef0 100644
+--- a/src/main/java/net/minecraft/nbt/NbtUtils.java
++++ b/src/main/java/net/minecraft/nbt/NbtUtils.java
+@@ -36,6 +36,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
+ import net.minecraft.world.level.block.state.StateHolder;
+ import net.minecraft.world.level.block.state.properties.Property;
+ import net.minecraft.world.level.material.FluidState;
++import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
+ import org.slf4j.Logger;
+ 
+ public final class NbtUtils {
+@@ -258,6 +259,16 @@ public final class NbtUtils {
+     }
+ 
+     public static CompoundTag writeBlockState(BlockState state) {
++        // Martijn start - custom blocks and items
++        return writeBlockState(state, false);
++    }
++
++    public static CompoundTag writeBlockState(BlockState state, boolean replaceCustomBlockStates) {
++        BlockReplacementRule replacementRule = state.getBlock().replacementRule;
++        if (replacementRule != null) {
++            state = replacementRule.replace(state, false/* TODO actually base on player this is for */);
++        }
++        // Martijn end - custom blocks and items
+         CompoundTag compoundTag = new CompoundTag();
+         compoundTag.putString("Name", Registry.BLOCK.getKey(state.getBlock()).toString());
+         ImmutableMap<Property<?>, Comparable<?>> immutableMap = state.getValues();
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
 index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d7770c3d98e8 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
@@ -2171,7 +2200,7 @@ index 06e3a868e922f1b7a586d0ca28f64a67ae463b68..0feab0105d15be1847d0064aeb1186ed
          int j = item.getItem().getMaxStackSize();
          int k = j * 100;
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..dc3150370198220b54af06979cbbf45c461886c5 100644
+index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26f223b855bbb616ba9774f3769fd8039e9d2425 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -13,11 +13,16 @@ import java.net.Proxy;
@@ -2219,7 +2248,7 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..dc3150370198220b54af06979cbbf45c
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -275,6 +288,58 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -275,6 +288,60 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
              return false;
          }
  
@@ -2228,42 +2257,44 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..dc3150370198220b54af06979cbbf45c
 +        SuCraftCraftingRecipeProvider.run();
 +
 +        // Now that we have all the recipes added, we should set some stonecutter hosts for those items that require it
-+        Map<Item, List<Item>> ingredientToResult = new IdentityHashMap<>();
-+        Map<Item, List<Item>> resultToIngredient = new IdentityHashMap<>();
-+        MinecraftServer.getServer().getRecipeManager().getAllRecipesFor(RecipeType.STONECUTTING).forEach(recipe -> {
-+            recipe.getIngredients().forEach(ingredient -> {
-+                if (ingredient.getItems() != null) {
-+                    for (ItemStack itemStack : ingredient.getItems()) {
-+                        ingredientToResult.computeIfAbsent(itemStack.getItem(), $ -> new ArrayList<>(1)).add(recipe.getResultItem().getItem());
-+                        resultToIngredient.computeIfAbsent(recipe.getResultItem().getItem(), $ -> new ArrayList<>(1)).add(itemStack.getItem());
++        { // Create a scope to make sure we don't use any of these variables later - we want them to be garbage collected
++            Map<Item, List<Item>> ingredientToResult = new IdentityHashMap<>();
++            Map<Item, List<Item>> resultToIngredient = new IdentityHashMap<>();
++            MinecraftServer.getServer().getRecipeManager().getAllRecipesFor(RecipeType.STONECUTTING).forEach(recipe -> {
++                recipe.getIngredients().forEach(ingredient -> {
++                    if (ingredient.getItems() != null) {
++                        for (ItemStack itemStack : ingredient.getItems()) {
++                            ingredientToResult.computeIfAbsent(itemStack.getItem(), $ -> new ArrayList<>(1)).add(recipe.getResultItem().getItem());
++                            resultToIngredient.computeIfAbsent(recipe.getResultItem().getItem(), $ -> new ArrayList<>(1)).add(itemStack.getItem());
++                        }
++                    }
++                });
++            });
++            Map<Item, Integer> ingredientToIngredientGroupIndex = new IdentityHashMap<>();
++            int nextGroupIndex = 0;
++            for (Map.Entry<Item, List<Item>> resultToIngredientEntry : resultToIngredient.entrySet()) {
++                final int finalNextGroupIndex = nextGroupIndex;
++                for (Item ingredient : resultToIngredientEntry.getValue()) {
++                    Integer existingGroupIndex = ingredientToIngredientGroupIndex.get(ingredient);
++                    if (existingGroupIndex != null) {
++                        ingredientToIngredientGroupIndex.replaceAll((item, index) -> index.equals(existingGroupIndex) ? finalNextGroupIndex : index);
++                    } else {
++                        ingredientToIngredientGroupIndex.put(ingredient, nextGroupIndex);
 +                    }
 +                }
-+            });
-+        });
-+        Map<Item, Integer> ingredientToIngredientGroupIndex = new IdentityHashMap<>();
-+        int nextGroupIndex = 0;
-+        for (Map.Entry<Item, List<Item>> resultToIngredientEntry : resultToIngredient.entrySet()) {
-+            final int finalNextGroupIndex = nextGroupIndex;
-+            for (Item ingredient : resultToIngredientEntry.getValue()) {
-+                Integer existingGroupIndex = ingredientToIngredientGroupIndex.get(ingredient);
-+                if (existingGroupIndex != null) {
-+                    ingredientToIngredientGroupIndex.replaceAll((item, index) -> index.equals(existingGroupIndex) ? finalNextGroupIndex : index);
-+                } else {
-+                    ingredientToIngredientGroupIndex.put(ingredient, nextGroupIndex);
++                nextGroupIndex++;
++            }
++            ingredientToIngredientGroupIndex.values().stream().toList().stream().map(index -> ingredientToIngredientGroupIndex.entrySet().stream().filter(entry -> entry.getValue() == index).map(entry -> entry.getKey()).toList()).forEach(groupIngredients -> {
++                var groupResults = groupIngredients.stream().flatMap(ingredient -> ingredientToResult.get(ingredient).stream()).distinct().toList();
++                //            System.out.println("TEMP DEBUG - group results: " + groupResults);
++                List<Item> potentialHosts = StreamSupport.stream(Registry.ITEM.spliterator(), false).filter(item -> item.isVanilla && Registry.BLOCK.containsKey(item.id) && !groupResults.contains(item)).sorted(Comparator.comparing(item -> item.getDescriptionId())).toList();
++                var customGroupResults = groupResults.stream().filter(result -> !result.isVanilla).toList();
++                for (int i = 0; i < customGroupResults.size(); i++) {
++                    var replacementRule = customGroupResults.get(i).replacementRule;
++                    replacementRule.setStonecutterRecipeHost(potentialHosts.get(potentialHosts.size() - customGroupResults.size() + i));
 +                }
-+            }
-+            nextGroupIndex++;
++            });
 +        }
-+        ingredientToIngredientGroupIndex.values().stream().toList().stream().map(index -> ingredientToIngredientGroupIndex.entrySet().stream().filter(entry -> entry.getValue() == index).map(entry -> entry.getKey()).toList()).forEach(groupIngredients -> {
-+            var groupResults = groupIngredients.stream().flatMap(ingredient -> ingredientToResult.get(ingredient).stream()).distinct().toList();
-+//            System.out.println("TEMP DEBUG - group results: " + groupResults);
-+            List<Item> potentialHosts = StreamSupport.stream(Registry.ITEM.spliterator(), false).filter(item -> item.isVanilla && Registry.BLOCK.containsKey(item.id) && !groupResults.contains(item)).sorted(Comparator.comparing(item -> item.getDescriptionId())).toList();
-+            var customGroupResults = groupResults.stream().filter(result -> !result.isVanilla).toList();
-+            for (int i = 0; i < customGroupResults.size(); i++) {
-+                var replacementRule = customGroupResults.get(i).replacementRule;
-+                replacementRule.setStonecutterRecipeHost(potentialHosts.get(potentialHosts.size() - customGroupResults.size() + i));
-+            }
-+        });
 +
 +        // This is a reasonable time to create the resource pack
 +        CreateSuCraftResourcePack.createAndWrite();
@@ -2422,7 +2453,7 @@ index 5aae519912830ffb67c5c3d9fbe9f7f07ac2ab9d..eb875d1464ee4018513cfb4cf2127fc5
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..db471f9b5e8f1e2858ee68f789b2fc12ace08ec3 100644
+index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..0f7868365558fb8be9ab35ba36ad367bb8aefb26 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -9,14 +9,18 @@ import com.mojang.logging.LogUtils;
@@ -2513,7 +2544,7 @@ index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..db471f9b5e8f1e2858ee68f789b2fc12
          if (getChessboardDistanceToChunk(chunk) <= GlobalConfiguration.get().networkConstrainedChunkSending.ignoreNetworkConditionsForChunksWithinChessboardDistance) return true;
          synchronized (this.networkConstrainedSendingLock) {
              return this.chunkInitializationPacketsInTransitKeepaliveIds.size() < this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
-@@ -2914,4 +2931,132 @@ public class ServerPlayer extends Player {
+@@ -2914,4 +2931,134 @@ public class ServerPlayer extends Player {
      // CraftBukkit end
  
      public final int getViewDistance() { throw new UnsupportedOperationException("Use PlayerChunkLoader"); } // Paper - placeholder
@@ -2622,24 +2653,26 @@ index cebf8782b35bdaadae3d7feef1ffd8faf169b23a..db471f9b5e8f1e2858ee68f789b2fc12
 +        }
 +        net.minecraft.server.level.ChunkMap chunkMap = this.getLevel().getChunkSource().chunkMap;
 +        io.papermc.paper.chunk.PlayerChunkLoader.PlayerLoaderData data = chunkMap.playerChunkManager.getData(this);
-+        LongSet sentTrackChunks = data.getSentChunks(true);
-+        LongSet sentSeeChunks = data.getSentChunks(false);
-+        // For all chunk keys, we will naively untrack and track the chunks all at once (bypassing the entire network-constrained chunk sending system, which would normally also call the untrackand track methods at the right times)
-+        for (long chunkKey : sentSeeChunks) {
-+            ChunkPos chunkPos = new ChunkPos(chunkKey);
-+            int chunkX = chunkPos.x;
-+            int chunkZ = chunkPos.z;
-+            boolean concernsTracking = sentTrackChunks.contains(chunkKey);
-+            // Untrack the chunk
-+            this.untrackChunk(chunkPos, concernsTracking);
-+            // Track the chunk (note that this will send a network-constrained chunk sending fake keep-alive packet too, and thereby increase the number of packets in transit according to that system, which should cause the network-constrained chunk sending system to wait appropriately for enough of these packets to arrive before sending any more)
-+            // ChunkMap.playerLoadedChunk is basically ServerPlayer.trackChunk in this scenario, but it re-computes the chunk data to send based on the resource pack status
-+            LevelChunk chunk = chunkMap.level.getChunkIfLoaded(chunkX, chunkZ);
-+            // We don't want to suddenly load a chunk here, so we simply ignore this chunk if it is somehow not loaded anymore - too bad, but this should never happen or be so rare it is not significant
-+            if (chunk == null) {
-+                continue;
++        if (data != null) {
++            LongSet sentTrackChunks = data.getSentChunks(true);
++            LongSet sentSeeChunks = data.getSentChunks(false);
++            // For all chunk keys, we will naively untrack and track the chunks all at once (bypassing the entire network-constrained chunk sending system, which would normally also call the untrackand track methods at the right times)
++            for (long chunkKey : sentSeeChunks) {
++                ChunkPos chunkPos = new ChunkPos(chunkKey);
++                int chunkX = chunkPos.x;
++                int chunkZ = chunkPos.z;
++                boolean concernsTracking = sentTrackChunks.contains(chunkKey);
++                // Untrack the chunk
++                this.untrackChunk(chunkPos, concernsTracking);
++                // Track the chunk (note that this will send a network-constrained chunk sending fake keep-alive packet too, and thereby increase the number of packets in transit according to that system, which should cause the network-constrained chunk sending system to wait appropriately for enough of these packets to arrive before sending any more)
++                // ChunkMap.playerLoadedChunk is basically ServerPlayer.trackChunk in this scenario, but it re-computes the chunk data to send based on the resource pack status
++                LevelChunk chunk = chunkMap.level.getChunkIfLoaded(chunkX, chunkZ);
++                // We don't want to suddenly load a chunk here, so we simply ignore this chunk if it is somehow not loaded anymore - too bad, but this should never happen or be so rare it is not significant
++                if (chunk == null) {
++                    continue;
++                }
++                chunkMap.playerLoadedChunk(this, new MutableObject<>(), chunk, concernsTracking);
 +            }
-+            chunkMap.playerLoadedChunk(this, new MutableObject<>(), chunk, concernsTracking);
 +        }
 +    }
 +
@@ -2918,7 +2951,7 @@ index 2fb5f912de5625c611dc19bf6fa12f5e04d3ddfb..00df8726cfde6c8cf0bfcaafbb5d7ba1
  
      @Override
 diff --git a/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java b/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
-index ef07967b64180c54338b8fb2ba1780adec87f333..ad786ae74d578d93b3b4b60d0926a95c4e8dabfb 100644
+index ef07967b64180c54338b8fb2ba1780adec87f333..901e49cf0c0e17e5eacddfc85d64a07945fe1b26 100644
 --- a/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
 @@ -40,6 +40,7 @@ import net.minecraft.world.level.block.FallingBlock;
@@ -2949,6 +2982,15 @@ index ef07967b64180c54338b8fb2ba1780adec87f333..ad786ae74d578d93b3b4b60d0926a95c
          if (CraftEventFactory.callEntityChangeBlockEvent(entityfallingblock, blockposition, iblockdata.getFluidState().createLegacyBlock()).isCancelled()) return entityfallingblock; // CraftBukkit
  
          world.setBlock(blockposition, iblockdata.getFluidState().createLegacyBlock(), 3);
+@@ -313,7 +325,7 @@ public class FallingBlockEntity extends Entity {
+ 
+     @Override
+     protected void addAdditionalSaveData(CompoundTag nbt) {
+-        nbt.put("BlockState", NbtUtils.writeBlockState(this.blockState));
++        nbt.put("BlockState", NbtUtils.writeBlockState(this.blockState, true/* TODO do this only when written to network */));
+         nbt.putInt("Time", this.time);
+         nbt.putBoolean("DropItem", this.dropItem);
+         nbt.putBoolean("HurtEntities", this.hurtEntities);
 diff --git a/src/main/java/net/minecraft/world/entity/monster/Silverfish.java b/src/main/java/net/minecraft/world/entity/monster/Silverfish.java
 index 2dcda3b03796655da443e1b3dd68c6f6bca20d21..75f071fbeea888d2f37e3fa9f8801d6faa2e2951 100644
 --- a/src/main/java/net/minecraft/world/entity/monster/Silverfish.java
@@ -6896,10 +6938,10 @@ index 0000000000000000000000000000000000000000..34357c237d9a45e91c9de0b5731fccca
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..eb069f2015ce2b9dedf1c692565624f7fc9d1c6e
+index 0000000000000000000000000000000000000000..da1e95a3ace0190c0b26e33ee628d884bd7950d8
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
-@@ -0,0 +1,409 @@
+@@ -0,0 +1,431 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -7235,6 +7277,7 @@ index 0000000000000000000000000000000000000000..eb069f2015ce2b9dedf1c692565624f7
 +    @Nullable BlockEntityItemStack getBlockEntityItemStack(@NotNull BlockState realState);
 +
 +    default void addBlockEntityItemToResourcePack(@NotNull MutableResourcePack resourcePack) {
++        long start = System.nanoTime();
 +        if (!this.rendersAsEntity()) {
 +            return;
 +        }
@@ -7246,10 +7289,12 @@ index 0000000000000000000000000000000000000000..eb069f2015ce2b9dedf1c692565624f7
 +                itemHostKeyMinecraftItemModel.addModelOverride(Validate.notNull(this.getBlockEntityItemCustomModelData(realState, properties)), Validate.notNull(this.getBlockEntityItemModel(realState, properties)), resourcePack, false);
 +            }
 +        }
++        Times.addBlockEntityItem += System.nanoTime() - start;
 +    }
 +
 +    default void addToResourcePack(@NotNull MutableResourcePack resourcePack) {
 +        if (this.isFire()) {
++            long start = System.nanoTime();
 +            @NotNull BlockState host = this.getHost(this.getReal().defaultBlockState());
 +            // Add the fire blockstates override
 +            resourcePack.getAsset(ResourcePackAssetType.BLOCK_STATES, NamespacedKeyWithoutIntention.minecraft("fire").withEmptyIntention(), MutableResourcePackBlockStates.class).addFireModels(host, this.getReal().customFireType);
@@ -7266,9 +7311,11 @@ index 0000000000000000000000000000000000000000..eb069f2015ce2b9dedf1c692565624f7
 +                    ).addToResourcePack(resourcePack, false);
 +                }
 +            }
++            Times.addFire += System.nanoTime() - start;
 +            return;
 +        }
 +        this.addBlockEntityItemToResourcePack(resourcePack);
++        long start = System.nanoTime();
 +        @NotNull List<@NotNull BlockState> hosts = this.getHosts();
 +        @NotNull List<@NotNull Block> hostBlocks = hosts.stream().map(BlockState::getBlock).distinct().toList();
 +        boolean everyStateOfTheHostBlockHasTheSameModel =
@@ -7280,6 +7327,8 @@ index 0000000000000000000000000000000000000000..eb069f2015ce2b9dedf1c692565624f7
 +                        && hosts.stream().map(this::getModel).distinct().count() == 1 && hosts.stream().map(this::getModel).distinct().toList().get(0) != null // All hosts of this rule have the same model
 +                )
 +            );
++        Times.determineEveryStateHasSameModel += System.nanoTime() - start;
++        start = System.nanoTime();
 +        forEachHostBlock: for (@NotNull Block hostBlock : hostBlocks) {
 +            for (@NotNull BlockState hostBlockState : hostBlock.getStateDefinition().getPossibleStates()) {
 +                if (!hosts.contains(hostBlockState)) {
@@ -7292,20 +7341,35 @@ index 0000000000000000000000000000000000000000..eb069f2015ce2b9dedf1c692565624f7
 +            @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
 +            minecraftBlockStates.clearVariants();
 +        }
++        Times.clearVariants += System.nanoTime() - start;
 +        for (@NotNull BlockState host : hosts) {
++            start = System.nanoTime();
 +            @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(host.getBlock())).withEmptyIntention();
 +            @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
 +            @Nullable ModelWithParameters model = this.getModel(host);
 +            if (!this.rendersAsEntity()) {
 +                if (everyStateOfTheHostBlockHasTheSameModel) {
 +                    minecraftBlockStates.setNoVariantModel(model, resourcePack, false);
++                    Times.setNoVariantModel += System.nanoTime() - start;
 +                } else {
 +                    minecraftBlockStates.setModel(host, model, resourcePack, false);
++                    Times.setVariantModel += System.nanoTime() - start;
 +                }
 +            } else if (model != null) {
 +                model.model().addToResourcePack(resourcePack, false);
++                Times.addOtherModel += System.nanoTime() - start;
 +            }
 +        }
++    }
++
++    class Times {
++        public static long addBlockEntityItem = 0;
++        public static long addFire = 0;
++        public static long determineEveryStateHasSameModel = 0;
++        public static long clearVariants = 0;
++        public static long setNoVariantModel = 0;
++        public static long setVariantModel = 0;
++        public static long addOtherModel = 0;
 +    }
 +
 +}
@@ -11043,15 +11107,17 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e29c10b863
+index 0000000000000000000000000000000000000000..8d3dc4917d9b4d7dcd1ac6fefb2171f7a626f863
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
-@@ -0,0 +1,459 @@
+@@ -0,0 +1,499 @@
 +package nl.martijnmuijsers.paper.item;
 +
 +import com.google.common.collect.Lists;
 +import io.papermc.paper.adventure.PaperAdventure;
 +import it.unimi.dsi.fastutil.Pair;
++import it.unimi.dsi.fastutil.ints.Int2IntAVLTreeMap;
++import it.unimi.dsi.fastutil.ints.Int2IntMap;
 +import net.kyori.adventure.text.format.TextDecoration;
 +import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 +import net.minecraft.ChatFormatting;
@@ -11102,7 +11168,7 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +
 +    @NotNull Item getReal();
 +
-+    @NotNull Model getModel();
++//    @NotNull Model getModel();
 +
 +    void addToResourcePack(@NotNull MutableResourcePack resourcePack);
 +
@@ -11226,12 +11292,15 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +        private @Nullable Supplier<@NotNull Item> lowPingHostSupplier;
 +        private int lowPingHostCustomModelData = -1;
 +        private @Nullable Function<@NotNull Item, @NotNull Integer> computeLowPingHostCustomModelData;
++        private int minifiedLowPingHostCustomModelData = -1;
 +        private @Nullable Item highPingHost = null;
 +        private @Nullable Supplier<@NotNull Item> highPingHostSupplier;
 +        private int highPingHostCustomModelData = -1;
 +        private @Nullable Function<@NotNull Item, @NotNull Integer> computeHighPingHostCustomModelData;
++        private int minifiedHighPingHostCustomModelData = -1;
 +        private @Nullable Item stonecutterRecipeHost = null;
 +        private int stonecutterRecipeHostCustomModelData = -1;
++        private int minifiedStonecutterRecipeHostCustomModelData = -1;
 +        private @Nullable Item fallback = null;
 +        private @Nullable Supplier<@NotNull Item> fallbackSupplier;
 +        private final @NotNull Predicate<@NotNull Item> isBlockHostReplacingPredicate;
@@ -11293,11 +11362,11 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +                    if (isStonecutterRecipeResult) {
 +                        clone.setItem(this.getStonecutterRecipeHost());
 +                        // Setting custom model data is based on CraftMetaItem.applyToItem(CompoundTag)
-+                        tag.putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, this.getStonecutterRecipeHostCustomModelData());
++                        tag.putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, this.getMinifiedStonecutterRecipeHostCustomModelData());
 +                    } else {
 +                        clone.setItem(this.getHost(hasHighPing));
 +                        // Setting custom model data is based on CraftMetaItem.applyToItem(CompoundTag)
-+                        tag.putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, this.getHostCustomModelData(hasHighPing));
++                        tag.putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, this.getMinifiedHostCustomModelData(hasHighPing));
 +                    }
 +                } else {
 +                    clone.setItem(this.getFallback());
@@ -11344,6 +11413,13 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +            return this.lowPingHostCustomModelData;
 +        }
 +
++        public int getMinifiedLowPingHostCustomModelData() {
++            if (this.minifiedLowPingHostCustomModelData == -1) {
++                this.minifiedLowPingHostCustomModelData = minifiedCustomModelData.get(this.getLowPingHost()).get(this.getLowPingHostCustomModelData());
++            }
++            return this.minifiedLowPingHostCustomModelData;
++        }
++
 +        public @NotNull Item getHighPingHost() {
 +            if (!orderSensitiveLateInitializationsHaveStarted) {
 +                throw new IllegalStateException("SimpleItemReplacementRule.getHighPingHost cannot be called before order-sensitive late initialization");
@@ -11366,6 +11442,13 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +            return this.highPingHostCustomModelData;
 +        }
 +
++        public int getMinifiedHighPingHostCustomModelData() {
++            if (this.minifiedHighPingHostCustomModelData == -1) {
++                this.minifiedHighPingHostCustomModelData = minifiedCustomModelData.get(this.getHighPingHost()).get(this.getHighPingHostCustomModelData());
++            }
++            return this.minifiedHighPingHostCustomModelData;
++        }
++
 +        public @NotNull Item getHost(boolean hasHighPing) {
 +            return this.getLowPingHost();
 +            //return hasHighPing ? this.getHighPingHost() : this.getLowPingHost();
@@ -11386,6 +11469,11 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +            //return hasHighPing ? this.getHighPingHostCustomModelData() : this.getLowPingHostCustomModelData();
 +        }
 +
++        public int getMinifiedHostCustomModelData(boolean hasHighPing) {
++            return this.getMinifiedLowPingHostCustomModelData();
++            //return hasHighPing ? this.getMinifiedHighPingHostCustomModelData() : this.getMinifiedLowPingHostCustomModelData();
++        }
++
 +        /**
 +         * @throws IllegalStateException If this rule's real does not require a stonecutter recipe host (i.e. it is not the result of any stonecutter recipe)
 +         */
@@ -11394,6 +11482,16 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +                throw new IllegalStateException("Called SimpleItemReplacementRule.getStonecutterRecipeHostCustomModelData for a rule for which no such host is defined");
 +            }
 +            return this.stonecutterRecipeHostCustomModelData;
++        }
++
++        /**
++         * @throws IllegalStateException If this rule's real does not require a stonecutter recipe host (i.e. it is not the result of any stonecutter recipe)
++         */
++        public @NotNull int getMinifiedStonecutterRecipeHostCustomModelData() {
++            if (this.minifiedStonecutterRecipeHostCustomModelData == -1) {
++                this.minifiedStonecutterRecipeHostCustomModelData = minifiedCustomModelData.get(this.getStonecutterRecipeHost()).get(this.getStonecutterRecipeHostCustomModelData());
++            }
++            return this.minifiedStonecutterRecipeHostCustomModelData;
 +        }
 +
 +        public @NotNull Item getFallback() {
@@ -11421,10 +11519,10 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +            return this.blockHostReplacingItemReplacementFunction.apply(item);
 +        }
 +
-+        @Override
-+        public @NotNull Model getModel() {
-+            return this.model;
-+        }
++//        @Override
++//        public @NotNull Model getModel() {
++//            return this.model;
++//        }
 +
 +        @Override
 +        public void addToResourcePack(@NotNull MutableResourcePack resourcePack) {
@@ -11503,6 +11601,12 @@ index 0000000000000000000000000000000000000000..b4f907556a20771185be5936aef709e2
 +        } catch (Throwable e) {
 +            return itemStack;
 +        }
++    }
++
++    @NotNull Map<@NotNull Item, @NotNull Int2IntMap> minifiedCustomModelData = new IdentityHashMap<>();
++
++    static void addMinifiedCustomModelData(@NotNull Item item, int original, int minified) {
++        minifiedCustomModelData.computeIfAbsent(item, $ -> new Int2IntAVLTreeMap()).put(original, minified);
 +    }
 +
 +}
@@ -14091,10 +14195,10 @@ index 0000000000000000000000000000000000000000..7b6d1b9c9ca978c93c792372fc0cc0b1
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/intention/NamespacedKeyWithIntention.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/intention/NamespacedKeyWithIntention.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ccbb0e127dbc4e684190f986193af73131d1e6f9
+index 0000000000000000000000000000000000000000..7563ae3054672af378441818e8c043b541b9452c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/intention/NamespacedKeyWithIntention.java
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,35 @@
 +package nl.martijnmuijsers.paper.resourcepack.asset.intention;
 +
 +import org.jetbrains.annotations.NotNull;
@@ -14108,16 +14212,20 @@ index 0000000000000000000000000000000000000000..ccbb0e127dbc4e684190f986193af731
 + */
 +public record NamespacedKeyWithIntention(@NotNull String namespace, @Nullable ResourcePackAssetIntention intention, @NotNull String keyWithoutIntention) {
 +
++    public @NotNull NamespacedKeyWithoutIntention withoutIntention() {
++        return new NamespacedKeyWithoutIntention(this.namespace, this.keyWithoutIntention);
++    }
++
 +    public @NotNull String keyWithIntention() {
 +        return this.intention == null ? this.keyWithoutIntention : this.intention.prefix + "/" + this.keyWithoutIntention;
 +    }
 +
 +    public @NotNull NamespacedKeyWithIntention withKeySuffix(@NotNull String suffix) {
-+        return new NamespacedKeyWithIntention(namespace, intention, keyWithoutIntention + suffix);
++        return new NamespacedKeyWithIntention(this.namespace, this.intention, this.keyWithoutIntention + suffix);
 +    }
 +
 +    public @NotNull NamespacedKeyWithIntention withKeyPrefix(@NotNull String prefix) {
-+        return new NamespacedKeyWithIntention(namespace, intention, prefix + keyWithoutIntention);
++        return new NamespacedKeyWithIntention(this.namespace, this.intention, prefix + this.keyWithoutIntention);
 +    }
 +
 +    @Override
@@ -14128,10 +14236,10 @@ index 0000000000000000000000000000000000000000..ccbb0e127dbc4e684190f986193af731
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/intention/NamespacedKeyWithoutIntention.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/intention/NamespacedKeyWithoutIntention.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d206f4b2cab32de78fb2974dc6974ad90f127f7b
+index 0000000000000000000000000000000000000000..ef957030ad27dc8ae113f08e3be378952e995057
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/intention/NamespacedKeyWithoutIntention.java
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,59 @@
 +package nl.martijnmuijsers.paper.resourcepack.asset.intention;
 +
 +import net.minecraft.resources.ResourceLocation;
@@ -14146,19 +14254,27 @@ index 0000000000000000000000000000000000000000..d206f4b2cab32de78fb2974dc6974ad9
 +public record NamespacedKeyWithoutIntention(@NotNull String namespace, @NotNull String keyWithoutIntention) {
 +
 +    public @NotNull NamespacedKeyWithIntention withIntention(@NotNull ResourcePackAssetIntention intention) {
-+        return new NamespacedKeyWithIntention(namespace, intention, keyWithoutIntention);
++        return new NamespacedKeyWithIntention(this.namespace, intention, this.keyWithoutIntention);
 +    }
 +
 +    public @NotNull NamespacedKeyWithIntention withEmptyIntention() {
-+        return new NamespacedKeyWithIntention(namespace, null, keyWithoutIntention);
++        return new NamespacedKeyWithIntention(this.namespace, null, this.keyWithoutIntention);
 +    }
 +
 +    public @NotNull NamespacedKeyWithoutIntention withKeySuffix(@NotNull String suffix) {
-+        return new NamespacedKeyWithoutIntention(namespace, keyWithoutIntention + suffix);
++        return new NamespacedKeyWithoutIntention(this.namespace, this.keyWithoutIntention + suffix);
 +    }
 +
 +    public @NotNull NamespacedKeyWithoutIntention withKeyPrefix(@NotNull String prefix) {
-+        return new NamespacedKeyWithoutIntention(namespace, prefix + keyWithoutIntention);
++        return new NamespacedKeyWithoutIntention(this.namespace, prefix + this.keyWithoutIntention);
++    }
++
++    public @NotNull NamespacedKey asBukkit() {
++        return new NamespacedKey(this.namespace, this.keyWithoutIntention);
++    }
++
++    public @NotNull ResourceLocation asMinecraft() {
++        return new ResourceLocation(this.namespace, this.keyWithoutIntention);
 +    }
 +
 +    @Override
@@ -14352,38 +14468,47 @@ index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..224eb6840fef0888fa12d80cdba5f5aebc7ef69d
+index 0000000000000000000000000000000000000000..869a7793b2d72ea41f8dfe97ee10ab9d018866aa
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
-@@ -0,0 +1,199 @@
+@@ -0,0 +1,265 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.model;
 +
-+import com.google.common.base.Charsets;
 +import com.google.gson.JsonArray;
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
-+import net.minecraft.network.Connection;
++import com.google.gson.stream.JsonWriter;
++import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
++import it.unimi.dsi.fastutil.ints.IntSet;
++import it.unimi.dsi.fastutil.objects.Object2IntMap;
++import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
++import net.minecraft.core.Registry;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.world.item.Item;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelPosition;
++import nl.martijnmuijsers.paper.item.ItemReplacementRule;
 +import nl.martijnmuijsers.paper.resourcepack.KeyConstants;
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
 +import nl.martijnmuijsers.paper.resourcepack.asset.json.SimpleJsonResourcePackAsset;
++import org.apache.commons.lang3.Validate;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
 +import java.io.IOException;
 +import java.io.OutputStream;
-+import java.util.List;
 +import java.util.stream.StreamSupport;
 +
 +/**
 + * Concrete implementation of {@link MutableResourcePackModel}
 + */
 +public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<ConcreteResourcePackModel> implements MutableResourcePackModel {
++
++    protected final IntSet customModelDataThatWasOverridden = new IntOpenHashSet(0);
 +
 +    public ConcreteResourcePackModel(@NotNull JsonObject json, @NotNull NamespacedKeyWithIntention key, boolean dirty) {
 +        super(ConcreteResourcePackModel::new, json, key, dirty);
@@ -14502,6 +14627,7 @@ index 0000000000000000000000000000000000000000..224eb6840fef0888fa12d80cdba5f5ae
 +
 +    @Override
 +    public void addModelOverride(int customModelData, @NotNull Model overridingModel) {
++        this.customModelDataThatWasOverridden.add(customModelData);
 +        @NotNull JsonArray overridesJson;
 +        if (this.json.has(KeyConstants.modelOverrides)) {
 +            overridesJson = this.json.getAsJsonArray(KeyConstants.modelOverrides);
@@ -14551,7 +14677,63 @@ index 0000000000000000000000000000000000000000..224eb6840fef0888fa12d80cdba5f5ae
 +    @Override
 +    public void writeTo(@NotNull OutputStream outputStream) throws IOException {
 +        this.sortModelOverrides();
++        var overrides = this.json.getAsJsonArray(KeyConstants.modelOverrides);
++        if (overrides != null) {
++            MinecraftServer.LOGGER.info("TEMP DEBUG - writing resource pack model " + this.getKey() + " with overrides: " + overrides.size());
++        }
++        JsonWriter writer = null;
 +        super.writeTo(outputStream);
++    }
++
++    public void minifyModelOverrides() {
++        if (!this.json.has(KeyConstants.modelOverrides)) {
++            return;
++        }
++        Item item = Registry.ITEM.get(this.getKey().withoutIntention().asMinecraft());
++        @NotNull JsonArray overridesJson = this.json.getAsJsonArray(KeyConstants.modelOverrides);
++        Object2IntMap<String> minifiedCustomModelDataByModel = new Object2IntOpenHashMap<>(overridesJson.size() * 2);
++        int[] nextMinifiedCustomModelData = {0};
++        IntSet disallowedMinifiedCustomModelData = new IntOpenHashSet(0);
++        for (int i = 0; i < overridesJson.size(); i++) {
++            JsonObject overrideJson = (JsonObject) overridesJson.get(i);
++            if (overrideJson.has(KeyConstants.overridePredicate) && overrideJson.has(KeyConstants.model)) {
++                JsonObject overridePredicate = overrideJson.getAsJsonObject(KeyConstants.overridePredicate);
++                if (overridePredicate.has(KeyConstants.customModelData)) {
++                    int customModelData = overridePredicate.get(KeyConstants.customModelData).getAsInt();
++                    if (!this.customModelDataThatWasOverridden.contains(customModelData)) {
++                        disallowedMinifiedCustomModelData.add(customModelData);
++                    }
++                }
++            }
++        }
++        for (int[] i = {0}; i[0] < overridesJson.size(); i[0]++) {
++            JsonObject overrideJson = (JsonObject) overridesJson.get(i[0]);
++            if (overrideJson.has(KeyConstants.overridePredicate) && overrideJson.has(KeyConstants.model)) {
++                JsonObject overridePredicate = overrideJson.getAsJsonObject(KeyConstants.overridePredicate);
++                if (overridePredicate.has(KeyConstants.customModelData) && overridePredicate.keySet().size() == 1) {
++                    int customModelData = overridePredicate.get(KeyConstants.customModelData).getAsInt();
++                    if (this.customModelDataThatWasOverridden.contains(customModelData)) {
++                        String model = Validate.notNull(overrideJson.get(KeyConstants.model).getAsString());
++                        minifiedCustomModelDataByModel.compute(model, ($, minifiedCustomModelData) -> {
++                            if (minifiedCustomModelData == null) {
++                                while (disallowedMinifiedCustomModelData.contains(nextMinifiedCustomModelData[0])) {
++                                    nextMinifiedCustomModelData[0]++;
++                                }
++                                int newMinifiedCustomModelData = nextMinifiedCustomModelData[0];
++                                nextMinifiedCustomModelData[0]++;
++                                ItemReplacementRule.addMinifiedCustomModelData(item, customModelData, newMinifiedCustomModelData);
++                                overridePredicate.addProperty(KeyConstants.customModelData, newMinifiedCustomModelData);
++                                return newMinifiedCustomModelData;
++                            }
++                            ItemReplacementRule.addMinifiedCustomModelData(item, customModelData, minifiedCustomModelData);
++                            overridesJson.remove(i[0]);
++                            i[0]--;
++                            return minifiedCustomModelData;
++                        });
++                    }
++                }
++            }
++        }
 +    }
 +
 +}
@@ -14869,10 +15051,10 @@ index 0000000000000000000000000000000000000000..7035f89399196b0a5440c01b7c1ce3d4
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e721dc9e5b948e328e643da963ba456f0d310848
+index 0000000000000000000000000000000000000000..a24dbef2be8dd9d877ac6955e163423d6b19f63e
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
-@@ -0,0 +1,227 @@
+@@ -0,0 +1,240 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.memory;
@@ -14881,10 +15063,13 @@ index 0000000000000000000000000000000000000000..e721dc9e5b948e328e643da963ba456f
 +import com.google.common.collect.ImmutableList;
 +import com.google.gson.JsonObject;
 +import it.unimi.dsi.fastutil.Pair;
++import net.minecraft.core.Registry;
 +import net.minecraft.server.MinecraftServer;
++import net.minecraft.world.level.block.Block;
 +import nl.martijnmuijsers.paper.resourcepack.PathConstants;
 +import nl.martijnmuijsers.paper.resourcepack.asset.blockstates.ConcreteResourcePackBlockStates;
 +import nl.martijnmuijsers.paper.resourcepack.asset.image.MutableImageResourcePackAsset;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.model.ConcreteResourcePackModel;
 +import nl.martijnmuijsers.paper.resourcepack.asset.InitializableResourcePackAssetType;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
@@ -14897,6 +15082,7 @@ index 0000000000000000000000000000000000000000..e721dc9e5b948e328e643da963ba456f
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.texture.ConcreteResourcePackTexture;
 +import nl.martijnmuijsers.paper.resourcepack.asset.texture.ResourcePackTexture;
++import nl.martijnmuijsers.paper.util.CollectionPercentageProgress;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
@@ -15057,29 +15243,30 @@ index 0000000000000000000000000000000000000000..e721dc9e5b948e328e643da963ba456f
 +                    zipOutputStream.write(this.getSettings().createJson().toString().getBytes(Charsets.UTF_8));
 +                }
 +                // Add the cached assets
-+                for (@NotNull MutableResourcePackAsset assetInMemory : this.assets.values()) {
-+                    // Don't write assets just because we have them cached: only write those that are dirty (the ones that need to be included even if not dirty will be added later)
-+                    if (!assetInMemory.isDirty()) {
-+                        continue;
-+                    }
-+                    @NotNull String path = assetInMemory.getPathInResourcePack();
-+                    zippedFilePaths.add(path);
-+                    @NotNull ZipEntry zipEntry = new ZipEntry(path);
-+                    zipOutputStream.putNextEntry(zipEntry);
-+                    assetInMemory.writeTo(zipOutputStream);
-+                    if (assetInMemory.hasMeta()) {
-+                        @NotNull String metaPath = path + PathConstants.metaFileSuffix;
-+                        zippedFilePaths.add(metaPath);
-+                        @NotNull ZipEntry metaZipEntry = new ZipEntry(metaPath);
-+                        zipOutputStream.putNextEntry(metaZipEntry);
-+                        assetInMemory.writeMetaTo(zipOutputStream);
-+                    }
-+                }
++                new CollectionPercentageProgress<>("Writing cached assets to resource pack archive file", this.assets.values().stream().filter(assetInMemory -> assetInMemory.isDirty()).toList(), 5)
++                    .forEachThrowsException(assetInMemory -> {
++                        @NotNull String path = assetInMemory.getPathInResourcePack();
++                        zippedFilePaths.add(path);
++                        @NotNull ZipEntry zipEntry = new ZipEntry(path);
++                        zipOutputStream.putNextEntry(zipEntry);
++                        assetInMemory.writeTo(zipOutputStream);
++                        if (assetInMemory.hasMeta()) {
++                            @NotNull String metaPath = path + PathConstants.metaFileSuffix;
++                            zippedFilePaths.add(metaPath);
++                            @NotNull ZipEntry metaZipEntry = new ZipEntry(metaPath);
++                            zipOutputStream.putNextEntry(metaZipEntry);
++                            assetInMemory.writeMetaTo(zipOutputStream);
++                        }
++                    });
 +                // Add all files from included resource packs that we haven't added yet
-+                for (@NotNull ResourcePack includedResourcePack : this.includedResourcePacks) {
-+                    @NotNull Stream<@NotNull Pair<@NotNull String, @NotNull Callable<@NotNull InputStream>>> allFilesStream = includedResourcePack.getAllFilesStream();
-+                    @NotNull Iterable<@NotNull Pair<@NotNull String, @NotNull Callable<@NotNull InputStream>>> allFilesIterable = () -> allFilesStream.iterator();
-+                    for (@NotNull Pair<@NotNull String, @NotNull Callable<@NotNull InputStream>> includedResourcePackFile : allFilesIterable) {
++                new CollectionPercentageProgress<>("Writing included resource pack files to resource pack archive file", this.includedResourcePacks.stream().flatMap(pack -> {
++                    try {
++                        return pack.getAllFilesStream();
++                    } catch (Exception e) {
++                        return Stream.empty();
++                    }
++                }).toList(), 5)
++                    .forEachThrowsException(includedResourcePackFile -> {
 +                        @NotNull String includedFilePath = includedResourcePackFile.left();
 +                        if (zippedFilePaths.add(includedFilePath)) {
 +                            try (@NotNull InputStream includedFileInputStream = includedResourcePackFile.right().call()) {
@@ -15092,11 +15279,19 @@ index 0000000000000000000000000000000000000000..e721dc9e5b948e328e643da963ba456f
 +                                throw new IOException("An exception occurred while getting input stream for included resource pack file", e);
 +                            }
 +                        }
-+                    }
-+                }
++                    });
 +            }
 +        }
 +        // TODO write to file and make sure to include everything from the included resource packs for sure
++    }
++
++    /**
++     * @return All assets in this resource pack, possibly filtered (if not given null) by asset type, key or intention
++     * <br>
++     * Note that the returned assets are not in any particular order
++     */
++    public @NotNull List<@NotNull MutableResourcePackAsset> getAssets(@Nullable ResourcePackAssetType type, @Nullable NamespacedKeyWithIntention key, @Nullable String namespace, @Nullable ResourcePackAssetIntention intention) {
++        return this.assets.values().stream().filter(asset -> (type == null || asset.getType().equals(type)) && (key == null || asset.getKey().equals(key)) && (namespace == null || asset.getKey().namespace().equals(namespace)) && (intention == null || asset.getKey().intention().equals(intention))).toList();
 +    }
 +
 +}
@@ -15401,10 +15596,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0215fb53a604a6c4e6ec6bc27f4e94b5aa8bfe0f
+index 0000000000000000000000000000000000000000..a87817863269192a576b3f3f85bdde42e07af807
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,243 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -15413,15 +15608,22 @@ index 0000000000000000000000000000000000000000..0215fb53a604a6c4e6ec6bc27f4e94b5
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonParser;
 +import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.world.item.Item;
++import net.minecraft.world.level.ClipContext;
 +import net.minecraft.world.level.block.Block;
 +import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
 +import nl.martijnmuijsers.paper.item.ItemReplacementRule;
 +import nl.martijnmuijsers.paper.resourcepack.ResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
++import nl.martijnmuijsers.paper.resourcepack.asset.model.ConcreteResourcePackModel;
 +import nl.martijnmuijsers.paper.resourcepack.memory.MemoryResourcePack;
 +import nl.martijnmuijsers.paper.resourcepack.memory.MemoryResourcePackSettings;
 +import nl.martijnmuijsers.paper.resourcepack.readfromarchive.ReadFromArchiveResourcePack;
++import nl.martijnmuijsers.paper.util.CollectionPercentageProgress;
++import nl.martijnmuijsers.paper.util.PercentageProgress;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
@@ -15434,6 +15636,7 @@ index 0000000000000000000000000000000000000000..0215fb53a604a6c4e6ec6bc27f4e94b5
 +import java.io.InputStreamReader;
 +import java.io.OutputStreamWriter;
 +import java.nio.file.Path;
++import java.util.List;
 +import java.util.Random;
 +
 +/**
@@ -15504,24 +15707,28 @@ index 0000000000000000000000000000000000000000..0215fb53a604a6c4e6ec6bc27f4e94b5
 +    }
 +
 +    public static void createAndWrite() {
++
++        MinecraftServer.LOGGER.info("Reading last resource pack version...");
 +        File lastResourcePackVersionFile = new File(LAST_RESOURCE_PACK_VERSION_FILE_PATH);
++        boolean shouldWriteResourcePackToArchiveFile = true;
 +        if (lastResourcePackVersionFile.exists()) {
 +            try (FileInputStream fileInputStream = new FileInputStream(lastResourcePackVersionFile)) {
 +                try (BufferedReader reader = new BufferedReader(new InputStreamReader(fileInputStream))) {
 +                    int lastResourcePackVersion = Integer.parseInt(reader.readLine());
 +                    if (lastResourcePackVersion == currentResourcePackVersion) {
-+                        MinecraftServer.LOGGER.info("Skipping creating server resource pack because it is up-to-date (version " + currentResourcePackVersion + ")");
-+                        return;
++                        shouldWriteResourcePackToArchiveFile = false;
 +                    }
 +                }
 +            } catch (Exception e) {
 +                throw new RuntimeException("Exception occurred while checking last resource pack version", e);
 +            }
 +        }
++
 +        MinecraftServer.LOGGER.info("Creating server resource pack...");
 +        try {
 +
 +            // Construct the resource pack
++            MinecraftServer.LOGGER.info("Instantiating resource pack in memory...");
 +            @NotNull MemoryResourcePack resourcePack = new MemoryResourcePack();
 +
 +            try {
@@ -15539,43 +15746,81 @@ index 0000000000000000000000000000000000000000..0215fb53a604a6c4e6ec6bc27f4e94b5
 +                settings.setDescription(DESCRIPTION);
 +
 +                // Add all custom blocks
-+                for (Block block : Registry.BLOCK) {
-+                    @Nullable BlockReplacementRule replacementRule = block.replacementRule;
-+                    if (replacementRule != null) {
-+                        replacementRule.addToResourcePack(resourcePack);
++                new CollectionPercentageProgress<Block>("Adding custom blocks to resource pack", Registry.BLOCK.stream().filter(block -> block.replacementRule != null).toList(), 10) {
++
++                    public String padded(long time) {
++                        time /= 1000;
++                        if (this.i != 0) {
++                            time /= this.i;
++                        } else {
++                            time = 0;
++                        }
++                        String str = "" + time;
++                        while (str.length() < 17) {
++                            str = " " + str;
++                        }
++                        return str;
 +                    }
++
++                    @Override
++                    public void printProgress(int percentage) {
++                        super.printProgress(percentage);
++                        MinecraftServer.LOGGER.info("TEMP DEBUG - times:");
++                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.addBlockEntityItem) + " add block entity item");
++                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.addFire) + " add fire");
++                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.determineEveryStateHasSameModel) + " determine every state has same model");
++                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.clearVariants) + " clear variants");
++                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.setNoVariantModel) + " set no variant model");
++                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.setVariantModel) + " set variant model");
++                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.addOtherModel) + " add other model");
++                    }
++
 +                }
++                    .forEach(block -> block.replacementRule.addToResourcePack(resourcePack));
 +
 +                // Add all custom items
-+                for (Item item : Registry.ITEM) {
-+                    @Nullable ItemReplacementRule replacementRule = item.replacementRule;
-+                    if (replacementRule != null) {
-+                        replacementRule.addToResourcePack(resourcePack);
++                new CollectionPercentageProgress<>("Adding custom items to resource pack", Registry.ITEM.stream().filter(item -> item.replacementRule != null).toList(), 10)
++                    .forEach(item -> item.replacementRule.addToResourcePack(resourcePack));
++
++                // Minify custom model data
++                MinecraftServer.LOGGER.info("Minifying custom model data...");
++                resourcePack.getAssets(ResourcePackAssetType.MODEL, null, ResourceLocation.DEFAULT_NAMESPACE, ResourcePackAssetIntention.ITEM).forEach(itemModel -> {
++                    if (itemModel instanceof ConcreteResourcePackModel concreteModel) {
++                        concreteModel.minifyModelOverrides();
 +                    }
-+                }
++                });
 +
 +                // Delete old resource pack files
++                MinecraftServer.LOGGER.info("Deleting old resource pack archive files...");
 +                for (File file : new File(OUTPUT_FOLDER_PATH).listFiles()) {
 +                    if (file.getName().endsWith(".zip")) {
 +                        file.delete();
 +                    }
 +                }
 +
-+                // Write the resource pack to the output file
-+                resourcePack.writeToFile(getOutputFile());
++                if (shouldWriteResourcePackToArchiveFile) {
 +
-+                // Write the resource pack version to the file
-+                try (FileOutputStream fileOutputStream = new FileOutputStream(LAST_RESOURCE_PACK_VERSION_FILE_PATH)) {
-+                    try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(fileOutputStream))) {
-+                        writer.write(currentResourcePackVersion + "\n");
++                    // Write the resource pack to the output file
++                    resourcePack.writeToFile(getOutputFile());
++
++                    // Write the resource pack version to the file
++                    MinecraftServer.LOGGER.info("Writing resource pack version to file...");
++                    try (FileOutputStream fileOutputStream = new FileOutputStream(LAST_RESOURCE_PACK_VERSION_FILE_PATH)) {
++                        try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(fileOutputStream))) {
++                            writer.write(currentResourcePackVersion + "\n");
++                        }
++                    } catch (Exception e) {
++                        throw new RuntimeException("Exception occurred while writing new resource pack version to file", e);
 +                    }
-+                } catch (Exception e) {
-+                    throw new RuntimeException("Exception occurred while writing new resource pack version to file", e);
++
++                } else {
++                    MinecraftServer.LOGGER.info("Skipping writing resource pack to archive file because it is up-to-date (version " + currentResourcePackVersion + ")");
 +                }
 +
 +            } finally {
 +
 +                // Close all opened inherited resource packs
++                MinecraftServer.LOGGER.info("Closing open inherited resource pack files...");
 +                for (@NotNull ResourcePack inheritedResourcePack : Iterables.concat(resourcePack.getDefaultResourcePacks(), resourcePack.getIncludedResourcePacks())) {
 +                    if (inheritedResourcePack instanceof ReadFromArchiveResourcePack readInheritedResourcePack) {
 +                        try {
@@ -15592,6 +15837,9 @@ index 0000000000000000000000000000000000000000..0215fb53a604a6c4e6ec6bc27f4e94b5
 +        } catch (Exception e) {
 +            throw new RuntimeException("Exception occurred while creating server resource pack", e);
 +        }
++
++        MinecraftServer.LOGGER.info("Closing open inherited resource pack files...");
++
 +    }
 +
 +}
@@ -15663,6 +15911,138 @@ index d8999bae8bd0fea2265320fc6505eb7e09fc3e12..106e07afaf3164ebe1d63e9e48f543c9
          MinecraftServer.LOGGER.info("Adding onto existing structure tags...");
          this.tag(StructureTags.EYE_OF_ENDER_LOCATED).add(SuCraftBuiltinStructures.STRONGHOLD_SURFACE);
      }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/util/CollectionPercentageProgress.java b/src/main/java/nl/martijnmuijsers/paper/util/CollectionPercentageProgress.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..687d586feb19223ef411e82d6c3e33794877ee75
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/util/CollectionPercentageProgress.java
+@@ -0,0 +1,51 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.util;
++
++import org.jetbrains.annotations.NotNull;
++
++import java.util.Collection;
++import java.util.function.Consumer;
++
++/**
++ * A {@link PercentageProgress} for iterating over a collection
++ */
++public class CollectionPercentageProgress<T> extends PercentageProgress {
++
++    protected final @NotNull Collection<T> collection;
++
++    public CollectionPercentageProgress(@NotNull String action, @NotNull Collection<T> collection, int printEveryPercent) {
++        super(action, collection.size(), printEveryPercent);
++        this.collection = collection;
++    }
++
++    public void forEach(@NotNull Consumer<T> action) {
++        this.reset();
++        this.collection.forEach(element -> {
++            this.beforeStep();
++            action.accept(element);
++            this.afterStep();
++        });
++    }
++
++    public <E extends Throwable> void forEachThrowsException(@NotNull ConsumerThrowsException<T, E> action) throws E {
++        try {
++            this.reset();
++            this.collection.forEach(element -> {
++                try {
++                    this.beforeStep();
++                    action.accept(element);
++                    this.afterStep();
++                } catch (Throwable e) {
++                    throw new RuntimeException(e);
++                }
++            });
++        } catch (RuntimeException e) {
++            if (e.getClass().equals(RuntimeException.class)) {
++                throw (E) e.getCause();
++            }
++            throw e;
++        }
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/util/ConsumerThrowsException.java b/src/main/java/nl/martijnmuijsers/paper/util/ConsumerThrowsException.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d4b5da62bac0fa5e3bd1e1e6b3d608b710891a26
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/util/ConsumerThrowsException.java
+@@ -0,0 +1,13 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.util;
++
++/**
++ * A consumer that can throw a specific type of exception
++ */
++@FunctionalInterface
++public interface ConsumerThrowsException<T, E extends Throwable> {
++
++    void accept(T t) throws E;
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/util/PercentageProgress.java b/src/main/java/nl/martijnmuijsers/paper/util/PercentageProgress.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..465cb288e3fb241a17080fb801ebda3ce6c2b779
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/util/PercentageProgress.java
+@@ -0,0 +1,50 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.util;
++
++import net.minecraft.server.MinecraftServer;
++import org.jetbrains.annotations.NotNull;
++
++/**
++ * Utility class to print progress to console
++ */
++public class PercentageProgress {
++
++    protected final @NotNull String action;
++    protected final int total;
++    protected final int printEveryPercent;
++
++    protected int i;
++
++    protected int lastPrintedPercentage;
++
++    public PercentageProgress(@NotNull String action, int total, int printEveryPercent) {
++        this.action = action;
++        this.total = total;
++        this.printEveryPercent = printEveryPercent;
++        this.reset();
++    }
++
++    public void printProgress(int percentage) {
++        MinecraftServer.LOGGER.info(this.action + "... " + percentage + "% (" + this.i + " / " + this.total + ")");
++    }
++
++    public void beforeStep() {
++        int percentage = (int) Math.floor(this.i * 100.0 / this.total + 0.00001);
++        if ((percentage % this.printEveryPercent == 0 || this.i == this.total) && percentage != this.lastPrintedPercentage) {
++            this.printProgress(percentage);
++            this.lastPrintedPercentage = percentage;
++        }
++    }
++
++    public void afterStep() {
++        this.i++;
++        beforeStep();
++    }
++
++    public void reset() {
++        this.i = 0;
++        this.lastPrintedPercentage = -1;
++    }
++
++}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 index 50d8c6d75e3ab4d1109e591091438f01e7ae64af..9bb7fc289e4992d0f7f44f4992b179f321eee3db 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
