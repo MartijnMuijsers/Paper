@@ -14651,7 +14651,7 @@ index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..869a7793b2d72ea41f8dfe97ee10ab9d018866aa
+index 0000000000000000000000000000000000000000..6a8944c1f284d052a9100ef2048975f813db994f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
 @@ -0,0 +1,265 @@
@@ -14861,9 +14861,9 @@ index 0000000000000000000000000000000000000000..869a7793b2d72ea41f8dfe97ee10ab9d
 +    public void writeTo(@NotNull OutputStream outputStream) throws IOException {
 +        this.sortModelOverrides();
 +        var overrides = this.json.getAsJsonArray(KeyConstants.modelOverrides);
-+        if (overrides != null) {
-+            MinecraftServer.LOGGER.info("TEMP DEBUG - writing resource pack model " + this.getKey() + " with overrides: " + overrides.size());
-+        }
++//        if (overrides != null) {
++//            MinecraftServer.LOGGER.info("TEMP DEBUG - writing resource pack model " + this.getKey() + " with overrides: " + overrides.size());
++//        }
 +        JsonWriter writer = null;
 +        super.writeTo(outputStream);
 +    }
@@ -15243,10 +15243,10 @@ index 0000000000000000000000000000000000000000..7035f89399196b0a5440c01b7c1ce3d4
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4f6c5f16c60fa9b9c2a5115e8b3de749d1310a9c
+index 0000000000000000000000000000000000000000..d1ae36efb2283d2dbe4a6709066fd92cb44c7e52
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,258 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.memory;
@@ -15434,6 +15434,74 @@ index 0000000000000000000000000000000000000000..4f6c5f16c60fa9b9c2a5115e8b3de749
 +     */
 +    public @NotNull List<@NotNull MutableResourcePackAsset> getAssets(@Nullable ResourcePackAssetType type, @Nullable NamespacedKeyWithIntention key, @Nullable String namespace, @Nullable ResourcePackAssetIntention intention) {
 +        return this.assets.values().stream().filter(asset -> (type == null || asset.getType().equals(type)) && (key == null || asset.getKey().equals(key)) && (namespace == null || asset.getKey().namespace().equals(namespace)) && (intention == null || asset.getKey().intention().equals(intention))).toList();
++    }
++
++    public void writeToFile(@NotNull File file) throws IOException {
++        try (@NotNull FileOutputStream fileOutputStream = new FileOutputStream(file)) {
++            try (@NotNull ZipOutputStream zipOutputStream = new ZipOutputStream(fileOutputStream)) {
++                zipOutputStream.setLevel(9);
++                @NotNull Set<@NotNull String> zippedFilePaths = new HashSet<>();
++                // Add the settings
++                {
++                    zippedFilePaths.add(PathConstants.PackMeta.pathFromRoot);
++                    @NotNull ZipEntry zipEntry = new ZipEntry(PathConstants.PackMeta.pathFromRoot);
++                    zipOutputStream.putNextEntry(zipEntry);
++                    zipOutputStream.write(this.getSettings().createJson().toString().getBytes(Charsets.UTF_8));
++                }
++                // Add the cached assets
++                new CollectionPercentageProgress<>("Writing cached assets to resource pack archive file", this.assets.values().stream().filter(assetInMemory -> assetInMemory.isDirty()).toList(), 5)/* {
++
++                    @Override
++                    public void printProgress(int percentage) {
++                        System.gc();
++                        super.printProgress(percentage);
++                    }
++
++                }*/.forEachThrowsException(assetInMemory -> {
++                        @NotNull String path = assetInMemory.getPathInResourcePack();
++                        zippedFilePaths.add(path);
++                        @NotNull ZipEntry zipEntry = new ZipEntry(path);
++                        zipOutputStream.putNextEntry(zipEntry);
++                        assetInMemory.writeTo(zipOutputStream);
++                        if (assetInMemory.hasMeta()) {
++                            @NotNull String metaPath = path + PathConstants.metaFileSuffix;
++                            zippedFilePaths.add(metaPath);
++                            @NotNull ZipEntry metaZipEntry = new ZipEntry(metaPath);
++                            zipOutputStream.putNextEntry(metaZipEntry);
++                            assetInMemory.writeMetaTo(zipOutputStream);
++                        }
++                    });
++                // Add all files from included resource packs that we haven't added yet
++                new CollectionPercentageProgress<>("Writing included resource pack files to resource pack archive file", this.includedResourcePacks.stream().flatMap(pack -> {
++                    try {
++                        return pack.getAllFilesStream();
++                    } catch (Exception e) {
++                        return Stream.empty();
++                    }
++                }).toList(), 5)/* {
++
++                    @Override
++                    public void printProgress(int percentage) {
++                        System.gc();
++                        super.printProgress(percentage);
++                    }
++
++                }*/.forEachThrowsException(includedResourcePackFile -> {
++                        @NotNull String includedFilePath = includedResourcePackFile.left();
++                        if (zippedFilePaths.add(includedFilePath)) {
++                            try (@NotNull InputStream includedFileInputStream = includedResourcePackFile.right().call()) {
++                                zipOutputStream.putNextEntry(new ZipEntry(includedFilePath));
++                                zipOutputStream.write(includedFileInputStream.readAllBytes());
++                            } catch (Exception e) {
++                                if (e instanceof IOException ioE) {
++                                    throw ioE;
++                                }
++                                throw new IOException("An exception occurred while getting input stream for included resource pack file", e);
++                            }
++                        }
++                    });
++            }
++        }
 +    }
 +
 +}
@@ -15738,10 +15806,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5247fc85df67fa371c930f340fea439ab3b93894
+index 0000000000000000000000000000000000000000..a58a2a0ffc4869f3c9161b7cedf48779975259a5
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,424 @@
+@@ -0,0 +1,406 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -15908,63 +15976,35 @@ index 0000000000000000000000000000000000000000..5247fc85df67fa371c930f340fea439a
 +                settings.setName(NAME);
 +                settings.setDescription(DESCRIPTION);
 +
-+                // Determine all assets that will be in the resource pack
-+                @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocationsThatWillBeAdded = new ArrayList<>(0);
-+                @NotNull Set<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocationsThatWillBeAddedSet = new HashSet<>(0);
-+                @NotNull Map<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>, @NotNull List<@NotNull BlockReplacementRule>> blockReplacementRulesByAssetLocation = new HashMap<>(0);
-+                @NotNull Map<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>, @NotNull List<@NotNull ItemReplacementRule>> itemReplacementRulesByAssetLocation = new HashMap<>(0);
++                // Add all custom blocks
++                new CollectionPercentageProgress<Block>("Adding custom blocks to resource pack", Registry.BLOCK.stream().filter(block -> block.replacementRule != null).toList(), 10)/* {
 +
-+                Registry.BLOCK.stream().filter(block -> block.replacementRule != null).forEach(block -> block.replacementRule.addToResourcePack(resourcePack, false).stream().distinct().forEach(assetLocation -> {
-+                    if (assetLocationsThatWillBeAddedSet.add(assetLocation)) {
-+                        assetLocationsThatWillBeAdded.add(assetLocation);
++                    @Override
++                    public void printProgress(int percentage) {
++                        System.gc();
++                        super.printProgress(percentage);
 +                    }
-+                    blockReplacementRulesByAssetLocation.computeIfAbsent(assetLocation, $ -> new ArrayList<>(0)).add(block.replacementRule);
-+                }));
-+                    Registry.ITEM.stream().filter(item -> item.replacementRule != null).forEach(item -> item.replacementRule.addToResourcePack(resourcePack, false).stream().distinct().forEach(assetLocation -> {
-+                        if (assetLocationsThatWillBeAddedSet.add(assetLocation)) {
-+                            assetLocationsThatWillBeAdded.add(assetLocation);
++
++                }*/.forEach(block -> block.replacementRule.addToResourcePack(resourcePack, true));
++
++                // Add all custom items
++                new CollectionPercentageProgress<>("Adding custom items to resource pack", Registry.ITEM.stream().filter(item -> item.replacementRule != null).toList(), 10)/* {
++
++                    @Override
++                    public void printProgress(int percentage) {
++                        System.gc();
++                        super.printProgress(percentage);
++                    }
++
++                }*/.forEach(item -> item.replacementRule.addToResourcePack(resourcePack, true));
++
++                // Minify custom model data
++                MinecraftServer.LOGGER.info("Minifying custom model data...");
++                resourcePack.getAssets(ResourcePackAssetType.MODEL, null, ResourceLocation.DEFAULT_NAMESPACE, ResourcePackAssetIntention.ITEM).forEach(itemModel -> {
++                        if (itemModel instanceof ConcreteResourcePackModel concreteModel) {
++                            concreteModel.minifyModelOverrides();
 +                        }
-+                        itemReplacementRulesByAssetLocation.computeIfAbsent(assetLocation, $ -> new ArrayList<>(0)).add(item.replacementRule);
-+                    }));
-+                blockReplacementRulesByAssetLocation.replaceAll(($, rules) -> rules.stream().distinct().toList());
-+                itemReplacementRulesByAssetLocation.replaceAll(($, rules) -> rules.stream().distinct().toList());
-+                //                MinecraftServer.LOGGER.info("TEMP DEBUG - before: " + assetLocationsThatWillBeAdded.stream().map(assetLocation -> assetLocation.left().getFolderPathInNamespaceFolder() + " > " + assetLocation.right()).toList());
-+                assetLocationsThatWillBeAdded.sort((assetLocation1, assetLocation2) -> {
-+                    //                    MinecraftServer.LOGGER.info("Comparing " + assetLocation1.left().getFolderPathInNamespaceFolder() + " > " + assetLocation1.right() + " and " + assetLocation2.left().getFolderPathInNamespaceFolder() + " > " + assetLocation2.right());
-+                    int orderOrdinalCompare = Integer.compare(assetLocation1.left().orderOrdinal, assetLocation2.left().orderOrdinal);
-+                    if (orderOrdinalCompare != 0) {
-+                        return orderOrdinalCompare;
-+                    }
-+                    String namespace1 = assetLocation1.right().namespace();
-+                    String namespace2 = assetLocation2.right().namespace();
-+                    //                    MinecraftServer.LOGGER.info("Have namespaces " + namespace1 + " and " + namespace2);
-+                    int namespaceOrdinal1 = namespace1.equals(ResourceLocation.SUCRAFT_NAMESPACE) ? 0 : namespace1.equals(ResourceLocation.DEFAULT_NAMESPACE) || namespace1.equals(ResourceLocation.REALMS_NAMESPACE) ? 2 : 1;
-+                    int namespaceOrdinal2 = namespace2.equals(ResourceLocation.SUCRAFT_NAMESPACE) ? 0 : namespace2.equals(ResourceLocation.DEFAULT_NAMESPACE) || namespace2.equals(ResourceLocation.REALMS_NAMESPACE) ? 2 : 1;
-+                    int namespaceCompare = Integer.compare(namespaceOrdinal1, namespaceOrdinal2);
-+                    //                    MinecraftServer.LOGGER.info("Compare is: " + namespaceCompare);
-+                    if (namespaceCompare != 0) {
-+                        return namespaceCompare;
-+                    }
-+                    int intentionOrdinal1 = assetLocation1.right().intention().equals(ResourcePackAssetIntention.BLOCK) ? 0 : 1;
-+                    int intentionOrdinal2 = assetLocation2.right().intention().equals(ResourcePackAssetIntention.BLOCK) ? 0 : 1;
-+                    int intentionCompare = Integer.compare(intentionOrdinal1, intentionOrdinal2);
-+                    if (intentionCompare != 0) {
-+                        return intentionCompare;
-+                    }
-+                    var blockReplacementRules1 = blockReplacementRulesByAssetLocation.get(assetLocation1);
-+                    var blockReplacementRules2 = blockReplacementRulesByAssetLocation.get(assetLocation2);
-+                    int minBlockId1 = blockReplacementRules1 == null ? Integer.MAX_VALUE : blockReplacementRules1.stream().min(Comparator.comparing(rule -> Registry.BLOCK.getId(rule.getReal()))).map(rule -> Registry.BLOCK.getId(rule.getReal())).orElse(Integer.MAX_VALUE);
-+                    int minBlockId2 = blockReplacementRules2 == null ? Integer.MAX_VALUE : blockReplacementRules2.stream().min(Comparator.comparing(rule -> Registry.BLOCK.getId(rule.getReal()))).map(rule -> Registry.BLOCK.getId(rule.getReal())).orElse(Integer.MAX_VALUE);
-+                    int minBlockIdCompare = Integer.compare(minBlockId1, minBlockId2);
-+                    if (minBlockIdCompare != 0) {
-+                        return minBlockIdCompare;
-+                    }
-+                    return assetLocation1.right().toString().compareTo(assetLocation2.right().toString());
 +                });
-+//                for (int i = 0; i < 10; i++) {
-+//                    MinecraftServer.LOGGER.info("TEMP DEBUG - on " + i + " is " + assetLocationsThatWillBeAdded.get(i).right());
-+//                }
-+//                MinecraftServer.LOGGER.info("TEMP DEBUG - after: " + assetLocationsThatWillBeAdded.stream().map(assetLocation -> assetLocation.left().getFolderPathInNamespaceFolder() + " > " + assetLocation.right()).toList());
 +
 +                // Delete old resource pack files
 +                MinecraftServer.LOGGER.info("Deleting old resource pack archive files...");
@@ -15976,157 +16016,160 @@ index 0000000000000000000000000000000000000000..5247fc85df67fa371c930f340fea439a
 +
 +                if (!shouldWriteResourcePackToArchiveFile) {
 +                    MinecraftServer.LOGGER.info("Skipping writing resource pack to archive file because it is up-to-date (version " + currentResourcePackVersion + ")");
++                } else {
++                    // Write the resource pack to the output file
++                    resourcePack.writeToFile(getOutputFile());
 +                }
 +
-+                {
-+                    @Nullable FileOutputStream fileOutputStream = null;
-+                    @Nullable ZipOutputStream zipOutputStream = null;
-+                    @NotNull Set<@NotNull String> zippedFilePaths = new HashSet<>();
-+                    try {
-+
-+                        if (shouldWriteResourcePackToArchiveFile) {
-+                            // Create the output stream
-+                            fileOutputStream = new FileOutputStream(getOutputFile());
-+                            zipOutputStream = new ZipOutputStream(fileOutputStream);
-+                            zipOutputStream.setLevel(9);
-+                        }
-+                        final @Nullable ZipOutputStream finalZipOutputStream = zipOutputStream;
-+
-+                        if (shouldWriteResourcePackToArchiveFile) {
-+                            // Add the settings
-+                            {
-+                                zippedFilePaths.add(PathConstants.PackMeta.pathFromRoot);
-+                                @NotNull ZipEntry zipEntry = new ZipEntry(PathConstants.PackMeta.pathFromRoot);
-+                                zipOutputStream.putNextEntry(zipEntry);
-+                                zipOutputStream.write(resourcePack.getSettings().createJson().toString().getBytes(Charsets.UTF_8));
-+                            }
-+                        }
-+
-+                        // Add the assets
-+                        resourcePack.clearAssetsInMemory();
-+                        new CollectionPercentageProgress<>(shouldWriteResourcePackToArchiveFile ? "Writing assets to resource pack" : "Processing assets", assetLocationsThatWillBeAdded, 1).forEachThrowsException(assetLocation -> {
-+
-+                            {
-+                                @NotNull String path = ResourcePackAsset.getPathInResourcePack(assetLocation.left(), assetLocation.right());
-+                                if (zippedFilePaths.contains(path)) {
-+                                    return;
-+                                }
-+                                if (assetLocation.left().equals(ResourcePackAssetType.TEXTURE)) {
-+                                    var asset = resourcePack.getOptionalAsset(assetLocation.left(), assetLocation.right());
-+                                    if (asset instanceof SimpleImageFileResourcePackAsset imageFileAsset) {
-+                                        if (imageFileAsset.existsInIncludedResourcePack) {
-+                                            return;
-+                                        }
-+                                    }
-+                                }
-+                            }
-+
-+                            MinecraftServer.LOGGER.info("TEMP DEBUG - Processing asset: " + assetLocation.left().getFolderPathInNamespaceFolder() + " , " + assetLocation.right());
-+
-+                            @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> relatedAssets = new ArrayList<>(0);
-+
-+                            var blockReplacementRules = blockReplacementRulesByAssetLocation.get(assetLocation);
-+                            if (blockReplacementRules != null) {
-+                                blockReplacementRules.forEach(rule -> {
-+//                                    MinecraftServer.LOGGER.info("TEMP DEBUG - Block replacement rule with real: " + rule.getReal());
-+                                    relatedAssets.addAll(rule.addToResourcePack(resourcePack, true));
-+                                });
-+                            }
-+                            var itemReplacementRules = itemReplacementRulesByAssetLocation.get(assetLocation);
-+                            if (itemReplacementRules != null) {
-+                                itemReplacementRules.forEach(rule -> {
-+//                                    MinecraftServer.LOGGER.info("TEMP DEBUG - Item replacement rule with real: " + rule.getReal());
-+                                    relatedAssets.addAll(rule.addToResourcePack(resourcePack, true));
-+                                });
-+                            }
-+
-+                            // Check which related assets were fully included
-+                            @NotNull Stream<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> relatedAssetsThatWereFullyIncluded = relatedAssets.stream().filter(relatedAsset -> {
-+                                var relatedBlockReplacementRules = blockReplacementRulesByAssetLocation.get(relatedAsset);
-+                                if (relatedBlockReplacementRules != null) {
-+                                    if (blockReplacementRules == null || relatedBlockReplacementRules.stream().anyMatch(rule -> !blockReplacementRules.contains(rule))) {
-+                                        return false;
-+                                    }
-+                                }
-+                                var relatedItemReplacementRules = itemReplacementRulesByAssetLocation.get(relatedAsset);
-+                                if (relatedItemReplacementRules != null) {
-+                                    if (itemReplacementRules == null || relatedItemReplacementRules.stream().anyMatch(rule -> !itemReplacementRules.contains(rule))) {
-+                                        return false;
-+                                    }
-+                                }
-+                                return true;
-+                            });
-+
-+                            var asset = resourcePack.getAsset(assetLocation.left(), assetLocation.right());
-+
-+                            // Minify custom model data for vanilla items
-+                            if (asset.getType().equals(ResourcePackAssetType.MODEL) && asset.getKey().namespace().equals(ResourceLocation.DEFAULT_NAMESPACE)) {
-+                                if (asset instanceof ConcreteResourcePackModel concreteModel) {
-+                                    concreteModel.minifyModelOverrides();
-+                                }
-+                            }
-+
-+                            // Write the assets that should be written to file
-+                            if (finalShouldWriteResourcePackToArchiveFile) {
-+                                for (@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention> assetLocationToWriteToFile : Iterables.concat(Collections.singletonList(assetLocation), Streams.concat(relatedAssets.stream().filter(relatedAsset -> relatedAsset.left().equals(ResourcePackAssetType.TEXTURE) && relatedAsset.right().namespace().equals(ResourceLocation.SUCRAFT_NAMESPACE)), relatedAssetsThatWereFullyIncluded).distinct().toList())) {
-+                                    @NotNull String path = ResourcePackAsset.getPathInResourcePack(assetLocationToWriteToFile.left(), assetLocationToWriteToFile.right());
-+                                    if (zippedFilePaths.add(path)) {
-+                                        var assetToWriteToFile = resourcePack.getAsset(assetLocationToWriteToFile.left(), assetLocationToWriteToFile.right());
-+//                                        MinecraftServer.LOGGER.info("TEMP DEBUG - Going to write asset to resource pack: " + assetLocationToWriteToFile.left().getFolderPathInNamespaceFolder() + " , " + assetLocationToWriteToFile.right());
-+                                        @NotNull ZipEntry zipEntry = new ZipEntry(path);
-+                                        finalZipOutputStream.putNextEntry(zipEntry);
-+                                        assetToWriteToFile.writeTo(finalZipOutputStream);
-+                                        if (assetToWriteToFile.hasMeta()) {
-+                                            @NotNull String metaPath = path + PathConstants.metaFileSuffix;
-+                                            zippedFilePaths.add(metaPath);
-+                                            @NotNull ZipEntry metaZipEntry = new ZipEntry(metaPath);
-+                                            finalZipOutputStream.putNextEntry(metaZipEntry);
-+                                            assetToWriteToFile.writeMetaTo(finalZipOutputStream);
-+                                        }
-+                                    }
-+                                }
-+                            }
-+
-+                            resourcePack.clearAssetsInMemory();
-+                            System.gc();
-+                        });
-+
-+                        if (shouldWriteResourcePackToArchiveFile) {
-+
-+                            // Add all files from included resource packs that we haven't added yet
-+                            new CollectionPercentageProgress<>("Writing included resource pack files to resource pack archive file", resourcePack.getIncludedResourcePacks().stream().flatMap(pack -> {
-+                                try {
-+                                    return pack.getAllFilesStream();
-+                                } catch (Exception e) {
-+                                    return Stream.empty();
-+                                }
-+                            }).toList(), 5)
-+                                .forEachThrowsException(includedResourcePackFile -> {
-+                                    @NotNull String includedFilePath = includedResourcePackFile.left();
-+                                    if (zippedFilePaths.add(includedFilePath)) {
-+                                        try (@NotNull InputStream includedFileInputStream = includedResourcePackFile.right().call()) {
-+                                            finalZipOutputStream.putNextEntry(new ZipEntry(includedFilePath));
-+                                            finalZipOutputStream.write(includedFileInputStream.readAllBytes());
-+                                        } catch (Exception e) {
-+                                            if (e instanceof IOException ioE) {
-+                                                throw ioE;
-+                                            }
-+                                            throw new IOException("An exception occurred while getting input stream for included resource pack file", e);
-+                                        }
-+                                    }
-+                                });
-+
-+                        }
-+
-+                    } finally {
-+                        if (zipOutputStream != null) {
-+                            zipOutputStream.close();
-+                        }
-+                        if (fileOutputStream != null) {
-+                            fileOutputStream.close();
-+                        }
-+                    }
-+                }
++//                {
++//                    @Nullable FileOutputStream fileOutputStream = null;
++//                    @Nullable ZipOutputStream zipOutputStream = null;
++//                    @NotNull Set<@NotNull String> zippedFilePaths = new HashSet<>();
++//                    try {
++//
++//                        if (shouldWriteResourcePackToArchiveFile) {
++//                            // Create the output stream
++//                            fileOutputStream = new FileOutputStream(getOutputFile());
++//                            zipOutputStream = new ZipOutputStream(fileOutputStream);
++//                            zipOutputStream.setLevel(9);
++//                        }
++//                        final @Nullable ZipOutputStream finalZipOutputStream = zipOutputStream;
++//
++//                        if (shouldWriteResourcePackToArchiveFile) {
++//                            // Add the settings
++//                            {
++//                                zippedFilePaths.add(PathConstants.PackMeta.pathFromRoot);
++//                                @NotNull ZipEntry zipEntry = new ZipEntry(PathConstants.PackMeta.pathFromRoot);
++//                                zipOutputStream.putNextEntry(zipEntry);
++//                                zipOutputStream.write(resourcePack.getSettings().createJson().toString().getBytes(Charsets.UTF_8));
++//                            }
++//                        }
++//
++//                        // Add the assets
++//                        resourcePack.clearAssetsInMemory();
++//                        new CollectionPercentageProgress<>(shouldWriteResourcePackToArchiveFile ? "Writing assets to resource pack" : "Processing assets", assetLocationsThatWillBeAdded, 1).forEachThrowsException(assetLocation -> {
++//
++//                            {
++//                                @NotNull String path = ResourcePackAsset.getPathInResourcePack(assetLocation.left(), assetLocation.right());
++//                                if (zippedFilePaths.contains(path)) {
++//                                    return;
++//                                }
++//                                if (assetLocation.left().equals(ResourcePackAssetType.TEXTURE)) {
++//                                    var asset = resourcePack.getOptionalAsset(assetLocation.left(), assetLocation.right());
++//                                    if (asset instanceof SimpleImageFileResourcePackAsset imageFileAsset) {
++//                                        if (imageFileAsset.existsInIncludedResourcePack) {
++//                                            return;
++//                                        }
++//                                    }
++//                                }
++//                            }
++//
++//                            MinecraftServer.LOGGER.info("TEMP DEBUG - Processing asset: " + assetLocation.left().getFolderPathInNamespaceFolder() + " , " + assetLocation.right());
++//
++//                            @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> relatedAssets = new ArrayList<>(0);
++//
++//                            var blockReplacementRules = blockReplacementRulesByAssetLocation.get(assetLocation);
++//                            if (blockReplacementRules != null) {
++//                                blockReplacementRules.forEach(rule -> {
++////                                    MinecraftServer.LOGGER.info("TEMP DEBUG - Block replacement rule with real: " + rule.getReal());
++//                                    relatedAssets.addAll(rule.addToResourcePack(resourcePack, true));
++//                                });
++//                            }
++//                            var itemReplacementRules = itemReplacementRulesByAssetLocation.get(assetLocation);
++//                            if (itemReplacementRules != null) {
++//                                itemReplacementRules.forEach(rule -> {
++////                                    MinecraftServer.LOGGER.info("TEMP DEBUG - Item replacement rule with real: " + rule.getReal());
++//                                    relatedAssets.addAll(rule.addToResourcePack(resourcePack, true));
++//                                });
++//                            }
++//
++//                            // Check which related assets were fully included
++//                            @NotNull Stream<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> relatedAssetsThatWereFullyIncluded = relatedAssets.stream().filter(relatedAsset -> {
++//                                var relatedBlockReplacementRules = blockReplacementRulesByAssetLocation.get(relatedAsset);
++//                                if (relatedBlockReplacementRules != null) {
++//                                    if (blockReplacementRules == null || relatedBlockReplacementRules.stream().anyMatch(rule -> !blockReplacementRules.contains(rule))) {
++//                                        return false;
++//                                    }
++//                                }
++//                                var relatedItemReplacementRules = itemReplacementRulesByAssetLocation.get(relatedAsset);
++//                                if (relatedItemReplacementRules != null) {
++//                                    if (itemReplacementRules == null || relatedItemReplacementRules.stream().anyMatch(rule -> !itemReplacementRules.contains(rule))) {
++//                                        return false;
++//                                    }
++//                                }
++//                                return true;
++//                            });
++//
++//                            var asset = resourcePack.getAsset(assetLocation.left(), assetLocation.right());
++//
++//                            // Minify custom model data for vanilla items
++//                            if (asset.getType().equals(ResourcePackAssetType.MODEL) && asset.getKey().namespace().equals(ResourceLocation.DEFAULT_NAMESPACE)) {
++//                                if (asset instanceof ConcreteResourcePackModel concreteModel) {
++//                                    concreteModel.minifyModelOverrides();
++//                                }
++//                            }
++//
++//                            // Write the assets that should be written to file
++//                            if (finalShouldWriteResourcePackToArchiveFile) {
++//                                for (@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention> assetLocationToWriteToFile : Iterables.concat(Collections.singletonList(assetLocation), Streams.concat(relatedAssets.stream().filter(relatedAsset -> relatedAsset.left().equals(ResourcePackAssetType.TEXTURE) && relatedAsset.right().namespace().equals(ResourceLocation.SUCRAFT_NAMESPACE)), relatedAssetsThatWereFullyIncluded).distinct().toList())) {
++//                                    @NotNull String path = ResourcePackAsset.getPathInResourcePack(assetLocationToWriteToFile.left(), assetLocationToWriteToFile.right());
++//                                    if (zippedFilePaths.add(path)) {
++//                                        var assetToWriteToFile = resourcePack.getAsset(assetLocationToWriteToFile.left(), assetLocationToWriteToFile.right());
++////                                        MinecraftServer.LOGGER.info("TEMP DEBUG - Going to write asset to resource pack: " + assetLocationToWriteToFile.left().getFolderPathInNamespaceFolder() + " , " + assetLocationToWriteToFile.right());
++//                                        @NotNull ZipEntry zipEntry = new ZipEntry(path);
++//                                        finalZipOutputStream.putNextEntry(zipEntry);
++//                                        assetToWriteToFile.writeTo(finalZipOutputStream);
++//                                        if (assetToWriteToFile.hasMeta()) {
++//                                            @NotNull String metaPath = path + PathConstants.metaFileSuffix;
++//                                            zippedFilePaths.add(metaPath);
++//                                            @NotNull ZipEntry metaZipEntry = new ZipEntry(metaPath);
++//                                            finalZipOutputStream.putNextEntry(metaZipEntry);
++//                                            assetToWriteToFile.writeMetaTo(finalZipOutputStream);
++//                                        }
++//                                    }
++//                                }
++//                            }
++//
++//                            resourcePack.clearAssetsInMemory();
++//                            System.gc();
++//                        });
++//
++//                        if (shouldWriteResourcePackToArchiveFile) {
++//
++//                            // Add all files from included resource packs that we haven't added yet
++//                            new CollectionPercentageProgress<>("Writing included resource pack files to resource pack archive file", resourcePack.getIncludedResourcePacks().stream().flatMap(pack -> {
++//                                try {
++//                                    return pack.getAllFilesStream();
++//                                } catch (Exception e) {
++//                                    return Stream.empty();
++//                                }
++//                            }).toList(), 5)
++//                                .forEachThrowsException(includedResourcePackFile -> {
++//                                    @NotNull String includedFilePath = includedResourcePackFile.left();
++//                                    if (zippedFilePaths.add(includedFilePath)) {
++//                                        try (@NotNull InputStream includedFileInputStream = includedResourcePackFile.right().call()) {
++//                                            finalZipOutputStream.putNextEntry(new ZipEntry(includedFilePath));
++//                                            finalZipOutputStream.write(includedFileInputStream.readAllBytes());
++//                                        } catch (Exception e) {
++//                                            if (e instanceof IOException ioE) {
++//                                                throw ioE;
++//                                            }
++//                                            throw new IOException("An exception occurred while getting input stream for included resource pack file", e);
++//                                        }
++//                                    }
++//                                });
++//
++//                        }
++//
++//                    } finally {
++//                        if (zipOutputStream != null) {
++//                            zipOutputStream.close();
++//                        }
++//                        if (fileOutputStream != null) {
++//                            fileOutputStream.close();
++//                        }
++//                    }
++//                }
 +
 +                if (shouldWriteResourcePackToArchiveFile) {
 +                    // Write the resource pack version to the file
@@ -16141,6 +16184,8 @@ index 0000000000000000000000000000000000000000..5247fc85df67fa371c930f340fea439a
 +                }
 +
 +            } finally {
++
++                MinecraftServer.LOGGER.info("Closing open inherited resource pack files...");
 +
 +                // Close all opened inherited resource packs
 +                MinecraftServer.LOGGER.info("Closing open inherited resource pack files...");
@@ -16161,7 +16206,12 @@ index 0000000000000000000000000000000000000000..5247fc85df67fa371c930f340fea439a
 +            throw new RuntimeException("Exception occurred while creating server resource pack", e);
 +        }
 +
-+        MinecraftServer.LOGGER.info("Closing open inherited resource pack files...");
++        System.gc();
++//        try {
++//            Runtime.getRuntime().exec("jcmd org.bukkit.craftbukkit.Main GC.run");
++//        } catch (IOException e) {
++//            MinecraftServer.LOGGER.warn("Exception while calling command line command to force garbage collection after resource pack generation: " + e);
++//        }
 +
 +    }
 +
