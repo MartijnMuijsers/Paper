@@ -2090,7 +2090,7 @@ index 5aaeb05cf3f3a86530e929499dfb98a659c714b7..9b01d7633b07ef0f4636abcafb889957
              Thread thread = new Thread("Server Shutdown Thread") {
                  public void run() {
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 1d452417c83f4a4053faf3bb6b86d357a6403203..1a0721e864bb7e0c92df4e9e63c8161a007df365 100644
+index 1d452417c83f4a4053faf3bb6b86d357a6403203..99ea730ce948f34b5044330bf72700ee87c643b8 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
 @@ -96,6 +96,7 @@ import net.minecraft.server.players.GameProfileCache;
@@ -2109,17 +2109,32 @@ index 1d452417c83f4a4053faf3bb6b86d357a6403203..1a0721e864bb7e0c92df4e9e63c8161a
  import net.minecraft.world.level.border.WorldBorder;
  import net.minecraft.world.level.dimension.LevelStem;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
-@@ -153,7 +155,10 @@ import net.minecraft.world.level.storage.loot.LootTables;
+@@ -153,7 +155,11 @@ import net.minecraft.world.level.storage.loot.LootTables;
  import net.minecraft.world.level.storage.loot.PredicateManager;
  import net.minecraft.world.phys.Vec2;
  import net.minecraft.world.phys.Vec3;
 +import nl.martijnmuijsers.paper.block.SuCraftBlocks;
 +import nl.martijnmuijsers.paper.item.SuCraftCraftingRecipeProvider;
++import nl.martijnmuijsers.paper.resourcepack.httpserver.ResourcePackHTTPServer;
  import org.apache.commons.lang3.Validate;
 +import org.bukkit.Material;
  import org.slf4j.Logger;
  
  // CraftBukkit start
+@@ -1130,6 +1136,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.status.setPreviewsChat(this.previewsChat());
+             this.updateStatusIcon(this.status);
+ 
++            // Martijn start - custom blocks and items
++
++            // Update the server properties in memory to match the resource pack and HTTP server
++            ResourcePackHTTPServer.getInstance().updateServerPropertiesInMemory(false);
++
++            // Martijn end - custom blocks and items
++
+             // Spigot start
+             // Paper start - move done tracking
+             LOGGER.info("Running delayed init tasks");
 diff --git a/src/main/java/net/minecraft/server/PlayerAdvancements.java b/src/main/java/net/minecraft/server/PlayerAdvancements.java
 index de0513b38e5fa0138f1cee6bb633561be12449fc..cc4f0e64ca476435aed1e8b5dcf5300014fabdcb 100644
 --- a/src/main/java/net/minecraft/server/PlayerAdvancements.java
@@ -2200,7 +2215,7 @@ index 06e3a868e922f1b7a586d0ca28f64a67ae463b68..0feab0105d15be1847d0064aeb1186ed
          int j = item.getItem().getMaxStackSize();
          int k = j * 100;
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26f223b855bbb616ba9774f3769fd8039e9d2425 100644
+index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26d6b5bb5fecdeb82f520e1eadeb99d57b00a6fe 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -13,11 +13,16 @@ import java.net.Proxy;
@@ -2248,7 +2263,7 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26f223b855bbb616ba9774f3769fd803
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -275,6 +288,60 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -275,6 +288,55 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
              return false;
          }
  
@@ -2298,11 +2313,6 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26f223b855bbb616ba9774f3769fd803
 +
 +        // This is a reasonable time to create the resource pack
 +        CreateSuCraftResourcePack.createAndWrite();
-+        // Start the HTTP server that serves the resource pack
-+        ResourcePackHTTPServer.getInstance().startIfNotStarted();
-+
-+        // Update the server properties in memory to match the resource pack and HTTP server
-+        ResourcePackHTTPServer.getInstance().updateServerPropertiesInMemory(false);
 +
 +        // Martijn end - custom blocks and items
 +
@@ -3258,7 +3268,7 @@ index 6b3cfc19c4fd1382ddf534265a1114995a4f6b55..fb83a6fabe65bcc57b959e3e355951f9
          return this.getItem().interactLivingEntity(this, user, entity, hand);
      }
 diff --git a/src/main/java/net/minecraft/world/item/Items.java b/src/main/java/net/minecraft/world/item/Items.java
-index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..8b9caf6fc03e392277ce2ea73b10f42c6ad8b454 100644
+index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..b1bc2de8102ef10060b79f32544fc92d57a42e3b 100644
 --- a/src/main/java/net/minecraft/world/item/Items.java
 +++ b/src/main/java/net/minecraft/world/item/Items.java
 @@ -14,6 +14,9 @@ import net.minecraft.world.food.Foods;
@@ -3299,7 +3309,7 @@ index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..8b9caf6fc03e392277ce2ea73b10f42c
          BlockItem blockItem = new BlockItem(block, (new Item.Properties()).tab(group));
  
          for(Block block2 : blocks) {
-@@ -1199,23 +1202,37 @@ public class Items {
+@@ -1199,23 +1202,42 @@ public class Items {
          return registerBlock(blockItem);
      }
  
@@ -3330,6 +3340,7 @@ index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..8b9caf6fc03e392277ce2ea73b10f42c
 +
 +    // Martijn start - custom blocks and items
 +    static {
++
 +        // Evaluate the last element to bootstrap Items
 +        ECHO_SHARD.asItem();
 +        // Set some custom name replacements
@@ -3337,6 +3348,10 @@ index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..8b9caf6fc03e392277ce2ea73b10f42c
 +        STONECUTTER.setRename("Blockcutter");
 +        // Then bootstrap SuCraftItems
 +        SuCraftItems.bootstrap();
++
++        // Start the HTTP server that serves the resource pack
++        ResourcePackHTTPServer.getInstance().startIfNotStarted();
++
 +    }
 +
 +    // Martijn end - custom blocks and items
@@ -5341,10 +5356,10 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8a923021ebd10a415873704580bdef654331159e
+index 0000000000000000000000000000000000000000..6e6dfc9bcb6ccd55340fcfd52dfd51c38df8c9a8
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1398 @@
+@@ -0,0 +1,1399 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -6018,6 +6033,7 @@ index 0000000000000000000000000000000000000000..8a923021ebd10a415873704580bdef65
 +    public static final Block DRIPSTONE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(DRIPSTONE_PILLAR, "dripstone", Blocks.POLISHED_GRANITE_STAIRS);
 +    public static final Block GRANITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(GRANITE_PILLAR, "granite", Blocks.POLISHED_GRANITE_STAIRS);
 +    public static final Block TUFF_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(TUFF_PILLAR, "tuff", Blocks.COBBLESTONE_STAIRS);
++    public static final Block MANGROVE_BOOKSHELF = registerBookshelf("mangrove");
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -11928,10 +11944,10 @@ index 0000000000000000000000000000000000000000..ce9744a601bb0835f65e02099d67ebec
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..60551d3c04182e3e3f080cb064ebcfc14569e189
+index 0000000000000000000000000000000000000000..ea9111e4978f0585b03084acf08a816e582252a7
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,794 @@
+@@ -0,0 +1,795 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -12441,6 +12457,7 @@ index 0000000000000000000000000000000000000000..60551d3c04182e3e3f080cb064ebcfc1
 +    public static final Item DRIPSTONE_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.DRIPSTONE_PILLAR_STAIRS, "Dripstone");
 +    public static final Item GRANITE_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.GRANITE_PILLAR_STAIRS, "Granite");
 +    public static final Item TUFF_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.TUFF_PILLAR_STAIRS, "Tuff");
++    public static final Item MANGROVE_BOOKSHELF = registerBookshelf(SuCraftBlocks.MANGROVE_BOOKSHELF, "Mangrove", () -> Items.MANGROVE_PLANKS);
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -15115,10 +15132,10 @@ index 0000000000000000000000000000000000000000..52b2cda69eb3dc8f4754e439ee644838
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6b505a10d500bbd756df090cd7b63d7b0f7a820c
+index 0000000000000000000000000000000000000000..b5c7968ce2bdb88517dd9d393f4d6c95b8683d80
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,139 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.httpserver;
@@ -15179,11 +15196,11 @@ index 0000000000000000000000000000000000000000..6b505a10d500bbd756df090cd7b63d7b
 +            // Start the HTTP server
 +            this.httpServer = HttpServer.create(new InetSocketAddress(PORT), 0);
 +            httpServer.createContext("/" + PATH, ResourcePackHTTPServer::handle);
-+            httpServer.setExecutor(Executors.newFixedThreadPool(16, runnable -> {
-+                    Thread newThread = new Thread(runnable);
-+                    newThread.setPriority(6);
-+                    return newThread;
-+                }));
++            httpServer.setExecutor(Executors.newFixedThreadPool(4, runnable -> {
++                Thread newThread = new Thread(runnable);
++                newThread.setPriority(6);
++                return newThread;
++            }));
 +            httpServer.start();
 +            this.isStarted = true;
 +
@@ -15234,7 +15251,12 @@ index 0000000000000000000000000000000000000000..6b505a10d500bbd756df090cd7b63d7b
 +                // We cannot update the server properties if the server properties were not initialized yet
 +                return;
 +            }
-+            String hash = ResourcePackHash.getHash(CreateSuCraftResourcePack.getOutputFile());
++            var outputFile = CreateSuCraftResourcePack.getOutputFile();
++            if (!outputFile.exists()) {
++                // We cannot update the server properties if the resource pack was not written yet
++                return;
++            }
++            String hash = ResourcePackHash.getHash(outputFile);
 +            var previousResourcePackInfo = serverProperties.serverResourcePackInfo.orElse(null);
 +            boolean isRequired = previousResourcePackInfo != null ? previousResourcePackInfo.isRequired() : false;
 +            var prompt = previousResourcePackInfo != null ? previousResourcePackInfo.prompt() : null;
