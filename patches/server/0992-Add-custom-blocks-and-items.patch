@@ -6938,10 +6938,10 @@ index 0000000000000000000000000000000000000000..34357c237d9a45e91c9de0b5731fccca
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1e2531fccf933e1f88110a5c6cc8c27c370bdd6f
+index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfade23b59b
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
-@@ -0,0 +1,433 @@
+@@ -0,0 +1,435 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -6964,6 +6964,7 @@ index 0000000000000000000000000000000000000000..1e2531fccf933e1f88110a5c6cc8c27c
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelParameters;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelWithParameters;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
++import nl.martijnmuijsers.paper.item.ItemReplacementRule;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
 +import nl.martijnmuijsers.paper.resourcepack.asset.blockstates.MutableResourcePackBlockStates;
@@ -7264,8 +7265,9 @@ index 0000000000000000000000000000000000000000..1e2531fccf933e1f88110a5c6cc8c27c
 +
 +        public BlockEntityItemStack(@NotNull Supplier<@NotNull Item> itemSupplier, @NotNull Function<@NotNull BlockEntityModelVisualProperties, @NotNull Integer> customModelDataForContextFunction) {
 +            this(properties -> {
-+                ItemStack itemStack = new ItemStack(itemSupplier.get(), 1);
-+                itemStack.getOrCreateTag().putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, customModelDataForContextFunction.apply(properties));
++                var item = itemSupplier.get();
++                ItemStack itemStack = new ItemStack(item, 1);
++                itemStack.getOrCreateTag().putInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT, ItemReplacementRule.minifiedCustomModelData.get(item).get(customModelDataForContextFunction.apply(properties)));
 +                return itemStack;
 +            });
 +        }
@@ -14651,10 +14653,10 @@ index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6a8944c1f284d052a9100ef2048975f813db994f
+index 0000000000000000000000000000000000000000..1e42f491a822f6b491f32e04f28ac0cfd3079166
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
-@@ -0,0 +1,265 @@
+@@ -0,0 +1,267 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.model;
@@ -14670,6 +14672,8 @@ index 0000000000000000000000000000000000000000..6a8944c1f284d052a9100ef2048975f8
 +import net.minecraft.core.Registry;
 +import net.minecraft.server.MinecraftServer;
 +import net.minecraft.world.item.Item;
++import net.minecraft.world.item.Items;
++import net.minecraft.world.level.block.Blocks;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelPosition;
 +import nl.martijnmuijsers.paper.item.ItemReplacementRule;
 +import nl.martijnmuijsers.paper.resourcepack.KeyConstants;
@@ -14875,7 +14879,7 @@ index 0000000000000000000000000000000000000000..6a8944c1f284d052a9100ef2048975f8
 +        Item item = Registry.ITEM.get(this.getKey().withoutIntention().asMinecraft());
 +        @NotNull JsonArray overridesJson = this.json.getAsJsonArray(KeyConstants.modelOverrides);
 +        Object2IntMap<String> minifiedCustomModelDataByModel = new Object2IntOpenHashMap<>(overridesJson.size() * 2);
-+        int[] nextMinifiedCustomModelData = {0};
++        int[] nextMinifiedCustomModelData = {1};
 +        IntSet disallowedMinifiedCustomModelData = new IntOpenHashSet(0);
 +        for (int i = 0; i < overridesJson.size(); i++) {
 +            JsonObject overrideJson = (JsonObject) overridesJson.get(i);
@@ -15111,10 +15115,10 @@ index 0000000000000000000000000000000000000000..52b2cda69eb3dc8f4754e439ee644838
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7035f89399196b0a5440c01b7c1ce3d4d106ddf0
+index 0000000000000000000000000000000000000000..6b505a10d500bbd756df090cd7b63d7b0f7a820c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,134 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.httpserver;
@@ -15134,6 +15138,7 @@ index 0000000000000000000000000000000000000000..7035f89399196b0a5440c01b7c1ce3d4
 +import java.io.OutputStream;
 +import java.net.InetSocketAddress;
 +import java.util.Optional;
++import java.util.concurrent.Executors;
 +
 +/**
 + * A singleton that runs an HTTP server to serve the server resource pack (or multiple variants of it)
@@ -15172,9 +15177,13 @@ index 0000000000000000000000000000000000000000..7035f89399196b0a5440c01b7c1ce3d4
 +        try {
 +
 +            // Start the HTTP server
-+            this.httpServer = HttpServer.create(new InetSocketAddress(25454), 0);
++            this.httpServer = HttpServer.create(new InetSocketAddress(PORT), 0);
 +            httpServer.createContext("/" + PATH, ResourcePackHTTPServer::handle);
-+            httpServer.setExecutor(null); // creates a default executor
++            httpServer.setExecutor(Executors.newFixedThreadPool(16, runnable -> {
++                    Thread newThread = new Thread(runnable);
++                    newThread.setPriority(6);
++                    return newThread;
++                }));
 +            httpServer.start();
 +            this.isStarted = true;
 +
@@ -15197,6 +15206,9 @@ index 0000000000000000000000000000000000000000..7035f89399196b0a5440c01b7c1ce3d4
 +        if (resourcePackBytes == null) {
 +            resourcePackBytes = new FileInputStream(CreateSuCraftResourcePack.getOutputFile()).readAllBytes();
 +        }
++        try {
++            MinecraftServer.LOGGER.info("Received resource pack HTTP request from " + httpExchange.getRemoteAddress().getAddress());
++        } catch (Throwable e) {}
 +        httpExchange.sendResponseHeaders(200, resourcePackBytes.length);
 +        OutputStream responseBody = httpExchange.getResponseBody();
 +        responseBody.write(resourcePackBytes);
@@ -15806,7 +15818,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a58a2a0ffc4869f3c9161b7cedf48779975259a5
+index 0000000000000000000000000000000000000000..2641cb568f1fb5b9104e84b3092734e91d19064f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,406 @@
@@ -16001,9 +16013,9 @@ index 0000000000000000000000000000000000000000..a58a2a0ffc4869f3c9161b7cedf48779
 +                // Minify custom model data
 +                MinecraftServer.LOGGER.info("Minifying custom model data...");
 +                resourcePack.getAssets(ResourcePackAssetType.MODEL, null, ResourceLocation.DEFAULT_NAMESPACE, ResourcePackAssetIntention.ITEM).forEach(itemModel -> {
-+                        if (itemModel instanceof ConcreteResourcePackModel concreteModel) {
-+                            concreteModel.minifyModelOverrides();
-+                        }
++                    if (itemModel instanceof ConcreteResourcePackModel concreteModel) {
++                        concreteModel.minifyModelOverrides();
++                    }
 +                });
 +
 +                // Delete old resource pack files
