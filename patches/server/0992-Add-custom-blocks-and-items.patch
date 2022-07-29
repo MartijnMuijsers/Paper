@@ -6938,10 +6938,10 @@ index 0000000000000000000000000000000000000000..34357c237d9a45e91c9de0b5731fccca
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..da1e95a3ace0190c0b26e33ee628d884bd7950d8
+index 0000000000000000000000000000000000000000..1e2531fccf933e1f88110a5c6cc8c27c370bdd6f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
-@@ -0,0 +1,431 @@
+@@ -0,0 +1,433 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -6949,6 +6949,7 @@ index 0000000000000000000000000000000000000000..da1e95a3ace0190c0b26e33ee628d884
 +import it.unimi.dsi.fastutil.Pair;
 +import net.minecraft.core.Registry;
 +import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
 +import net.minecraft.world.item.Item;
 +import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.Items;
@@ -6975,6 +6976,7 @@ index 0000000000000000000000000000000000000000..da1e95a3ace0190c0b26e33ee628d884
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
++import java.util.ArrayList;
 +import java.util.Arrays;
 +import java.util.Collections;
 +import java.util.IdentityHashMap;
@@ -7241,7 +7243,7 @@ index 0000000000000000000000000000000000000000..da1e95a3ace0190c0b26e33ee628d884
 +
 +    class BlockEntityItemStack {
 +
-+        private final @NotNull Function<@NotNull BlockEntityModelVisualProperties, @NotNull ItemStack> forContextFunction;
++        private @Nullable Function<@NotNull BlockEntityModelVisualProperties, @NotNull ItemStack> forContextFunction;
 +
 +        /**
 +         * Only null while not initialized yet
@@ -7251,6 +7253,7 @@ index 0000000000000000000000000000000000000000..da1e95a3ace0190c0b26e33ee628d884
 +        public @NotNull ItemStack getForContext(@NotNull BlockEntityModelVisualProperties properties) {
 +            if (this.forContext == null) {
 +                this.forContext = Arrays.stream(BlockEntityModelVisualProperties.values).map(this.forContextFunction).toArray(ItemStack[]::new);
++                this.forContextFunction = null;
 +            }
 +            return this.forContext[properties.getIndex()];
 +        }
@@ -7276,46 +7279,57 @@ index 0000000000000000000000000000000000000000..da1e95a3ace0190c0b26e33ee628d884
 +     */
 +    @Nullable BlockEntityItemStack getBlockEntityItemStack(@NotNull BlockState realState);
 +
-+    default void addBlockEntityItemToResourcePack(@NotNull MutableResourcePack resourcePack) {
-+        long start = System.nanoTime();
++    default @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addBlockEntityItemToResourcePack(@NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
 +        if (!this.rendersAsEntity()) {
-+            return;
++            return Collections.emptyList();
 +        }
 +        @NotNull Item itemHost = Validate.notNull(this.getHost(this.getReal().defaultBlockState()).getBlock().asItem());
 +        @NotNull NamespacedKeyWithoutIntention itemHostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.ITEM.getKey(itemHost));
 +        @NotNull MutableResourcePackModel itemHostKeyMinecraftItemModel = resourcePack.getModel(ResourcePackAssetIntention.ITEM, itemHostKey);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>();
++        assetLocations.add(Pair.of(ResourcePackAssetType.MODEL, itemHostKey.withIntention(ResourcePackAssetIntention.ITEM)));
 +        for (@NotNull BlockState realState : this.getReal().getStateDefinition().getPossibleStates()) {
 +            for (@NotNull BlockEntityModelVisualProperties properties : BlockEntityModelVisualProperties.values) {
-+                itemHostKeyMinecraftItemModel.addModelOverride(Validate.notNull(this.getBlockEntityItemCustomModelData(realState, properties)), Validate.notNull(this.getBlockEntityItemModel(realState, properties)), resourcePack, false);
++                int customModelData = Validate.notNull(this.getBlockEntityItemCustomModelData(realState, properties));
++                var model = Validate.notNull(this.getBlockEntityItemModel(realState, properties));
++                assetLocations.addAll(itemHostKeyMinecraftItemModel.addModelOverride(customModelData, model, resourcePack, false, actuallyAdd));
 +            }
 +        }
-+        Times.addBlockEntityItem += System.nanoTime() - start;
++        return assetLocations;
 +    }
 +
-+    default void addToResourcePack(@NotNull MutableResourcePack resourcePack) {
++    /**
++     * Returns the asset locations that were/would be added by adding everything in this rule to the resource pack
++     * @param actuallyAdd If false, will not be added to the resource pack, but will correctly return the asset locations that would be added
++     */
++    default @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>(0);
 +        if (this.isFire()) {
-+            long start = System.nanoTime();
 +            @NotNull BlockState host = this.getHost(this.getReal().defaultBlockState());
 +            // Add the fire blockstates override
-+            resourcePack.getAsset(ResourcePackAssetType.BLOCK_STATES, NamespacedKeyWithoutIntention.minecraft("fire").withEmptyIntention(), MutableResourcePackBlockStates.class).addFireModels(host, this.getReal().customFireType);
++            var blockStateKey = NamespacedKeyWithoutIntention.minecraft("fire").withEmptyIntention();
++            assetLocations.add(Pair.of(ResourcePackAssetType.BLOCK_STATES, blockStateKey));
++            if (actuallyAdd) {
++                resourcePack.getAsset(ResourcePackAssetType.BLOCK_STATES, blockStateKey, MutableResourcePackBlockStates.class).addFireModels(host, this.getReal().customFireType);
++            }
 +            // Add the block models
 +            for (int textureVariant = 0; textureVariant <= 1; textureVariant++) {
 +                for (@NotNull String modelLocation : new String[] {"floor", "side", "side_alt"}) {
-+                    new Model(
++                    var blockModelKey = NamespacedKeyWithoutIntention.sucraft(this.getReal().customFireType + "_fire_" + modelLocation + textureVariant);
++                    assetLocations.addAll(new Model(
 +                        ResourcePackAssetIntention.BLOCK,
-+                        NamespacedKeyWithoutIntention.sucraft(this.getReal().customFireType + "_fire_" + modelLocation + textureVariant),
++                        blockModelKey,
 +                        ModelContent.Fire.defaultCreation(modelLocation).create(
 +                            ResourcePackAssetIntention.BLOCK,
 +                            ResourceLocation.sucraft(this.getReal().customFireType + "_fire_" + textureVariant)
 +                        )
-+                    ).addToResourcePack(resourcePack, false);
++                    ).addToResourcePack(resourcePack, false, actuallyAdd));
 +                }
 +            }
-+            Times.addFire += System.nanoTime() - start;
-+            return;
++            return assetLocations;
 +        }
-+        this.addBlockEntityItemToResourcePack(resourcePack);
-+        long start = System.nanoTime();
++        assetLocations.addAll(this.addBlockEntityItemToResourcePack(resourcePack, actuallyAdd));
 +        @NotNull List<@NotNull BlockState> hosts = this.getHosts();
 +        @NotNull List<@NotNull Block> hostBlocks = hosts.stream().map(BlockState::getBlock).distinct().toList();
 +        boolean everyStateOfTheHostBlockHasTheSameModel =
@@ -7327,49 +7341,37 @@ index 0000000000000000000000000000000000000000..da1e95a3ace0190c0b26e33ee628d884
 +                        && hosts.stream().map(this::getModel).distinct().count() == 1 && hosts.stream().map(this::getModel).distinct().toList().get(0) != null // All hosts of this rule have the same model
 +                )
 +            );
-+        Times.determineEveryStateHasSameModel += System.nanoTime() - start;
-+        start = System.nanoTime();
-+        forEachHostBlock: for (@NotNull Block hostBlock : hostBlocks) {
-+            for (@NotNull BlockState hostBlockState : hostBlock.getStateDefinition().getPossibleStates()) {
-+                if (!hosts.contains(hostBlockState)) {
-+                    continue forEachHostBlock;
++        if (actuallyAdd) {
++            forEachHostBlock:
++            for (@NotNull Block hostBlock : hostBlocks) {
++                for (@NotNull BlockState hostBlockState : hostBlock.getStateDefinition().getPossibleStates()) {
++                    if (!hosts.contains(hostBlockState)) {
++                        continue forEachHostBlock;
++                    }
 +                }
++                // We now know all host block states are hosts of this rule
++                // We clear any existing variant strings because we know we will be writing all new ones anyway
++                @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(hostBlock)).withEmptyIntention();
++                @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
++                minecraftBlockStates.clearVariants();
 +            }
-+            // We now know all host block states are hosts of this rule
-+            // We clear any existing variant strings because we know we will be writing all new ones anyway
-+            @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(hostBlock)).withEmptyIntention();
-+            @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
-+            minecraftBlockStates.clearVariants();
 +        }
-+        Times.clearVariants += System.nanoTime() - start;
 +        for (@NotNull BlockState host : hosts) {
-+            start = System.nanoTime();
 +            @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(host.getBlock())).withEmptyIntention();
 +            @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
 +            @Nullable ModelWithParameters model = this.getModel(host);
 +            if (!this.rendersAsEntity()) {
 +                if (everyStateOfTheHostBlockHasTheSameModel) {
-+                    minecraftBlockStates.setNoVariantModel(model, resourcePack, false);
-+                    Times.setNoVariantModel += System.nanoTime() - start;
++                    assetLocations.addAll(minecraftBlockStates.setNoVariantModel(model, resourcePack, false, actuallyAdd));
 +                } else {
-+                    minecraftBlockStates.setModel(host, model, resourcePack, false);
-+                    Times.setVariantModel += System.nanoTime() - start;
++                    assetLocations.addAll(minecraftBlockStates.setModel(host, model, resourcePack, false, actuallyAdd));
 +                }
 +            } else if (model != null) {
-+                model.model().addToResourcePack(resourcePack, false);
-+                Times.addOtherModel += System.nanoTime() - start;
++                assetLocations.addAll(model.model().addToResourcePack(resourcePack, false, actuallyAdd));
 +            }
 +        }
-+    }
 +
-+    class Times {
-+        public static long addBlockEntityItem = 0;
-+        public static long addFire = 0;
-+        public static long determineEveryStateHasSameModel = 0;
-+        public static long clearVariants = 0;
-+        public static long setNoVariantModel = 0;
-+        public static long setVariantModel = 0;
-+        public static long addOtherModel = 0;
++        return assetLocations;
 +    }
 +
 +}
@@ -8680,10 +8682,10 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d3901bbddfe98d597e4357543cf3d397c93727d8
+index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bfa9e52062
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
-@@ -0,0 +1,227 @@
+@@ -0,0 +1,230 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -8699,6 +8701,7 @@ index 0000000000000000000000000000000000000000..d3901bbddfe98d597e4357543cf3d397
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelWithParameters;
 +import nl.martijnmuijsers.paper.item.UsedHostCustomModelData;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
 +import nl.martijnmuijsers.paper.resourcepack.asset.blockstates.MutableResourcePackBlockStates;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
@@ -8707,6 +8710,7 @@ index 0000000000000000000000000000000000000000..d3901bbddfe98d597e4357543cf3d397
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
++import java.util.ArrayList;
 +import java.util.Collections;
 +import java.util.IdentityHashMap;
 +import java.util.List;
@@ -8895,19 +8899,20 @@ index 0000000000000000000000000000000000000000..d3901bbddfe98d597e4357543cf3d397
 +    }
 +
 +    @Override
-+    public void addToResourcePack(@NotNull MutableResourcePack resourcePack) {
++    public @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
 +        if (this.isFire) {
-+            super.addToResourcePack(resourcePack);
-+            return;
++            return super.addToResourcePack(resourcePack, actuallyAdd);
 +        }
-+        this.addBlockEntityItemToResourcePack(resourcePack);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>(0);
++        assetLocations.addAll(this.addBlockEntityItemToResourcePack(resourcePack, actuallyAdd));
 +        @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(this.host.getBlock())).withEmptyIntention();
 +        @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
 +        if (this.host.getBlock().getStateDefinition().getPossibleStates().size() == 1) {
-+            minecraftBlockStates.setNoVariantModel(this.model, resourcePack, false);
++            assetLocations.addAll(minecraftBlockStates.setNoVariantModel(this.model, resourcePack, false, actuallyAdd));
 +        } else {
-+            minecraftBlockStates.setModel(this.host, this.model, resourcePack, false);
++            assetLocations.addAll(minecraftBlockStates.setModel(this.host, this.model, resourcePack, false, actuallyAdd));
 +        }
++        return assetLocations;
 +    }
 +
 +}
@@ -9009,14 +9014,15 @@ index 0000000000000000000000000000000000000000..94b6c82758378c081996502059426b54
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..69f91b1cc88165e09b6b760a5374a5e968838da7
+index 0000000000000000000000000000000000000000..b6853ca72943d1f620a2ac7faab6b177080e1b30
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
-@@ -0,0 +1,269 @@
+@@ -0,0 +1,278 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.blockanditemdata.model;
 +
++import it.unimi.dsi.fastutil.Pair;
 +import net.minecraft.core.Direction;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.MinecraftServer;
@@ -9026,12 +9032,17 @@ index 0000000000000000000000000000000000000000..69f91b1cc88165e09b6b760a5374a5e9
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContentCreation;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureCreation;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackIntentionedAssetDataByContent;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import org.jetbrains.annotations.NotNull;
 +
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
 +import java.util.function.Function;
 +
 +/**
@@ -9059,15 +9070,18 @@ index 0000000000000000000000000000000000000000..69f91b1cc88165e09b6b760a5374a5e9
 +        return new Model(ResourcePackAssetIntention.ITEM, new NamespacedKeyWithoutIntention(this.key.namespace(), this.key.keyWithoutIntention() + "_e" + properties.getBlockEntityModelFileSuffix()), this.content.getBlockEntityVersion(this, properties));
 +    }
 +
-+    public void addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean overwriteExisting) {
++    public @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean overwriteExisting, boolean actuallyAdd) {
 +        @NotNull MutableResourcePackModel resourcePackModel = resourcePack.getOrCreateModel(this.intention, this.key);
 +        if (!resourcePackModel.isJsonEmpty() && !overwriteExisting) {
-+            return;
++            return Collections.emptyList();
 +        }
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>(1);
++        assetLocations.add(Pair.of(ResourcePackAssetType.MODEL, this.getKeyWithIntention()));
 +        if (!resourcePackModel.isJsonEmpty()) {
 +            resourcePackModel.clearJson();
 +        }
-+        this.content.writeToClearResourcePackModel(resourcePackModel, resourcePack);
++        assetLocations.addAll(this.content.writeToClearResourcePackModel(resourcePackModel, resourcePack, actuallyAdd));
++        return assetLocations;
 +    }
 +
 +    // Convenience methods for replacement rule builders
@@ -9284,10 +9298,10 @@ index 0000000000000000000000000000000000000000..69f91b1cc88165e09b6b760a5374a5e9
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63fce7f65a
+index 0000000000000000000000000000000000000000..a3c073c60b9be2fa90f066db1eec5b5e00b0c6d3
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
-@@ -0,0 +1,1227 @@
+@@ -0,0 +1,1364 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.blockanditemdata.model;
@@ -9296,6 +9310,11 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
 +import com.google.gson.JsonParser;
++import it.unimi.dsi.fastutil.Pair;
++import it.unimi.dsi.fastutil.floats.Float2ObjectMap;
++import it.unimi.dsi.fastutil.floats.Float2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 +import net.minecraft.core.Direction;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.MinecraftServer;
@@ -9305,17 +9324,24 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContentCreation;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureCreation;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetDataContent;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
++import org.apache.commons.lang3.tuple.Triple;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +import org.json.simple.JSONObject;
 +
++import java.util.ArrayList;
 +import java.util.Arrays;
++import java.util.Collections;
 +import java.util.EnumMap;
++import java.util.HashMap;
++import java.util.List;
 +import java.util.Locale;
 +import java.util.Map;
 +import java.util.function.Function;
@@ -9335,25 +9361,115 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +    /**
 +     * Note that this method will attempt to add any used textures to the resource pack, but will not overwrite any existing ones
 +     */
-+    abstract void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack);
++    abstract @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd);
 +
 +    public @NotNull ModelContent getBlockEntityVersion(@NotNull Model myOwningModel, @NotNull BlockEntityModelVisualProperties properties) throws UnsupportedOperationException {
-+        return new ModelContent.AsBlockEntityReference(myOwningModel, properties.position(), this.getOutwardExpandedElements(properties.proximity().outwardExpandedElementDistance));
++        return new ModelContent.AsBlockEntityReference(myOwningModel, properties.position(), () -> this.getOutwardExpandedElements(properties));
 +    }
 +
-+    abstract @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) throws UnsupportedOperationException;
++    abstract @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) throws UnsupportedOperationException;
++
++    // Interfaces and classes that help with caching the JSON array containing the outward expanded elements for reference model content for block entities
++
++    static abstract class ModelContentWithCachedOutwardExpandedElementsForProximity extends ModelContent {
++
++        abstract @NotNull OutwardExpandedElementsForProximityCache getCache();
++
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) {
++            return this.getCache().getOutwardExpandedElements(properties.proximity());
++        }
++
++    }
++
++    interface OutwardExpandedElementsForPropertiesCache {
++
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties);
++
++    }
++
++    interface OutwardExpandedElementsForProximityCache extends OutwardExpandedElementsForPropertiesCache {
++
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelProximity proximity);
++
++        @Override
++        default @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) {
++            return this.getOutwardExpandedElements(properties.proximity());
++        }
++
++    }
++
++    static class SimpleOutwardExpandedElementsForProximityCache implements OutwardExpandedElementsForProximityCache {
++
++        private final @NotNull OutwardExpandedElementsForProximityCache computeFunction;
++        private final @Nullable JsonArray @NotNull [] cache = new JsonArray[BlockEntityModelProximity.values().length];
++
++        public SimpleOutwardExpandedElementsForProximityCache(@NotNull OutwardExpandedElementsForProximityCache computeFunction) {
++            this.computeFunction = computeFunction;
++        }
++
++        @Override
++        public @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelProximity proximity) {
++            int cacheKey = proximity.ordinal();
++            if (this.cache[cacheKey] == null) {
++                this.cache[cacheKey] = this.computeFunction.getOutwardExpandedElements(proximity);
++            }
++            return this.cache[cacheKey];
++        }
++
++        public static @NotNull SimpleOutwardExpandedElementsForProximityCache forFloat(@NotNull Function<@NotNull Float, @NotNull JsonArray> computeFunction) {
++            return new SimpleOutwardExpandedElementsForProximityCache(proximity -> computeFunction.apply(proximity.outwardExpandedElementDistance));
++        }
++
++    }
++
++    interface OutwardExpandedElementsForDistanceAndStairsStateCache {
++
++        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance, @NotNull Half half, @NotNull Direction facing);
++
++    }
++
++    interface OutwardExpandedElementsForProximityAndStairsStateCache {
++
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelProximity proximity, @NotNull Half half, @NotNull Direction facing);
++
++    }
++
++    static class SimpleOutwardExpandedElementsForProximityAndStairsStateCache implements OutwardExpandedElementsForProximityAndStairsStateCache {
++
++        private final @NotNull OutwardExpandedElementsForProximityAndStairsStateCache computeFunction;
++        private final @Nullable JsonArray @NotNull [] cache = new JsonArray[BlockEntityModelProximity.values().length * Half.values().length * Direction.values().length];
++
++        public SimpleOutwardExpandedElementsForProximityAndStairsStateCache(@NotNull OutwardExpandedElementsForProximityAndStairsStateCache computeFunction) {
++            this.computeFunction = computeFunction;
++        }
++
++        @Override
++        public @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelProximity proximity, @NotNull Half half, @NotNull Direction facing) {
++            int cacheKey = proximity.ordinal() + half.ordinal() * BlockEntityModelProximity.values().length + facing.ordinal() * BlockEntityModelProximity.values().length * Half.values().length;
++            if (this.cache[cacheKey] == null) {
++                this.cache[cacheKey] = this.computeFunction.getOutwardExpandedElements(proximity, half, facing);
++            }
++            return this.cache[cacheKey];
++        }
++
++        public static @NotNull SimpleOutwardExpandedElementsForProximityAndStairsStateCache forFloat(@NotNull OutwardExpandedElementsForDistanceAndStairsStateCache computeFunction) {
++            return new SimpleOutwardExpandedElementsForProximityAndStairsStateCache((proximity, half, facing) -> computeFunction.getOutwardExpandedElements(proximity.outwardExpandedElementDistance, half, facing));
++        }
++
++    }
 +
 +    // Convenience methods for replacement rule builders
 +
 +    /**
 +     * A basic form of {@link ModelContent}: a full cube with the same texture on all 6 sides
 +     */
-+    public static final class OneTextureCube extends ModelContent {
++    public static final class OneTextureCube extends ModelContentWithCachedOutwardExpandedElementsForProximity {
 +
 +        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("cube_all"), Existing.getInstance());
 +
 +        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/cube.json
-+        public static @NotNull JsonArray getCubeOutwardExpandedElements(float outwardDistance) {
++        public static @NotNull SimpleOutwardExpandedElementsForProximityCache cubeOutwardExpandedElements = SimpleOutwardExpandedElementsForProximityCache.forFloat(outwardDistance -> {
 +            float from = -outwardDistance;
 +            float to = 16 + outwardDistance;
 +            return JsonParser.parseString("""
@@ -9371,7 +9487,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +                    }
 +                ]""".formatted(from, to)
 +            ).getAsJsonArray();
-+        }
++        });
 +
 +        private final @NotNull Texture texture;
 +
@@ -9381,15 +9497,17 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
-+            resourcePackModel.setParent(parent);
-+            resourcePackModel.setAllTextures(this.texture);
-+            this.texture.addToResourcePack(resourcePack, false);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            if (actuallyAdd) {
++                resourcePackModel.setParent(parent);
++                resourcePackModel.setAllTextures(this.texture);
++            }
++            return this.texture.addToResourcePack(resourcePack, false, actuallyAdd);
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return getCubeOutwardExpandedElements(outwardDistance);
++        @NotNull OutwardExpandedElementsForProximityCache getCache() {
++            return cubeOutwardExpandedElements;
 +        }
 +
 +        public static @NotNull OneTextureCube create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureCreation texture) {
@@ -9415,7 +9533,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +    /**
 +     * A form of {@link ModelContent}: a full cube with one texture for the y-oriented sides, and one texture for the x- and z-oriented sides
 +     */
-+    public static final class YPillarCube extends ModelContent {
++    public static final class YPillarCube extends ModelContentWithCachedOutwardExpandedElementsForProximity {
 +
 +        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("cube_column"), Existing.getInstance());
 +
@@ -9429,16 +9547,20 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
-+            resourcePackModel.setParent(parent);
-+            resourcePackModel.setColumnTextures(this.endTexture, this.sideTexture);
-+            this.endTexture.addToResourcePack(resourcePack, false);
-+            this.sideTexture.addToResourcePack(resourcePack, false);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            if (actuallyAdd) {
++                resourcePackModel.setParent(parent);
++                resourcePackModel.setColumnTextures(this.endTexture, this.sideTexture);
++            }
++            @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>(0);
++            assetLocations.addAll(this.endTexture.addToResourcePack(resourcePack, false, actuallyAdd));
++            assetLocations.addAll(this.sideTexture.addToResourcePack(resourcePack, false, actuallyAdd));
++            return assetLocations;
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return OneTextureCube.getCubeOutwardExpandedElements(outwardDistance);
++        @NotNull OutwardExpandedElementsForProximityCache getCache() {
++            return OneTextureCube.cubeOutwardExpandedElements;
 +        }
 +
 +        public static @NotNull YPillarCube create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureCreation endTexture, @NotNull TextureCreation sideTexture) {
@@ -9472,12 +9594,12 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +    /**
 +     * A form of {@link ModelContent}: similar tp {@link YPillarCube}, but oriented horizontally
 +     */
-+    public static final class HorizontalYPillarCube extends ModelContent {
++    public static final class HorizontalYPillarCube extends ModelContentWithCachedOutwardExpandedElementsForProximity {
 +
 +        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("cube_column_horizontal"), Existing.getInstance());
 +
 +        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/cube_column_horizontal.json
-+        public static @NotNull JsonArray getHorizontalColumnCubeOutwardExpandedElements(float outwardDistance) {
++        public static @NotNull SimpleOutwardExpandedElementsForProximityCache horizontalColumnCubeOutwardExpandedElements = SimpleOutwardExpandedElementsForProximityCache.forFloat(outwardDistance -> {
 +            float from = -outwardDistance;
 +            float to = 16 + outwardDistance;
 +            return JsonParser.parseString("""
@@ -9495,7 +9617,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +                    }
 +                ]""".formatted(from, to)
 +            ).getAsJsonArray();
-+        }
++        });
 +
 +        private final @NotNull Texture endTexture;
 +        private final @NotNull Texture sideTexture;
@@ -9507,16 +9629,20 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
-+            resourcePackModel.setParent(parent);
-+            resourcePackModel.setColumnTextures(this.endTexture, this.sideTexture);
-+            this.endTexture.addToResourcePack(resourcePack, false);
-+            this.sideTexture.addToResourcePack(resourcePack, false);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            if (actuallyAdd) {
++                resourcePackModel.setParent(parent);
++                resourcePackModel.setColumnTextures(this.endTexture, this.sideTexture);
++            }
++            @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>(0);
++            assetLocations.addAll(this.endTexture.addToResourcePack(resourcePack, false, actuallyAdd));
++            assetLocations.addAll(this.sideTexture.addToResourcePack(resourcePack, false, actuallyAdd));
++            return assetLocations;
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return getHorizontalColumnCubeOutwardExpandedElements(outwardDistance);
++        @NotNull OutwardExpandedElementsForProximityCache getCache() {
++            return horizontalColumnCubeOutwardExpandedElements;
 +        }
 +
 +        public static @NotNull HorizontalYPillarCube create(@NotNull ResourcePackAssetIntention intention, @NotNull ResourceLocation key, @NotNull TextureCreation endTexture, @NotNull TextureCreation sideTexture) {
@@ -9550,7 +9676,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +    /**
 +     * An abstract form of {@link ModelContent}: with one texture for the bottom, one textures for the x- and z-oriented sides, and one texture for the top
 +     */
-+    public static abstract class AbstractBottomTopPillarCube extends ModelContent {
++    public static abstract class AbstractBottomTopPillarCube extends ModelContentWithCachedOutwardExpandedElementsForProximity {
 +
 +        public final @NotNull Texture bottomTexture;
 +        public final @NotNull Texture sideTexture;
@@ -9566,12 +9692,16 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        protected abstract @NotNull Model getParent();
 +
 +        @Override
-+        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
-+            resourcePackModel.setParent(getParent());
-+            resourcePackModel.setBottomTopTextures(this.bottomTexture, this.sideTexture, this.topTexture);
-+            this.bottomTexture.addToResourcePack(resourcePack, false);
-+            this.sideTexture.addToResourcePack(resourcePack, false);
-+            this.topTexture.addToResourcePack(resourcePack, false);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            if (actuallyAdd) {
++                resourcePackModel.setParent(getParent());
++                resourcePackModel.setBottomTopTextures(this.bottomTexture, this.sideTexture, this.topTexture);
++            }
++            @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>(0);
++            assetLocations.addAll(this.bottomTexture.addToResourcePack(resourcePack, false, actuallyAdd));
++            assetLocations.addAll(this.sideTexture.addToResourcePack(resourcePack, false, actuallyAdd));
++            assetLocations.addAll(this.topTexture.addToResourcePack(resourcePack, false, actuallyAdd));
++            return assetLocations;
 +        }
 +
 +        public static abstract class CreationCompanion<M extends AbstractBottomTopPillarCube> {
@@ -9625,8 +9755,8 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return OneTextureCube.getCubeOutwardExpandedElements(outwardDistance);
++        @NotNull OutwardExpandedElementsForProximityCache getCache() {
++            return OneTextureCube.cubeOutwardExpandedElements;
 +        }
 +
 +        public static final @NotNull CreationCompanion<BottomTopPillarCube> creationCompanion = new CreationCompanion<>() {
@@ -9648,7 +9778,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("slab"), Existing.getInstance());
 +
 +        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/slab.json
-+        public static @NotNull JsonArray getBottomSlabOutwardExpandedElements(float outwardDistance) {
++        public static @NotNull SimpleOutwardExpandedElementsForProximityCache bottomSlabOutwardExpandedElements = SimpleOutwardExpandedElementsForProximityCache.forFloat(outwardDistance -> {
 +            float from = -outwardDistance;
 +            float to = 16 + outwardDistance;
 +            float toMiddleY = 8 + outwardDistance;
@@ -9667,7 +9797,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +                    }
 +                ]""".formatted(from, to, toMiddleY)
 +            ).getAsJsonArray();
-+        }
++        });
 +
 +        public BottomSlab(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture) {
 +            super(bottomTexture, sideTexture, topTexture);
@@ -9679,8 +9809,8 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return getBottomSlabOutwardExpandedElements(outwardDistance);
++        @NotNull OutwardExpandedElementsForProximityCache getCache() {
++            return bottomSlabOutwardExpandedElements;
 +        }
 +
 +        public static final @NotNull CreationCompanion<BottomSlab> creationCompanion = new CreationCompanion<>() {
@@ -9702,7 +9832,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("slab_top"), Existing.getInstance());
 +
 +        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/slab_top.json
-+        public static @NotNull JsonArray getTopSlabOutwardExpandedElements(float outwardDistance) {
++        public static @NotNull SimpleOutwardExpandedElementsForProximityCache topSlabOutwardExpandedElements = SimpleOutwardExpandedElementsForProximityCache.forFloat(outwardDistance -> {
 +            float from = -outwardDistance;
 +            float fromMiddleY = 8 - outwardDistance;
 +            float to = 16 + outwardDistance;
@@ -9721,7 +9851,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +                    }
 +                ]""".formatted(from, fromMiddleY, to)
 +            ).getAsJsonArray();
-+        }
++        });
 +
 +        public TopSlab(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture) {
 +            super(bottomTexture, sideTexture, topTexture);
@@ -9733,8 +9863,8 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return getTopSlabOutwardExpandedElements(outwardDistance);
++        @NotNull OutwardExpandedElementsForProximityCache getCache() {
++            return topSlabOutwardExpandedElements;
 +        }
 +
 +        public static final @NotNull CreationCompanion<TopSlab> creationCompanion = new CreationCompanion<>() {
@@ -10053,6 +10183,18 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +            this.facing = facing;
 +        }
 +
++        abstract @NotNull OutwardExpandedElementsForProximityAndStairsStateCache getStairsStateCache();
++
++        @Override
++        @NotNull OutwardExpandedElementsForProximityCache getCache() {
++            throw new UnsupportedOperationException();
++        }
++
++        @Override
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) {
++            return this.getStairsStateCache().getOutwardExpandedElements(properties.proximity(), this.half, this.facing);
++        }
++
 +        public static abstract class CreationCompanion<M extends AbstractStairs> {
 +
 +            protected abstract @NotNull M construct(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture, @NotNull Half half, @NotNull Direction facing);
@@ -10093,7 +10235,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("stairs"), Existing.getInstance());
 +
 +        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/stairs.json
-+        public static @NotNull JsonArray getStraightStairsOutwardExpandedElements(float outwardDistance, @NotNull Half half, @NotNull Direction facing) {
++        public static @NotNull SimpleOutwardExpandedElementsForProximityAndStairsStateCache straightStairsOutwardExpandedElements = SimpleOutwardExpandedElementsForProximityAndStairsStateCache.forFloat((outwardDistance, half, facing) -> {
 +            float from = -outwardDistance;
 +            float to = 16 + outwardDistance;
 +            float afterMiddle = 8 + outwardDistance;
@@ -10136,7 +10278,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +                elementsJson.add(element.toJson());
 +            }
 +            return elementsJson;
-+        }
++        });
 +
 +        public StraightStairs(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture, @NotNull Half half, @NotNull Direction facing) {
 +            super(bottomTexture, sideTexture, topTexture, half, facing);
@@ -10148,8 +10290,8 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return getStraightStairsOutwardExpandedElements(outwardDistance, this.half, this.facing);
++        @NotNull OutwardExpandedElementsForProximityAndStairsStateCache getStairsStateCache() {
++            return straightStairsOutwardExpandedElements;
 +        }
 +
 +        public static final @NotNull CreationCompanion<StraightStairs> creationCompanion = new CreationCompanion<>() {
@@ -10171,7 +10313,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("inner_stairs"), Existing.getInstance());
 +
 +        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/inner_stairs.json
-+        public static @NotNull JsonArray getInnerLeftStairsOutwardExpandedElements(float outwardDistance, @NotNull Half half, @NotNull Direction facing) {
++        public static @NotNull SimpleOutwardExpandedElementsForProximityAndStairsStateCache innerLeftStairsOutwardExpandedElements = SimpleOutwardExpandedElementsForProximityAndStairsStateCache.forFloat((outwardDistance, half, facing) -> {
 +            float from = -outwardDistance;
 +            float to = 16 + outwardDistance;
 +            float afterMiddle = 8 + outwardDistance;
@@ -10225,7 +10367,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +                elementsJson.add(element.toJson());
 +            }
 +            return elementsJson;
-+        }
++        });
 +
 +        public InnerLeftStairs(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture, @NotNull Half half, @NotNull Direction facing) {
 +            super(bottomTexture, sideTexture, topTexture, half, facing);
@@ -10237,8 +10379,8 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return getInnerLeftStairsOutwardExpandedElements(outwardDistance, this.half, this.facing);
++        @NotNull OutwardExpandedElementsForProximityAndStairsStateCache getStairsStateCache() {
++            return innerLeftStairsOutwardExpandedElements;
 +        }
 +
 +        public static final @NotNull CreationCompanion<InnerLeftStairs> creationCompanion = new CreationCompanion<>() {
@@ -10260,7 +10402,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        private static final @NotNull Model parent = new Model(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft("outer_stairs"), Existing.getInstance());
 +
 +        // Based on vanilla Minecraft resource file /assets/minecraft/models/block/outer_stairs.json
-+        public static @NotNull JsonArray getOuterLeftStairsOutwardExpandedElements(float outwardDistance, @NotNull Half half, @NotNull Direction facing) {
++        public static @NotNull SimpleOutwardExpandedElementsForProximityAndStairsStateCache outerLeftStairsOutwardExpandedElements = SimpleOutwardExpandedElementsForProximityAndStairsStateCache.forFloat((outwardDistance, half, facing) -> {
 +            float from = -outwardDistance;
 +            float to = 16 + outwardDistance;
 +            float afterMiddle = 8 + outwardDistance;
@@ -10303,7 +10445,7 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +                elementsJson.add(element.toJson());
 +            }
 +            return elementsJson;
-+        }
++        });
 +
 +        public OuterLeftStairs(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture, @NotNull Half half, @NotNull Direction facing) {
 +            super(bottomTexture, sideTexture, topTexture, half, facing);
@@ -10315,8 +10457,8 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
-+            return getOuterLeftStairsOutwardExpandedElements(outwardDistance, this.half, this.facing);
++        @NotNull OutwardExpandedElementsForProximityAndStairsStateCache getStairsStateCache() {
++            return outerLeftStairsOutwardExpandedElements;
 +        }
 +
 +        public static final @NotNull CreationCompanion<OuterLeftStairs> creationCompanion = new CreationCompanion<>() {
@@ -10345,14 +10487,16 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
-+            resourcePackModel.setParent(parent);
-+            resourcePackModel.setFireTexture(this.texture);
-+            this.texture.addToResourcePack(resourcePack, false);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            if (actuallyAdd) {
++                resourcePackModel.setParent(parent);
++                resourcePackModel.setFireTexture(this.texture);
++            }
++            return this.texture.addToResourcePack(resourcePack, false, actuallyAdd);
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) {
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) {
 +            throw new UnsupportedOperationException("Cannot call getOutwardExpandedElements on ModelContent instance of type Fire");
 +        }
 +
@@ -10387,14 +10531,17 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
-+            resourcePackModel.setParent(parent);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            if (actuallyAdd) {
++                resourcePackModel.setParent(parent);
++            }
++            return Collections.emptyList();
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) throws UnsupportedOperationException {
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) throws UnsupportedOperationException {
 +            try {
-+                return parent.getContent().getOutwardExpandedElements(outwardDistance);
++                return parent.getContent().getOutwardExpandedElements(properties);
 +            } catch (UnsupportedOperationException e) {
 +                throw new UnsupportedOperationException("Cannot call getOutwardExpandedElements on ModelContent instance of type Reference for which the parent model itself does not support a call of getOutwarExpandedElements", e);
 +            }
@@ -10409,9 +10556,9 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +
 +        private final @NotNull Model parent;
 +        private final @NotNull BlockEntityModelPosition position;
-+        private final @NotNull JsonArray outwardExpandedElements;
++        private final @NotNull Supplier<@NotNull JsonArray> outwardExpandedElements;
 +
-+        public AsBlockEntityReference(@NotNull Model parent, @NotNull BlockEntityModelPosition position, @NotNull JsonArray outwardExpandedElements) {
++        public AsBlockEntityReference(@NotNull Model parent, @NotNull BlockEntityModelPosition position, @NotNull Supplier<@NotNull JsonArray> outwardExpandedElements) {
 +            super();
 +            this.parent = parent;
 +            this.position = position;
@@ -10419,15 +10566,17 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +        }
 +
 +        @Override
-+        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {
-+            resourcePackModel.setParent(this.parent);
-+            resourcePackModel.setBlockEntityHeadDisplay(this.position);
-+            resourcePackModel.setBlockEntityElements(this.outwardExpandedElements);
-+            this.parent.addToResourcePack(resourcePack, false);
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            if (actuallyAdd) {
++                resourcePackModel.setParent(this.parent);
++                resourcePackModel.setBlockEntityHeadDisplay(this.position);
++                resourcePackModel.setBlockEntityElements(this.outwardExpandedElements.get());
++            }
++            return this.parent.addToResourcePack(resourcePack, false, actuallyAdd);
 +        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) throws UnsupportedOperationException {
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) throws UnsupportedOperationException {
 +            throw new UnsupportedOperationException("Cannot call getOutwardExpandedElements on ModelContent instance of type AsBlockEntityReference");
 +        }
 +
@@ -10461,14 +10610,14 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +
 +        public enum ExistingModelContentOutwardExpansionType {
 +
-+            CUBE(OneTextureCube::getCubeOutwardExpandedElements),
-+            HORIZONTAL_COLUMN_CUBE(HorizontalYPillarCube::getHorizontalColumnCubeOutwardExpandedElements),
-+            BOTTOM_SLAB(BottomSlab::getBottomSlabOutwardExpandedElements),
-+            TOP_SLAB(TopSlab::getTopSlabOutwardExpandedElements);
++            CUBE(() -> OneTextureCube.cubeOutwardExpandedElements),
++            HORIZONTAL_COLUMN_CUBE(() -> HorizontalYPillarCube.horizontalColumnCubeOutwardExpandedElements),
++            BOTTOM_SLAB(() -> BottomSlab.bottomSlabOutwardExpandedElements),
++            TOP_SLAB(() -> TopSlab.topSlabOutwardExpandedElements);
 +
-+            private final @NotNull Function<@NotNull Float, @NotNull JsonArray> outwardExpandedElementsFunction;
++            private final @NotNull Supplier<@NotNull OutwardExpandedElementsForPropertiesCache> outwardExpandedElementsFunction;
 +
-+            ExistingModelContentOutwardExpansionType(@NotNull Function<@NotNull Float, @NotNull JsonArray> outwardExpandedElementsFunction) {
++            ExistingModelContentOutwardExpansionType(@NotNull Supplier<@NotNull OutwardExpandedElementsForPropertiesCache> outwardExpandedElementsFunction) {
 +                this.outwardExpandedElementsFunction = outwardExpandedElementsFunction;
 +            }
 +
@@ -10485,12 +10634,14 @@ index 0000000000000000000000000000000000000000..2fabfd40629766c0eb16325733a5ec63
 +         * Since this is content that already exists, it does not need to be written
 +         */
 +        @Override
-+        void writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack) {}
++        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            return Collections.emptyList();
++        }
 +
 +        @Override
-+        @NotNull JsonArray getOutwardExpandedElements(float outwardDistance) throws UnsupportedOperationException {
++        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) throws UnsupportedOperationException {
 +            if (this.outwardExpansionType != null) {
-+                return this.outwardExpansionType.outwardExpandedElementsFunction.apply(outwardDistance);
++                return this.outwardExpansionType.outwardExpandedElementsFunction.get().getOutwardExpandedElements(properties);
 +            }
 +            throw new UnsupportedOperationException("Cannot call getOutwardExpandedElements on ModelContent instance of type Existing that did not have an outwardExpansionType");
 +        }
@@ -10637,25 +10788,30 @@ index 0000000000000000000000000000000000000000..737300e26856d5efdaf8efcb17c38388
 +public record ModelWithParameters(@NotNull Model model, @Nullable ModelParameters parameters) {}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f5a4becb7485702bcea41ed1abfb8cb4a8e9acf8
+index 0000000000000000000000000000000000000000..c9fa17a7c04692236e8276b24fd7892b0ba971a1
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java
-@@ -0,0 +1,87 @@
+@@ -0,0 +1,94 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.blockanditemdata.texture;
 +
++import it.unimi.dsi.fastutil.Pair;
 +import net.minecraft.resources.ResourceLocation;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContentCreation;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackIntentionedAssetDataByContent;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
 +import org.jetbrains.annotations.NotNull;
 +
++import java.util.Collections;
++import java.util.List;
 +import java.util.function.Function;
 +
 +/**
@@ -10671,12 +10827,14 @@ index 0000000000000000000000000000000000000000..f5a4becb7485702bcea41ed1abfb8cb4
 +        super(intention, key, content);
 +    }
 +
-+    public void addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean overwriteExisting) {
-+        @NotNull MutableResourcePackTexture resourcePackTexture = resourcePack.getOrCreateTexture(this.intention, this.key);
-+        if (resourcePackTexture.hasData() && !overwriteExisting) {
-+            return;
++    public @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean overwriteExisting, boolean actuallyAdd) {
++        if (actuallyAdd) {
++            @NotNull MutableResourcePackTexture resourcePackTexture = resourcePack.getOrCreateTexture(this.intention, this.key);
++            if (!resourcePackTexture.hasData() || overwriteExisting) {
++                this.content.writeToResourcePackTexture(resourcePackTexture);
++            }
 +        }
-+        this.content.writeToResourcePackTexture(resourcePackTexture);
++        return Collections.singletonList(Pair.of(ResourcePackAssetType.TEXTURE, this.getKeyWithIntention()));
 +    }
 +
 +    // Convenience methods for replacement rule builders
@@ -11107,10 +11265,10 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8d3dc4917d9b4d7dcd1ac6fefb2171f7a626f863
+index 0000000000000000000000000000000000000000..9ad7a249643d8416f646c755e2525d0f6e53fe61
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
-@@ -0,0 +1,499 @@
+@@ -0,0 +1,507 @@
 +package nl.martijnmuijsers.paper.item;
 +
 +import com.google.common.collect.Lists;
@@ -11136,6 +11294,8 @@ index 0000000000000000000000000000000000000000..8d3dc4917d9b4d7dcd1ac6fefb2171f7
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.state.BlockState;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.model.MutableResourcePackModel;
@@ -11146,7 +11306,9 @@ index 0000000000000000000000000000000000000000..8d3dc4917d9b4d7dcd1ac6fefb2171f7
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
++import java.util.ArrayList;
 +import java.util.IdentityHashMap;
++import java.util.List;
 +import java.util.Map;
 +import java.util.function.Function;
 +import java.util.function.Predicate;
@@ -11170,7 +11332,7 @@ index 0000000000000000000000000000000000000000..8d3dc4917d9b4d7dcd1ac6fefb2171f7
 +
 +//    @NotNull Model getModel();
 +
-+    void addToResourcePack(@NotNull MutableResourcePack resourcePack);
++    @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean actuallyAdd);
 +
 +    /**
 +     * @see SuCraftItems#bootstrap
@@ -11525,21 +11687,25 @@ index 0000000000000000000000000000000000000000..8d3dc4917d9b4d7dcd1ac6fefb2171f7
 +//        }
 +
 +        @Override
-+        public void addToResourcePack(@NotNull MutableResourcePack resourcePack) {
++        public @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addToResourcePack(@NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++
++            @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>(0);
 +
 +            @NotNull NamespacedKeyWithoutIntention lowPingHostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.ITEM.getKey(this.getLowPingHost()));
 +            @NotNull MutableResourcePackModel lowPingMinecraftItemModel = resourcePack.getModel(ResourcePackAssetIntention.ITEM, lowPingHostKey);
-+            lowPingMinecraftItemModel.addModelOverride(this.getLowPingHostCustomModelData(), this.model, resourcePack, false);
++            assetLocations.addAll(lowPingMinecraftItemModel.addModelOverride(this.getLowPingHostCustomModelData(), this.model, resourcePack, false, actuallyAdd));
 +
 +            @NotNull NamespacedKeyWithoutIntention highPingHostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.ITEM.getKey(this.getHighPingHost()));
 +            @NotNull MutableResourcePackModel highPingMinecraftItemModel = resourcePack.getModel(ResourcePackAssetIntention.ITEM, highPingHostKey);
-+            highPingMinecraftItemModel.addModelOverride(this.getHighPingHostCustomModelData(), this.model, resourcePack, false);
++            assetLocations.addAll(highPingMinecraftItemModel.addModelOverride(this.getHighPingHostCustomModelData(), this.model, resourcePack, false, actuallyAdd));
 +
 +            if (this.stonecutterRecipeHost != null) {
 +                @NotNull NamespacedKeyWithoutIntention stonecutterRecipeHostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.ITEM.getKey(this.stonecutterRecipeHost));
 +                @NotNull MutableResourcePackModel stonecutterRecipeMinecraftItemModel = resourcePack.getModel(ResourcePackAssetIntention.ITEM, stonecutterRecipeHostKey);
-+                stonecutterRecipeMinecraftItemModel.addModelOverride(this.stonecutterRecipeHostCustomModelData, this.model, resourcePack, false);
++                assetLocations.addAll(stonecutterRecipeMinecraftItemModel.addModelOverride(this.stonecutterRecipeHostCustomModelData, this.model, resourcePack, false, actuallyAdd));
 +            }
++
++            return assetLocations;
 +
 +        }
 +
@@ -13228,7 +13394,7 @@ index 0000000000000000000000000000000000000000..0735331150608e9ee745263ae8f2bda7
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/InitializableResourcePackAssetType.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/InitializableResourcePackAssetType.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d668f71be625cd3ad1f2de4a821146b004d665b5
+index 0000000000000000000000000000000000000000..4aa67eb849955b8794badf7b3b3515489555f308
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/InitializableResourcePackAssetType.java
 @@ -0,0 +1,17 @@
@@ -13244,8 +13410,8 @@ index 0000000000000000000000000000000000000000..d668f71be625cd3ad1f2de4a821146b0
 + */
 +public class InitializableResourcePackAssetType extends ResourcePackAssetType {
 +
-+    protected InitializableResourcePackAssetType(@NotNull String folderPathInNamespaceFolder, @Nullable String defaultFileExtension) {
-+        super(folderPathInNamespaceFolder, defaultFileExtension);
++    protected InitializableResourcePackAssetType(int orderOrdinal, @NotNull String folderPathInNamespaceFolder, @Nullable String defaultFileExtension) {
++        super(orderOrdinal, folderPathInNamespaceFolder, defaultFileExtension);
 +    }
 +
 +}
@@ -13298,10 +13464,10 @@ index 0000000000000000000000000000000000000000..d85c52b3cbb4eaad314e7fe66bfd83ef
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/ResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/ResourcePackAsset.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..98cf55b68e5ded6089041d96e893d9b3ab6061f2
+index 0000000000000000000000000000000000000000..6352e3d84d21f57cfa62c1e6cd647243eb2910b6
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/ResourcePackAsset.java
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,49 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset;
@@ -13318,6 +13484,10 @@ index 0000000000000000000000000000000000000000..98cf55b68e5ded6089041d96e893d9b3
 + */
 +public interface ResourcePackAsset {
 +
++    static @NotNull String getPathInResourcePack(@NotNull ResourcePackAssetType type, @NotNull NamespacedKeyWithIntention key) {
++        return type.getPathInResourcePack(key);
++    }
++
 +    @NotNull ResourcePackAssetType getType();
 +
 +    /**
@@ -13326,7 +13496,7 @@ index 0000000000000000000000000000000000000000..98cf55b68e5ded6089041d96e893d9b3
 +    @NotNull NamespacedKeyWithIntention getKey();
 +
 +    default @NotNull String getPathInResourcePack() {
-+        return this.getType().getPathInResourcePack(this.getKey());
++        return getPathInResourcePack(this.getType(), this.getKey());
 +    }
 +
 +    void writeTo(@NotNull OutputStream outputStream) throws IOException;
@@ -13360,10 +13530,10 @@ index 0000000000000000000000000000000000000000..25237ac03a56ac1e26e09c651380786c
 +public interface ResourcePackAssetDataContent {}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/ResourcePackAssetType.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/ResourcePackAssetType.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fb4c1abc97dfa44b9eaa5d1843e01808c1182ef6
+index 0000000000000000000000000000000000000000..fecf02ab7d20d0c5f48e286dcf74d215a5be3885
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/ResourcePackAssetType.java
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,56 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset;
@@ -13380,17 +13550,22 @@ index 0000000000000000000000000000000000000000..fb4c1abc97dfa44b9eaa5d1843e01808
 + */
 +public class ResourcePackAssetType {
 +
-+    public static final @NotNull InitializableResourcePackAssetType BLOCK_STATES = new InitializableResourcePackAssetType(PathConstants.BlockStates.pathInNamespaceFolder, ".json");
-+    public static final @NotNull InitializableResourcePackAssetType MODEL = new InitializableResourcePackAssetType(PathConstants.Models.pathInNamespaceFolder, ".json");
-+    public static final @NotNull InitializableResourcePackAssetType TEXTURE = new InitializableResourcePackAssetType(PathConstants.Textures.pathInNamespaceFolder, ".png");
++    public static final @NotNull InitializableResourcePackAssetType BLOCK_STATES = new InitializableResourcePackAssetType(0, PathConstants.BlockStates.pathInNamespaceFolder, ".json");
++    public static final @NotNull InitializableResourcePackAssetType MODEL = new InitializableResourcePackAssetType(1, PathConstants.Models.pathInNamespaceFolder, ".json");
++    public static final @NotNull InitializableResourcePackAssetType TEXTURE = new InitializableResourcePackAssetType(2, PathConstants.Textures.pathInNamespaceFolder, ".png");
 +
++    /**
++     * Used for ordering instances of {@link ResourcePackAssetType} (used to attempt to write models as a whole to the resource pack before writing individual textures, to avoid the texture instance being not properly initialized due to being dependent on being initialized by the models that use them)
++     */
++    public final int orderOrdinal;
 +    private final @NotNull String folderPathInNamespaceFolder;
 +    /**
 +     * This extension includes the dot separating the filename from the extension (so this may be an empty string to indicate that this asset type's files have no extension at all)
 +     */
 +    public final @Nullable String defaultFileExtension;
 +
-+    protected ResourcePackAssetType(@NotNull String folderName, @Nullable String defaultFileExtension) {
++    protected ResourcePackAssetType(int orderOrdinal, @NotNull String folderName, @Nullable String defaultFileExtension) {
++        this.orderOrdinal = orderOrdinal;
 +        this.folderPathInNamespaceFolder = folderName;
 +        this.defaultFileExtension = defaultFileExtension;
 +    }
@@ -13967,22 +14142,27 @@ index 0000000000000000000000000000000000000000..94ab98d296c78e95fc942e69815aedf8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/MutableResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/MutableResourcePackBlockStates.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9aba47d2b287033aece4b2f27c4c9dc761547cd0
+index 0000000000000000000000000000000000000000..79167013080462d5e701526a683e145a43016843
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/MutableResourcePackBlockStates.java
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,66 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.blockstates;
 +
++import it.unimi.dsi.fastutil.Pair;
 +import net.minecraft.world.level.block.state.BlockState;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelWithParameters;
 +import nl.martijnmuijsers.paper.resourcepack.KeyConstants;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.json.MutableJsonResourcePackAsset;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAsset;
 +import org.jetbrains.annotations.NotNull;
++
++import java.util.List;
 +
 +/**
 + * A mutable {@link ResourcePackBlockStates}
@@ -13996,9 +14176,9 @@ index 0000000000000000000000000000000000000000..9aba47d2b287033aece4b2f27c4c9dc7
 +     * @param pack Because this instance is not aware of the resource pack it is in, this pack must be provided to automatically add the given model to the resource pack
 +     * @param overwriteExistingModel Whether to overwrite an existing model in the resource pack (this has to do with the model, not with this {@link MutableResourcePackBlockStates} instance: this instance's model property is always overwritten by this method)
 +     */
-+    default void setModel(@NotNull String variant, @NotNull ModelWithParameters model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel) {
++    default @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> setModel(@NotNull String variant, @NotNull ModelWithParameters model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel, boolean actuallyAdd) {
 +        this.setModel(variant, model);
-+        model.model().addToResourcePack(pack, overwriteExistingModel);
++        return model.model().addToResourcePack(pack, overwriteExistingModel, actuallyAdd);
 +    }
 +
 +    /**
@@ -14008,16 +14188,16 @@ index 0000000000000000000000000000000000000000..9aba47d2b287033aece4b2f27c4c9dc7
 +     */
 +    void setModel(@NotNull String variant, @NotNull ModelWithParameters model);
 +
-+    default void setModel(@NotNull BlockState variant, @NotNull ModelWithParameters model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel) {
-+        this.setModel(variant.toVariantString(), model, pack, overwriteExistingModel);
++    default @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> setModel(@NotNull BlockState variant, @NotNull ModelWithParameters model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel, boolean actuallyAdd) {
++        return this.setModel(variant.toVariantString(), model, pack, overwriteExistingModel, actuallyAdd);
 +    }
 +
 +    default void setModel(@NotNull BlockState variant, @NotNull ModelWithParameters model) {
 +        this.setModel(variant.toVariantString(), model);
 +    }
 +
-+    default void setNoVariantModel(@NotNull ModelWithParameters model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel) {
-+        this.setModel(KeyConstants.noVariant, model, pack, overwriteExistingModel);
++    default @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> setNoVariantModel(@NotNull ModelWithParameters model, @NotNull MutableResourcePack pack, boolean overwriteExistingModel, boolean actuallyAdd) {
++        return this.setModel(KeyConstants.noVariant, model, pack, overwriteExistingModel, actuallyAdd);
 +    }
 +
 +    default void setNoVariantModel(@NotNull ModelWithParameters model) {
@@ -14107,10 +14287,10 @@ index 0000000000000000000000000000000000000000..c57ae7f9074a4fd30834e59362fc7f93
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/image/SimpleImageFileResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/image/SimpleImageFileResourcePackAsset.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7b6d1b9c9ca978c93c792372fc0cc0b1491f1b28
+index 0000000000000000000000000000000000000000..7b648bacde4fc2e087621f2aacc940d25fae4bd6
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/image/SimpleImageFileResourcePackAsset.java
-@@ -0,0 +1,82 @@
+@@ -0,0 +1,85 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.image;
@@ -14133,7 +14313,7 @@ index 0000000000000000000000000000000000000000..7b6d1b9c9ca978c93c792372fc0cc0b1
 + */
 +public abstract class SimpleImageFileResourcePackAsset extends SimpleResourcePackAsset implements MutableImageResourcePackAsset {
 +
-+    private boolean existsInIncludedResourcePack;
++    public final boolean existsInIncludedResourcePack;
 +    private @Nullable String imageFilePath;
 +
 +    protected SimpleImageFileResourcePackAsset(boolean existsInIncludedResourcePack, @Nullable String imageFilePath, @NotNull NamespacedKeyWithIntention key, boolean dirty) {
@@ -14150,7 +14330,10 @@ index 0000000000000000000000000000000000000000..7b6d1b9c9ca978c93c792372fc0cc0b1
 +
 +    @Override
 +    public void writeTo(@NotNull OutputStream outputStream) throws IOException {
-+        Validate.notNull(this.imageFilePath);
++        if (this.existsInIncludedResourcePack) {
++            return;
++        }
++        Validate.notNull(this.imageFilePath, "Image file path of simple image file asset " + this.getKey() + " cannot be null when writing to an output stream");
 +        try (@NotNull FileInputStream fileInputStream = new FileInputStream(this.imageFilePath)) {
 +            outputStream.write(fileInputStream.readAllBytes());
 +        }
@@ -14739,23 +14922,29 @@ index 0000000000000000000000000000000000000000..869a7793b2d72ea41f8dfe97ee10ab9d
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..473deb9d81e52767397c4a45df9313a52391c0fc
+index 0000000000000000000000000000000000000000..6b8123dfe93e6d869728732394247091ce1e884f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/MutableResourcePackModel.java
-@@ -0,0 +1,51 @@
+@@ -0,0 +1,60 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.model;
 +
 +import com.google.gson.JsonArray;
 +import com.google.gson.JsonObject;
++import it.unimi.dsi.fastutil.Pair;
++import net.minecraft.server.MinecraftServer;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelPosition;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
 +import nl.martijnmuijsers.paper.resourcepack.MutableResourcePack;
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAsset;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.json.MutableJsonResourcePackAsset;
 +import org.jetbrains.annotations.NotNull;
++
++import java.util.List;
 +
 +/**
 + * A mutable {@link ResourcePackModel}
@@ -14783,9 +14972,12 @@ index 0000000000000000000000000000000000000000..473deb9d81e52767397c4a45df9313a5
 +     * @param pack Because this instance is not aware of the resource pack it is in, this pack must be provided to automatically add the given overriding model to the resource pack
 +     * @param overwriteExistingOverridingModel Whether to overwrite an existing model in the resource pack (this has to do with the overriding model, not with this model instance: this instance's overrides property is always modified by this method)
 +     */
-+    default void addModelOverride(int customModelData, @NotNull Model overridingModel, @NotNull MutableResourcePack pack, boolean overwriteExistingOverridingModel) {
-+        this.addModelOverride(customModelData, overridingModel);
-+        overridingModel.addToResourcePack(pack, overwriteExistingOverridingModel);
++    default @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addModelOverride(int customModelData, @NotNull Model overridingModel, @NotNull MutableResourcePack pack, boolean overwriteExistingOverridingModel, boolean actuallyAdd) {
++        if (actuallyAdd) {
++//            MinecraftServer.LOGGER.info("Actually adding model override in " + this.getKey() + " for " + customModelData + " to " + overridingModel.getKeyWithIntention());
++            this.addModelOverride(customModelData, overridingModel);
++        }
++        return overridingModel.addToResourcePack(pack, overwriteExistingOverridingModel, actuallyAdd);
 +    }
 +
 +    /**
@@ -15051,10 +15243,10 @@ index 0000000000000000000000000000000000000000..7035f89399196b0a5440c01b7c1ce3d4
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a24dbef2be8dd9d877ac6955e163423d6b19f63e
+index 0000000000000000000000000000000000000000..4f6c5f16c60fa9b9c2a5115e8b3de749d1310a9c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
-@@ -0,0 +1,240 @@
+@@ -0,0 +1,190 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.memory;
@@ -15153,6 +15345,11 @@ index 0000000000000000000000000000000000000000..a24dbef2be8dd9d877ac6955e163423d
 +        }
 +    }
 +
++    public void clearAssetsInMemory() {
++        this.assets.clear();
++//        this.assets.values().stream().filter(asset -> !(asset instanceof ResourcePackTexture)).toList().stream().forEach(this.assets::remove);
++    }
++
 +    @Override
 +    public @NotNull MemoryResourcePackSettings getSettings() {
 +        return this.settings;
@@ -15228,61 +15425,6 @@ index 0000000000000000000000000000000000000000..a24dbef2be8dd9d877ac6955e163423d
 +        }
 +        this.assets.put(Pair.of(type, key), newAsset);
 +        return newAsset;
-+    }
-+
-+    public void writeToFile(@NotNull File file) throws IOException {
-+        try (@NotNull FileOutputStream fileOutputStream = new FileOutputStream(file)) {
-+            try (@NotNull ZipOutputStream zipOutputStream = new ZipOutputStream(fileOutputStream)) {
-+                zipOutputStream.setLevel(9);
-+                @NotNull Set<@NotNull String> zippedFilePaths = new HashSet<>();
-+                // Add the settings
-+                {
-+                    zippedFilePaths.add(PathConstants.PackMeta.pathFromRoot);
-+                    @NotNull ZipEntry zipEntry = new ZipEntry(PathConstants.PackMeta.pathFromRoot);
-+                    zipOutputStream.putNextEntry(zipEntry);
-+                    zipOutputStream.write(this.getSettings().createJson().toString().getBytes(Charsets.UTF_8));
-+                }
-+                // Add the cached assets
-+                new CollectionPercentageProgress<>("Writing cached assets to resource pack archive file", this.assets.values().stream().filter(assetInMemory -> assetInMemory.isDirty()).toList(), 5)
-+                    .forEachThrowsException(assetInMemory -> {
-+                        @NotNull String path = assetInMemory.getPathInResourcePack();
-+                        zippedFilePaths.add(path);
-+                        @NotNull ZipEntry zipEntry = new ZipEntry(path);
-+                        zipOutputStream.putNextEntry(zipEntry);
-+                        assetInMemory.writeTo(zipOutputStream);
-+                        if (assetInMemory.hasMeta()) {
-+                            @NotNull String metaPath = path + PathConstants.metaFileSuffix;
-+                            zippedFilePaths.add(metaPath);
-+                            @NotNull ZipEntry metaZipEntry = new ZipEntry(metaPath);
-+                            zipOutputStream.putNextEntry(metaZipEntry);
-+                            assetInMemory.writeMetaTo(zipOutputStream);
-+                        }
-+                    });
-+                // Add all files from included resource packs that we haven't added yet
-+                new CollectionPercentageProgress<>("Writing included resource pack files to resource pack archive file", this.includedResourcePacks.stream().flatMap(pack -> {
-+                    try {
-+                        return pack.getAllFilesStream();
-+                    } catch (Exception e) {
-+                        return Stream.empty();
-+                    }
-+                }).toList(), 5)
-+                    .forEachThrowsException(includedResourcePackFile -> {
-+                        @NotNull String includedFilePath = includedResourcePackFile.left();
-+                        if (zippedFilePaths.add(includedFilePath)) {
-+                            try (@NotNull InputStream includedFileInputStream = includedResourcePackFile.right().call()) {
-+                                zipOutputStream.putNextEntry(new ZipEntry(includedFilePath));
-+                                zipOutputStream.write(includedFileInputStream.readAllBytes());
-+                            } catch (Exception e) {
-+                                if (e instanceof IOException ioE) {
-+                                    throw ioE;
-+                                }
-+                                throw new IOException("An exception occurred while getting input stream for included resource pack file", e);
-+                            }
-+                        }
-+                    });
-+            }
-+        }
-+        // TODO write to file and make sure to include everything from the included resource packs for sure
 +    }
 +
 +    /**
@@ -15596,17 +15738,20 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a87817863269192a576b3f3f85bdde42e07af807
+index 0000000000000000000000000000000000000000..5247fc85df67fa371c930f340fea439ab3b93894
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,243 @@
+@@ -0,0 +1,424 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
 +
++import com.google.common.base.Charsets;
 +import com.google.common.collect.Iterables;
++import com.google.common.collect.Streams;
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonParser;
++import it.unimi.dsi.fastutil.Pair;
 +import net.minecraft.core.Registry;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.server.MinecraftServer;
@@ -15615,10 +15760,15 @@ index 0000000000000000000000000000000000000000..a87817863269192a576b3f3f85bdde42
 +import net.minecraft.world.level.block.Block;
 +import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
 +import nl.martijnmuijsers.paper.item.ItemReplacementRule;
++import nl.martijnmuijsers.paper.resourcepack.PathConstants;
 +import nl.martijnmuijsers.paper.resourcepack.ResourcePack;
++import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAsset;
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
++import nl.martijnmuijsers.paper.resourcepack.asset.image.SimpleImageFileResourcePackAsset;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.model.ConcreteResourcePackModel;
++import nl.martijnmuijsers.paper.resourcepack.asset.texture.ResourcePackTexture;
 +import nl.martijnmuijsers.paper.resourcepack.memory.MemoryResourcePack;
 +import nl.martijnmuijsers.paper.resourcepack.memory.MemoryResourcePackSettings;
 +import nl.martijnmuijsers.paper.resourcepack.readfromarchive.ReadFromArchiveResourcePack;
@@ -15633,11 +15783,23 @@ index 0000000000000000000000000000000000000000..a87817863269192a576b3f3f85bdde42
 +import java.io.FileInputStream;
 +import java.io.FileOutputStream;
 +import java.io.IOException;
++import java.io.InputStream;
 +import java.io.InputStreamReader;
 +import java.io.OutputStreamWriter;
 +import java.nio.file.Path;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.Comparator;
++import java.util.HashMap;
++import java.util.HashSet;
 +import java.util.List;
++import java.util.Map;
 +import java.util.Random;
++import java.util.Set;
++import java.util.stream.Stream;
++import java.util.stream.StreamSupport;
++import java.util.zip.ZipEntry;
++import java.util.zip.ZipOutputStream;
 +
 +/**
 + * Utility class to create and write the server resource pack.
@@ -15723,6 +15885,7 @@ index 0000000000000000000000000000000000000000..a87817863269192a576b3f3f85bdde42
 +                throw new RuntimeException("Exception occurred while checking last resource pack version", e);
 +            }
 +        }
++        final boolean finalShouldWriteResourcePackToArchiveFile = shouldWriteResourcePackToArchiveFile;
 +
 +        MinecraftServer.LOGGER.info("Creating server resource pack...");
 +        try {
@@ -15745,50 +15908,63 @@ index 0000000000000000000000000000000000000000..a87817863269192a576b3f3f85bdde42
 +                settings.setName(NAME);
 +                settings.setDescription(DESCRIPTION);
 +
-+                // Add all custom blocks
-+                new CollectionPercentageProgress<Block>("Adding custom blocks to resource pack", Registry.BLOCK.stream().filter(block -> block.replacementRule != null).toList(), 10) {
++                // Determine all assets that will be in the resource pack
++                @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocationsThatWillBeAdded = new ArrayList<>(0);
++                @NotNull Set<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocationsThatWillBeAddedSet = new HashSet<>(0);
++                @NotNull Map<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>, @NotNull List<@NotNull BlockReplacementRule>> blockReplacementRulesByAssetLocation = new HashMap<>(0);
++                @NotNull Map<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>, @NotNull List<@NotNull ItemReplacementRule>> itemReplacementRulesByAssetLocation = new HashMap<>(0);
 +
-+                    public String padded(long time) {
-+                        time /= 1000;
-+                        if (this.i != 0) {
-+                            time /= this.i;
-+                        } else {
-+                            time = 0;
++                Registry.BLOCK.stream().filter(block -> block.replacementRule != null).forEach(block -> block.replacementRule.addToResourcePack(resourcePack, false).stream().distinct().forEach(assetLocation -> {
++                    if (assetLocationsThatWillBeAddedSet.add(assetLocation)) {
++                        assetLocationsThatWillBeAdded.add(assetLocation);
++                    }
++                    blockReplacementRulesByAssetLocation.computeIfAbsent(assetLocation, $ -> new ArrayList<>(0)).add(block.replacementRule);
++                }));
++                    Registry.ITEM.stream().filter(item -> item.replacementRule != null).forEach(item -> item.replacementRule.addToResourcePack(resourcePack, false).stream().distinct().forEach(assetLocation -> {
++                        if (assetLocationsThatWillBeAddedSet.add(assetLocation)) {
++                            assetLocationsThatWillBeAdded.add(assetLocation);
 +                        }
-+                        String str = "" + time;
-+                        while (str.length() < 17) {
-+                            str = " " + str;
-+                        }
-+                        return str;
++                        itemReplacementRulesByAssetLocation.computeIfAbsent(assetLocation, $ -> new ArrayList<>(0)).add(item.replacementRule);
++                    }));
++                blockReplacementRulesByAssetLocation.replaceAll(($, rules) -> rules.stream().distinct().toList());
++                itemReplacementRulesByAssetLocation.replaceAll(($, rules) -> rules.stream().distinct().toList());
++                //                MinecraftServer.LOGGER.info("TEMP DEBUG - before: " + assetLocationsThatWillBeAdded.stream().map(assetLocation -> assetLocation.left().getFolderPathInNamespaceFolder() + " > " + assetLocation.right()).toList());
++                assetLocationsThatWillBeAdded.sort((assetLocation1, assetLocation2) -> {
++                    //                    MinecraftServer.LOGGER.info("Comparing " + assetLocation1.left().getFolderPathInNamespaceFolder() + " > " + assetLocation1.right() + " and " + assetLocation2.left().getFolderPathInNamespaceFolder() + " > " + assetLocation2.right());
++                    int orderOrdinalCompare = Integer.compare(assetLocation1.left().orderOrdinal, assetLocation2.left().orderOrdinal);
++                    if (orderOrdinalCompare != 0) {
++                        return orderOrdinalCompare;
 +                    }
-+
-+                    @Override
-+                    public void printProgress(int percentage) {
-+                        super.printProgress(percentage);
-+                        MinecraftServer.LOGGER.info("TEMP DEBUG - times:");
-+                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.addBlockEntityItem) + " add block entity item");
-+                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.addFire) + " add fire");
-+                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.determineEveryStateHasSameModel) + " determine every state has same model");
-+                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.clearVariants) + " clear variants");
-+                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.setNoVariantModel) + " set no variant model");
-+                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.setVariantModel) + " set variant model");
-+                        MinecraftServer.LOGGER.info("TEMP DEBUG - * " + padded(BlockReplacementRule.Times.addOtherModel) + " add other model");
++                    String namespace1 = assetLocation1.right().namespace();
++                    String namespace2 = assetLocation2.right().namespace();
++                    //                    MinecraftServer.LOGGER.info("Have namespaces " + namespace1 + " and " + namespace2);
++                    int namespaceOrdinal1 = namespace1.equals(ResourceLocation.SUCRAFT_NAMESPACE) ? 0 : namespace1.equals(ResourceLocation.DEFAULT_NAMESPACE) || namespace1.equals(ResourceLocation.REALMS_NAMESPACE) ? 2 : 1;
++                    int namespaceOrdinal2 = namespace2.equals(ResourceLocation.SUCRAFT_NAMESPACE) ? 0 : namespace2.equals(ResourceLocation.DEFAULT_NAMESPACE) || namespace2.equals(ResourceLocation.REALMS_NAMESPACE) ? 2 : 1;
++                    int namespaceCompare = Integer.compare(namespaceOrdinal1, namespaceOrdinal2);
++                    //                    MinecraftServer.LOGGER.info("Compare is: " + namespaceCompare);
++                    if (namespaceCompare != 0) {
++                        return namespaceCompare;
 +                    }
-+
-+                }
-+                    .forEach(block -> block.replacementRule.addToResourcePack(resourcePack));
-+
-+                // Add all custom items
-+                new CollectionPercentageProgress<>("Adding custom items to resource pack", Registry.ITEM.stream().filter(item -> item.replacementRule != null).toList(), 10)
-+                    .forEach(item -> item.replacementRule.addToResourcePack(resourcePack));
-+
-+                // Minify custom model data
-+                MinecraftServer.LOGGER.info("Minifying custom model data...");
-+                resourcePack.getAssets(ResourcePackAssetType.MODEL, null, ResourceLocation.DEFAULT_NAMESPACE, ResourcePackAssetIntention.ITEM).forEach(itemModel -> {
-+                    if (itemModel instanceof ConcreteResourcePackModel concreteModel) {
-+                        concreteModel.minifyModelOverrides();
++                    int intentionOrdinal1 = assetLocation1.right().intention().equals(ResourcePackAssetIntention.BLOCK) ? 0 : 1;
++                    int intentionOrdinal2 = assetLocation2.right().intention().equals(ResourcePackAssetIntention.BLOCK) ? 0 : 1;
++                    int intentionCompare = Integer.compare(intentionOrdinal1, intentionOrdinal2);
++                    if (intentionCompare != 0) {
++                        return intentionCompare;
 +                    }
++                    var blockReplacementRules1 = blockReplacementRulesByAssetLocation.get(assetLocation1);
++                    var blockReplacementRules2 = blockReplacementRulesByAssetLocation.get(assetLocation2);
++                    int minBlockId1 = blockReplacementRules1 == null ? Integer.MAX_VALUE : blockReplacementRules1.stream().min(Comparator.comparing(rule -> Registry.BLOCK.getId(rule.getReal()))).map(rule -> Registry.BLOCK.getId(rule.getReal())).orElse(Integer.MAX_VALUE);
++                    int minBlockId2 = blockReplacementRules2 == null ? Integer.MAX_VALUE : blockReplacementRules2.stream().min(Comparator.comparing(rule -> Registry.BLOCK.getId(rule.getReal()))).map(rule -> Registry.BLOCK.getId(rule.getReal())).orElse(Integer.MAX_VALUE);
++                    int minBlockIdCompare = Integer.compare(minBlockId1, minBlockId2);
++                    if (minBlockIdCompare != 0) {
++                        return minBlockIdCompare;
++                    }
++                    return assetLocation1.right().toString().compareTo(assetLocation2.right().toString());
 +                });
++//                for (int i = 0; i < 10; i++) {
++//                    MinecraftServer.LOGGER.info("TEMP DEBUG - on " + i + " is " + assetLocationsThatWillBeAdded.get(i).right());
++//                }
++//                MinecraftServer.LOGGER.info("TEMP DEBUG - after: " + assetLocationsThatWillBeAdded.stream().map(assetLocation -> assetLocation.left().getFolderPathInNamespaceFolder() + " > " + assetLocation.right()).toList());
 +
 +                // Delete old resource pack files
 +                MinecraftServer.LOGGER.info("Deleting old resource pack archive files...");
@@ -15798,11 +15974,161 @@ index 0000000000000000000000000000000000000000..a87817863269192a576b3f3f85bdde42
 +                    }
 +                }
 +
++                if (!shouldWriteResourcePackToArchiveFile) {
++                    MinecraftServer.LOGGER.info("Skipping writing resource pack to archive file because it is up-to-date (version " + currentResourcePackVersion + ")");
++                }
++
++                {
++                    @Nullable FileOutputStream fileOutputStream = null;
++                    @Nullable ZipOutputStream zipOutputStream = null;
++                    @NotNull Set<@NotNull String> zippedFilePaths = new HashSet<>();
++                    try {
++
++                        if (shouldWriteResourcePackToArchiveFile) {
++                            // Create the output stream
++                            fileOutputStream = new FileOutputStream(getOutputFile());
++                            zipOutputStream = new ZipOutputStream(fileOutputStream);
++                            zipOutputStream.setLevel(9);
++                        }
++                        final @Nullable ZipOutputStream finalZipOutputStream = zipOutputStream;
++
++                        if (shouldWriteResourcePackToArchiveFile) {
++                            // Add the settings
++                            {
++                                zippedFilePaths.add(PathConstants.PackMeta.pathFromRoot);
++                                @NotNull ZipEntry zipEntry = new ZipEntry(PathConstants.PackMeta.pathFromRoot);
++                                zipOutputStream.putNextEntry(zipEntry);
++                                zipOutputStream.write(resourcePack.getSettings().createJson().toString().getBytes(Charsets.UTF_8));
++                            }
++                        }
++
++                        // Add the assets
++                        resourcePack.clearAssetsInMemory();
++                        new CollectionPercentageProgress<>(shouldWriteResourcePackToArchiveFile ? "Writing assets to resource pack" : "Processing assets", assetLocationsThatWillBeAdded, 1).forEachThrowsException(assetLocation -> {
++
++                            {
++                                @NotNull String path = ResourcePackAsset.getPathInResourcePack(assetLocation.left(), assetLocation.right());
++                                if (zippedFilePaths.contains(path)) {
++                                    return;
++                                }
++                                if (assetLocation.left().equals(ResourcePackAssetType.TEXTURE)) {
++                                    var asset = resourcePack.getOptionalAsset(assetLocation.left(), assetLocation.right());
++                                    if (asset instanceof SimpleImageFileResourcePackAsset imageFileAsset) {
++                                        if (imageFileAsset.existsInIncludedResourcePack) {
++                                            return;
++                                        }
++                                    }
++                                }
++                            }
++
++                            MinecraftServer.LOGGER.info("TEMP DEBUG - Processing asset: " + assetLocation.left().getFolderPathInNamespaceFolder() + " , " + assetLocation.right());
++
++                            @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> relatedAssets = new ArrayList<>(0);
++
++                            var blockReplacementRules = blockReplacementRulesByAssetLocation.get(assetLocation);
++                            if (blockReplacementRules != null) {
++                                blockReplacementRules.forEach(rule -> {
++//                                    MinecraftServer.LOGGER.info("TEMP DEBUG - Block replacement rule with real: " + rule.getReal());
++                                    relatedAssets.addAll(rule.addToResourcePack(resourcePack, true));
++                                });
++                            }
++                            var itemReplacementRules = itemReplacementRulesByAssetLocation.get(assetLocation);
++                            if (itemReplacementRules != null) {
++                                itemReplacementRules.forEach(rule -> {
++//                                    MinecraftServer.LOGGER.info("TEMP DEBUG - Item replacement rule with real: " + rule.getReal());
++                                    relatedAssets.addAll(rule.addToResourcePack(resourcePack, true));
++                                });
++                            }
++
++                            // Check which related assets were fully included
++                            @NotNull Stream<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> relatedAssetsThatWereFullyIncluded = relatedAssets.stream().filter(relatedAsset -> {
++                                var relatedBlockReplacementRules = blockReplacementRulesByAssetLocation.get(relatedAsset);
++                                if (relatedBlockReplacementRules != null) {
++                                    if (blockReplacementRules == null || relatedBlockReplacementRules.stream().anyMatch(rule -> !blockReplacementRules.contains(rule))) {
++                                        return false;
++                                    }
++                                }
++                                var relatedItemReplacementRules = itemReplacementRulesByAssetLocation.get(relatedAsset);
++                                if (relatedItemReplacementRules != null) {
++                                    if (itemReplacementRules == null || relatedItemReplacementRules.stream().anyMatch(rule -> !itemReplacementRules.contains(rule))) {
++                                        return false;
++                                    }
++                                }
++                                return true;
++                            });
++
++                            var asset = resourcePack.getAsset(assetLocation.left(), assetLocation.right());
++
++                            // Minify custom model data for vanilla items
++                            if (asset.getType().equals(ResourcePackAssetType.MODEL) && asset.getKey().namespace().equals(ResourceLocation.DEFAULT_NAMESPACE)) {
++                                if (asset instanceof ConcreteResourcePackModel concreteModel) {
++                                    concreteModel.minifyModelOverrides();
++                                }
++                            }
++
++                            // Write the assets that should be written to file
++                            if (finalShouldWriteResourcePackToArchiveFile) {
++                                for (@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention> assetLocationToWriteToFile : Iterables.concat(Collections.singletonList(assetLocation), Streams.concat(relatedAssets.stream().filter(relatedAsset -> relatedAsset.left().equals(ResourcePackAssetType.TEXTURE) && relatedAsset.right().namespace().equals(ResourceLocation.SUCRAFT_NAMESPACE)), relatedAssetsThatWereFullyIncluded).distinct().toList())) {
++                                    @NotNull String path = ResourcePackAsset.getPathInResourcePack(assetLocationToWriteToFile.left(), assetLocationToWriteToFile.right());
++                                    if (zippedFilePaths.add(path)) {
++                                        var assetToWriteToFile = resourcePack.getAsset(assetLocationToWriteToFile.left(), assetLocationToWriteToFile.right());
++//                                        MinecraftServer.LOGGER.info("TEMP DEBUG - Going to write asset to resource pack: " + assetLocationToWriteToFile.left().getFolderPathInNamespaceFolder() + " , " + assetLocationToWriteToFile.right());
++                                        @NotNull ZipEntry zipEntry = new ZipEntry(path);
++                                        finalZipOutputStream.putNextEntry(zipEntry);
++                                        assetToWriteToFile.writeTo(finalZipOutputStream);
++                                        if (assetToWriteToFile.hasMeta()) {
++                                            @NotNull String metaPath = path + PathConstants.metaFileSuffix;
++                                            zippedFilePaths.add(metaPath);
++                                            @NotNull ZipEntry metaZipEntry = new ZipEntry(metaPath);
++                                            finalZipOutputStream.putNextEntry(metaZipEntry);
++                                            assetToWriteToFile.writeMetaTo(finalZipOutputStream);
++                                        }
++                                    }
++                                }
++                            }
++
++                            resourcePack.clearAssetsInMemory();
++                            System.gc();
++                        });
++
++                        if (shouldWriteResourcePackToArchiveFile) {
++
++                            // Add all files from included resource packs that we haven't added yet
++                            new CollectionPercentageProgress<>("Writing included resource pack files to resource pack archive file", resourcePack.getIncludedResourcePacks().stream().flatMap(pack -> {
++                                try {
++                                    return pack.getAllFilesStream();
++                                } catch (Exception e) {
++                                    return Stream.empty();
++                                }
++                            }).toList(), 5)
++                                .forEachThrowsException(includedResourcePackFile -> {
++                                    @NotNull String includedFilePath = includedResourcePackFile.left();
++                                    if (zippedFilePaths.add(includedFilePath)) {
++                                        try (@NotNull InputStream includedFileInputStream = includedResourcePackFile.right().call()) {
++                                            finalZipOutputStream.putNextEntry(new ZipEntry(includedFilePath));
++                                            finalZipOutputStream.write(includedFileInputStream.readAllBytes());
++                                        } catch (Exception e) {
++                                            if (e instanceof IOException ioE) {
++                                                throw ioE;
++                                            }
++                                            throw new IOException("An exception occurred while getting input stream for included resource pack file", e);
++                                        }
++                                    }
++                                });
++
++                        }
++
++                    } finally {
++                        if (zipOutputStream != null) {
++                            zipOutputStream.close();
++                        }
++                        if (fileOutputStream != null) {
++                            fileOutputStream.close();
++                        }
++                    }
++                }
++
 +                if (shouldWriteResourcePackToArchiveFile) {
-+
-+                    // Write the resource pack to the output file
-+                    resourcePack.writeToFile(getOutputFile());
-+
 +                    // Write the resource pack version to the file
 +                    MinecraftServer.LOGGER.info("Writing resource pack version to file...");
 +                    try (FileOutputStream fileOutputStream = new FileOutputStream(LAST_RESOURCE_PACK_VERSION_FILE_PATH)) {
@@ -15812,9 +16138,6 @@ index 0000000000000000000000000000000000000000..a87817863269192a576b3f3f85bdde42
 +                    } catch (Exception e) {
 +                        throw new RuntimeException("Exception occurred while writing new resource pack version to file", e);
 +                    }
-+
-+                } else {
-+                    MinecraftServer.LOGGER.info("Skipping writing resource pack to archive file because it is up-to-date (version " + currentResourcePackVersion + ")");
 +                }
 +
 +            } finally {
