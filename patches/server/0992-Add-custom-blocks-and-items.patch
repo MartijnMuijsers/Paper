@@ -3122,7 +3122,7 @@ index 2dcda3b03796655da443e1b3dd68c6f6bca20d21..75f071fbeea888d2f37e3fa9f8801d6f
  import net.minecraft.sounds.SoundEvents;
  import net.minecraft.util.RandomSource;
 diff --git a/src/main/java/net/minecraft/world/entity/npc/VillagerTrades.java b/src/main/java/net/minecraft/world/entity/npc/VillagerTrades.java
-index 69d9503f6998c62044f9828734a1e9cbaf2799d4..092307b3cff59bc87d0ba294f96297627374dab7 100644
+index 69d9503f6998c62044f9828734a1e9cbaf2799d4..0a3cf9358e96c7b5dc65d9c74ec59c391724d7f5 100644
 --- a/src/main/java/net/minecraft/world/entity/npc/VillagerTrades.java
 +++ b/src/main/java/net/minecraft/world/entity/npc/VillagerTrades.java
 @@ -5,6 +5,8 @@ import com.google.common.collect.Lists;
@@ -3134,15 +3134,16 @@ index 69d9503f6998c62044f9828734a1e9cbaf2799d4..092307b3cff59bc87d0ba294f9629762
  import java.util.List;
  import java.util.Map;
  import java.util.stream.Collectors;
-@@ -44,6 +46,7 @@ import net.minecraft.world.level.block.Blocks;
+@@ -44,6 +46,8 @@ import net.minecraft.world.level.block.Blocks;
  import net.minecraft.world.level.levelgen.structure.Structure;
  import net.minecraft.world.level.saveddata.maps.MapDecoration;
  import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
++import nl.martijnmuijsers.paper.block.SuCraftBlockTags;
 +import nl.martijnmuijsers.paper.block.SuCraftBlocks;
  import nl.martijnmuijsers.paper.enchantments.EnchantmentSource;
  
  public class VillagerTrades {
-@@ -66,7 +69,36 @@ public class VillagerTrades {
+@@ -66,7 +70,36 @@ public class VillagerTrades {
          map.put(VillagerProfession.FISHERMAN, toIntMap(ImmutableMap.of(1, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.STRING, 20, 16, 2), new VillagerTrades.EmeraldForItems(Items.COAL, 10, 16, 2), new VillagerTrades.ItemsAndEmeraldsToItems(Items.COD, 6, Items.COOKED_COD, 6, 16, 1), new VillagerTrades.ItemsForEmeralds(Items.COD_BUCKET, 3, 1, 16, 1)}, 2, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.COD, 15, 16, 10), new VillagerTrades.ItemsAndEmeraldsToItems(Items.SALMON, 6, Items.COOKED_SALMON, 6, 16, 5), new VillagerTrades.ItemsForEmeralds(Items.CAMPFIRE, 2, 1, 5)}, 3, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.SALMON, 13, 16, 20), new VillagerTrades.EnchantedItemForEmeralds(Items.FISHING_ROD, 3, 3, 10, 0.2F)}, 4, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.TROPICAL_FISH, 6, 12, 30)}, 5, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.PUFFERFISH, 4, 12, 30), new VillagerTrades.EmeraldsForVillagerTypeItem(1, 12, 30, ImmutableMap.<VillagerType, Item>builder().put(VillagerType.PLAINS, Items.OAK_BOAT).put(VillagerType.TAIGA, Items.SPRUCE_BOAT).put(VillagerType.SNOW, Items.SPRUCE_BOAT).put(VillagerType.DESERT, Items.JUNGLE_BOAT).put(VillagerType.JUNGLE, Items.JUNGLE_BOAT).put(VillagerType.SAVANNA, Items.ACACIA_BOAT).put(VillagerType.SWAMP, Items.DARK_OAK_BOAT).build())})));
          map.put(VillagerProfession.SHEPHERD, toIntMap(ImmutableMap.of(1, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Blocks.WHITE_WOOL, 18, 16, 2), new VillagerTrades.EmeraldForItems(Blocks.BROWN_WOOL, 18, 16, 2), new VillagerTrades.EmeraldForItems(Blocks.BLACK_WOOL, 18, 16, 2), new VillagerTrades.EmeraldForItems(Blocks.GRAY_WOOL, 18, 16, 2), new VillagerTrades.ItemsForEmeralds(Items.SHEARS, 2, 1, 1)}, 2, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.WHITE_DYE, 12, 16, 10), new VillagerTrades.EmeraldForItems(Items.GRAY_DYE, 12, 16, 10), new VillagerTrades.EmeraldForItems(Items.BLACK_DYE, 12, 16, 10), new VillagerTrades.EmeraldForItems(Items.LIGHT_BLUE_DYE, 12, 16, 10), new VillagerTrades.EmeraldForItems(Items.LIME_DYE, 12, 16, 10), new VillagerTrades.ItemsForEmeralds(Blocks.WHITE_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.ORANGE_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.MAGENTA_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.LIGHT_BLUE_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.YELLOW_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.LIME_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.PINK_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.GRAY_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.LIGHT_GRAY_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.CYAN_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.PURPLE_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.BLUE_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.BROWN_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.GREEN_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.RED_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.BLACK_WOOL, 1, 1, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.WHITE_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.ORANGE_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.MAGENTA_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.LIGHT_BLUE_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.YELLOW_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.LIME_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.PINK_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.GRAY_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.LIGHT_GRAY_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.CYAN_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.PURPLE_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.BLUE_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.BROWN_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.GREEN_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.RED_CARPET, 1, 4, 16, 5), new VillagerTrades.ItemsForEmeralds(Blocks.BLACK_CARPET, 1, 4, 16, 5)}, 3, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.YELLOW_DYE, 12, 16, 20), new VillagerTrades.EmeraldForItems(Items.LIGHT_GRAY_DYE, 12, 16, 20), new VillagerTrades.EmeraldForItems(Items.ORANGE_DYE, 12, 16, 20), new VillagerTrades.EmeraldForItems(Items.RED_DYE, 12, 16, 20), new VillagerTrades.EmeraldForItems(Items.PINK_DYE, 12, 16, 20), new VillagerTrades.ItemsForEmeralds(Blocks.WHITE_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.YELLOW_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.RED_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.BLACK_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.BLUE_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.BROWN_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.CYAN_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.GRAY_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.GREEN_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.LIGHT_BLUE_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.LIGHT_GRAY_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.LIME_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.MAGENTA_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.ORANGE_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.PINK_BED, 3, 1, 12, 10), new VillagerTrades.ItemsForEmeralds(Blocks.PURPLE_BED, 3, 1, 12, 10)}, 4, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.BROWN_DYE, 12, 16, 30), new VillagerTrades.EmeraldForItems(Items.PURPLE_DYE, 12, 16, 30), new VillagerTrades.EmeraldForItems(Items.BLUE_DYE, 12, 16, 30), new VillagerTrades.EmeraldForItems(Items.GREEN_DYE, 12, 16, 30), new VillagerTrades.EmeraldForItems(Items.MAGENTA_DYE, 12, 16, 30), new VillagerTrades.EmeraldForItems(Items.CYAN_DYE, 12, 16, 30), new VillagerTrades.ItemsForEmeralds(Items.WHITE_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.BLUE_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.LIGHT_BLUE_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.RED_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.PINK_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.GREEN_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.LIME_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.GRAY_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.BLACK_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.PURPLE_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.MAGENTA_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.CYAN_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.BROWN_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.YELLOW_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.ORANGE_BANNER, 3, 1, 12, 15), new VillagerTrades.ItemsForEmeralds(Items.LIGHT_GRAY_BANNER, 3, 1, 12, 15)}, 5, new VillagerTrades.ItemListing[]{new VillagerTrades.ItemsForEmeralds(Items.PAINTING, 2, 3, 30)})));
          map.put(VillagerProfession.FLETCHER, toIntMap(ImmutableMap.of(1, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.STICK, 32, 16, 2), new VillagerTrades.ItemsForEmeralds(Items.ARROW, 1, 16, 1), new VillagerTrades.ItemsAndEmeraldsToItems(Blocks.GRAVEL, 10, Items.FLINT, 10, 12, 1)}, 2, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.FLINT, 26, 12, 10), new VillagerTrades.ItemsForEmeralds(Items.BOW, 2, 1, 5)}, 3, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.STRING, 14, 16, 20), new VillagerTrades.ItemsForEmeralds(Items.CROSSBOW, 3, 1, 10)}, 4, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.FEATHER, 24, 16, 30), new VillagerTrades.EnchantedItemForEmeralds(Items.BOW, 2, 3, 15)}, 5, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.TRIPWIRE_HOOK, 8, 12, 30), new VillagerTrades.EnchantedItemForEmeralds(Items.CROSSBOW, 3, 3, 15), new VillagerTrades.TippedArrowForItemsAndEmeralds(Items.ARROW, 5, Items.TIPPED_ARROW, 5, 2, 12, 30)})));
@@ -3180,7 +3181,7 @@ index 69d9503f6998c62044f9828734a1e9cbaf2799d4..092307b3cff59bc87d0ba294f9629762
          map.put(VillagerProfession.CARTOGRAPHER, toIntMap(ImmutableMap.of(1, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.PAPER, 24, 16, 2), new VillagerTrades.ItemsForEmeralds(Items.MAP, 7, 1, 1)}, 2, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.GLASS_PANE, 11, 16, 10), new VillagerTrades.TreasureMapForEmeralds(13, StructureTags.ON_OCEAN_EXPLORER_MAPS, "filled_map.monument", MapDecoration.Type.MONUMENT, 12, 5)}, 3, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.COMPASS, 1, 12, 20), new VillagerTrades.TreasureMapForEmeralds(14, StructureTags.ON_WOODLAND_EXPLORER_MAPS, "filled_map.mansion", MapDecoration.Type.MANSION, 12, 10)}, 4, new VillagerTrades.ItemListing[]{new VillagerTrades.ItemsForEmeralds(Items.ITEM_FRAME, 7, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.WHITE_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.BLUE_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.LIGHT_BLUE_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.RED_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.PINK_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.GREEN_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.LIME_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.GRAY_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.BLACK_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.PURPLE_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.MAGENTA_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.CYAN_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.BROWN_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.YELLOW_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.ORANGE_BANNER, 3, 1, 15), new VillagerTrades.ItemsForEmeralds(Items.LIGHT_GRAY_BANNER, 3, 1, 15)}, 5, new VillagerTrades.ItemListing[]{new VillagerTrades.ItemsForEmeralds(Items.GLOBE_BANNER_PATTERN, 8, 1, 30)})));
          map.put(VillagerProfession.CLERIC, toIntMap(ImmutableMap.of(1, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.ROTTEN_FLESH, 32, 16, 2), new VillagerTrades.ItemsForEmeralds(Items.REDSTONE, 1, 2, 1)}, 2, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.GOLD_INGOT, 3, 12, 10), new VillagerTrades.ItemsForEmeralds(Items.LAPIS_LAZULI, 1, 1, 5)}, 3, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.RABBIT_FOOT, 2, 12, 20), new VillagerTrades.ItemsForEmeralds(Blocks.GLOWSTONE, 4, 1, 12, 10)}, 4, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.SCUTE, 4, 12, 30), new VillagerTrades.EmeraldForItems(Items.GLASS_BOTTLE, 9, 12, 30), new VillagerTrades.ItemsForEmeralds(Items.ENDER_PEARL, 5, 1, 15)}, 5, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.NETHER_WART, 22, 12, 30), new VillagerTrades.ItemsForEmeralds(Items.EXPERIENCE_BOTTLE, 3, 1, 30)})));
          map.put(VillagerProfession.ARMORER, toIntMap(ImmutableMap.of(1, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.COAL, 15, 16, 2), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.IRON_LEGGINGS), 7, 1, 12, 1, 0.2F), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.IRON_BOOTS), 4, 1, 12, 1, 0.2F), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.IRON_HELMET), 5, 1, 12, 1, 0.2F), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.IRON_CHESTPLATE), 9, 1, 12, 1, 0.2F)}, 2, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.IRON_INGOT, 4, 12, 10), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.BELL), 36, 1, 12, 5, 0.2F), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.CHAINMAIL_BOOTS), 1, 1, 12, 5, 0.2F), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.CHAINMAIL_LEGGINGS), 3, 1, 12, 5, 0.2F)}, 3, new VillagerTrades.ItemListing[]{new VillagerTrades.EmeraldForItems(Items.LAVA_BUCKET, 1, 12, 20), new VillagerTrades.EmeraldForItems(Items.DIAMOND, 1, 12, 20), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.CHAINMAIL_HELMET), 1, 1, 12, 10, 0.2F), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.CHAINMAIL_CHESTPLATE), 4, 1, 12, 10, 0.2F), new VillagerTrades.ItemsForEmeralds(new ItemStack(Items.SHIELD), 5, 1, 12, 10, 0.2F)}, 4, new VillagerTrades.ItemListing[]{new VillagerTrades.EnchantedItemForEmeralds(Items.DIAMOND_LEGGINGS, 14, 3, 15, 0.2F), new VillagerTrades.EnchantedItemForEmeralds(Items.DIAMOND_BOOTS, 8, 3, 15, 0.2F)}, 5, new VillagerTrades.ItemListing[]{new VillagerTrades.EnchantedItemForEmeralds(Items.DIAMOND_HELMET, 8, 3, 30, 0.2F), new VillagerTrades.EnchantedItemForEmeralds(Items.DIAMOND_CHESTPLATE, 16, 3, 30, 0.2F)})));
-@@ -308,6 +340,52 @@ public class VillagerTrades {
+@@ -308,6 +341,52 @@ public class VillagerTrades {
          }
      }
  
@@ -3880,7 +3881,7 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 224ce424b9a22548212ac157ec273c6dd80d6cfb..f02bf6488fa5a13c94905773934027c76e9a6726 100644
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..7e1beb39b6f599da03c726da2b13f6e0d59a707c 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
 @@ -6,10 +6,13 @@ import com.google.common.cache.LoadingCache;
@@ -4089,11 +4090,11 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..f02bf6488fa5a13c94905773934027c7
 +    }
 +
 +    public @NotNull Block bookshelfSlab() {
-+        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_SLABS);
++        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_SLABS).slab();
 +    }
 +
 +    public @NotNull Block bookshelfStairs() {
-+        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_STAIRS);
++        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_STAIRS).stairs();
 +    }
 +
 +    public @NotNull Block withAddedTagsLike(@NotNull Block block) {
@@ -4284,6 +4285,287 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc69554
 +        // Martijn end - custom blocks and items
      }
  }
+diff --git a/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java b/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
+index f4ee3ce287528337a0f9a3b612c157254f895a58..aeef30cacddea13743ea275ce1f5303f7794cef1 100644
+--- a/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
+@@ -24,10 +24,13 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
+ import net.minecraft.world.level.block.entity.EnchantmentTableBlockEntity;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.SlabType;
+ import net.minecraft.world.level.pathfinder.PathComputationType;
+ import net.minecraft.world.phys.BlockHitResult;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.VoxelShape;
++import nl.martijnmuijsers.paper.block.SuCraftBlockTags;
+ 
+ public class EnchantmentTableBlock extends BaseEntityBlock {
+     protected static final VoxelShape SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 12.0D, 16.0D);
+@@ -40,7 +43,10 @@ public class EnchantmentTableBlock extends BaseEntityBlock {
+     }
+ 
+     public static boolean isValidBookShelf(Level world, BlockPos tablePos, BlockPos bookshelfOffset) {
+-        return world.getBlockState(tablePos.offset(bookshelfOffset)).is(Blocks.BOOKSHELF) && world.isEmptyBlock(tablePos.offset(bookshelfOffset.getX() / 2, bookshelfOffset.getY(), bookshelfOffset.getZ() / 2));
++        // Martijn start - custom blocks and items
++        var blockState = world.getBlockState(tablePos.offset(bookshelfOffset));
++        return (blockState.is(SuCraftBlockTags.BOOKSHELVES) || blockState.is(SuCraftBlockTags.BOOKSHELF_STAIRS) || (blockState.is(SuCraftBlockTags.BOOKSHELF_SLABS) && blockState.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE)) && world.isEmptyBlock(tablePos.offset(bookshelfOffset.getX() / 2, bookshelfOffset.getY(), bookshelfOffset.getZ() / 2));
++        // Martijn end - custom blocks and items
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/world/level/block/FireBlock.java b/src/main/java/net/minecraft/world/level/block/FireBlock.java
+index e34b8cff424ad58eee65a65fa510fa9908dbdf39..78d9faa0920a7a0cb90e1950b84392779ba0ca7e 100644
+--- a/src/main/java/net/minecraft/world/level/block/FireBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/FireBlock.java
+@@ -28,6 +28,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.Shapes;
+ import net.minecraft.world.phys.shapes.VoxelShape;
+ // CraftBukkit start
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ import org.bukkit.craftbukkit.block.CraftBlockState;
+ import org.bukkit.craftbukkit.block.CraftBlockStates;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+@@ -416,6 +417,60 @@ public class FireBlock extends BaseFireBlock {
+         blockfire.setFlammable(Blocks.ACACIA_STAIRS, 5, 20);
+         blockfire.setFlammable(Blocks.DARK_OAK_STAIRS, 5, 20);
+         blockfire.setFlammable(Blocks.MANGROVE_STAIRS, 5, 20);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.WHITE_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.ORANGE_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.MAGENTA_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_BLUE_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.YELLOW_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIME_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.PINK_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.GRAY_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_GRAY_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.CYAN_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.PURPLE_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BLUE_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BROWN_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.GREEN_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.RED_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BLACK_PLANKS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.WHITE_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.ORANGE_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.MAGENTA_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_BLUE_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.YELLOW_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIME_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.PINK_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.GRAY_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_GRAY_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.CYAN_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.PURPLE_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BLUE_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BROWN_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.GREEN_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.RED_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BLACK_PLANK_SLAB, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.WHITE_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.ORANGE_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.MAGENTA_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_BLUE_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.YELLOW_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIME_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.PINK_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.GRAY_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_GRAY_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.CYAN_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.PURPLE_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BLUE_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BROWN_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.GREEN_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.RED_PLANK_STAIRS, 5, 20);
++        blockfire.setFlammable(SuCraftBlocks.BLACK_PLANK_STAIRS, 5, 20);
++
++        // Martijn end - custom blocks and items
++
+         blockfire.setFlammable(Blocks.OAK_LOG, 5, 5);
+         blockfire.setFlammable(Blocks.SPRUCE_LOG, 5, 5);
+         blockfire.setFlammable(Blocks.BIRCH_LOG, 5, 5);
+@@ -444,6 +499,68 @@ public class FireBlock extends BaseFireBlock {
+         blockfire.setFlammable(Blocks.ACACIA_WOOD, 5, 5);
+         blockfire.setFlammable(Blocks.DARK_OAK_WOOD, 5, 5);
+         blockfire.setFlammable(Blocks.MANGROVE_WOOD, 5, 5);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.OAK_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.SPRUCE_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.BIRCH_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.JUNGLE_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.ACACIA_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.DARK_OAK_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.MANGROVE_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_OAK_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_SPRUCE_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_BIRCH_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_JUNGLE_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_ACACIA_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_DARK_OAK_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_MANGROVE_LOG_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_OAK_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_SPRUCE_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_BIRCH_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_JUNGLE_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_ACACIA_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_DARK_OAK_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_MANGROVE_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.OAK_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.SPRUCE_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.BIRCH_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.JUNGLE_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.ACACIA_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.DARK_OAK_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.MANGROVE_WOOD_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.OAK_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.SPRUCE_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.BIRCH_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.JUNGLE_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.ACACIA_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.DARK_OAK_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.MANGROVE_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_OAK_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_SPRUCE_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_BIRCH_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_JUNGLE_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_ACACIA_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_DARK_OAK_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_MANGROVE_LOG_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_OAK_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_SPRUCE_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_BIRCH_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_JUNGLE_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_ACACIA_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_DARK_OAK_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.STRIPPED_MANGROVE_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.OAK_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.SPRUCE_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.BIRCH_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.JUNGLE_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.ACACIA_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.DARK_OAK_WOOD_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.MANGROVE_WOOD_STAIRS, 5, 5);
++
++        // Martijn end - custom blocks and items
++
+         blockfire.setFlammable(Blocks.MANGROVE_ROOTS, 5, 20);
+         blockfire.setFlammable(Blocks.OAK_LEAVES, 30, 60);
+         blockfire.setFlammable(Blocks.SPRUCE_LEAVES, 30, 60);
+@@ -452,7 +569,40 @@ public class FireBlock extends BaseFireBlock {
+         blockfire.setFlammable(Blocks.ACACIA_LEAVES, 30, 60);
+         blockfire.setFlammable(Blocks.DARK_OAK_LEAVES, 30, 60);
+         blockfire.setFlammable(Blocks.MANGROVE_LEAVES, 30, 60);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.YELLOW_BIRCH_LEAVES, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.FIERY_BIRCH_LEAVES, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.ORANGE_OAK_LEAVES, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.RED_OAK_LEAVES, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.YELLOW_MAPLE_LEAVES, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.ORANGE_MAPLE_LEAVES, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.RED_MAPLE_LEAVES, 30, 60);
++
++        // Martijn end - custom blocks and items
++
+         blockfire.setFlammable(Blocks.BOOKSHELF, 30, 20);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.SPRUCE_BOOKSHELF, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.BIRCH_BOOKSHELF, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.JUNGLE_BOOKSHELF, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.ACACIA_BOOKSHELF, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.DARK_OAK_BOOKSHELF, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.MANGROVE_BOOKSHELF, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.OAK_BOOKSHELF_SLAB, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.SPRUCE_BOOKSHELF_SLAB, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.BIRCH_BOOKSHELF_SLAB, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.JUNGLE_BOOKSHELF_SLAB, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.OAK_BOOKSHELF_STAIRS, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.SPRUCE_BOOKSHELF_STAIRS, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.BIRCH_BOOKSHELF_STAIRS, 30, 20);
++        blockfire.setFlammable(SuCraftBlocks.JUNGLE_BOOKSHELF_STAIRS, 30, 20);
++
++        // Martijn end - custom blocks and items
++
+         blockfire.setFlammable(Blocks.TNT, 15, 100);
+         blockfire.setFlammable(Blocks.GRASS, 60, 100);
+         blockfire.setFlammable(Blocks.FERN, 60, 100);
+@@ -492,8 +642,53 @@ public class FireBlock extends BaseFireBlock {
+         blockfire.setFlammable(Blocks.GREEN_WOOL, 30, 60);
+         blockfire.setFlammable(Blocks.RED_WOOL, 30, 60);
+         blockfire.setFlammable(Blocks.BLACK_WOOL, 30, 60);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.WHITE_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.ORANGE_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.MAGENTA_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_BLUE_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.YELLOW_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.LIME_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.PINK_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.GRAY_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_GRAY_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.CYAN_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.PURPLE_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.BLUE_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.BROWN_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.GREEN_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.RED_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.BLACK_WOOL_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.WHITE_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.ORANGE_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.MAGENTA_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_BLUE_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.YELLOW_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.LIME_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.PINK_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.GRAY_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.LIGHT_GRAY_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.CYAN_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.PURPLE_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.BLUE_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.BROWN_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.GREEN_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.RED_WOOL_STAIRS, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.BLACK_WOOL_STAIRS, 30, 60);
++
++        // Martijn end - custom blocks and items
++
+         blockfire.setFlammable(Blocks.VINE, 15, 100);
+         blockfire.setFlammable(Blocks.COAL_BLOCK, 5, 5);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.CHARCOAL_BLOCK, 5, 5);
++
++        // Martijn end - custom blocks and items
++
+         blockfire.setFlammable(Blocks.HAY_BLOCK, 60, 20);
+         blockfire.setFlammable(Blocks.TARGET, 15, 20);
+         blockfire.setFlammable(Blocks.WHITE_CARPET, 60, 20);
+@@ -513,6 +708,13 @@ public class FireBlock extends BaseFireBlock {
+         blockfire.setFlammable(Blocks.RED_CARPET, 60, 20);
+         blockfire.setFlammable(Blocks.BLACK_CARPET, 60, 20);
+         blockfire.setFlammable(Blocks.DRIED_KELP_BLOCK, 30, 60);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.DRIED_KELP_SLAB, 30, 60);
++
++        // Martijn end - custom blocks and items
++
+         blockfire.setFlammable(Blocks.BAMBOO, 60, 60);
+         blockfire.setFlammable(Blocks.SCAFFOLDING, 60, 60);
+         blockfire.setFlammable(Blocks.LECTERN, 30, 20);
 diff --git a/src/main/java/net/minecraft/world/level/block/InfestedBlock.java b/src/main/java/net/minecraft/world/level/block/InfestedBlock.java
 index f33033c99ac52e2c64adeb8c58ae87625e92b299..423e5bcd3ea481f20abac1ddc5d2aaad730da4d4 100644
 --- a/src/main/java/net/minecraft/world/level/block/InfestedBlock.java
@@ -5377,12 +5659,44 @@ index 0000000000000000000000000000000000000000..5a2e8c0c52ee2e6109d85445f1e4242f
 +    }
 +
 +}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b06ae6de007ce4b06310b28c63fb82214bfb5c63
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java
+@@ -0,0 +1,26 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.tags.TagKey;
++import net.minecraft.world.level.biome.Biome;
++import net.minecraft.world.level.block.Block;
++
++/**
++ * Based on {@link net.minecraft.tags.BlockTags}
++ */
++public class SuCraftBlockTags {
++
++    // Martijn start - custom blocks and items
++    public static final TagKey<Block> BOOKSHELVES = create("bookshelves");
++    public static final TagKey<Block> BOOKSHELF_SLABS = create("bookshelf_slabs");
++    public static final TagKey<Block> BOOKSHELF_STAIRS = create("bookshelf_stairs");
++    // Martijn end - custom blocks and items
++
++    private static TagKey<Block> create(String id) {
++        return TagKey.create(Registry.BLOCK_REGISTRY, ResourceLocation.sucraft(id));
++    }
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fef788fcd6d5a133919fd3b903cb482eb144eb14
+index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435ebadc65df
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,228 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.block;
@@ -5395,7 +5709,10 @@ index 0000000000000000000000000000000000000000..fef788fcd6d5a133919fd3b903cb482e
 +import net.minecraft.tags.TagKey;
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.SlabBlock;
++import net.minecraft.world.level.block.StairBlock;
 +import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
++import org.bukkit.Tag;
 +import org.jetbrains.annotations.NotNull;
 +
 +import java.util.Collections;
@@ -5431,7 +5748,9 @@ index 0000000000000000000000000000000000000000..fef788fcd6d5a133919fd3b903cb482e
 +        for (@NotNull Block block : Registry.BLOCK) {
 +            block.tagsToAddSuppliers.stream().map(Supplier::get).distinct().forEach(tagToAdd -> {
 +                // Some tags may not be valid to transfer, but such a check is not implemented yet
-+                this.tag(tagToAdd).add(block);
++                if (isValidTagFor(tagToAdd, block)) {
++                    this.tag(tagToAdd).add(block);
++                }
 +            });
 +        }
 +
@@ -5591,6 +5910,18 @@ index 0000000000000000000000000000000000000000..fef788fcd6d5a133919fd3b903cb482e
 +        this.tag(BlockTags.COMPLETES_FIND_TREE_TUTORIAL).addTag(BlockTags.LOGS).addTag(BlockTags.LEAVES).addTag(BlockTags.WART_BLOCKS);
 +        this.tag(BlockTags.SNAPS_GOAT_HORN).addTag(BlockTags.OVERWORLD_NATURAL_LOGS).add(Blocks.STONE).add(Blocks.PACKED_ICE).add(Blocks.IRON_ORE).add(Blocks.COAL_ORE).add(Blocks.COPPER_ORE).add(Blocks.EMERALD_ORE);
 +
++    }
++    
++    public static boolean isValidTagFor(@NotNull TagKey<Block> tag, @NotNull Block block) {
++        
++        // Don't spread tags meant for full blocks to stairs and slabs
++        if (tag.equals(SuCraftBlockTags.BOOKSHELVES)) {
++            if (block.defaultBlockState().is(BlockTags.SLABS) || block.defaultBlockState().is(BlockTags.STAIRS) || block instanceof SlabBlock || block instanceof StairBlock) {
++                return false;
++            }
++        }
++        
++        return true;
 +    }
 +
 +}
