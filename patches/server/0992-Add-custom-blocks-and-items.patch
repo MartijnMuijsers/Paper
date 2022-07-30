@@ -431,7 +431,7 @@ index 2ae3cf188ed5ab1266b1aae796fecce02f517908..412ae3d0a634cbe183ee2ebeefb35dbe
  
          for(Block block : Registry.BLOCK) {
 diff --git a/src/main/java/net/minecraft/nbt/NbtUtils.java b/src/main/java/net/minecraft/nbt/NbtUtils.java
-index 5dda064813a0eb00438a7df909d51a4b2d48942e..a04b1f9fb6121cd99182c1f57fabc6b233744ef0 100644
+index 5dda064813a0eb00438a7df909d51a4b2d48942e..6573696e758b52ac9d90ef77c1ff097fa48711bb 100644
 --- a/src/main/java/net/minecraft/nbt/NbtUtils.java
 +++ b/src/main/java/net/minecraft/nbt/NbtUtils.java
 @@ -36,6 +36,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
@@ -442,25 +442,8 @@ index 5dda064813a0eb00438a7df909d51a4b2d48942e..a04b1f9fb6121cd99182c1f57fabc6b2
  import org.slf4j.Logger;
  
  public final class NbtUtils {
-@@ -258,6 +259,16 @@ public final class NbtUtils {
-     }
- 
-     public static CompoundTag writeBlockState(BlockState state) {
-+        // Martijn start - custom blocks and items
-+        return writeBlockState(state, false);
-+    }
-+
-+    public static CompoundTag writeBlockState(BlockState state, boolean replaceCustomBlockStates) {
-+        BlockReplacementRule replacementRule = state.getBlock().replacementRule;
-+        if (replacementRule != null) {
-+            state = replacementRule.replace(state, false/* TODO actually base on player this is for */);
-+        }
-+        // Martijn end - custom blocks and items
-         CompoundTag compoundTag = new CompoundTag();
-         compoundTag.putString("Name", Registry.BLOCK.getKey(state.getBlock()).toString());
-         ImmutableMap<Property<?>, Comparable<?>> immutableMap = state.getValues();
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d7770c3d98e8 100644
+index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b29198982f19 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -479,7 +462,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
  import io.netty.channel.socket.nio.NioSocketChannel;
  import io.netty.handler.timeout.ReadTimeoutHandler;
  import io.netty.handler.timeout.TimeoutException;
-@@ -29,24 +29,62 @@ import io.netty.util.concurrent.Future;
+@@ -29,24 +29,65 @@ import io.netty.util.concurrent.Future;
  import io.netty.util.concurrent.GenericFutureListener;
  import java.net.InetSocketAddress;
  import java.net.SocketAddress;
@@ -515,6 +498,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
  import net.minecraft.network.protocol.PacketFlow;
 +import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
  import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 +import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 +import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 +import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
@@ -530,6 +514,8 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
 +import net.minecraft.world.entity.EntityType;
 +import net.minecraft.world.entity.EquipmentSlot;
 +import net.minecraft.world.entity.decoration.ArmorStand;
++import net.minecraft.world.entity.item.FallingBlockEntity;
++import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.LevelChunk;
 +import net.minecraft.world.phys.Vec3;
@@ -543,7 +529,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
  import org.slf4j.Logger;
  import org.slf4j.Marker;
  import org.slf4j.MarkerFactory;
-@@ -96,6 +134,455 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -96,6 +137,483 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private float averageSentPackets;
      private int tickCount;
      private boolean handlingFault;
@@ -601,9 +587,62 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
 +        return (int) longArray[0];
 +    }
 +
-+    private void sendSetEquipmentPacket(int entityId, @NotNull SentBlockEntityInformation blockEntityInformationToSend) {
++    private void sendBlockEntityAddEntityPacket(int entityId, @NotNull UUID entityUUID, double x, double y, double z, @NotNull SentBlockEntityInformation blockEntityInformationToSend) {
++        this.send(new ClientboundAddEntityPacket(
++            entityId,
++            entityUUID,
++            x + blockEntityInformationToSend.properties.position().armorStandPhysicalTranslationX,
++            y + ResourcePackModel.BLOCK_ENTITY_ARMOR_STAND_DY,
++            z + blockEntityInformationToSend.properties.position().armorStandPhysicalTranslationZ,
++            0F,
++            0F,
++            EntityType.ARMOR_STAND,
++            0,
++            Vec3.ZERO,
++            0
++        ));
++    }
++
++    private void sendBlockEntitySetEquipmentPacket(int entityId, @NotNull SentBlockEntityInformation blockEntityInformationToSend) {
 +//        MinecraftServer.LOGGER.info("TEMP DEBUG - Sending " + entityId + " equipment: " + blockEntityInformationToSend.blockState + " , " + blockEntityInformationToSend.properties.position() + " , " + blockEntityInformationToSend.properties.proximity() + " = " + blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemStack(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.properties).getTag().getInt(CraftMetaItem.CUSTOM_MODEL_DATA.NBT) + " ( " + blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemModel(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.properties).getKeyWithIntention() + " using custom model data " + blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemCustomModelData(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.properties) + " )");
-+        this.send(new ClientboundSetEquipmentPacket(entityId, Collections.singletonList(new Pair<>(EquipmentSlot.HEAD, blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemStack(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.properties)))));
++        this.send(new ClientboundSetEquipmentPacket(
++            entityId,
++            Collections.singletonList(
++                new Pair<>(EquipmentSlot.HEAD, blockEntityInformationToSend.blockState().getBlock().replacementRule.getBlockEntityItemStack(blockEntityInformationToSend.blockState(), blockEntityInformationToSend.properties))
++            )
++        ));
++    }
++
++    private void sendBlockEntitySetEntityDataPacket(int entityId, boolean noGravity) {
++        @NotNull ClientboundSetEntityDataPacket setEntityDataPacket = new ClientboundSetEntityDataPacket(entityId);
++        var setEntityDataUnpackedData = setEntityDataPacket.getUnpackedData();
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_SHARED_FLAGS_ID, (byte) (1 << Entity.FLAG_INVISIBLE)));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_NO_GRAVITY, noGravity));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_SILENT, true));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_AIR_SUPPLY_ID, Integer.MAX_VALUE));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_CLIENT_FLAGS, (byte) (ArmorStand.CLIENT_FLAG_NO_BASEPLATE | ArmorStand.CLIENT_FLAG_MARKER)));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_HEAD_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_BODY_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_LEFT_ARM_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_RIGHT_ARM_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_LEFT_LEG_POSE, Rotations.ZERO));
++        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_RIGHT_LEG_POSE, Rotations.ZERO));
++        this.send(setEntityDataPacket);
++    }
++
++    private void spawnBlockEntityForFallingBlock(int entityId, @NotNull UUID entityUUID, @NotNull BlockState blockState, @NotNull Vec3 pos) {
++
++        @NotNull SentBlockEntityInformation blockEntityInformationToSend = new SentBlockEntityInformation(blockState, new BlockEntityModelVisualProperties(BlockEntityModelPosition.CENTER, BlockEntityModelProximity.NOT_EXPANDED));
++
++        // Send the add entity packet
++        this.sendBlockEntityAddEntityPacket(entityId, entityUUID, pos.x, pos.y, pos.z, blockEntityInformationToSend);
++
++        // Send the set equipment packet
++        this.sendBlockEntitySetEquipmentPacket(entityId, blockEntityInformationToSend);
++
++        // Send the set entity data packet
++        this.sendBlockEntitySetEntityDataPacket(entityId, false);
++
 +    }
 +
 +    private void spawnBlockEntity(@NotNull BlockPos blockPos, @NotNull SentBlockEntityInformation blockEntityInformationToSend) {
@@ -618,38 +657,13 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
 +        UUID entityUUID = UUID.randomUUID();
 +
 +        // Send the add entity packet
-+        this.send(new ClientboundAddEntityPacket(
-+            entityId,
-+            entityUUID,
-+            blockPos.getX() + 0.5F + blockEntityInformationToSend.properties.position().armorStandPhysicalTranslationX,
-+            blockPos.getY() + ResourcePackModel.BLOCK_ENTITY_ARMOR_STAND_DY,
-+            blockPos.getZ() + 0.5F + blockEntityInformationToSend.properties.position().armorStandPhysicalTranslationZ,
-+            0F,
-+            0F,
-+            EntityType.ARMOR_STAND,
-+            0,
-+            Vec3.ZERO,
-+            0
-+        ));
++        this.sendBlockEntityAddEntityPacket(entityId, entityUUID, blockPos.getX() + 0.5, blockPos.getY(), blockPos.getZ() + 0.5, blockEntityInformationToSend);
 +
 +        // Send the set equipment packet
-+        this.sendSetEquipmentPacket(entityId, blockEntityInformationToSend);
++        this.sendBlockEntitySetEquipmentPacket(entityId, blockEntityInformationToSend);
 +
 +        // Send the set entity data packet
-+        @NotNull ClientboundSetEntityDataPacket setEntityDataPacket = new ClientboundSetEntityDataPacket(entityId);
-+        var setEntityDataUnpackedData = setEntityDataPacket.getUnpackedData();
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_SHARED_FLAGS_ID, (byte) (1 << Entity.FLAG_INVISIBLE)));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_NO_GRAVITY, true));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_SILENT, true));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(Entity.DATA_AIR_SUPPLY_ID, Integer.MAX_VALUE));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_CLIENT_FLAGS, (byte) (ArmorStand.CLIENT_FLAG_NO_BASEPLATE | ArmorStand.CLIENT_FLAG_MARKER)));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_HEAD_POSE, Rotations.ZERO));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_BODY_POSE, Rotations.ZERO));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_LEFT_ARM_POSE, Rotations.ZERO));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_RIGHT_ARM_POSE, Rotations.ZERO));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_LEFT_LEG_POSE, Rotations.ZERO));
-+        setEntityDataUnpackedData.add(new SynchedEntityData.DataItem<>(ArmorStand.DATA_RIGHT_LEG_POSE, Rotations.ZERO));
-+        this.send(setEntityDataPacket);
++        this.sendBlockEntitySetEntityDataPacket(entityId, true);
 +
 +    }
 +
@@ -691,7 +705,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
 +            if (!existingSentBlockEntityInformation.blockState.equals(blockEntityInformationToSend.blockState) || existingSentBlockEntityInformation.properties.proximity() != blockEntityInformationToSend.properties.proximity()) {
 +                int entityId = this.blockEntityEntityIdByBlockPosKey.get(blockKey);
 +                // Send a set equipment packet to change the observed block state
-+                sendSetEquipmentPacket(entityId, blockEntityInformationToSend);
++                sendBlockEntitySetEquipmentPacket(entityId, blockEntityInformationToSend);
 +                updated = true;
 +            }
 +            if (updated) {
@@ -944,7 +958,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
 +        }
 +        int entityId = this.blockEntityEntityIdByBlockPosKey.get(blockKey);
 +        var newBlockEntityInformation = new SentBlockEntityInformation(existingSentBlockEntityInformation.blockState, new BlockEntityModelVisualProperties(existingSentBlockEntityInformation.properties.position(), newProximity));
-+        this.sendSetEquipmentPacket(entityId, newBlockEntityInformation);
++        this.sendBlockEntitySetEquipmentPacket(entityId, newBlockEntityInformation);
 +        return newBlockEntityInformation;
 +    }
 +
@@ -999,7 +1013,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
      // Paper start - NetworkClient implementation
      public int protocolVersion;
      public java.net.InetSocketAddress virtualHost;
-@@ -327,6 +814,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -327,6 +845,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              return null;
          }
      }
@@ -1021,7 +1035,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
      private static class InnerUtil { // Attempt to hide these methods from ProtocolLib so it doesn't accidently pick them up.
          private static java.util.List<Packet> buildExtraPackets(Packet packet) {
              java.util.List<Packet> extra = packet.getExtraPackets();
-@@ -363,7 +865,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -363,7 +896,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
                  packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
@@ -1038,7 +1052,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
              // Martijn end - more packets that can be sent immediately
          }
          // Paper end
-@@ -380,6 +890,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -380,6 +921,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          if (!connected && !preparing) {
              return; // Do nothing
          }
@@ -1050,7 +1064,64 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
          packet.onPacketDispatch(getPlayer());
          if (connected && (InnerUtil.canSendImmediate(this, packet) || (
              net.minecraft.server.MCUtil.isMainThread() && packet.isReady() && this.queue.isEmpty() &&
-@@ -421,6 +936,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -414,6 +960,56 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     }
+     private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
+         this.packetWrites.getAndIncrement(); // must be befeore using canFlush
++        // Martijn start - custom blocks and items
++        // Replace the packet in case of custom falling blocks
++        if (packet instanceof ClientboundSetEntityDataPacket setEntityDataPacket) {
++            var player = this.getPlayer();
++            if (player != null) {
++                var level = player.getLevel();
++                if (level != null) {
++                    Entity entity = level.getEntity(setEntityDataPacket.getId());
++                    if (entity instanceof FallingBlockEntity fallingBlockEntity) {
++                        BlockState blockState = fallingBlockEntity.getBlockState();
++                        Block block = blockState.getBlock();
++                        var replacementRule = block.replacementRule;
++                        if (replacementRule != null) {
++                            var unpackedData = setEntityDataPacket.getUnpackedData();
++                            if (unpackedData == null || unpackedData.stream().noneMatch(dataItem -> dataItem.getAccessor().equals(ArmorStand.DATA_CLIENT_FLAGS))) {
++                                // Cancel the packets sent for the original falling block entity
++                                return;
++                            }
++                        }
++                    }
++                }
++            }
++        } else if (packet instanceof ClientboundAddEntityPacket addEntityPacket) {
++            if (addEntityPacket.getType().equals(EntityType.FALLING_BLOCK)) {
++                var player = this.getPlayer();
++                if (player != null) {
++                    var level = player.getLevel();
++                    if (level != null) {
++                        Entity entity = level.getEntity(addEntityPacket.getId());
++                        if (entity instanceof FallingBlockEntity fallingBlockEntity) {
++                            BlockState blockState = fallingBlockEntity.getBlockState();
++                            Block block = blockState.getBlock();
++                            var replacementRule = block.replacementRule;
++                            if (replacementRule != null) {
++                                if (replacementRule.rendersAsEntity()) {
++                                    MinecraftServer.LOGGER.info("Spawning block entity for " + blockState.getBlock() + " with id " + addEntityPacket.getId());
++                                    // Spawn a block entity for a falling block instead
++                                    this.spawnBlockEntityForFallingBlock(fallingBlockEntity.getId(), fallingBlockEntity.getUUID(), blockState, fallingBlockEntity.position());
++                                    return;
++                                } else {
++                                    // We don't have a replacement entity to send ready - so we cancel this packet entirely
++                                    return;
++                                }
++                            }
++                        }
++                    }
++                }
++            }
++        }
++        // Martijn end - custom blocks and items
+         boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
+         // Martijn start - more packets without delay
+         final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket
+@@ -421,6 +1017,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
@@ -1065,7 +1136,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
              ; // no delay for certain packets
          // Martijn end - more packets without delay
          // Paper end - add flush parameter
-@@ -433,20 +956,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -433,20 +1037,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              this.channel.config().setAutoRead(false);
          }
  
@@ -1091,7 +1162,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..92e5b636dcaa4450d220185d4c68d777
              });
              } // Paper
          }
-@@ -558,6 +1083,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -558,6 +1164,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
@@ -2442,6 +2513,36 @@ index 94a96e5f85334b46261e2960ca2fec6c8c4bdd43..f8d72c63974ceb7d886c9077a4d35f07
          }), concernsTracking);
          // Paper end
          DebugPackets.sendPoiPacketsForChunk(this.level, chunk.getPos());
+diff --git a/src/main/java/net/minecraft/server/level/ServerEntity.java b/src/main/java/net/minecraft/server/level/ServerEntity.java
+index 1eb912ad97f9663bf6bd336ad739f2552b0a5c9b..9d581c78af96fd00e33d26925e018f5581a2f1b9 100644
+--- a/src/main/java/net/minecraft/server/level/ServerEntity.java
++++ b/src/main/java/net/minecraft/server/level/ServerEntity.java
+@@ -31,6 +31,7 @@ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.Mob;
+ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+ import net.minecraft.world.entity.decoration.ItemFrame;
++import net.minecraft.world.entity.item.FallingBlockEntity;
+ import net.minecraft.world.entity.projectile.AbstractArrow;
+ import net.minecraft.world.item.ItemStack;
+ import net.minecraft.world.item.MapItem;
+@@ -75,7 +76,16 @@ public class ServerEntity {
+         this.level = worldserver;
+         this.broadcast = consumer;
+         this.entity = entity;
+-        this.updateInterval = i;
++        // Martijn start - custom blocks and items
++        boolean useSmallerUpdateIntervalForCustomFallingBlocks = false;
++        if (entity instanceof FallingBlockEntity fallingBlockEntity) {
++            var replacementRule = fallingBlockEntity.getBlockState().getBlock().replacementRule;
++            if (replacementRule != null && replacementRule.rendersAsEntity()) {
++                useSmallerUpdateIntervalForCustomFallingBlocks = true;
++            }
++        }
++        this.updateInterval = useSmallerUpdateIntervalForCustomFallingBlocks ? 1 : i;
++        // Martijn end - custom blocks and items
+         this.trackDelta = flag;
+         this.positionCodec.setBase(entity.trackingPosition());
+         this.yRotp = Mth.floor(entity.getYRot() * 256.0F / 360.0F);
 diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
 index 5aae519912830ffb67c5c3d9fbe9f7f07ac2ab9d..eb875d1464ee4018513cfb4cf2127fc5bff1b444 100644
 --- a/src/main/java/net/minecraft/server/level/ServerLevel.java
@@ -2905,10 +3006,18 @@ index b7ebaf8c17b5075989ae04224f837c7932ec6cdd..5637ab33538d61aef40c68f92ff6e6a8
 +
  }
 diff --git a/src/main/java/net/minecraft/world/entity/Entity.java b/src/main/java/net/minecraft/world/entity/Entity.java
-index 1b9b58557ff48b87794d66238dbf64b81c087c86..695ed363c7e783d696cc2e02956fb7cfbb067d08 100644
+index 1b9b58557ff48b87794d66238dbf64b81c087c86..f301d8b2f36454c39e73bfadcce86afcc643c3ff 100644
 --- a/src/main/java/net/minecraft/world/entity/Entity.java
 +++ b/src/main/java/net/minecraft/world/entity/Entity.java
-@@ -264,7 +264,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+@@ -77,6 +77,7 @@ import net.minecraft.world.Nameable;
+ import net.minecraft.world.damagesource.DamageSource;
+ import net.minecraft.world.entity.animal.AbstractFish;
+ import net.minecraft.world.entity.animal.Animal;
++import net.minecraft.world.entity.item.FallingBlockEntity;
+ import net.minecraft.world.entity.item.ItemEntity;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.entity.vehicle.Boat;
+@@ -264,7 +265,7 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
      private static final Logger LOGGER = LogUtils.getLogger();
      public static final String ID_TAG = "id";
      public static final String PASSENGERS_TAG = "Passengers";
@@ -2917,7 +3026,7 @@ index 1b9b58557ff48b87794d66238dbf64b81c087c86..695ed363c7e783d696cc2e02956fb7cf
      private static final List<ItemStack> EMPTY_LIST = Collections.emptyList();
      public static final int BOARDING_COOLDOWN = 60;
      public static final int TOTAL_AIR_SUPPLY = 300;
-@@ -331,21 +331,23 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
+@@ -331,21 +332,23 @@ public abstract class Entity implements Nameable, EntityAccess, CommandSource {
      public int invulnerableTime;
      protected boolean firstTick;
      protected final SynchedEntityData entityData;
@@ -2961,7 +3070,7 @@ index 2fb5f912de5625c611dc19bf6fa12f5e04d3ddfb..00df8726cfde6c8cf0bfcaafbb5d7ba1
  
      @Override
 diff --git a/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java b/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
-index ef07967b64180c54338b8fb2ba1780adec87f333..901e49cf0c0e17e5eacddfc85d64a07945fe1b26 100644
+index ef07967b64180c54338b8fb2ba1780adec87f333..ad786ae74d578d93b3b4b60d0926a95c4e8dabfb 100644
 --- a/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
 +++ b/src/main/java/net/minecraft/world/entity/item/FallingBlockEntity.java
 @@ -40,6 +40,7 @@ import net.minecraft.world.level.block.FallingBlock;
@@ -2992,15 +3101,6 @@ index ef07967b64180c54338b8fb2ba1780adec87f333..901e49cf0c0e17e5eacddfc85d64a079
          if (CraftEventFactory.callEntityChangeBlockEvent(entityfallingblock, blockposition, iblockdata.getFluidState().createLegacyBlock()).isCancelled()) return entityfallingblock; // CraftBukkit
  
          world.setBlock(blockposition, iblockdata.getFluidState().createLegacyBlock(), 3);
-@@ -313,7 +325,7 @@ public class FallingBlockEntity extends Entity {
- 
-     @Override
-     protected void addAdditionalSaveData(CompoundTag nbt) {
--        nbt.put("BlockState", NbtUtils.writeBlockState(this.blockState));
-+        nbt.put("BlockState", NbtUtils.writeBlockState(this.blockState, true/* TODO do this only when written to network */));
-         nbt.putInt("Time", this.time);
-         nbt.putBoolean("DropItem", this.dropItem);
-         nbt.putBoolean("HurtEntities", this.hurtEntities);
 diff --git a/src/main/java/net/minecraft/world/entity/monster/Silverfish.java b/src/main/java/net/minecraft/world/entity/monster/Silverfish.java
 index 2dcda3b03796655da443e1b3dd68c6f6bca20d21..75f071fbeea888d2f37e3fa9f8801d6faa2e2951 100644
 --- a/src/main/java/net/minecraft/world/entity/monster/Silverfish.java
@@ -3660,7 +3760,7 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 224ce424b9a22548212ac157ec273c6dd80d6cfb..985c34cb063de19e3c3b209c1414eef2a9f494bf 100644
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..f02bf6488fa5a13c94905773934027c76e9a6726 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
 @@ -6,10 +6,13 @@ import com.google.common.cache.LoadingCache;
@@ -3698,7 +3798,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..985c34cb063de19e3c3b209c1414eef2
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.enchantment.Enchantments;
  import net.minecraft.world.level.BlockGetter;
-@@ -58,11 +65,15 @@ import net.minecraft.world.level.block.state.StateDefinition;
+@@ -58,11 +65,16 @@ import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.Property;
  import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.storage.loot.LootContext;
@@ -3708,13 +3808,14 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..985c34cb063de19e3c3b209c1414eef2
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
  import net.minecraft.world.phys.shapes.VoxelShape;
++import nl.martijnmuijsers.paper.block.SuCraftBlockTags;
 +import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
 +import org.bukkit.Tag;
 +import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  
  public class Block extends BlockBehaviour implements ItemLike {
-@@ -70,6 +81,25 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -70,6 +82,25 @@ public class Block extends BlockBehaviour implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      private final Holder.Reference<Block> builtInRegistryHolder;
      public static final IdMapper<BlockState> BLOCK_STATE_REGISTRY = new IdMapper<>();
@@ -3740,7 +3841,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..985c34cb063de19e3c3b209c1414eef2
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +157,179 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +158,191 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -3863,6 +3964,18 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..985c34cb063de19e3c3b209c1414eef2
 +        return this.withTag(() -> BlockTags.GUARDED_BY_PIGLINS);
 +    }
 +
++    public @NotNull Block bookshelf() {
++        return this.withTag(() -> SuCraftBlockTags.BOOKSHELVES);
++    }
++
++    public @NotNull Block bookshelfSlab() {
++        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_SLABS);
++    }
++
++    public @NotNull Block bookshelfStairs() {
++        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_STAIRS);
++    }
++
 +    public @NotNull Block withAddedTagsLike(@NotNull Block block) {
 +        this.tagsToAddSuppliers.addAll(block.tagsToAddSuppliers);
 +        return this;
@@ -3920,7 +4033,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..985c34cb063de19e3c3b209c1414eef2
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +842,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +855,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -5146,10 +5259,10 @@ index 0000000000000000000000000000000000000000..5a2e8c0c52ee2e6109d85445f1e4242f
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae965882adcf906
+index 0000000000000000000000000000000000000000..fef788fcd6d5a133919fd3b903cb482eb144eb14
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
-@@ -0,0 +1,204 @@
+@@ -0,0 +1,211 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.block;
@@ -5185,17 +5298,23 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +    @Override
 +    protected void addTags(Map<TagKey<Block>, List<Holder<Block>>> existingRegistryTagEntries) {
 +        MinecraftServer.LOGGER.info("Adding onto existing block tags...");
++
 +        // Martijn start - custom blocks and items
++
++        this.tag(SuCraftBlockTags.BOOKSHELVES).add(Blocks.BOOKSHELF);
++
 +//        final List<TagKey<Block>> mineableTags = List.of(BlockTags.MINEABLE_WITH_AXE, BlockTags.MINEABLE_WITH_HOE, BlockTags.MINEABLE_WITH_PICKAXE, BlockTags.MINEABLE_WITH_SHOVEL);
 +//        for (TagKey<Block> tag : mineableTags) {
 +//            this.tag(tag).add();
 +//        }
++
 +        for (@NotNull Block block : Registry.BLOCK) {
 +            block.tagsToAddSuppliers.stream().map(Supplier::get).distinct().forEach(tagToAdd -> {
 +                // Some tags may not be valid to transfer, but such a check is not implemented yet
 +                this.tag(tagToAdd).add(block);
 +            });
 +        }
++
 +        // Martijn end - custom blocks and items
 +
 +        // The below is a literal copy from BlockTagsProvider.addTags, which adds the tags transitively (for instance adding DEAD_BUSH_MAY_PLACE_ON to all blocks with the tag DIRT) after we have added more of some of those tags
@@ -5351,12 +5470,13 @@ index 0000000000000000000000000000000000000000..b084f203a96c68a5c443b8ad9ae96588
 +        this.tag(BlockTags.SNOW_LAYER_CAN_SURVIVE_ON).add(Blocks.HONEY_BLOCK).add(Blocks.SOUL_SAND).add(Blocks.MUD);
 +        this.tag(BlockTags.COMPLETES_FIND_TREE_TUTORIAL).addTag(BlockTags.LOGS).addTag(BlockTags.LEAVES).addTag(BlockTags.WART_BLOCKS);
 +        this.tag(BlockTags.SNAPS_GOAT_HORN).addTag(BlockTags.OVERWORLD_NATURAL_LOGS).add(Blocks.STONE).add(Blocks.PACKED_ICE).add(Blocks.IRON_ORE).add(Blocks.COAL_ORE).add(Blocks.COPPER_ORE).add(Blocks.EMERALD_ORE);
++
 +    }
 +
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6e6dfc9bcb6ccd55340fcfd52dfd51c38df8c9a8
+index 0000000000000000000000000000000000000000..8e3e5a9739dba55cf873327f8ede664b9eb873e4
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 @@ -0,0 +1,1399 @@
@@ -6111,7 +6231,7 @@ index 0000000000000000000000000000000000000000..6e6dfc9bcb6ccd55340fcfd52dfd51c3
 +                .withFallback(Blocks.BOOKSHELF)
 +                .withModelCreation(Model.YPillarCube.defaultCreationWithAlternativeEnd(new Texture(ResourcePackAssetIntention.BLOCK, NamespacedKeyWithoutIntention.minecraft(idWoodType + "_planks"), TextureContent.Existing.getInstance())).withNoParameters())
 +                .withFullBlockBoundingBoxItem(),
-+            new Block(BlockBehaviour.Properties.of(Material.WOOD).strength(1.5F).sound(SoundType.WOOD)).mineableWithAxe(),
++            new Block(BlockBehaviour.Properties.of(Material.WOOD).strength(1.5F).sound(SoundType.WOOD)).mineableWithAxe().bookshelf(),
 +            block -> SuCraftBlockLoot.dropSingleItemAndSingleItemWhenSilkTouch(Items.BOOK, ConstantValue.exactly(3.0F), block)
 +        );
 +    }
@@ -6411,14 +6531,14 @@ index 0000000000000000000000000000000000000000..6e6dfc9bcb6ccd55340fcfd52dfd51c3
 +        String typedBookshelf = type + "_bookshelf";
 +        String typedBookshelfIfNotOak = fullBlock.equals(Blocks.BOOKSHELF) ? "bookshelf" : typedBookshelf;
 +        NamespacedKeyWithoutIntention doubleSlabNamespacedKey = fullBlock.equals(Blocks.BOOKSHELF) ? NamespacedKeyWithoutIntention.minecraft(typedBookshelfIfNotOak) : NamespacedKeyWithoutIntention.sucraft(typedBookshelfIfNotOak);
-+        return registerFakeSlab(fullBlock, null, typedBookshelf, doubleSlabNamespacedKey, doubleSlabNamespacedKey,  NamespacedKeyWithoutIntention.minecraft(type + "_planks"), null, null, null, host, null).mineableWithAxe();
++        return registerFakeSlab(fullBlock, null, typedBookshelf, doubleSlabNamespacedKey, doubleSlabNamespacedKey,  NamespacedKeyWithoutIntention.minecraft(type + "_planks"), null, null, null, host, null).mineableWithAxe().bookshelfSlab();
 +    }
 +
 +    private static @NotNull Block registerFakeBookshelfStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
 +        String typedBookshelf = type + "_bookshelf";
 +        String typedBookshelfIfNotOak = fullBlock.equals(Blocks.BOOKSHELF) ? "bookshelf" : typedBookshelf;
 +        NamespacedKeyWithoutIntention fullBlockNamespacedKey = fullBlock.equals(Blocks.BOOKSHELF) ? NamespacedKeyWithoutIntention.minecraft(typedBookshelfIfNotOak) : NamespacedKeyWithoutIntention.sucraft(typedBookshelfIfNotOak);
-+        return registerFakeStairs(fullBlock, null, typedBookshelf, fullBlockNamespacedKey, NamespacedKeyWithoutIntention.minecraft(type + "_planks"), null, host, null).mineableWithAxe();
++        return registerFakeStairs(fullBlock, null, typedBookshelf, fullBlockNamespacedKey, NamespacedKeyWithoutIntention.minecraft(type + "_planks"), null, host, null).mineableWithAxe().bookshelfStairs();
 +    }
 +
 +    private static @NotNull Block registerFakeCustomStonePillarSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -8971,16 +9091,17 @@ index 0000000000000000000000000000000000000000..94aee86ff714ac334b42c874a2ec4d25
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d26bba52cbec3c1b352f3ead626cd52891c7339d
+index 0000000000000000000000000000000000000000..385648e4f114238adac59c41b8e9e3b160854f24
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java
-@@ -0,0 +1,23 @@
+@@ -0,0 +1,24 @@
 +package nl.martijnmuijsers.paper.blockanditemdata.model;
 +
 +import org.jetbrains.annotations.NotNull;
 +
 +public enum BlockEntityModelProximity {
 +
++    NOT_EXPANDED("v", 0.0F),
 +    NEIGHBOR_BLOCK("b", 0.005F),
 +    SAME_CHUNK("s", 0.01F),
 +    NEIGHBOR_CHUNK("n", 0.03F),
@@ -9000,13 +9121,16 @@ index 0000000000000000000000000000000000000000..d26bba52cbec3c1b352f3ead626cd528
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualProperties.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualProperties.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..94b6c82758378c081996502059426b54819cc151
+index 0000000000000000000000000000000000000000..894cf141c9a37c85baf30622f110ca6b0b5e691f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualProperties.java
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,45 @@
 +package nl.martijnmuijsers.paper.blockanditemdata.model;
 +
 +import org.jetbrains.annotations.NotNull;
++
++import java.util.ArrayList;
++import java.util.List;
 +
 +public record BlockEntityModelVisualProperties(@NotNull BlockEntityModelPosition position, @NotNull BlockEntityModelProximity proximity) {
 +
@@ -9014,19 +9138,35 @@ index 0000000000000000000000000000000000000000..94b6c82758378c081996502059426b54
 +        return this.position.blockEntityModelFileSuffix + this.proximity.blockEntityModelFileSuffix;
 +    }
 +
-+    public int getIndex() {
-+        return this.position.ordinal() + this.proximity.ordinal() * BlockEntityModelPosition.values().length;
-+    }
-+
 +    public static BlockEntityModelVisualProperties[] values;
 +    static {
-+        values = new BlockEntityModelVisualProperties[BlockEntityModelPosition.values().length * BlockEntityModelProximity.values().length];
++        List<BlockEntityModelVisualProperties> valuesList = new ArrayList<>(BlockEntityModelPosition.values().length * BlockEntityModelProximity.values().length);
 +        for (BlockEntityModelPosition position : BlockEntityModelPosition.values()) {
 +            for (BlockEntityModelProximity proximity : BlockEntityModelProximity.values()) {
++
++                // Continue if this is not a valid combination of values
++                if (proximity.equals(BlockEntityModelProximity.NOT_EXPANDED) && !position.equals(BlockEntityModelPosition.CENTER)) {
++                    continue;
++                }
++
 +                BlockEntityModelVisualProperties properties = new BlockEntityModelVisualProperties(position, proximity);
-+                values[properties.getIndex()] = properties;
++                valuesList.add(properties);
++
 +            }
 +        }
++        values = valuesList.toArray(BlockEntityModelVisualProperties[]::new);
++    }
++
++    private static int[][] ordinals;
++    static {
++        ordinals = new int[BlockEntityModelPosition.values().length][BlockEntityModelProximity.values().length];
++        for (int i = 0; i < values.length; i++) {
++            ordinals[values[i].position.ordinal()][values[i].proximity.ordinal()] = i;
++        }
++    }
++
++    public int getIndex() {
++        return ordinals[this.position.ordinal()][this.proximity.ordinal()];
 +    }
 +
 +}
@@ -15132,7 +15272,7 @@ index 0000000000000000000000000000000000000000..52b2cda69eb3dc8f4754e439ee644838
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b5c7968ce2bdb88517dd9d393f4d6c95b8683d80
+index 0000000000000000000000000000000000000000..d8105a1b7049a8232591aab67cc8605888569ff0
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
 @@ -0,0 +1,139 @@
@@ -15196,7 +15336,7 @@ index 0000000000000000000000000000000000000000..b5c7968ce2bdb88517dd9d393f4d6c95
 +            // Start the HTTP server
 +            this.httpServer = HttpServer.create(new InetSocketAddress(PORT), 0);
 +            httpServer.createContext("/" + PATH, ResourcePackHTTPServer::handle);
-+            httpServer.setExecutor(Executors.newFixedThreadPool(4, runnable -> {
++            httpServer.setExecutor(Executors.newFixedThreadPool(16, runnable -> {
 +                Thread newThread = new Thread(runnable);
 +                newThread.setPriority(6);
 +                return newThread;
@@ -15840,10 +15980,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..2641cb568f1fb5b9104e84b3092734e91d19064f
+index 0000000000000000000000000000000000000000..51726f32332281a7409c918397370823987255a6
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,406 @@
+@@ -0,0 +1,408 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -15910,13 +16050,13 @@ index 0000000000000000000000000000000000000000..2641cb568f1fb5b9104e84b3092734e9
 +
 +    private CreateSuCraftResourcePack() {}
 +
-+    private static final boolean useRandomResourcePackVersion = true;
++    private static final boolean useRandomResourcePackVersion = false;
 +    private static final int currentResourcePackVersion;
 +    static {
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 149;
++            currentResourcePackVersion = 150;
 +        }
 +    }
 +
@@ -16041,10 +16181,12 @@ index 0000000000000000000000000000000000000000..2641cb568f1fb5b9104e84b3092734e9
 +                });
 +
 +                // Delete old resource pack files
-+                MinecraftServer.LOGGER.info("Deleting old resource pack archive files...");
-+                for (File file : new File(OUTPUT_FOLDER_PATH).listFiles()) {
-+                    if (file.getName().endsWith(".zip")) {
-+                        file.delete();
++                if (shouldWriteResourcePackToArchiveFile) { // Otherwise we deleted the newest one too
++                    MinecraftServer.LOGGER.info("Deleting old resource pack archive files...");
++                    for (File file : new File(OUTPUT_FOLDER_PATH).listFiles()) {
++                        if (file.getName().endsWith(".zip")) {
++                            file.delete();
++                        }
 +                    }
 +                }
 +
