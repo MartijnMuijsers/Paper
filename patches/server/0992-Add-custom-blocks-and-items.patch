@@ -4286,10 +4286,18 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc69554
      }
  }
 diff --git a/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java b/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
-index f4ee3ce287528337a0f9a3b612c157254f895a58..aeef30cacddea13743ea275ce1f5303f7794cef1 100644
+index f4ee3ce287528337a0f9a3b612c157254f895a58..4687e7fc66bd22421962ac9f63cb7297f1a5443d 100644
 --- a/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
 +++ b/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
-@@ -24,10 +24,13 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
+@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.core.particles.ParticleTypes;
+ import net.minecraft.network.chat.Component;
++import net.minecraft.server.MinecraftServer;
+ import net.minecraft.util.RandomSource;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+@@ -24,10 +25,13 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
  import net.minecraft.world.level.block.entity.EnchantmentTableBlockEntity;
  import net.minecraft.world.level.block.state.BlockBehaviour;
  import net.minecraft.world.level.block.state.BlockState;
@@ -4303,7 +4311,7 @@ index f4ee3ce287528337a0f9a3b612c157254f895a58..aeef30cacddea13743ea275ce1f5303f
  
  public class EnchantmentTableBlock extends BaseEntityBlock {
      protected static final VoxelShape SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 12.0D, 16.0D);
-@@ -40,7 +43,10 @@ public class EnchantmentTableBlock extends BaseEntityBlock {
+@@ -40,7 +44,10 @@ public class EnchantmentTableBlock extends BaseEntityBlock {
      }
  
      public static boolean isValidBookShelf(Level world, BlockPos tablePos, BlockPos bookshelfOffset) {
@@ -14325,10 +14333,10 @@ index 0000000000000000000000000000000000000000..d2c7592594da0701ed1fcd03261fd8ec
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..94ab98d296c78e95fc942e69815aedf8af2313c0
+index 0000000000000000000000000000000000000000..de23cc2b6e448f766bd7f618e793d1dec46f7fed
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
-@@ -0,0 +1,428 @@
+@@ -0,0 +1,437 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.blockstates;
@@ -14377,99 +14385,77 @@ index 0000000000000000000000000000000000000000..94ab98d296c78e95fc942e69815aedf8
 +        return ResourcePackAssetType.BLOCK_STATES;
 +    }
 +
-+    private @NotNull JsonObject getOrCreateVariantsJson() {
++    @Override
++    protected void makeJsonUpToDate(@NotNull JsonObject json) {}
++
++    private @NotNull JsonObject getOrCreateVariantsJson(@NotNull JsonObject json) {
 +        @NotNull JsonObject variantsJson;
-+        if (this.json.has(KeyConstants.variants)) {
-+            variantsJson = this.json.getAsJsonObject(KeyConstants.variants);
++        if (json.has(KeyConstants.variants)) {
++            variantsJson = json.getAsJsonObject(KeyConstants.variants);
 +        } else {
 +            variantsJson = new JsonObject();
-+            this.json.add(KeyConstants.variants, variantsJson);
++            json.add(KeyConstants.variants, variantsJson);
 +        }
 +        return variantsJson;
 +    }
 +
 +    @Override
 +    public void setModel(@NotNull String variant, @NotNull ModelWithParameters model) {
-+        @NotNull JsonObject variantsJson = this.getOrCreateVariantsJson();
-+        for (String alreadyExistingVariant : new ArrayList<>(variantsJson.keySet())) {
-+            // This check is not perfect because variant properties may be in a different order, may need to improve later
-+            if (alreadyExistingVariant.contains(variant)) {
-+                variantsJson.remove(alreadyExistingVariant);
++        this.updateJsonDirectly(json -> {
++            @NotNull JsonObject variantsJson = this.getOrCreateVariantsJson(json);
++            for (String alreadyExistingVariant : new ArrayList<>(variantsJson.keySet())) {
++                // This check is not perfect because variant properties may be in a different order, may need to improve later
++                if (alreadyExistingVariant.contains(variant)) {
++                    variantsJson.remove(alreadyExistingVariant);
++                }
 +            }
-+        }
-+        @NotNull JsonObject variantJson;
-+        if (variantsJson.has(variant)) {
-+            variantJson = variantsJson.getAsJsonObject(variant);
-+        } else {
-+            variantJson = new JsonObject();
-+            variantsJson.add(variant, variantJson);
-+        }
-+        variantJson.addProperty(KeyConstants.model, model.model().getKeyWithIntention().toString());
-+        if (model.parameters() != null) {
-+            for (Map.Entry<String, JsonElement> parameter : model.parameters().getJson().entrySet()) {
-+                variantJson.add(parameter.getKey(), parameter.getValue());
++            @NotNull JsonObject variantJson;
++            if (variantsJson.has(variant)) {
++                variantJson = variantsJson.getAsJsonObject(variant);
++            } else {
++                variantJson = new JsonObject();
++                variantsJson.add(variant, variantJson);
 +            }
-+        }
-+        if (!variant.equals(KeyConstants.noVariant)) {
-+            variantsJson.remove(KeyConstants.noVariant);
-+        }
++            variantJson.addProperty(KeyConstants.model, model.model().getKeyWithIntention().toString());
++            if (model.parameters() != null) {
++                for (Map.Entry<String, JsonElement> parameter : model.parameters().getJson().entrySet()) {
++                    variantJson.add(parameter.getKey(), parameter.getValue());
++                }
++            }
++            if (!variant.equals(KeyConstants.noVariant)) {
++                variantsJson.remove(KeyConstants.noVariant);
++            }
++        });
 +        this.setDirty();
 +    }
 +
 +    @Override
 +    public void clearVariants() {
-+        this.json.add(KeyConstants.variants, new JsonObject());
++        this.updateJsonDirectly(json -> {
++            json.add(KeyConstants.variants, new JsonObject());
++        });
 +    }
 +
 +    @Override
 +    public void addFireModels(@NotNull BlockState hostState, @NotNull String fireType) {
-+        if (!setUpFire) {
-+            setUpFire = true;
-+            // Based on vanilla Minecraft resource file /assets/minecraft/blockstates/fire.json
-+            // All parts have an age 0 requirement added (spread over every when condition)
-+            this.json = JsonParser.parseString("""
-+                {
-+                  "multipart": [
++        this.updateJsonDirectly(json -> {
++            if (!setUpFire) {
++                setUpFire = true;
++                // Based on vanilla Minecraft resource file /assets/minecraft/blockstates/fire.json
++                // All parts have an age 0 requirement added (spread over every when condition)
++                json = JsonParser.parseString("""
 +                    {
-+                      "apply": [
++                      "multipart": [
 +                        {
-+                          "model": "minecraft:block/fire_floor0"
-+                        },
-+                        {
-+                          "model": "minecraft:block/fire_floor1"
-+                        }
-+                      ],
-+                      "when": {
-+                        "east": "false",
-+                        "north": "false",
-+                        "south": "false",
-+                        "up": "false",
-+                        "west": "false",
-+                        "age": 0
-+                      }
-+                    },
-+                    {
-+                      "apply": [
-+                        {
-+                          "model": "minecraft:block/fire_side0"
-+                        },
-+                        {
-+                          "model": "minecraft:block/fire_side1"
-+                        },
-+                        {
-+                          "model": "minecraft:block/fire_side_alt0"
-+                        },
-+                        {
-+                          "model": "minecraft:block/fire_side_alt1"
-+                        }
-+                      ],
-+                      "when": {
-+                        "OR": [
-+                          {
-+                            "north": "true",
-+                            "age": 0
-+                          },
-+                          {
++                          "apply": [
++                            {
++                              "model": "minecraft:block/fire_floor0"
++                            },
++                            {
++                              "model": "minecraft:block/fire_floor1"
++                            }
++                          ],
++                          "when": {
 +                            "east": "false",
 +                            "north": "false",
 +                            "south": "false",
@@ -14477,282 +14463,313 @@ index 0000000000000000000000000000000000000000..94ab98d296c78e95fc942e69815aedf8
 +                            "west": "false",
 +                            "age": 0
 +                          }
-+                        ]
-+                      }
-+                    },
-+                    {
-+                      "apply": [
-+                        {
-+                          "model": "minecraft:block/fire_side0",
-+                          "y": 90
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side1",
-+                          "y": 90
++                          "apply": [
++                            {
++                              "model": "minecraft:block/fire_side0"
++                            },
++                            {
++                              "model": "minecraft:block/fire_side1"
++                            },
++                            {
++                              "model": "minecraft:block/fire_side_alt0"
++                            },
++                            {
++                              "model": "minecraft:block/fire_side_alt1"
++                            }
++                          ],
++                          "when": {
++                            "OR": [
++                              {
++                                "north": "true",
++                                "age": 0
++                              },
++                              {
++                                "east": "false",
++                                "north": "false",
++                                "south": "false",
++                                "up": "false",
++                                "west": "false",
++                                "age": 0
++                              }
++                            ]
++                          }
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side_alt0",
-+                          "y": 90
++                          "apply": [
++                            {
++                              "model": "minecraft:block/fire_side0",
++                              "y": 90
++                            },
++                            {
++                              "model": "minecraft:block/fire_side1",
++                              "y": 90
++                            },
++                            {
++                              "model": "minecraft:block/fire_side_alt0",
++                              "y": 90
++                            },
++                            {
++                              "model": "minecraft:block/fire_side_alt1",
++                              "y": 90
++                            }
++                          ],
++                          "when": {
++                            "OR": [
++                              {
++                                "east": "true",
++                                "age": 0
++                              },
++                              {
++                                "east": "false",
++                                "north": "false",
++                                "south": "false",
++                                "up": "false",
++                                "west": "false",
++                                "age": 0
++                              }
++                            ]
++                          }
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side_alt1",
-+                          "y": 90
-+                        }
-+                      ],
-+                      "when": {
-+                        "OR": [
-+                          {
-+                            "east": "true",
-+                            "age": 0
-+                          },
-+                          {
-+                            "east": "false",
-+                            "north": "false",
-+                            "south": "false",
-+                            "up": "false",
-+                            "west": "false",
++                          "apply": [
++                            {
++                              "model": "minecraft:block/fire_side0",
++                              "y": 180
++                            },
++                            {
++                              "model": "minecraft:block/fire_side1",
++                              "y": 180
++                            },
++                            {
++                              "model": "minecraft:block/fire_side_alt0",
++                              "y": 180
++                            },
++                            {
++                              "model": "minecraft:block/fire_side_alt1",
++                              "y": 180
++                            }
++                          ],
++                          "when": {
++                            "OR": [
++                              {
++                                "south": "true",
++                                "age": 0
++                              },
++                              {
++                                "east": "false",
++                                "north": "false",
++                                "south": "false",
++                                "up": "false",
++                                "west": "false",
++                                "age": 0
++                              }
++                            ]
++                          }
++                        },
++                        {
++                          "apply": [
++                            {
++                              "model": "minecraft:block/fire_side0",
++                              "y": 270
++                            },
++                            {
++                              "model": "minecraft:block/fire_side1",
++                              "y": 270
++                            },
++                            {
++                              "model": "minecraft:block/fire_side_alt0",
++                              "y": 270
++                            },
++                            {
++                              "model": "minecraft:block/fire_side_alt1",
++                              "y": 270
++                            }
++                          ],
++                          "when": {
++                            "OR": [
++                              {
++                                "west": "true",
++                                "age": 0
++                              },
++                              {
++                                "east": "false",
++                                "north": "false",
++                                "south": "false",
++                                "up": "false",
++                                "west": "false",
++                                "age": 0
++                              }
++                            ]
++                          }
++                        },
++                        {
++                          "apply": [
++                            {
++                              "model": "minecraft:block/fire_up0"
++                            },
++                            {
++                              "model": "minecraft:block/fire_up1"
++                            },
++                            {
++                              "model": "minecraft:block/fire_up_alt0"
++                            },
++                            {
++                              "model": "minecraft:block/fire_up_alt1"
++                            }
++                          ],
++                          "when": {
++                            "up": "true",
 +                            "age": 0
 +                          }
-+                        ]
++                        }
++                      ]
++                    }""").getAsJsonObject();
++            }
++            @NotNull JsonArray multipart = json.getAsJsonArray("multipart");
++            // Based on vanilla Minecraft resource file /assets/minecraft/blockstates/soul_fire.json
++            // All parts have an added when condition for the right block state
++            multipart.addAll(JsonParser.parseString("""
++                [
++                    {
++                      "apply": [
++                        {
++                          "model": "sucraft:block/%1$s_fire_floor0"
++                        },
++                        {
++                          "model": "sucraft:block/%1$s_fire_floor1"
++                        }
++                      ],
++                      "when": {
++                        "east": "%2$b",
++                        "north": "%3$b",
++                        "south": "%4$b",
++                        "up": "%5$b",
++                        "west": "%6$b",
++                        "age": %7$d
 +                      }
 +                    },
 +                    {
 +                      "apply": [
 +                        {
-+                          "model": "minecraft:block/fire_side0",
-+                          "y": 180
++                          "model": "sucraft:block/%1$s_fire_side0"
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side1",
-+                          "y": 180
++                          "model": "sucraft:block/%1$s_fire_side1"
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side_alt0",
-+                          "y": 180
++                          "model": "sucraft:block/%1$s_fire_side_alt0"
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side_alt1",
-+                          "y": 180
++                          "model": "sucraft:block/%1$s_fire_side_alt1"
 +                        }
 +                      ],
 +                      "when": {
-+                        "OR": [
-+                          {
-+                            "south": "true",
-+                            "age": 0
-+                          },
-+                          {
-+                            "east": "false",
-+                            "north": "false",
-+                            "south": "false",
-+                            "up": "false",
-+                            "west": "false",
-+                            "age": 0
-+                          }
-+                        ]
++                        "east": "%2$b",
++                        "north": "%3$b",
++                        "south": "%4$b",
++                        "up": "%5$b",
++                        "west": "%6$b",
++                        "age": %7$d
 +                      }
 +                    },
 +                    {
 +                      "apply": [
 +                        {
-+                          "model": "minecraft:block/fire_side0",
-+                          "y": 270
++                          "model": "sucraft:block/%1$s_fire_side0",
++                          "y": 90
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side1",
-+                          "y": 270
++                          "model": "sucraft:block/%1$s_fire_side1",
++                          "y": 90
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side_alt0",
-+                          "y": 270
++                          "model": "sucraft:block/%1$s_fire_side_alt0",
++                          "y": 90
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_side_alt1",
-+                          "y": 270
++                          "model": "sucraft:block/%1$s_fire_side_alt1",
++                          "y": 90
 +                        }
 +                      ],
 +                      "when": {
-+                        "OR": [
-+                          {
-+                            "west": "true",
-+                            "age": 0
-+                          },
-+                          {
-+                            "east": "false",
-+                            "north": "false",
-+                            "south": "false",
-+                            "up": "false",
-+                            "west": "false",
-+                            "age": 0
-+                          }
-+                        ]
++                        "east": "%2$b",
++                        "north": "%3$b",
++                        "south": "%4$b",
++                        "up": "%5$b",
++                        "west": "%6$b",
++                        "age": %7$d
 +                      }
 +                    },
 +                    {
 +                      "apply": [
 +                        {
-+                          "model": "minecraft:block/fire_up0"
++                          "model": "sucraft:block/%1$s_fire_side0",
++                          "y": 180
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_up1"
++                          "model": "sucraft:block/%1$s_fire_side1",
++                          "y": 180
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_up_alt0"
++                          "model": "sucraft:block/%1$s_fire_side_alt0",
++                          "y": 180
 +                        },
 +                        {
-+                          "model": "minecraft:block/fire_up_alt1"
++                          "model": "sucraft:block/%1$s_fire_side_alt1",
++                          "y": 180
 +                        }
 +                      ],
 +                      "when": {
-+                        "up": "true",
-+                        "age": 0
++                        "east": "%2$b",
++                        "north": "%3$b",
++                        "south": "%4$b",
++                        "up": "%5$b",
++                        "west": "%6$b",
++                        "age": %7$d
++                      }
++                    },
++                    {
++                      "apply": [
++                        {
++                          "model": "sucraft:block/%1$s_fire_side0",
++                          "y": 270
++                        },
++                        {
++                          "model": "sucraft:block/%1$s_fire_side1",
++                          "y": 270
++                        },
++                        {
++                          "model": "sucraft:block/%1$s_fire_side_alt0",
++                          "y": 270
++                        },
++                        {
++                          "model": "sucraft:block/%1$s_fire_side_alt1",
++                          "y": 270
++                        }
++                      ],
++                      "when": {
++                        "east": "%2$b",
++                        "north": "%3$b",
++                        "south": "%4$b",
++                        "up": "%5$b",
++                        "west": "%6$b",
++                        "age": %7$d
 +                      }
 +                    }
-+                  ]
-+                }""").getAsJsonObject();
-+        }
-+        @NotNull JsonArray multipart = this.json.getAsJsonArray("multipart");
-+        // Based on vanilla Minecraft resource file /assets/minecraft/blockstates/soul_fire.json
-+        // All parts have an added when condition for the right block state
-+        multipart.addAll(JsonParser.parseString("""
-+            [
-+                {
-+                  "apply": [
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_floor0"
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_floor1"
-+                    }
-+                  ],
-+                  "when": {
-+                    "east": "%2$b",
-+                    "north": "%3$b",
-+                    "south": "%4$b",
-+                    "up": "%5$b",
-+                    "west": "%6$b",
-+                    "age": %7$d
-+                  }
-+                },
-+                {
-+                  "apply": [
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side0"
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side1"
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side_alt0"
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side_alt1"
-+                    }
-+                  ],
-+                  "when": {
-+                    "east": "%2$b",
-+                    "north": "%3$b",
-+                    "south": "%4$b",
-+                    "up": "%5$b",
-+                    "west": "%6$b",
-+                    "age": %7$d
-+                  }
-+                },
-+                {
-+                  "apply": [
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side0",
-+                      "y": 90
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side1",
-+                      "y": 90
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side_alt0",
-+                      "y": 90
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side_alt1",
-+                      "y": 90
-+                    }
-+                  ],
-+                  "when": {
-+                    "east": "%2$b",
-+                    "north": "%3$b",
-+                    "south": "%4$b",
-+                    "up": "%5$b",
-+                    "west": "%6$b",
-+                    "age": %7$d
-+                  }
-+                },
-+                {
-+                  "apply": [
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side0",
-+                      "y": 180
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side1",
-+                      "y": 180
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side_alt0",
-+                      "y": 180
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side_alt1",
-+                      "y": 180
-+                    }
-+                  ],
-+                  "when": {
-+                    "east": "%2$b",
-+                    "north": "%3$b",
-+                    "south": "%4$b",
-+                    "up": "%5$b",
-+                    "west": "%6$b",
-+                    "age": %7$d
-+                  }
-+                },
-+                {
-+                  "apply": [
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side0",
-+                      "y": 270
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side1",
-+                      "y": 270
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side_alt0",
-+                      "y": 270
-+                    },
-+                    {
-+                      "model": "sucraft:block/%1$s_fire_side_alt1",
-+                      "y": 270
-+                    }
-+                  ],
-+                  "when": {
-+                    "east": "%2$b",
-+                    "north": "%3$b",
-+                    "south": "%4$b",
-+                    "up": "%5$b",
-+                    "west": "%6$b",
-+                    "age": %7$d
-+                  }
-+                }
-+            ]"""
-+            .formatted(
-+                fireType,
-+                hostState.getValue(BlockStateProperties.EAST),
-+                hostState.getValue(BlockStateProperties.NORTH),
-+                hostState.getValue(BlockStateProperties.SOUTH),
-+                hostState.getValue(BlockStateProperties.UP),
-+                hostState.getValue(BlockStateProperties.WEST),
-+                hostState.getValue(BlockStateProperties.AGE_15)
-+            )).getAsJsonArray()
-+        );
++                ]"""
++                .formatted(
++                    fireType,
++                    hostState.getValue(BlockStateProperties.EAST),
++                    hostState.getValue(BlockStateProperties.NORTH),
++                    hostState.getValue(BlockStateProperties.SOUTH),
++                    hostState.getValue(BlockStateProperties.UP),
++                    hostState.getValue(BlockStateProperties.WEST),
++                    hostState.getValue(BlockStateProperties.AGE_15)
++                )).getAsJsonArray()
++            );
++        });
 +        this.setDirty();
 +    }
 +
@@ -15181,10 +15198,10 @@ index 0000000000000000000000000000000000000000..e36cb8277fa667532f558ced487808db
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b7f9c5e6d
+index 0000000000000000000000000000000000000000..179dc7d0b6c6bacf0948a2f0b515669eecb8f7d7
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,93 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.json;
@@ -15201,6 +15218,7 @@ index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b
 +
 +import java.io.IOException;
 +import java.io.OutputStream;
++import java.util.function.Consumer;
 +
 +/**
 + * Base implementation of {@link MutableJsonResourcePackAsset}
@@ -15214,7 +15232,7 @@ index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b
 +    }
 +
 +    private final @NotNull JsonResourcePackAssetConstructor<T> constructor;
-+    protected @NotNull JsonObject json;
++    private @NotNull JsonObject json;
 +
 +    protected SimpleJsonResourcePackAsset(@NotNull JsonResourcePackAssetConstructor<T> constructor, @NotNull JsonObject json, @NotNull NamespacedKeyWithIntention key, boolean dirty) {
 +        super(key, dirty);
@@ -15228,16 +15246,27 @@ index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b
 +        this.json = json;
 +    }
 +
++    protected abstract void makeJsonUpToDate(@NotNull JsonObject json);
++
++    protected void updateJsonDirectly(@NotNull Consumer<@NotNull JsonObject> jsonConsumer) {
++        jsonConsumer.accept(this.json);
++    }
++
++    protected @NotNull JsonObject getUpToDateJson() {
++        this.makeJsonUpToDate(this.json);
++        return this.json;
++    }
++
 +    @Override
 +    public void writeTo(@NotNull OutputStream outputStream) throws IOException {
-+        outputStream.write(this.json.toString().getBytes(Charsets.UTF_8));
++        outputStream.write(this.getUpToDateJson().toString().getBytes(Charsets.UTF_8));
 +    }
 +
 +    public @NotNull T merge(@NotNull ResourcePackAsset other) {
 +        Validate.isTrue(this.getType() == other.getType());
 +        @NotNull JsonObject otherJson;
 +        if (other instanceof SimpleJsonResourcePackAsset<?> simpleOther) {
-+            otherJson = simpleOther.json;
++            otherJson = simpleOther.getUpToDateJson();
 +        } else {
 +            otherJson = ((JsonResourcePackAsset) other).getJsonCopy();
 +        }
@@ -15247,16 +15276,16 @@ index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b
 +        } else {
 +            otherDirty = false;
 +        }
-+        return this.constructor.construct(JsonMerging.merge(this.json, otherJson), this.getKey(), this.isDirty() || otherDirty);
++        return this.constructor.construct(JsonMerging.merge(this.getUpToDateJson(), otherJson), this.getKey(), this.isDirty() || otherDirty);
 +    }
 +
 +    public @NotNull JsonObject getJsonCopy() {
-+        return this.json.deepCopy();
++        return this.getUpToDateJson().deepCopy();
 +    }
 +
 +    @Override
 +    public boolean isJsonEmpty() {
-+        return this.json.keySet().isEmpty();
++        return this.getUpToDateJson().keySet().isEmpty();
 +    }
 +
 +    @Override
@@ -15268,10 +15297,10 @@ index 0000000000000000000000000000000000000000..57740cdc57610ed068bfe5254dde264b
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1e42f491a822f6b491f32e04f28ac0cfd3079166
+index 0000000000000000000000000000000000000000..f6e4aaadc5210aecab92a5d054fa0e9dc3f81010
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
-@@ -0,0 +1,267 @@
+@@ -0,0 +1,359 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.model;
@@ -15279,16 +15308,15 @@ index 0000000000000000000000000000000000000000..1e42f491a822f6b491f32e04f28ac0cf
 +import com.google.gson.JsonArray;
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
-+import com.google.gson.stream.JsonWriter;
++import it.unimi.dsi.fastutil.Pair;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 +import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 +import it.unimi.dsi.fastutil.ints.IntSet;
 +import it.unimi.dsi.fastutil.objects.Object2IntMap;
 +import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 +import net.minecraft.core.Registry;
-+import net.minecraft.server.MinecraftServer;
 +import net.minecraft.world.item.Item;
-+import net.minecraft.world.item.Items;
-+import net.minecraft.world.level.block.Blocks;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelPosition;
 +import nl.martijnmuijsers.paper.item.ItemReplacementRule;
 +import nl.martijnmuijsers.paper.resourcepack.KeyConstants;
@@ -15303,6 +15331,8 @@ index 0000000000000000000000000000000000000000..1e42f491a822f6b491f32e04f28ac0cf
 +
 +import java.io.IOException;
 +import java.io.OutputStream;
++import java.util.ArrayList;
++import java.util.List;
 +import java.util.stream.StreamSupport;
 +
 +/**
@@ -15310,7 +15340,17 @@ index 0000000000000000000000000000000000000000..1e42f491a822f6b491f32e04f28ac0cf
 + */
 +public class ConcreteResourcePackModel extends SimpleJsonResourcePackAsset<ConcreteResourcePackModel> implements MutableResourcePackModel {
 +
-+    protected final IntSet customModelDataThatWasOverridden = new IntOpenHashSet(0);
++    protected final @NotNull IntSet customModelDataThatWasOverridden = new IntOpenHashSet(0);
++
++    protected @Nullable JsonArray blockEntityElementsYetToSet = null;
++    protected @Nullable Texture allTextureYetToSet = null;
++    protected @Nullable Texture fireTextureYetToSet = null;
++    protected @Nullable Texture endTextureYetToSet = null;
++    protected @Nullable Texture sideTextureYetToSet = null;
++    protected @Nullable Texture bottomTextureYetToSet = null;
++    protected @Nullable Texture topTextureYetToSet = null;
++    protected final @NotNull List<@NotNull Pair<@NotNull Integer, @NotNull Model>> overridesYetToWriteToJson = new ArrayList<>(0);
++    protected boolean modelOverridesMustYetBeSorted = false;
 +
 +    public ConcreteResourcePackModel(@NotNull JsonObject json, @NotNull NamespacedKeyWithIntention key, boolean dirty) {
 +        super(ConcreteResourcePackModel::new, json, key, dirty);
@@ -15330,112 +15370,138 @@ index 0000000000000000000000000000000000000000..1e42f491a822f6b491f32e04f28ac0cf
 +    }
 +
 +    @Override
++    protected void makeJsonUpToDate(@NotNull JsonObject json) {
++        if (this.blockEntityElementsYetToSet != null) {
++            this.updateJsonWithBlockEntityElements(json, this.blockEntityElementsYetToSet);
++            this.blockEntityElementsYetToSet = null;
++        }
++        this.updateJsonWithYetToSetTextures(json);
++        this.overridesYetToWriteToJson.forEach(pair -> this.updateJsonWithModelOverride(json, pair.left(), pair.right()));
++        this.overridesYetToWriteToJson.clear();
++        if (this.modelOverridesMustYetBeSorted) {
++            this.updateJsonWithSortedModelOverrides(json);
++            this.modelOverridesMustYetBeSorted = false;
++        }
++    }
++
++    @Override
 +    public void setParent(@NotNull Model parent) {
-+        this.json.addProperty(KeyConstants.assetParent, parent.getKeyWithIntention().toString());
++        this.updateJsonDirectly(json -> {
++            json.addProperty(KeyConstants.assetParent, parent.getKeyWithIntention().toString());
++        });
 +        this.setDirty();
 +    }
 +
 +    @Override
 +    public void setBlockEntityHeadDisplay(@NotNull BlockEntityModelPosition position) {
-+        @NotNull JsonObject displayJson;
-+        if (this.json.has(KeyConstants.display)) {
-+            displayJson = this.json.getAsJsonObject(KeyConstants.display);
-+        } else {
-+            displayJson = new JsonObject();
-+            this.json.add(KeyConstants.display, displayJson);
-+        }
-+        @NotNull JsonObject headJson;
-+        if (displayJson.has(KeyConstants.displayHead)) {
-+            headJson = displayJson.getAsJsonObject(KeyConstants.displayHead);
-+        } else {
-+            headJson = new JsonObject();
-+            displayJson.add(KeyConstants.displayHead, headJson);
-+        }
-+        @NotNull JsonArray translationJson = new JsonArray(3);
-+        @NotNull JsonArray scaleJson = new JsonArray(3);
-+        // Temp
-+//        boolean isBottomSlab = true;
-+//        if (isBottomSlab) {
-+//            translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * 25.6F);
-+//            translationJson.add(-30.425F - BLOCK_ENTITY_ARMOR_STAND_DY * 25.6F);
-+//            translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * 25.6F);
-+//            for (int i = 0; i < 3; i++) {
-+//                scaleJson.add(1.605F);
-+//            }
-+//        } else {
-+//            translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * 25.6F);
-+//            translationJson.add(-30.425F - BLOCK_ENTITY_ARMOR_STAND_DY * 25.6F);
-+//            translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * 25.6F);
-+//            for (int i = 0; i < 3; i++) {
-+//                scaleJson.add(1.605F);
-+//            }
-+//        }
-+//        translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * (1.6F * 16));
-+//        translationJson.add(-30.42555F - BLOCK_ENTITY_ARMOR_STAND_DY * (1.6F * 16)); // [-30.42575F, -30.4254)
-+//        translationJson.add(BLOCK_ENTITY_ARMOR_STAND_DXZ * (1.6F * 16));
-+//        for (int i = 0; i < 3; i++) {
-+//            scaleJson.add(1.6F);
-+//        }
-+        translationJson.add(position.displayTranslationX);
-+        translationJson.add(-30.42555F - BLOCK_ENTITY_ARMOR_STAND_DY * (1.6F * 16));
-+        translationJson.add(position.displayTranslationZ);
-+        scaleJson.add(-1.6F);
-+        scaleJson.add(1.6F);
-+        scaleJson.add(-1.6F);
-+        headJson.add(KeyConstants.displayTranslation, translationJson);
-+        headJson.add(KeyConstants.displayScale, scaleJson);
++        this.updateJsonDirectly(json -> {
++            @NotNull JsonObject displayJson;
++            if (json.has(KeyConstants.display)) {
++                displayJson = json.getAsJsonObject(KeyConstants.display);
++            } else {
++                displayJson = new JsonObject();
++                json.add(KeyConstants.display, displayJson);
++            }
++            @NotNull JsonObject headJson;
++            if (displayJson.has(KeyConstants.displayHead)) {
++                headJson = displayJson.getAsJsonObject(KeyConstants.displayHead);
++            } else {
++                headJson = new JsonObject();
++                displayJson.add(KeyConstants.displayHead, headJson);
++            }
++            @NotNull JsonArray translationJson = new JsonArray(3);
++            @NotNull JsonArray scaleJson = new JsonArray(3);
++            translationJson.add(position.displayTranslationX);
++            translationJson.add(-30.42555F - BLOCK_ENTITY_ARMOR_STAND_DY * (1.6F * 16));
++            translationJson.add(position.displayTranslationZ);
++            scaleJson.add(-1.6F);
++            scaleJson.add(1.6F);
++            scaleJson.add(-1.6F);
++            headJson.add(KeyConstants.displayTranslation, translationJson);
++            headJson.add(KeyConstants.displayScale, scaleJson);
++        });
++    }
++
++    private void updateJsonWithBlockEntityElements(@NotNull JsonObject json, @NotNull JsonArray elementsJson) {
++        json.add(KeyConstants.elements, elementsJson);
 +    }
 +
 +    @Override
 +    public void setBlockEntityElements(@NotNull JsonArray elementsJson) {
-+        this.json.add(KeyConstants.elements, elementsJson);
++        this.blockEntityElementsYetToSet = elementsJson;
++    }
++
++    private void updateJsonWithYetToSetTextures(@NotNull JsonObject json) {
++        if (this.allTextureYetToSet == null && this.fireTextureYetToSet == null && this.endTextureYetToSet == null && this.sideTextureYetToSet == null && this.bottomTextureYetToSet == null && this.topTextureYetToSet == null) {
++            return;
++        }
++        @NotNull JsonObject texturesJson;
++        if (json.has(KeyConstants.modelTextures)) {
++            texturesJson = json.getAsJsonObject(KeyConstants.modelTextures);
++        } else {
++            texturesJson = new JsonObject();
++            json.add(KeyConstants.modelTextures, texturesJson);
++        }
++        if (this.allTextureYetToSet != null) {
++            texturesJson.addProperty(KeyConstants.modelTexturesAll, this.allTextureYetToSet.getKeyWithIntention().toString());
++            this.allTextureYetToSet = null;
++        }
++        if (this.fireTextureYetToSet != null) {
++            texturesJson.addProperty(KeyConstants.modelTexturesFire, this.fireTextureYetToSet.getKeyWithIntention().toString());
++            this.fireTextureYetToSet = null;
++        }
++        if (this.endTextureYetToSet != null) {
++            texturesJson.addProperty(KeyConstants.modelTexturesEnd, this.endTextureYetToSet.getKeyWithIntention().toString());
++            this.endTextureYetToSet = null;
++        }
++        if (this.sideTextureYetToSet != null) {
++            texturesJson.addProperty(KeyConstants.modelTexturesSide, this.sideTextureYetToSet.getKeyWithIntention().toString());
++            this.sideTextureYetToSet = null;
++        }
++        if (this.bottomTextureYetToSet != null) {
++            texturesJson.addProperty(KeyConstants.modelTexturesBottom, this.bottomTextureYetToSet.getKeyWithIntention().toString());
++            this.bottomTextureYetToSet = null;
++        }
++        if (this.topTextureYetToSet != null) {
++            texturesJson.addProperty(KeyConstants.modelTexturesTop, this.topTextureYetToSet.getKeyWithIntention().toString());
++            this.topTextureYetToSet = null;
++        }
 +    }
 +
 +    @Override
 +    public void setAllTextures(@NotNull Texture texture) {
-+        @NotNull JsonObject texturesJson = new JsonObject();
-+        texturesJson.addProperty(KeyConstants.modelTexturesAll, texture.getKeyWithIntention().toString());
-+        this.json.add(KeyConstants.modelTextures, texturesJson);
++        this.allTextureYetToSet = texture;
 +        this.setDirty();
 +    }
 +
 +    @Override
 +    public void setFireTexture(@NotNull Texture texture) {
-+        @NotNull JsonObject texturesJson = new JsonObject();
-+        texturesJson.addProperty(KeyConstants.modelTexturesFire, texture.getKeyWithIntention().toString());
-+        this.json.add(KeyConstants.modelTextures, texturesJson);
++        this.fireTextureYetToSet = texture;
 +        this.setDirty();
 +    }
 +
 +    @Override
 +    public void setColumnTextures(@NotNull Texture endTexture, @NotNull Texture sideTexture) {
-+        @NotNull JsonObject texturesJson = new JsonObject();
-+        texturesJson.addProperty(KeyConstants.modelTexturesEnd, endTexture.getKeyWithIntention().toString());
-+        texturesJson.addProperty(KeyConstants.modelTexturesSide, sideTexture.getKeyWithIntention().toString());
-+        this.json.add(KeyConstants.modelTextures, texturesJson);
++        this.endTextureYetToSet = endTexture;
++        this.sideTextureYetToSet = sideTexture;
 +        this.setDirty();
 +    }
 +
 +    @Override
 +    public void setBottomTopTextures(@NotNull Texture bottomTexture, @NotNull Texture sideTexture, @NotNull Texture topTexture) {
-+        @NotNull JsonObject texturesJson = new JsonObject();
-+        texturesJson.addProperty(KeyConstants.modelTexturesBottom, bottomTexture.getKeyWithIntention().toString());
-+        texturesJson.addProperty(KeyConstants.modelTexturesSide, sideTexture.getKeyWithIntention().toString());
-+        texturesJson.addProperty(KeyConstants.modelTexturesTop, topTexture.getKeyWithIntention().toString());
-+        this.json.add(KeyConstants.modelTextures, texturesJson);
++        this.bottomTextureYetToSet = bottomTexture;
++        this.sideTextureYetToSet = sideTexture;
++        this.topTextureYetToSet = topTexture;
 +        this.setDirty();
 +    }
 +
-+
-+    @Override
-+    public void addModelOverride(int customModelData, @NotNull Model overridingModel) {
-+        this.customModelDataThatWasOverridden.add(customModelData);
++    private void updateJsonWithModelOverride(@NotNull JsonObject json, int customModelData, @NotNull Model overridingModel) {
 +        @NotNull JsonArray overridesJson;
-+        if (this.json.has(KeyConstants.modelOverrides)) {
-+            overridesJson = this.json.getAsJsonArray(KeyConstants.modelOverrides);
++        if (json.has(KeyConstants.modelOverrides)) {
++            overridesJson = json.getAsJsonArray(KeyConstants.modelOverrides);
 +        } else {
 +            overridesJson = new JsonArray();
-+            this.json.add(KeyConstants.modelOverrides, overridesJson);
++            json.add(KeyConstants.modelOverrides, overridesJson);
 +        }
 +        // Make sure we try to find an override with the same predicate as that we're trying to create
 +        @NotNull JsonObject predicateJson = new JsonObject();
@@ -15457,14 +15523,30 @@ index 0000000000000000000000000000000000000000..1e42f491a822f6b491f32e04f28ac0cf
 +            overridesJson.add(overrideJson);
 +        }
 +        overrideJson.addProperty(KeyConstants.model, overridingModel.getKeyWithIntention().toString());
++    }
++
++    @Override
++    public void addModelOverride(int customModelData, @NotNull Model overridingModel) {
++        this.customModelDataThatWasOverridden.add(customModelData);
++        boolean alreadyReplaced = false;
++        for (int i = 0; i < this.overridesYetToWriteToJson.size(); i++) {
++            if (this.overridesYetToWriteToJson.get(i).left() == customModelData) {
++                this.overridesYetToWriteToJson.set(i, Pair.of(customModelData, overridingModel));
++                alreadyReplaced = true;
++                break;
++            }
++        }
++        if (!alreadyReplaced) {
++            this.overridesYetToWriteToJson.add(Pair.of(customModelData, overridingModel));
++        }
 +        this.setDirty();
 +    }
 +
-+    private void sortModelOverrides() {
-+        if (!this.json.has(KeyConstants.modelOverrides)) {
++    private void updateJsonWithSortedModelOverrides(@NotNull JsonObject json) {
++        if (!json.has(KeyConstants.modelOverrides)) {
 +            return;
 +        }
-+        @NotNull JsonArray overridesJson = this.json.getAsJsonArray(KeyConstants.modelOverrides);
++        @NotNull JsonArray overridesJson = json.getAsJsonArray(KeyConstants.modelOverrides);
 +        @NotNull JsonArray newOverridesJson = new JsonArray(overridesJson.size());
 +        StreamSupport.stream(overridesJson.spliterator(), false).sorted((overrideJson1, overrideJson2) -> {
 +            JsonObject overridePredicate1 = ((JsonObject) overrideJson1).getAsJsonObject(KeyConstants.overridePredicate);
@@ -15473,68 +15555,107 @@ index 0000000000000000000000000000000000000000..1e42f491a822f6b491f32e04f28ac0cf
 +            int customModelData2 = overridePredicate2.has(KeyConstants.customModelData) ? overridePredicate2.get(KeyConstants.customModelData).getAsInt() : Integer.MAX_VALUE;
 +            return Integer.compare(customModelData1, customModelData2);
 +        }).forEach(newOverridesJson::add);
-+        this.json.add(KeyConstants.modelOverrides, newOverridesJson);
++        json.add(KeyConstants.modelOverrides, newOverridesJson);
++    }
++
++    private void sortModelOverrides() {
++        this.modelOverridesMustYetBeSorted = true;
 +    }
 +
 +    @Override
 +    public void writeTo(@NotNull OutputStream outputStream) throws IOException {
 +        this.sortModelOverrides();
-+        var overrides = this.json.getAsJsonArray(KeyConstants.modelOverrides);
-+//        if (overrides != null) {
-+//            MinecraftServer.LOGGER.info("TEMP DEBUG - writing resource pack model " + this.getKey() + " with overrides: " + overrides.size());
-+//        }
-+        JsonWriter writer = null;
 +        super.writeTo(outputStream);
 +    }
 +
 +    public void minifyModelOverrides() {
-+        if (!this.json.has(KeyConstants.modelOverrides)) {
++        boolean[] jsonAlreadyHasModelOverrides = {false};
++        this.updateJsonDirectly(json -> jsonAlreadyHasModelOverrides[0] = json.has(KeyConstants.modelOverrides));
++        if (!(jsonAlreadyHasModelOverrides[0] || !this.overridesYetToWriteToJson.isEmpty())) {
 +            return;
 +        }
 +        Item item = Registry.ITEM.get(this.getKey().withoutIntention().asMinecraft());
-+        @NotNull JsonArray overridesJson = this.json.getAsJsonArray(KeyConstants.modelOverrides);
-+        Object2IntMap<String> minifiedCustomModelDataByModel = new Object2IntOpenHashMap<>(overridesJson.size() * 2);
-+        int[] nextMinifiedCustomModelData = {1};
-+        IntSet disallowedMinifiedCustomModelData = new IntOpenHashSet(0);
-+        for (int i = 0; i < overridesJson.size(); i++) {
-+            JsonObject overrideJson = (JsonObject) overridesJson.get(i);
-+            if (overrideJson.has(KeyConstants.overridePredicate) && overrideJson.has(KeyConstants.model)) {
-+                JsonObject overridePredicate = overrideJson.getAsJsonObject(KeyConstants.overridePredicate);
-+                if (overridePredicate.has(KeyConstants.customModelData)) {
-+                    int customModelData = overridePredicate.get(KeyConstants.customModelData).getAsInt();
-+                    if (!this.customModelDataThatWasOverridden.contains(customModelData)) {
-+                        disallowedMinifiedCustomModelData.add(customModelData);
-+                    }
-+                }
-+            }
-+        }
-+        for (int[] i = {0}; i[0] < overridesJson.size(); i[0]++) {
-+            JsonObject overrideJson = (JsonObject) overridesJson.get(i[0]);
-+            if (overrideJson.has(KeyConstants.overridePredicate) && overrideJson.has(KeyConstants.model)) {
-+                JsonObject overridePredicate = overrideJson.getAsJsonObject(KeyConstants.overridePredicate);
-+                if (overridePredicate.has(KeyConstants.customModelData) && overridePredicate.keySet().size() == 1) {
-+                    int customModelData = overridePredicate.get(KeyConstants.customModelData).getAsInt();
-+                    if (this.customModelDataThatWasOverridden.contains(customModelData)) {
-+                        String model = Validate.notNull(overrideJson.get(KeyConstants.model).getAsString());
-+                        minifiedCustomModelDataByModel.compute(model, ($, minifiedCustomModelData) -> {
-+                            if (minifiedCustomModelData == null) {
-+                                while (disallowedMinifiedCustomModelData.contains(nextMinifiedCustomModelData[0])) {
-+                                    nextMinifiedCustomModelData[0]++;
-+                                }
-+                                int newMinifiedCustomModelData = nextMinifiedCustomModelData[0];
-+                                nextMinifiedCustomModelData[0]++;
-+                                ItemReplacementRule.addMinifiedCustomModelData(item, customModelData, newMinifiedCustomModelData);
-+                                overridePredicate.addProperty(KeyConstants.customModelData, newMinifiedCustomModelData);
-+                                return newMinifiedCustomModelData;
++        if (jsonAlreadyHasModelOverrides[0]) {
++
++            // Place all the overrides in the JSON
++            this.getUpToDateJson();
++
++            // Update the JSON directly
++            this.updateJsonDirectly(json -> {
++                @NotNull JsonArray overridesJson = json.getAsJsonArray(KeyConstants.modelOverrides);
++                Object2IntMap<String> minifiedCustomModelDataByModel = new Object2IntOpenHashMap<>(overridesJson.size() * 2);
++                int[] nextMinifiedCustomModelData = {1};
++                IntSet disallowedMinifiedCustomModelData = new IntOpenHashSet(0);
++                for (int i = 0; i < overridesJson.size(); i++) {
++                    JsonObject overrideJson = (JsonObject) overridesJson.get(i);
++                    if (overrideJson.has(KeyConstants.overridePredicate) && overrideJson.has(KeyConstants.model)) {
++                        JsonObject overridePredicate = overrideJson.getAsJsonObject(KeyConstants.overridePredicate);
++                        if (overridePredicate.has(KeyConstants.customModelData)) {
++                            int customModelData = overridePredicate.get(KeyConstants.customModelData).getAsInt();
++                            if (!this.customModelDataThatWasOverridden.contains(customModelData)) {
++                                disallowedMinifiedCustomModelData.add(customModelData);
 +                            }
-+                            ItemReplacementRule.addMinifiedCustomModelData(item, customModelData, minifiedCustomModelData);
-+                            overridesJson.remove(i[0]);
-+                            i[0]--;
-+                            return minifiedCustomModelData;
-+                        });
++                        }
 +                    }
 +                }
++                for (int[] i = {0}; i[0] < overridesJson.size(); i[0]++) {
++                    JsonObject overrideJson = (JsonObject) overridesJson.get(i[0]);
++                    if (overrideJson.has(KeyConstants.overridePredicate) && overrideJson.has(KeyConstants.model)) {
++                        JsonObject overridePredicate = overrideJson.getAsJsonObject(KeyConstants.overridePredicate);
++                        if (overridePredicate.has(KeyConstants.customModelData) && overridePredicate.keySet().size() == 1) {
++                            int customModelData = overridePredicate.get(KeyConstants.customModelData).getAsInt();
++                            if (this.customModelDataThatWasOverridden.contains(customModelData)) {
++                                String model = Validate.notNull(overrideJson.get(KeyConstants.model).getAsString());
++                                minifiedCustomModelDataByModel.compute(model, ($, minifiedCustomModelData) -> {
++                                    if (minifiedCustomModelData == null) {
++                                        while (disallowedMinifiedCustomModelData.contains(nextMinifiedCustomModelData[0])) {
++                                            nextMinifiedCustomModelData[0]++;
++                                        }
++                                        int newMinifiedCustomModelData = nextMinifiedCustomModelData[0];
++                                        nextMinifiedCustomModelData[0]++;
++                                        ItemReplacementRule.addMinifiedCustomModelData(item, customModelData, newMinifiedCustomModelData);
++                                        overridePredicate.addProperty(KeyConstants.customModelData, newMinifiedCustomModelData);
++                                        return newMinifiedCustomModelData;
++                                    }
++                                    ItemReplacementRule.addMinifiedCustomModelData(item, customModelData, minifiedCustomModelData);
++                                    overridesJson.remove(i[0]);
++                                    i[0]--;
++                                    return minifiedCustomModelData;
++                                });
++                            }
++                        }
++                    }
++                }
++            });
++
++        } else {
++            // Update the model overrides yet to add directly
++
++            Object2IntMap<String> minifiedCustomModelDataByModel = new Object2IntOpenHashMap<>(this.overridesYetToWriteToJson.size() * 2);
++            int[] nextMinifiedCustomModelData = {1};
++            IntSet disallowedMinifiedCustomModelData = new IntOpenHashSet(0);
++            for (int[] i = {0}; i[0] < this.overridesYetToWriteToJson.size(); i[0]++) {
++                var pair = this.overridesYetToWriteToJson.get(i[0]);
++                int customModelData = pair.left();
++                var overridingModel = pair.right();
++                minifiedCustomModelDataByModel.compute(overridingModel.getKeyWithIntention().toString(), ($, minifiedCustomModelData) -> {
++                    if (minifiedCustomModelData == null) {
++                        while (disallowedMinifiedCustomModelData.contains(nextMinifiedCustomModelData[0])) {
++                            nextMinifiedCustomModelData[0]++;
++                        }
++                        int newMinifiedCustomModelData = nextMinifiedCustomModelData[0];
++                        nextMinifiedCustomModelData[0]++;
++                        ItemReplacementRule.addMinifiedCustomModelData(item, customModelData, newMinifiedCustomModelData);
++                        this.overridesYetToWriteToJson.set(i[0], Pair.of(newMinifiedCustomModelData, overridingModel));
++                        return newMinifiedCustomModelData;
++                    }
++                    ItemReplacementRule.addMinifiedCustomModelData(item, customModelData, minifiedCustomModelData);
++                    this.overridesYetToWriteToJson.remove(i[0]);
++                    i[0]--;
++                    return minifiedCustomModelData;
++                });
 +            }
++
 +        }
 +    }
 +
@@ -16438,10 +16559,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..51726f32332281a7409c918397370823987255a6
+index 0000000000000000000000000000000000000000..5ef812354fd0c434b942f2cead7e3b9cfb5354e9
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,408 @@
+@@ -0,0 +1,409 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -16514,7 +16635,7 @@ index 0000000000000000000000000000000000000000..51726f32332281a7409c918397370823
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 150;
++            currentResourcePackVersion = 155;
 +        }
 +    }
 +
@@ -16601,6 +16722,7 @@ index 0000000000000000000000000000000000000000..51726f32332281a7409c918397370823
 +
 +                // Add included resource packs
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/SuCraft resource pack logo.zip"));
++                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Fire further from block surfaces.zip"));
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Technoblade Pigs.zip"));
 +
 +                // Set the settings
