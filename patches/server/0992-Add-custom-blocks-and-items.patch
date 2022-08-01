@@ -2294,7 +2294,7 @@ index 06e3a868e922f1b7a586d0ca28f64a67ae463b68..0feab0105d15be1847d0064aeb1186ed
          int j = item.getItem().getMaxStackSize();
          int k = j * 100;
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26d6b5bb5fecdeb82f520e1eadeb99d57b00a6fe 100644
+index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..9f39b09564d69af2a73b669ef88f7a8757e26a9c 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -13,11 +13,16 @@ import java.net.Proxy;
@@ -2342,7 +2342,7 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26d6b5bb5fecdeb82f520e1eadeb99d5
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -275,6 +288,55 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -275,6 +288,57 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
              return false;
          }
  
@@ -2366,9 +2366,10 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26d6b5bb5fecdeb82f520e1eadeb99d5
 +            });
 +            Map<Item, Integer> ingredientToIngredientGroupIndex = new IdentityHashMap<>();
 +            int nextGroupIndex = 0;
-+            for (Map.Entry<Item, List<Item>> resultToIngredientEntry : resultToIngredient.entrySet()) {
++            for (Item resultToIngredientKey : resultToIngredient.keySet().stream().sorted(Comparator.comparing(item -> item.id.toString())).toList()) {
++                List<Item> resultToIngredientValue = resultToIngredient.get(resultToIngredientKey);
 +                final int finalNextGroupIndex = nextGroupIndex;
-+                for (Item ingredient : resultToIngredientEntry.getValue()) {
++                for (Item ingredient : resultToIngredientValue) {
 +                    Integer existingGroupIndex = ingredientToIngredientGroupIndex.get(ingredient);
 +                    if (existingGroupIndex != null) {
 +                        ingredientToIngredientGroupIndex.replaceAll((item, index) -> index.equals(existingGroupIndex) ? finalNextGroupIndex : index);
@@ -2378,8 +2379,9 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..26d6b5bb5fecdeb82f520e1eadeb99d5
 +                }
 +                nextGroupIndex++;
 +            }
-+            ingredientToIngredientGroupIndex.values().stream().toList().stream().map(index -> ingredientToIngredientGroupIndex.entrySet().stream().filter(entry -> entry.getValue() == index).map(entry -> entry.getKey()).toList()).forEach(groupIngredients -> {
-+                var groupResults = groupIngredients.stream().flatMap(ingredient -> ingredientToResult.get(ingredient).stream()).distinct().toList();
++            ingredientToIngredientGroupIndex.values().stream().toList().stream().sorted().map(index -> ingredientToIngredientGroupIndex.entrySet().stream().filter(entry -> entry.getValue() == index).map(entry -> entry.getKey()).toList()).forEach(groupIngredients -> {
++                groupIngredients = groupIngredients.stream().sorted(Comparator.comparing(item -> item.id.toString())).toList();
++                var groupResults = groupIngredients.stream().flatMap(ingredient -> ingredientToResult.get(ingredient).stream().sorted(Comparator.comparing(item -> item.id.toString()))).distinct().sorted(Comparator.comparing(item -> ((Item) item).id.toString())).toList();
 +                //            System.out.println("TEMP DEBUG - group results: " + groupResults);
 +                List<Item> potentialHosts = StreamSupport.stream(Registry.ITEM.spliterator(), false).filter(item -> item.isVanilla && Registry.BLOCK.containsKey(item.id) && !groupResults.contains(item)).sorted(Comparator.comparing(item -> item.getDescriptionId())).toList();
 +                var customGroupResults = groupResults.stream().filter(result -> !result.isVanilla).toList();
@@ -3318,7 +3320,7 @@ index d4f71422b25f70abfe50481d6071abea6ad147c0..a5063cc97aee67887944fa9c337cc472
  
              // CraftBukkit start
 diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
-index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6f1121d0fe8bf548484e2de10518d3a8902c9085 100644
+index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..70b131c363157002b58d28829610f2449e2d7382 100644
 --- a/src/main/java/net/minecraft/world/item/Item.java
 +++ b/src/main/java/net/minecraft/world/item/Item.java
 @@ -4,22 +4,46 @@ import com.google.common.collect.ImmutableMultimap;
@@ -3378,7 +3380,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6f1121d0fe8bf548484e2de10518d3a8
  import net.minecraft.world.level.ClipContext;
  import net.minecraft.world.level.ItemLike;
  import net.minecraft.world.level.Level;
-@@ -44,8 +71,17 @@ import net.minecraft.world.level.block.Block;
+@@ -44,8 +71,18 @@ import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.Vec3;
@@ -3388,6 +3390,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6f1121d0fe8bf548484e2de10518d3a8
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 +import org.bukkit.inventory.ShapedRecipe;
++import org.bukkit.inventory.ShapelessRecipe;
 +import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  
@@ -3396,7 +3399,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6f1121d0fe8bf548484e2de10518d3a8
  public class Item implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      public static final Map<Block, Item> BY_BLOCK = Maps.newHashMap();
-@@ -68,6 +104,229 @@ public class Item implements ItemLike {
+@@ -68,6 +105,250 @@ public class Item implements ItemLike {
      @Nullable
      private final FoodProperties foodProperties;
  
@@ -3560,10 +3563,8 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6f1121d0fe8bf548484e2de10518d3a8
 +            recipe.shape(this.patterns);
 +            for (var definition : this.ingredients) {
 +                Material type = CraftMagicNumbers.getMaterial(definition.ingredient.asItem());
-+                System.out.println("The type is " + type);
 +                recipe.setIngredient(definition.character, new org.bukkit.inventory.ItemStack(type));
 +            }
-+            System.out.println("Built shaped recipe: " + recipe.getKey().toString() + " / " + recipe.getGroup() + " / " + Arrays.stream(recipe.getShape()).toList() + " / " + recipe.getIngredientMap().entrySet().stream().map(entry -> entry.getKey() + " -> " + (entry.getValue() == null ? "null" : entry.getValue().getType().name())).toList());
 +            return recipe;
 +        }
 +
@@ -3610,14 +3611,37 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..6f1121d0fe8bf548484e2de10518d3a8
 +
 +    }
 +
++    public record CustomShapelessRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] ingredients, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
++
++        public @NotNull ShapelessRecipe build(@NotNull Item result) {
++            var recipe = new ShapelessRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
++            recipe.setGroup(this.group != null ? this.group : key.getPath());
++            for (var ingredient : this.ingredients) {
++                Material type = CraftMagicNumbers.getMaterial(ingredient.asItem());
++                recipe.addIngredient(type);
++            }
++            return recipe;
++        }
++
++        @Override
++        public @NotNull CustomRecipeUnlock @NotNull [] getUnlocks() {
++            return this.unlocks();
++        }
++
++        public static @NotNull CustomShapelessRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] ingredients, int resultAmount) {
++            return new CustomShapelessRecipe(key, group, ingredients, new CustomRecipeUnlock[0], resultAmount);
++        }
++
++        public static @NotNull CustomShapelessRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] ingredients, @NotNull Item unlockItem, int resultAmount) {
++            return new CustomShapelessRecipe(key, group, ingredients, new CustomRecipeUnlock[]{new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
++        }
++
++    }
++
 +    public @NotNull List<@NotNull CustomRecipe> customRecipes = new ArrayList<>(0);
 +
 +    public @NotNull Item withCustomRecipe(@NotNull CustomRecipe recipe) {
 +        this.customRecipes.add(recipe);
-+        System.out.println("Item " + this + " with custom recipe");
-+        if (recipe instanceof CustomShapedRecipe customShapedRecipe) {
-+            System.out.println("Item " + this + " with custom shaped recipe: " + customShapedRecipe.group + " / " + customShapedRecipe.key + " / " + Arrays.stream(customShapedRecipe.patterns).toList() + " / " + Arrays.stream(customShapedRecipe.ingredients).toList());
-+        }
 +        return this;
 +    }
 +
@@ -4054,7 +4078,7 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 224ce424b9a22548212ac157ec273c6dd80d6cfb..938f0c72afee408172feddda1f398581a9f9d303 100644
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532502e34c2 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
 @@ -6,10 +6,13 @@ import com.google.common.cache.LoadingCache;
@@ -4083,8 +4107,11 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..938f0c72afee408172feddda1f398581
  import net.minecraft.util.Mth;
  import net.minecraft.util.RandomSource;
  import net.minecraft.util.valueproviders.IntProvider;
-@@ -41,6 +46,8 @@ import net.minecraft.world.item.Item;
+@@ -39,8 +44,11 @@ import net.minecraft.world.item.BlockItem;
+ import net.minecraft.world.item.CreativeModeTab;
+ import net.minecraft.world.item.Item;
  import net.minecraft.world.item.ItemStack;
++import net.minecraft.world.item.Items;
  import net.minecraft.world.item.TooltipFlag;
  import net.minecraft.world.item.context.BlockPlaceContext;
 +import net.minecraft.world.item.crafting.Ingredient;
@@ -4092,7 +4119,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..938f0c72afee408172feddda1f398581
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.enchantment.Enchantments;
  import net.minecraft.world.level.BlockGetter;
-@@ -58,11 +65,16 @@ import net.minecraft.world.level.block.state.StateDefinition;
+@@ -58,11 +66,18 @@ import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.Property;
  import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.storage.loot.LootContext;
@@ -4104,12 +4131,14 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..938f0c72afee408172feddda1f398581
  import net.minecraft.world.phys.shapes.VoxelShape;
 +import nl.martijnmuijsers.paper.block.SuCraftBlockTags;
 +import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
++import org.bukkit.NamespacedKey;
 +import org.bukkit.Tag;
++import org.bukkit.inventory.ShapelessRecipe;
 +import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  
  public class Block extends BlockBehaviour implements ItemLike {
-@@ -70,6 +82,25 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -70,6 +85,25 @@ public class Block extends BlockBehaviour implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      private final Holder.Reference<Block> builtInRegistryHolder;
      public static final IdMapper<BlockState> BLOCK_STATE_REGISTRY = new IdMapper<>();
@@ -4135,7 +4164,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..938f0c72afee408172feddda1f398581
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +158,240 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +161,261 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -4326,6 +4355,27 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..938f0c72afee408172feddda1f398581
 +        return this;
 +    }
 +
++    public @NotNull Block withFutureCustomRecipe(@NotNull Supplier<Item.CustomRecipe> supplier) {
++        return this.withCustomRecipe(new FutureCustomRecipe(supplier));
++    }
++
++    public @NotNull Block withCustomStoneBricksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> additionalItemSupplier, int stoneBrickAmount) {
++        return this.withFutureCustomRecipe(() -> {
++            var additionalItem = additionalItemSupplier.get().asItem();
++            ItemLike[] ingredients = new ItemLike[stoneBrickAmount + 1];
++            ingredients[0] = additionalItem;
++            for (int i = 1; i <= stoneBrickAmount; i++) {
++                ingredients[i] = Items.STONE_BRICKS;
++            }
++            var recipeKey = ResourceLocation.sucraft(additionalItem.id.getPath() + "_to_" + recipePrefix + "_stony_bricks");
++            return Item.CustomShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredients, Items.STONE_BRICKS, stoneBrickAmount);
++        });
++    }
++
++    public @NotNull Block withCustom8StoneBricksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> additionalItemSupplier) {
++        return this.withCustomStoneBricksRecipe(recipePrefix, additionalItemSupplier, 8);
++    }
++
 +    public @NotNull Block withCustomStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, int resultAmount, boolean transitive) {
 +        @NotNull String uniqueRecipeDescription = id.getPath() + "_from_" + ingredient.id.getPath() + "_stonecutting";
 +        this.withCustomRecipe(new CustomStonecutterRecipe(ResourceLocation.sucraft(uniqueRecipeDescription), group, ingredient, resultAmount));
@@ -4356,19 +4406,19 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..938f0c72afee408172feddda1f398581
 +    }
 +
 +    public @NotNull Block withCustomSlabCraftingRecipe(@NotNull Block fullBlock, @Nullable String group) {
-+        return this.withCustomRecipe(new FutureCustomRecipe(() -> Item.CustomShapedRecipe.craftSlab(this, fullBlock, group)));
++        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftSlab(this, fullBlock, group));
 +    }
 +
 +    public @NotNull Block withCustomSlabCraftingRecipe(@NotNull Block fullBlock) {
-+        return this.withCustomRecipe(new FutureCustomRecipe(() -> Item.CustomShapedRecipe.craftSlab(this, fullBlock)));
++        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftSlab(this, fullBlock));
 +    }
 +
 +    public @NotNull Block withCustomStairsCraftingRecipe(@NotNull Block fullBlock, @Nullable String group) {
-+        return this.withCustomRecipe(new FutureCustomRecipe(() -> Item.CustomShapedRecipe.craftStairs(this, fullBlock, group)));
++        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftStairs(this, fullBlock, group));
 +    }
 +
 +    public @NotNull Block withCustomStairsCraftingRecipe(@NotNull Block fullBlock) {
-+        return this.withCustomRecipe(new FutureCustomRecipe(() -> Item.CustomShapedRecipe.craftStairs(this, fullBlock)));
++        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftStairs(this, fullBlock));
 +    }
 +
 +    // Martijn end - custom blocks and items
@@ -4376,7 +4426,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..938f0c72afee408172feddda1f398581
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +904,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +928,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -6157,7 +6207,7 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c8955ca46642e709ab68eded4d06d8cbb6bb744d
+index 0000000000000000000000000000000000000000..349b372505ce3b09bf4b68f8cf24b3388b33cdcc
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 @@ -0,0 +1,1399 @@
@@ -6205,8 +6255,8 @@ index 0000000000000000000000000000000000000000..c8955ca46642e709ab68eded4d06d8cb
 + */
 +public class SuCraftBlocks {
 +
-+    public static final Block SNOWY_STONE_BRICKS = registerStoneBricks("snowy", Blocks.INFESTED_STONE_BRICKS, Blocks.STONE_BRICKS, Blocks.STONE_BRICKS);
-+    public static final Block DIRTY_STONE_BRICKS = registerStoneBricks("dirty", Blocks.INFESTED_CRACKED_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS, Blocks.STONE_BRICKS);
++    public static final Block SNOWY_STONE_BRICKS = registerStoneBricks("snowy", Blocks.INFESTED_STONE_BRICKS, Blocks.STONE_BRICKS, Blocks.STONE_BRICKS).withCustom8StoneBricksRecipe("snowy", () -> Items.SNOW_BLOCK).withCustomStoneBricksRecipe("snowy", () -> Items.SNOWBALL, 2);
++    public static final Block DIRTY_STONE_BRICKS = registerStoneBricks("dirty", Blocks.INFESTED_CRACKED_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS, Blocks.STONE_BRICKS).withCustom8StoneBricksRecipe("dirty", () -> Items.DIRT);
 +    public static final Block INFESTED_SNOWY_STONE_BRICKS = registerInfested(SNOWY_STONE_BRICKS);
 +    public static final Block INFESTED_DIRTY_STONE_BRICKS = registerInfested(DIRTY_STONE_BRICKS);
 +    public static final Block SPRUCE_BOOKSHELF = registerBookshelf("spruce");
@@ -12623,10 +12673,10 @@ index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7e3ea6291b470be8839004cfb89040660ac0ff94
+index 0000000000000000000000000000000000000000..23da70c582ff4d850de21bcfa17c7f668dff052b
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
-@@ -0,0 +1,228 @@
+@@ -0,0 +1,211 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.item;
@@ -12705,13 +12755,11 @@ index 0000000000000000000000000000000000000000..7e3ea6291b470be8839004cfb8904066
 +        for (Item item : Registry.ITEM) {
 +            // Add the custom recipes defined in items
 +            for (var customRecipe : item.customRecipes) {
-+//                MinecraftServer.LOGGER.info("TEMP DEBUG - Adding recipe " + stonecutterRecipe.build(item).getIngredients().stream().map(y -> Arrays.stream(y.getItems()).map(x -> x.getItem().id).toList()).toList() + " -> " + stonecutterRecipe.build(item).getType() + " " + stonecutterRecipe.build(item).getId() + " " + stonecutterRecipe.build(item).getResultItem().getItem() + " x " + stonecutterRecipe.build(item).getResultItem().getCount());
 +                if (customRecipe instanceof Item.CustomMinecraftRecipe customMinecraftRecipe) {
 +                    var recipe = customMinecraftRecipe.build(item);
 +                    addRecipe(recipe);
 +                } else if (customRecipe instanceof Item.CustomBukkitRecipe customBukkitRecipe) {
 +                    var recipe = customBukkitRecipe.build(item);
-+                    MinecraftServer.LOGGER.info("Adding Bukkit recipe for " + item);
 +                    addRecipe(recipe);
 +                } else {
 +                    throw new IllegalStateException("Custom recipe of unknown type: " + customRecipe);
@@ -12799,7 +12847,7 @@ index 0000000000000000000000000000000000000000..7e3ea6291b470be8839004cfb8904066
 +        // Remove the default bookshelf recipe
 +        removeRecipe(ResourceLocation.minecraft("bookshelf"));
 +
-+        // Add the custom bookshelf recipes
++        // Add the custom bookshelf recipes (not done at the definition of the custom bookshelves so that we can include the oak bookshelf here too)
 +        Item[] customBookshelfPlankIngredients = {
 +            Items.OAK_PLANKS,
 +            Items.SPRUCE_PLANKS,
@@ -12833,21 +12881,6 @@ index 0000000000000000000000000000000000000000..7e3ea6291b470be8839004cfb8904066
 +            shapedRecipe.shape(new String[] {"$$$", "%%%", "$$$"});
 +            shapedRecipe.setIngredient('$', CraftMagicNumbers.getMaterial(plankIngredient));
 +            shapedRecipe.setIngredient('%', Material.BOOK);
-+            addRecipe(shapedRecipe);
-+            Item.CustomRecipeUnlockByItem.register(Items.BOOK, recipeMinecraftKey);
-+        }
-+
-+
-+        // Test
-+        {
-+            var woolIngredient = Material.SUCRAFT_BLUE_WOOL_STAIRS;
-+            var result = SuCraftItems.YELLOW_WOOL_STAIRS;
-+            var recipeMinecraftKey = ResourceLocation.sucraft("sc_test");
-+            var recipeKey = recipeMinecraftKey.asBukkit();
-+            var shapedRecipe = new ShapedRecipe(recipeKey, new org.bukkit.inventory.ItemStack(CraftMagicNumbers.getMaterial(result)));
-+            shapedRecipe.setGroup(recipeKey.getKey());
-+            shapedRecipe.shape(new String[] {"$  ", "$$ ", "$$$"});
-+            shapedRecipe.setIngredient('$', woolIngredient);
 +            addRecipe(shapedRecipe);
 +            Item.CustomRecipeUnlockByItem.register(Items.BOOK, recipeMinecraftKey);
 +        }
@@ -16876,7 +16909,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6af6a78e57b69446309f4797e79662ab99752971
+index 0000000000000000000000000000000000000000..66ca4f7269ba6780fdbd747d9d3a7deb50d30ef3
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -16952,7 +16985,7 @@ index 0000000000000000000000000000000000000000..6af6a78e57b69446309f4797e79662ab
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 157;
++            currentResourcePackVersion = 158;
 +        }
 +    }
 +
