@@ -3320,7 +3320,7 @@ index d4f71422b25f70abfe50481d6071abea6ad147c0..a5063cc97aee67887944fa9c337cc472
  
              // CraftBukkit start
 diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
-index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..70b131c363157002b58d28829610f2449e2d7382 100644
+index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..00214a7c365b8dac6760e376fb48b75ff3013099 100644
 --- a/src/main/java/net/minecraft/world/item/Item.java
 +++ b/src/main/java/net/minecraft/world/item/Item.java
 @@ -4,22 +4,46 @@ import com.google.common.collect.ImmutableMultimap;
@@ -3380,7 +3380,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..70b131c363157002b58d28829610f244
  import net.minecraft.world.level.ClipContext;
  import net.minecraft.world.level.ItemLike;
  import net.minecraft.world.level.Level;
-@@ -44,8 +71,18 @@ import net.minecraft.world.level.block.Block;
+@@ -44,8 +71,19 @@ import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.Vec3;
@@ -3389,6 +3389,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..70b131c363157002b58d28829610f244
 +import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import org.bukkit.inventory.RecipeChoice;
 +import org.bukkit.inventory.ShapedRecipe;
 +import org.bukkit.inventory.ShapelessRecipe;
 +import org.jetbrains.annotations.NotNull;
@@ -3399,7 +3400,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..70b131c363157002b58d28829610f244
  public class Item implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      public static final Map<Block, Item> BY_BLOCK = Maps.newHashMap();
-@@ -68,6 +105,250 @@ public class Item implements ItemLike {
+@@ -68,6 +106,288 @@ public class Item implements ItemLike {
      @Nullable
      private final FoodProperties foodProperties;
  
@@ -3559,7 +3560,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..70b131c363157002b58d28829610f244
 +
 +        public @NotNull ShapedRecipe build(@NotNull Item result) {
 +            var recipe = new ShapedRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
-+            recipe.setGroup(this.group != null ? this.group : key.getPath());
++            recipe.setGroup(this.group != null ? this.group : this.key.getPath());
 +            recipe.shape(this.patterns);
 +            for (var definition : this.ingredients) {
 +                Material type = CraftMagicNumbers.getMaterial(definition.ingredient.asItem());
@@ -3615,7 +3616,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..70b131c363157002b58d28829610f244
 +
 +        public @NotNull ShapelessRecipe build(@NotNull Item result) {
 +            var recipe = new ShapelessRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
-+            recipe.setGroup(this.group != null ? this.group : key.getPath());
++            recipe.setGroup(this.group != null ? this.group : this.key.getPath());
 +            for (var ingredient : this.ingredients) {
 +                Material type = CraftMagicNumbers.getMaterial(ingredient.asItem());
 +                recipe.addIngredient(type);
@@ -3638,10 +3639,48 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..70b131c363157002b58d28829610f244
 +
 +    }
 +
++    public record CustomChoiceShapelessRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
++
++        public @NotNull ShapelessRecipe build(@NotNull Item result) {
++            var recipe = new ShapelessRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
++            recipe.setGroup(this.group != null ? this.group : this.key.getPath());
++            for (var ingredientChoice : this.ingredientChoices) {
++                Material[] types = Arrays.stream(ingredientChoice).map(ingredient -> CraftMagicNumbers.getMaterial(ingredient.asItem())).toArray(Material[]::new);
++                recipe.addIngredient(new RecipeChoice.MaterialChoice(types));
++            }
++            return recipe;
++        }
++
++        @Override
++        public @NotNull CustomRecipeUnlock @NotNull [] getUnlocks() {
++            return this.unlocks();
++        }
++
++        public static @NotNull CustomChoiceShapelessRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, int resultAmount) {
++            return new CustomChoiceShapelessRecipe(key, group, ingredientChoices, new CustomRecipeUnlock[0], resultAmount);
++        }
++
++        public static @NotNull CustomChoiceShapelessRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, @NotNull Item unlockItem, int resultAmount) {
++            return new CustomChoiceShapelessRecipe(key, group, ingredientChoices, new CustomRecipeUnlock[]{new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
++        }
++
++    }
++
 +    public @NotNull List<@NotNull CustomRecipe> customRecipes = new ArrayList<>(0);
++    public @NotNull List<@NotNull Supplier<CustomRecipe>> customRecipeSuppliers = new ArrayList<>(0);
++
++    public void invokeCustomRecipeSuppliers() {
++        this.customRecipeSuppliers.forEach(supplier -> this.customRecipes.add(supplier.get()));
++        this.customRecipeSuppliers.clear();
++    }
 +
 +    public @NotNull Item withCustomRecipe(@NotNull CustomRecipe recipe) {
 +        this.customRecipes.add(recipe);
++        return this;
++    }
++
++    public @NotNull Item withCustomRecipeSupplier(@NotNull Supplier<CustomRecipe> recipeSupplier) {
++        this.customRecipeSuppliers.add(recipeSupplier);
 +        return this;
 +    }
 +
@@ -4078,15 +4117,16 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532502e34c2 100644
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4c78f67869b2e6da919806a0bd005a514bac5043 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
-@@ -6,10 +6,13 @@ import com.google.common.cache.LoadingCache;
+@@ -6,10 +6,14 @@ import com.google.common.cache.LoadingCache;
  import com.google.common.collect.ImmutableMap;
  import com.mojang.logging.LogUtils;
  import it.unimi.dsi.fastutil.objects.Object2ByteLinkedOpenHashMap;
 +
 +import java.util.ArrayList;
++import java.util.Arrays;
  import java.util.Iterator;
  import java.util.List;
  import java.util.function.Function;
@@ -4095,11 +4135,12 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532
  import javax.annotation.Nullable;
  import net.minecraft.SharedConstants;
  import net.minecraft.Util;
-@@ -21,9 +24,11 @@ import net.minecraft.core.NonNullList;
+@@ -21,9 +25,12 @@ import net.minecraft.core.NonNullList;
  import net.minecraft.core.Registry;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.MutableComponent;
 +import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.BlockTags;
@@ -4107,7 +4148,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532
  import net.minecraft.util.Mth;
  import net.minecraft.util.RandomSource;
  import net.minecraft.util.valueproviders.IntProvider;
-@@ -39,8 +44,11 @@ import net.minecraft.world.item.BlockItem;
+@@ -39,8 +46,11 @@ import net.minecraft.world.item.BlockItem;
  import net.minecraft.world.item.CreativeModeTab;
  import net.minecraft.world.item.Item;
  import net.minecraft.world.item.ItemStack;
@@ -4119,7 +4160,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
  import net.minecraft.world.item.enchantment.Enchantments;
  import net.minecraft.world.level.BlockGetter;
-@@ -58,11 +66,18 @@ import net.minecraft.world.level.block.state.StateDefinition;
+@@ -58,11 +68,19 @@ import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.Property;
  import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.storage.loot.LootContext;
@@ -4131,6 +4172,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532
  import net.minecraft.world.phys.shapes.VoxelShape;
 +import nl.martijnmuijsers.paper.block.SuCraftBlockTags;
 +import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
++import nl.martijnmuijsers.paper.item.SuCraftItems;
 +import org.bukkit.NamespacedKey;
 +import org.bukkit.Tag;
 +import org.bukkit.inventory.ShapelessRecipe;
@@ -4138,7 +4180,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532
  import org.slf4j.Logger;
  
  public class Block extends BlockBehaviour implements ItemLike {
-@@ -70,6 +85,25 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -70,6 +88,25 @@ public class Block extends BlockBehaviour implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      private final Holder.Reference<Block> builtInRegistryHolder;
      public static final IdMapper<BlockState> BLOCK_STATE_REGISTRY = new IdMapper<>();
@@ -4164,7 +4206,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +161,261 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +164,301 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -4376,6 +4418,46 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532
 +        return this.withCustomStoneBricksRecipe(recipePrefix, additionalItemSupplier, 8);
 +    }
 +
++    public @NotNull Block withCustomDyedPlanksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++        return this.withFutureCustomRecipe(() -> {
++            var dyeItem = dyeItemSupplier.get().asItem();
++            ItemLike[] plankIngredientChoice = {
++                Items.OAK_PLANKS,
++                Items.SPRUCE_PLANKS,
++                Items.BIRCH_PLANKS,
++                Items.JUNGLE_PLANKS,
++                Items.ACACIA_PLANKS,
++                Items.DARK_OAK_PLANKS,
++                Items.WARPED_PLANKS,
++                Items.CRIMSON_PLANKS,
++                Items.MANGROVE_PLANKS,
++                SuCraftItems.RED_PLANKS,
++                SuCraftItems.ORANGE_PLANKS,
++                SuCraftItems.YELLOW_PLANKS,
++                SuCraftItems.LIME_PLANKS,
++                SuCraftItems.GREEN_PLANKS,
++                SuCraftItems.CYAN_PLANKS,
++                SuCraftItems.LIGHT_BLUE_PLANKS,
++                SuCraftItems.BLUE_PLANKS,
++                SuCraftItems.BLACK_PLANKS,
++                SuCraftItems.GRAY_PLANKS,
++                SuCraftItems.LIGHT_GRAY_PLANKS,
++                SuCraftItems.WHITE_PLANKS,
++                SuCraftItems.BROWN_PLANKS,
++                SuCraftItems.PURPLE_PLANKS,
++                SuCraftItems.MAGENTA_PLANKS,
++                SuCraftItems.PINK_PLANKS
++            };
++            ItemLike[][] ingredientChoices = new ItemLike[9][];
++            ingredientChoices[0] = new ItemLike[] {dyeItem};
++            for (int i = 1; i < 9; i++) {
++                ingredientChoices[i] = plankIngredientChoice;
++            }
++            var recipeKey = ResourceLocation.sucraft(dyeItem.id.getPath() + "_and_planks_to_" + recipePrefix + "_planks");
++            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredientChoices, dyeItem, 8);
++        });
++    }
++
 +    public @NotNull Block withCustomStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, int resultAmount, boolean transitive) {
 +        @NotNull String uniqueRecipeDescription = id.getPath() + "_from_" + ingredient.id.getPath() + "_stonecutting";
 +        this.withCustomRecipe(new CustomStonecutterRecipe(ResourceLocation.sucraft(uniqueRecipeDescription), group, ingredient, resultAmount));
@@ -4426,7 +4508,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..5ca07588867a60a8f35f374c82b10532
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +928,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +971,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -6207,10 +6289,10 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..349b372505ce3b09bf4b68f8cf24b3388b33cdcc
+index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac21767e95a037
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1399 @@
+@@ -0,0 +1,1400 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -6219,6 +6301,7 @@ index 0000000000000000000000000000000000000000..349b372505ce3b09bf4b68f8cf24b338
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.item.DyeColor;
 +import net.minecraft.world.item.Items;
++import net.minecraft.world.level.ItemLike;
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.Blocks;
 +import net.minecraft.world.level.block.InfestedBlock;
@@ -6267,22 +6350,22 @@ index 0000000000000000000000000000000000000000..349b372505ce3b09bf4b68f8cf24b338
 +    public static final Block WARPED_BOOKSHELF = registerBookshelf("warped");
 +    public static final Block CRIMSON_BOOKSHELF = registerBookshelf("crimson");
 +//    public static final Block MANGROVE_BOOKSHELF = registerBookshelf("mangrove");
-+    public static final Block BLACK_PLANKS = registerPlanks("black", Blocks.DARK_OAK_PLANKS, DyeColor.BLACK.getMaterialColor());
-+    public static final Block BLUE_PLANKS = registerPlanks("blue", Blocks.WARPED_PLANKS, DyeColor.BLUE.getMaterialColor());
-+    public static final Block BROWN_PLANKS = registerPlanks("brown", Blocks.SPRUCE_PLANKS, DyeColor.BROWN.getMaterialColor());
-+    public static final Block CYAN_PLANKS = registerPlanks("cyan", Blocks.WARPED_PLANKS, DyeColor.CYAN.getMaterialColor());
-+    public static final Block GRAY_PLANKS = registerPlanks("gray", Blocks.SPRUCE_PLANKS, DyeColor.GRAY.getMaterialColor());
-+    public static final Block GREEN_PLANKS = registerPlanks("green", Blocks.WARPED_PLANKS, DyeColor.GREEN.getMaterialColor());
-+    public static final Block LIGHT_BLUE_PLANKS = registerPlanks("light_blue", Blocks.WARPED_PLANKS, DyeColor.LIGHT_BLUE.getMaterialColor());
-+    public static final Block LIGHT_GRAY_PLANKS = registerPlanks("light_gray", Blocks.OAK_PLANKS, DyeColor.LIGHT_GRAY.getMaterialColor());
-+    public static final Block LIME_PLANKS = registerPlanks("lime", Blocks.WARPED_PLANKS, DyeColor.LIME.getMaterialColor());
-+    public static final Block MAGENTA_PLANKS = registerPlanks("magenta", Blocks.CRIMSON_PLANKS, DyeColor.MAGENTA.getMaterialColor());
-+    public static final Block ORANGE_PLANKS = registerPlanks("orange", Blocks.ACACIA_PLANKS, DyeColor.ORANGE.getMaterialColor());
-+    public static final Block PINK_PLANKS = registerPlanks("pink", Blocks.JUNGLE_PLANKS, DyeColor.PINK.getMaterialColor());
-+    public static final Block PURPLE_PLANKS = registerPlanks("purple", Blocks.CRIMSON_PLANKS, DyeColor.PURPLE.getMaterialColor());
-+    public static final Block RED_PLANKS = registerPlanks("red", Blocks.MANGROVE_PLANKS, DyeColor.RED.getMaterialColor());
-+    public static final Block WHITE_PLANKS = registerPlanks("white", Blocks.BIRCH_PLANKS, DyeColor.WHITE.getMaterialColor());
-+    public static final Block YELLOW_PLANKS = registerPlanks("yellow", Blocks.BIRCH_PLANKS, DyeColor.YELLOW.getMaterialColor());
++    public static final Block BLACK_PLANKS = registerPlanks("black", Blocks.DARK_OAK_PLANKS, DyeColor.BLACK.getMaterialColor(), () -> Items.BLACK_DYE);
++    public static final Block BLUE_PLANKS = registerPlanks("blue", Blocks.WARPED_PLANKS, DyeColor.BLUE.getMaterialColor(), () -> Items.BLUE_DYE);
++    public static final Block BROWN_PLANKS = registerPlanks("brown", Blocks.SPRUCE_PLANKS, DyeColor.BROWN.getMaterialColor(), () -> Items.BROWN_DYE);
++    public static final Block CYAN_PLANKS = registerPlanks("cyan", Blocks.WARPED_PLANKS, DyeColor.CYAN.getMaterialColor(), () -> Items.CYAN_DYE);
++    public static final Block GRAY_PLANKS = registerPlanks("gray", Blocks.SPRUCE_PLANKS, DyeColor.GRAY.getMaterialColor(), () -> Items.GRAY_DYE);
++    public static final Block GREEN_PLANKS = registerPlanks("green", Blocks.WARPED_PLANKS, DyeColor.GREEN.getMaterialColor(), () -> Items.GREEN_DYE);
++    public static final Block LIGHT_BLUE_PLANKS = registerPlanks("light_blue", Blocks.WARPED_PLANKS, DyeColor.LIGHT_BLUE.getMaterialColor(), () -> Items.LIGHT_BLUE_DYE);
++    public static final Block LIGHT_GRAY_PLANKS = registerPlanks("light_gray", Blocks.OAK_PLANKS, DyeColor.LIGHT_GRAY.getMaterialColor(), () -> Items.LIGHT_GRAY_DYE);
++    public static final Block LIME_PLANKS = registerPlanks("lime", Blocks.WARPED_PLANKS, DyeColor.LIME.getMaterialColor(), () -> Items.LIME_DYE);
++    public static final Block MAGENTA_PLANKS = registerPlanks("magenta", Blocks.CRIMSON_PLANKS, DyeColor.MAGENTA.getMaterialColor(), () -> Items.MAGENTA_DYE);
++    public static final Block ORANGE_PLANKS = registerPlanks("orange", Blocks.ACACIA_PLANKS, DyeColor.ORANGE.getMaterialColor(), () -> Items.ORANGE_DYE);
++    public static final Block PINK_PLANKS = registerPlanks("pink", Blocks.JUNGLE_PLANKS, DyeColor.PINK.getMaterialColor(), () -> Items.PINK_DYE);
++    public static final Block PURPLE_PLANKS = registerPlanks("purple", Blocks.CRIMSON_PLANKS, DyeColor.PURPLE.getMaterialColor(), () -> Items.PURPLE_DYE);
++    public static final Block RED_PLANKS = registerPlanks("red", Blocks.MANGROVE_PLANKS, DyeColor.RED.getMaterialColor(), () -> Items.RED_DYE);
++    public static final Block WHITE_PLANKS = registerPlanks("white", Blocks.BIRCH_PLANKS, DyeColor.WHITE.getMaterialColor(), () -> Items.WHITE_DYE);
++    public static final Block YELLOW_PLANKS = registerPlanks("yellow", Blocks.BIRCH_PLANKS, DyeColor.YELLOW.getMaterialColor(), () -> Items.YELLOW_DYE);
 +
 +    /**
 +     * Based on {@link Blocks#DIRT}
@@ -6970,7 +7053,7 @@ index 0000000000000000000000000000000000000000..349b372505ce3b09bf4b68f8cf24b338
 +    /**
 +     * Based on {@link Blocks#OAK_PLANKS}
 +     */
-+    private static @NotNull Block registerPlanks(@NotNull String description, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
++    private static @NotNull Block registerPlanks(@NotNull String description, @NotNull Block fallback, @NotNull MaterialColor materialColor, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
 +        return register(
 +            description + "_planks",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -6980,7 +7063,7 @@ index 0000000000000000000000000000000000000000..349b372505ce3b09bf4b68f8cf24b338
 +                .withFullBlockBoundingBoxItem(),
 +            new Block(BlockBehaviour.Properties.of(Material.WOOD, materialColor).strength(2.0F, 3.0F).sound(SoundType.WOOD)).mineableWithAxe().planks(),
 +            SuCraftBlockLoot::dropSelf
-+        );
++        ).withCustomDyedPlanksRecipe(description, dyeItemSupplier);
 +    }
 +
 +    /**
@@ -12673,10 +12756,10 @@ index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..23da70c582ff4d850de21bcfa17c7f668dff052b
+index 0000000000000000000000000000000000000000..917c455e91e112efca8e3e2f7bb7ad146956484c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,212 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.item;
@@ -12754,6 +12837,7 @@ index 0000000000000000000000000000000000000000..23da70c582ff4d850de21bcfa17c7f66
 +
 +        for (Item item : Registry.ITEM) {
 +            // Add the custom recipes defined in items
++            item.invokeCustomRecipeSuppliers();
 +            for (var customRecipe : item.customRecipes) {
 +                if (customRecipe instanceof Item.CustomMinecraftRecipe customMinecraftRecipe) {
 +                    var recipe = customMinecraftRecipe.build(item);
@@ -12890,7 +12974,7 @@ index 0000000000000000000000000000000000000000..23da70c582ff4d850de21bcfa17c7f66
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1ba93187eee81d1dac06562769198f315f1682fd
+index 0000000000000000000000000000000000000000..24e0a2753bd0b84e42a4fb7793f984927091381f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 @@ -0,0 +1,795 @@
@@ -13425,7 +13509,7 @@ index 0000000000000000000000000000000000000000..1ba93187eee81d1dac06562769198f31
 +        registeredItem.customDisplayNameInLoreJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayNameInLore);
 +        // Add crafting recipes
 +        for (var customRecipe : block.customRecipes) {
-+            registeredItem.withCustomRecipe(customRecipe.toItemRecipe());
++            registeredItem.withCustomRecipeSupplier(() -> customRecipe.toItemRecipe());
 +        }
 +        return registeredItem;
 +    }
