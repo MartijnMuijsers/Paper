@@ -2294,7 +2294,7 @@ index 06e3a868e922f1b7a586d0ca28f64a67ae463b68..0feab0105d15be1847d0064aeb1186ed
          int j = item.getItem().getMaxStackSize();
          int k = j * 100;
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..9f39b09564d69af2a73b669ef88f7a8757e26a9c 100644
+index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..8051ade36004d848cb368588439bcf39ed4d5d54 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -13,11 +13,16 @@ import java.net.Proxy;
@@ -2342,7 +2342,7 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..9f39b09564d69af2a73b669ef88f7a87
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -275,6 +288,57 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+@@ -275,6 +288,63 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
              return false;
          }
  
@@ -2364,6 +2364,8 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..9f39b09564d69af2a73b669ef88f7a87
 +                    }
 +                });
 +            });
++            System.out.println("TEMP DEBUG - Ingredient to result: " + ingredientToResult);
++            System.out.println("TEMP DEBUG - Result to ingredient: " + resultToIngredient);
 +            Map<Item, Integer> ingredientToIngredientGroupIndex = new IdentityHashMap<>();
 +            int nextGroupIndex = 0;
 +            for (Item resultToIngredientKey : resultToIngredient.keySet().stream().sorted(Comparator.comparing(item -> item.id.toString())).toList()) {
@@ -2379,15 +2381,19 @@ index 5d6ceeecfbb55a1bfe77a1f1ac39b02993e714e3..9f39b09564d69af2a73b669ef88f7a87
 +                }
 +                nextGroupIndex++;
 +            }
-+            ingredientToIngredientGroupIndex.values().stream().toList().stream().sorted().map(index -> ingredientToIngredientGroupIndex.entrySet().stream().filter(entry -> entry.getValue() == index).map(entry -> entry.getKey()).toList()).forEach(groupIngredients -> {
++            System.out.println("TEMP DEBUG - Ingredient to ingredient group index: " + ingredientToIngredientGroupIndex);
++            ingredientToIngredientGroupIndex.values().stream().toList().stream().distinct().sorted().map(index -> ingredientToIngredientGroupIndex.entrySet().stream().filter(entry -> entry.getValue().equals(index)).map(entry -> entry.getKey()).toList()).forEach(groupIngredients -> {
 +                groupIngredients = groupIngredients.stream().sorted(Comparator.comparing(item -> item.id.toString())).toList();
++                System.out.println("TEMP DEBUG - Doing group ingredients: " + groupIngredients);
 +                var groupResults = groupIngredients.stream().flatMap(ingredient -> ingredientToResult.get(ingredient).stream().sorted(Comparator.comparing(item -> item.id.toString()))).distinct().sorted(Comparator.comparing(item -> ((Item) item).id.toString())).toList();
-+                //            System.out.println("TEMP DEBUG - group results: " + groupResults);
++                System.out.println("TEMP DEBUG - group results: " + groupResults);
 +                List<Item> potentialHosts = StreamSupport.stream(Registry.ITEM.spliterator(), false).filter(item -> item.isVanilla && Registry.BLOCK.containsKey(item.id) && !groupResults.contains(item)).sorted(Comparator.comparing(item -> item.getDescriptionId())).toList();
 +                var customGroupResults = groupResults.stream().filter(result -> !result.isVanilla).toList();
 +                for (int i = 0; i < customGroupResults.size(); i++) {
 +                    var replacementRule = customGroupResults.get(i).replacementRule;
-+                    replacementRule.setStonecutterRecipeHost(potentialHosts.get(potentialHosts.size() - customGroupResults.size() + i));
++                    var host = potentialHosts.get(potentialHosts.size() - customGroupResults.size() + i);
++                    System.out.println("TEMP DEBUG - for group result " + customGroupResults.get(i) + " using host " + host);
++                    replacementRule.setStonecutterRecipeHost(host);
 +                }
 +            });
 +        }
@@ -3320,7 +3326,7 @@ index d4f71422b25f70abfe50481d6071abea6ad147c0..a5063cc97aee67887944fa9c337cc472
  
              // CraftBukkit start
 diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
-index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..00214a7c365b8dac6760e376fb48b75ff3013099 100644
+index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de11501815 100644
 --- a/src/main/java/net/minecraft/world/item/Item.java
 +++ b/src/main/java/net/minecraft/world/item/Item.java
 @@ -4,22 +4,46 @@ import com.google.common.collect.ImmutableMultimap;
@@ -3380,7 +3386,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..00214a7c365b8dac6760e376fb48b75f
  import net.minecraft.world.level.ClipContext;
  import net.minecraft.world.level.ItemLike;
  import net.minecraft.world.level.Level;
-@@ -44,8 +71,19 @@ import net.minecraft.world.level.block.Block;
+@@ -44,8 +71,20 @@ import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.phys.BlockHitResult;
  import net.minecraft.world.phys.Vec3;
@@ -3389,6 +3395,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..00214a7c365b8dac6760e376fb48b75f
 +import org.bukkit.craftbukkit.generator.CustomChunkGenerator;
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import org.bukkit.inventory.FurnaceRecipe;
 +import org.bukkit.inventory.RecipeChoice;
 +import org.bukkit.inventory.ShapedRecipe;
 +import org.bukkit.inventory.ShapelessRecipe;
@@ -3400,7 +3407,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..00214a7c365b8dac6760e376fb48b75f
  public class Item implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      public static final Map<Block, Item> BY_BLOCK = Maps.newHashMap();
-@@ -68,6 +106,288 @@ public class Item implements ItemLike {
+@@ -68,6 +107,333 @@ public class Item implements ItemLike {
      @Nullable
      private final FoodProperties foodProperties;
  
@@ -3612,6 +3619,32 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..00214a7c365b8dac6760e376fb48b75f
 +
 +    }
 +
++    public record CustomChoiceShapedRecipeIngredientDefinition(char character, @NotNull ItemLike @NotNull [] ingredientChoice) {}
++
++    public record CustomChoiceShapedRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull CustomChoiceShapedRecipeIngredientDefinition @NotNull [] ingredientChoices, @NotNull String @NotNull [] patterns, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
++
++        public @NotNull ShapedRecipe build(@NotNull Item result) {
++            var recipe = new ShapedRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
++            recipe.setGroup(this.group != null ? this.group : this.key.getPath());
++            recipe.shape(this.patterns);
++            for (var definition : this.ingredientChoices) {
++                RecipeChoice recipeChoice = new RecipeChoice.MaterialChoice(Arrays.stream(definition.ingredientChoice).map(ingredient -> CraftMagicNumbers.getMaterial(ingredient.asItem())).toArray(Material[]::new));
++                recipe.setIngredient(definition.character, recipeChoice);
++            }
++            return recipe;
++        }
++
++        @Override
++        public @NotNull CustomRecipeUnlock @NotNull [] getUnlocks() {
++            return this.unlocks();
++        }
++
++        public static @NotNull CustomChoiceShapedRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, @NotNull CustomChoiceShapedRecipeIngredientDefinition @NotNull [] ingredientChoices, @NotNull String @NotNull [] patterns, int resultAmount) {
++            return new CustomChoiceShapedRecipe(key, group, ingredientChoices, patterns, new CustomRecipeUnlock[0], resultAmount);
++        }
++
++    }
++
 +    public record CustomShapelessRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] ingredients, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
 +
 +        public @NotNull ShapelessRecipe build(@NotNull Item result) {
@@ -3662,6 +3695,25 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..00214a7c365b8dac6760e376fb48b75f
 +
 +        public static @NotNull CustomChoiceShapelessRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, @NotNull Item unlockItem, int resultAmount) {
 +            return new CustomChoiceShapelessRecipe(key, group, ingredientChoices, new CustomRecipeUnlock[]{new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
++        }
++
++    }
++
++    public record CustomFurnaceRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike ingredient, float experience, int cookingTime) implements CustomBukkitRecipe, CustomRecipeWithSingleIngredient {
++
++        public @NotNull FurnaceRecipe build(@NotNull Item result) {
++            return new FurnaceRecipe(
++                this.key.asBukkit(),
++                new ItemStack(result).getBukkitStack(),
++                CraftMagicNumbers.getMaterial(this.ingredient.asItem()),
++                experience,
++                cookingTime
++            );
++        }
++
++        @Override
++        public @NotNull Item getSingleIngredient() {
++            return this.ingredient.asItem();
 +        }
 +
 +    }
@@ -3720,7 +3772,7 @@ index 6b3cfc19c4fd1382ddf534265a1114995a4f6b55..fb83a6fabe65bcc57b959e3e355951f9
          return this.getItem().interactLivingEntity(this, user, entity, hand);
      }
 diff --git a/src/main/java/net/minecraft/world/item/Items.java b/src/main/java/net/minecraft/world/item/Items.java
-index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..b1bc2de8102ef10060b79f32544fc92d57a42e3b 100644
+index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..eb0e1d7a5be06f10cec412150aad0997d71d3045 100644
 --- a/src/main/java/net/minecraft/world/item/Items.java
 +++ b/src/main/java/net/minecraft/world/item/Items.java
 @@ -14,6 +14,9 @@ import net.minecraft.world.food.Foods;
@@ -3733,6 +3785,15 @@ index d9ba3ae228791ebf6ea29353fb88c1765fa4d20c..b1bc2de8102ef10060b79f32544fc92d
  
  public class Items {
      public static final Item AIR = registerBlock(Blocks.AIR, new AirItem(Blocks.AIR, new Item.Properties()));
+@@ -242,7 +245,7 @@ public class Items {
+     public static final Item STONE_SLAB = registerBlock(Blocks.STONE_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
+     public static final Item SMOOTH_STONE_SLAB = registerBlock(Blocks.SMOOTH_STONE_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
+     public static final Item SANDSTONE_SLAB = registerBlock(Blocks.SANDSTONE_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
+-    public static final Item CUT_STANDSTONE_SLAB = registerBlock(Blocks.CUT_SANDSTONE_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
++    public static final Item CUT_SANDSTONE_SLAB = registerBlock(Blocks.CUT_SANDSTONE_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
+     public static final Item PETRIFIED_OAK_SLAB = registerBlock(Blocks.PETRIFIED_OAK_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
+     public static final Item COBBLESTONE_SLAB = registerBlock(Blocks.COBBLESTONE_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
+     public static final Item BRICK_SLAB = registerBlock(Blocks.BRICK_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
 @@ -1173,15 +1176,15 @@ public class Items {
          return Optional.empty();
      }
@@ -4117,7 +4178,7 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4c78f67869b2e6da919806a0bd005a514bac5043 100644
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..b03ff0ce6c3b2a1843c1119da78b34e46f296871 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
 @@ -6,10 +6,14 @@ import com.google.common.cache.LoadingCache;
@@ -4206,7 +4267,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4c78f67869b2e6da919806a0bd005a51
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +164,301 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +164,413 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -4458,6 +4519,118 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4c78f67869b2e6da919806a0bd005a51
 +        });
 +    }
 +
++    public @NotNull Block withCustom2x2SquareChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount) {
++        return this.withFutureCustomRecipe(() -> {
++            var ingredientChoice = ingredientChoiceSupplier.get();
++            var recipeKey = ResourceLocation.sucraft(recipeKeyPath);
++            return new Item.CustomChoiceShapedRecipe(
++                recipeKey,
++                null,
++                new Item.CustomChoiceShapedRecipeIngredientDefinition[]{
++                    new Item.CustomChoiceShapedRecipeIngredientDefinition('$', ingredientChoice)
++                },
++                new String[] {"$$", "$$"},
++                Arrays.stream(ingredientChoice).map(ingredient -> new Item.CustomRecipeUnlockByItem(() -> ingredient)).toArray(Item.CustomRecipeUnlock[]::new),
++                resultAmount
++            );
++        });
++    }
++
++    public @NotNull Block withCustom2x2SquareRecipe(@NotNull String resultKeyPart, @NotNull Supplier<@NotNull ItemLike> ingredientSupplier, int resultAmount) {
++        return this.withFutureCustomRecipe(() -> {
++            var ingredient = ingredientSupplier.get().asItem();
++            var recipeKey = ResourceLocation.sucraft(ingredient.id.getPath() + "_to_" + resultKeyPart);
++            return Item.CustomShapedRecipe.getUnlockedByItem(
++                recipeKey,
++                null,
++                new Item.CustomShapedRecipeIngredientDefinition[]{
++                    new Item.CustomShapedRecipeIngredientDefinition('$', ingredient)
++                },
++                new String[] {"$$", "$$"},
++                ingredient,
++                resultAmount
++            );
++        });
++    }
++
++    public @NotNull Block withCustom2x2SquareRecipe(@NotNull String resultKeyPart, @NotNull Block ingredient, int resultAmount) {
++        return this.withCustom2x2SquareRecipe(resultKeyPart, () -> ingredient.asItem(), resultAmount);
++    }
++
++    public @NotNull Block withCustom3x3SquareChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount) {
++        return this.withFutureCustomRecipe(() -> {
++            var ingredientChoice = ingredientChoiceSupplier.get();
++            var recipeKey = ResourceLocation.sucraft(recipeKeyPath);
++            return new Item.CustomChoiceShapedRecipe(
++                recipeKey,
++                null,
++                new Item.CustomChoiceShapedRecipeIngredientDefinition[]{
++                    new Item.CustomChoiceShapedRecipeIngredientDefinition('$', ingredientChoice)
++                },
++                new String[] {"$$$", "$$$", "$$$"},
++                Arrays.stream(ingredientChoice).map(ingredient -> new Item.CustomRecipeUnlockByItem(() -> ingredient)).toArray(Item.CustomRecipeUnlock[]::new),
++                resultAmount
++            );
++        });
++    }
++
++    public @NotNull Block withCustom3x3SquareRecipe(@NotNull String resultKeyPart, @NotNull Supplier<@NotNull ItemLike> ingredientSupplier, int resultAmount) {
++        return this.withFutureCustomRecipe(() -> {
++            var ingredient = ingredientSupplier.get().asItem();
++            var recipeKey = ResourceLocation.sucraft(ingredient.id.getPath() + "_to_" + resultKeyPart);
++            return Item.CustomShapedRecipe.getUnlockedByItem(
++                recipeKey,
++                null,
++                new Item.CustomShapedRecipeIngredientDefinition[]{
++                    new Item.CustomShapedRecipeIngredientDefinition('$', ingredient)
++                },
++                new String[] {"$$$", "$$$", "$$$"},
++                ingredient,
++                resultAmount
++            );
++        });
++    }
++
++    public @NotNull Block withCustom3x3SquareRecipe(@NotNull String resultKeyPart, @NotNull Block ingredient, int resultAmount) {
++        return this.withCustom3x3SquareRecipe(resultKeyPart, () -> ingredient.asItem(), resultAmount);
++    }
++
++    public @NotNull Block withCustom2VerticalChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount) {
++        return this.withFutureCustomRecipe(() -> {
++            var ingredientChoice = ingredientChoiceSupplier.get();
++            var recipeKey = ResourceLocation.sucraft(recipeKeyPath);
++            return new Item.CustomChoiceShapedRecipe(
++                recipeKey,
++                null,
++                new Item.CustomChoiceShapedRecipeIngredientDefinition[]{
++                    new Item.CustomChoiceShapedRecipeIngredientDefinition('$', ingredientChoice)
++                },
++                new String[] {"$", "$"},
++                Arrays.stream(ingredientChoice).map(ingredient -> new Item.CustomRecipeUnlockByItem(() -> ingredient)).toArray(Item.CustomRecipeUnlock[]::new),
++                resultAmount
++            );
++        });
++    }
++
++    public @NotNull Block withCustomFurnaceRecipe(@NotNull Supplier<@NotNull Item> ingredientSupplier, float experience, int cookingTime) {
++        return this.withFutureCustomRecipe(() -> {
++            var ingredient = ingredientSupplier.get();
++            var recipeKeyPath = id.getPath() + "_from_" + ingredient.id.getPath() + "_furnace";
++            var recipeKey = ResourceLocation.sucraft(recipeKeyPath);
++            return new Item.CustomFurnaceRecipe(
++                recipeKey,
++                null,
++                ingredient,
++                experience,
++                cookingTime
++            );
++        });
++    }
++
++    public @NotNull Block withCustomFurnaceRecipe(@NotNull Block ingredient, float experience, int cookingTime) {
++        return this.withCustomFurnaceRecipe(() -> ingredient.asItem(), experience, cookingTime);
++    }
++
 +    public @NotNull Block withCustomStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, int resultAmount, boolean transitive) {
 +        @NotNull String uniqueRecipeDescription = id.getPath() + "_from_" + ingredient.id.getPath() + "_stonecutting";
 +        this.withCustomRecipe(new CustomStonecutterRecipe(ResourceLocation.sucraft(uniqueRecipeDescription), group, ingredient, resultAmount));
@@ -4508,7 +4681,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..4c78f67869b2e6da919806a0bd005a51
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +971,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +1083,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -4678,7 +4851,7 @@ index f4ee3ce287528337a0f9a3b612c157254f895a58..4687e7fc66bd22421962ac9f63cb7297
  
      @Override
 diff --git a/src/main/java/net/minecraft/world/level/block/FireBlock.java b/src/main/java/net/minecraft/world/level/block/FireBlock.java
-index e34b8cff424ad58eee65a65fa510fa9908dbdf39..78d9faa0920a7a0cb90e1950b84392779ba0ca7e 100644
+index e34b8cff424ad58eee65a65fa510fa9908dbdf39..448965d34ee100046f2356b41c1530bae0811c67 100644
 --- a/src/main/java/net/minecraft/world/level/block/FireBlock.java
 +++ b/src/main/java/net/minecraft/world/level/block/FireBlock.java
 @@ -28,6 +28,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
@@ -4860,7 +5033,7 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..78d9faa0920a7a0cb90e1950b8439277
          blockfire.setFlammable(Blocks.TNT, 15, 100);
          blockfire.setFlammable(Blocks.GRASS, 60, 100);
          blockfire.setFlammable(Blocks.FERN, 60, 100);
-@@ -492,8 +642,53 @@ public class FireBlock extends BaseFireBlock {
+@@ -492,8 +642,57 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.GREEN_WOOL, 30, 60);
          blockfire.setFlammable(Blocks.RED_WOOL, 30, 60);
          blockfire.setFlammable(Blocks.BLACK_WOOL, 30, 60);
@@ -4908,13 +5081,17 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..78d9faa0920a7a0cb90e1950b8439277
 +        // Martijn start - custom blocks and items
 +
 +        blockfire.setFlammable(SuCraftBlocks.CHARCOAL_BLOCK, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.COAL_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.CHARCOAL_SLAB, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.COAL_STAIRS, 5, 5);
++        blockfire.setFlammable(SuCraftBlocks.CHARCOAL_STAIRS, 5, 5);
 +
 +        // Martijn end - custom blocks and items
 +
          blockfire.setFlammable(Blocks.HAY_BLOCK, 60, 20);
          blockfire.setFlammable(Blocks.TARGET, 15, 20);
          blockfire.setFlammable(Blocks.WHITE_CARPET, 60, 20);
-@@ -513,6 +708,13 @@ public class FireBlock extends BaseFireBlock {
+@@ -513,6 +712,13 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.RED_CARPET, 60, 20);
          blockfire.setFlammable(Blocks.BLACK_CARPET, 60, 20);
          blockfire.setFlammable(Blocks.DRIED_KELP_BLOCK, 30, 60);
@@ -4928,6 +5105,21 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..78d9faa0920a7a0cb90e1950b8439277
          blockfire.setFlammable(Blocks.BAMBOO, 60, 60);
          blockfire.setFlammable(Blocks.SCAFFOLDING, 60, 60);
          blockfire.setFlammable(Blocks.LECTERN, 30, 20);
+@@ -532,5 +738,14 @@ public class FireBlock extends BaseFireBlock {
+         blockfire.setFlammable(Blocks.SMALL_DRIPLEAF, 60, 100);
+         blockfire.setFlammable(Blocks.HANGING_ROOTS, 30, 60);
+         blockfire.setFlammable(Blocks.GLOW_LICHEN, 15, 100);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.PAPER_BLOCK, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.PAPER_SLAB, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.PAPER_STAIRS, 30, 60);
++
++        // Martijn end - custom blocks and items
++
+     }
+ }
 diff --git a/src/main/java/net/minecraft/world/level/block/InfestedBlock.java b/src/main/java/net/minecraft/world/level/block/InfestedBlock.java
 index f33033c99ac52e2c64adeb8c58ae87625e92b299..423e5bcd3ea481f20abac1ddc5d2aaad730da4d4 100644
 --- a/src/main/java/net/minecraft/world/level/block/InfestedBlock.java
@@ -6289,17 +6481,19 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac21767e95a037
+index 0000000000000000000000000000000000000000..b9c09cac94b09dee1d852579d663658aa3317d3f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1400 @@
+@@ -0,0 +1,1443 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
 +
 +import net.minecraft.core.Registry;
 +import net.minecraft.resources.ResourceLocation;
++import net.minecraft.tags.BlockTags;
 +import net.minecraft.world.item.DyeColor;
++import net.minecraft.world.item.Item;
 +import net.minecraft.world.item.Items;
 +import net.minecraft.world.level.ItemLike;
 +import net.minecraft.world.level.block.Block;
@@ -6325,13 +6519,16 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
++import nl.martijnmuijsers.paper.item.SuCraftItems;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
++import java.util.Arrays;
 +import java.util.function.Function;
 +import java.util.function.Supplier;
++import java.util.stream.StreamSupport;
 +
 +/**
 + * Based on {@link net.minecraft.world.level.block.Blocks}
@@ -6379,23 +6576,23 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F, 1.0F).sound(SoundType.GRAVEL)).mineableWithShovel().dirt(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(Blocks.DIRT);
++    ).withCustomOneToOneStonecutterRecipe(Blocks.DIRT).withCustom2x2SquareRecipe("dirt_bricks", Blocks.DIRT, 4);
 +
 +    public static final Block POLISHED_CALCITE = registerPolished(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
 +    public static final Block POLISHED_DRIPSTONE = registerPolished(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
 +    public static final Block POLISHED_TUFF = registerPolished(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
-+    public static final Block ANDESITE_BRICKS = registerBricks(Blocks.ANDESITE, "andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
-+    public static final Block CALCITE_BRICKS = registerBricks(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
-+    public static final Block DIORITE_BRICKS = registerBricks(Blocks.DIORITE, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
-+    public static final Block DRIPSTONE_BRICKS = registerBricks(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
-+    public static final Block GRANITE_BRICKS = registerBricks(Blocks.GRANITE, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
-+    public static final Block TUFF_BRICKS = registerBricks(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
-+    public static final Block CHISELED_ANDESITE_BRICKS = registerChiseledBricks(ANDESITE_BRICKS,"andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
-+    public static final Block CHISELED_CALCITE_BRICKS = registerChiseledBricks(CALCITE_BRICKS, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
-+    public static final Block CHISELED_DIORITE_BRICKS = registerChiseledBricks(DIORITE_BRICKS, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
-+    public static final Block CHISELED_DRIPSTONE_BRICKS = registerChiseledBricks(DRIPSTONE_BRICKS, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
-+    public static final Block CHISELED_GRANITE_BRICKS = registerChiseledBricks(GRANITE_BRICKS, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
-+    public static final Block CHISELED_TUFF_BRICKS = registerChiseledBricks(TUFF_BRICKS, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
++    public static final Block ANDESITE_BRICKS = registerBricks(Blocks.ANDESITE, "andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE, Blocks.POLISHED_ANDESITE);
++    public static final Block CALCITE_BRICKS = registerBricks(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE, POLISHED_CALCITE);
++    public static final Block DIORITE_BRICKS = registerBricks(Blocks.DIORITE, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ, Blocks.POLISHED_DIORITE);
++    public static final Block DRIPSTONE_BRICKS = registerBricks(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN, POLISHED_DRIPSTONE);
++    public static final Block GRANITE_BRICKS = registerBricks(Blocks.GRANITE, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT, Blocks.POLISHED_GRANITE);
++    public static final Block TUFF_BRICKS = registerBricks(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY, POLISHED_TUFF);
++    public static final Block CHISELED_ANDESITE_BRICKS = registerChiseledBricks(ANDESITE_BRICKS,"andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE, () -> new ItemLike[] {Items.ANDESITE_SLAB, Items.POLISHED_ANDESITE_SLAB, SuCraftItems.ANDESITE_BRICK_SLAB});
++    public static final Block CHISELED_CALCITE_BRICKS = registerChiseledBricks(CALCITE_BRICKS, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE, () -> new ItemLike[] {SuCraftItems.CALCITE_SLAB, SuCraftItems.POLISHED_CALCITE_SLAB, SuCraftItems.CALCITE_BRICK_SLAB});
++    public static final Block CHISELED_DIORITE_BRICKS = registerChiseledBricks(DIORITE_BRICKS, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ, () -> new ItemLike[] {Items.DIORITE_SLAB, Items.POLISHED_DIORITE_SLAB, SuCraftItems.DIORITE_BRICK_SLAB});
++    public static final Block CHISELED_DRIPSTONE_BRICKS = registerChiseledBricks(DRIPSTONE_BRICKS, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN, () -> new ItemLike[] {SuCraftItems.DRIPSTONE_SLAB, SuCraftItems.POLISHED_DRIPSTONE_SLAB, SuCraftItems.DRIPSTONE_BRICK_SLAB});
++    public static final Block CHISELED_GRANITE_BRICKS = registerChiseledBricks(GRANITE_BRICKS, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT, () -> new ItemLike[] {Items.GRANITE_SLAB, Items.POLISHED_GRANITE_SLAB, SuCraftItems.GRANITE_BRICK_SLAB});
++    public static final Block CHISELED_TUFF_BRICKS = registerChiseledBricks(TUFF_BRICKS, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY, () -> new ItemLike[] {SuCraftItems.TUFF_SLAB, SuCraftItems.POLISHED_TUFF_SLAB, SuCraftItems.TUFF_BRICK_SLAB});
 +
 +    /**
 +     * Based on {@link Blocks#SANDSTONE} and {@link Blocks#SOUL_SAND}
@@ -6409,14 +6606,10 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F, 0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustom2x2SquareChoiceRecipe("soul_sand_or_soil_to_soul_sandstone", () -> new ItemLike[] {Items.SOUL_SAND, Items.SOUL_SOIL}, 4);
 +
-+    public static final Block SANDSTONE_BRICKS = registerBricks(Blocks.SANDSTONE, "sandstone", Blocks.SANDSTONE, MaterialColor.SAND);
-+    public static final Block RED_SANDSTONE_BRICKS = registerBricks(Blocks.RED_SANDSTONE, "red_sandstone", Blocks.RED_SANDSTONE, MaterialColor.COLOR_ORANGE);
-+    public static final Block SOUL_SANDSTONE_BRICKS = registerBricks(SOUL_SANDSTONE, "soul_sandstone", Blocks.SOUL_SOIL, MaterialColor.COLOR_BROWN).soulSpeed().soulFireBase();
-+    public static final Block ANDESITE_COBBLESTONE = registerCobblestone(Blocks.ANDESITE, "andesite", Blocks.ANDESITE, MaterialColor.STONE);
-+    public static final Block DIORITE_COBBLESTONE = registerCobblestone(Blocks.DIORITE, "diorite", Blocks.DIORITE, MaterialColor.QUARTZ);
-+    public static final Block GRANITE_COBBLESTONE = registerCobblestone(Blocks.GRANITE, "granite", Blocks.GRANITE, MaterialColor.DIRT);
++    public static final Block SANDSTONE_BRICKS = registerBricks(Blocks.SANDSTONE, "sandstone", Blocks.SANDSTONE, MaterialColor.SAND, Blocks.CUT_SANDSTONE);
++    public static final Block RED_SANDSTONE_BRICKS = registerBricks(Blocks.RED_SANDSTONE, "red_sandstone", Blocks.RED_SANDSTONE, MaterialColor.COLOR_ORANGE, Blocks.CUT_RED_SANDSTONE);
 +
 +    /**
 +     * Based on {@link Blocks#CHISELED_SANDSTONE} and {@link Blocks#SOUL_SAND}
@@ -6430,7 +6623,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE);
++    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE).withCustom2VerticalChoiceRecipe("soul_sandstone_slabs_to_chiseled_soul_sandstone", () -> new ItemLike[] {SuCraftItems.SOUL_SANDSTONE_SLAB, SuCraftItems.SMOOTH_SOUL_SANDSTONE_SLAB, SuCraftItems.CUT_SOUL_SANDSTONE_SLAB}, 1);
 +
 +    /**
 +     * Based on {@link Blocks#CUT_SANDSTONE} and {@link Blocks#SOUL_SAND}
@@ -6444,14 +6637,19 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE);
-+    public static final Block CHISELED_PRISMARINE_BRICKS = registerChiseledBricks(Blocks.PRISMARINE_BRICKS, "prismarine", Blocks.PRISMARINE_BRICKS, MaterialColor.DIAMOND);
-+    public static final Block ANDESITE_PILLAR = registerStonePillar(Blocks.ANDESITE, "andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE);
-+    public static final Block CALCITE_PILLAR = registerStonePillar(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
-+    public static final Block DIORITE_PILLAR = registerStonePillar(Blocks.DIORITE, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ);
-+    public static final Block DRIPSTONE_PILLAR = registerStonePillar(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
-+    public static final Block GRANITE_PILLAR = registerStonePillar(Blocks.GRANITE, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT);
-+    public static final Block TUFF_PILLAR = registerStonePillar(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY);
++    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE).withCustom2x2SquareRecipe("cut_soul_sandstone", SOUL_SANDSTONE, 4);
++
++    public static final Block SOUL_SANDSTONE_BRICKS = registerBricks(SOUL_SANDSTONE, "soul_sandstone", Blocks.SOUL_SOIL, MaterialColor.COLOR_BROWN, CUT_SOUL_SANDSTONE).soulSpeed().soulFireBase();
++    public static final Block ANDESITE_COBBLESTONE = registerCobblestone(Blocks.ANDESITE, "andesite", Blocks.ANDESITE, MaterialColor.STONE);
++    public static final Block DIORITE_COBBLESTONE = registerCobblestone(Blocks.DIORITE, "diorite", Blocks.DIORITE, MaterialColor.QUARTZ);
++    public static final Block GRANITE_COBBLESTONE = registerCobblestone(Blocks.GRANITE, "granite", Blocks.GRANITE, MaterialColor.DIRT);
++    public static final Block CHISELED_PRISMARINE_BRICKS = registerChiseledBricks(Blocks.PRISMARINE_BRICKS, "prismarine", Blocks.PRISMARINE_BRICKS, MaterialColor.DIAMOND, () -> new ItemLike[] {Items.PRISMARINE_BRICK_SLAB});
++    public static final Block ANDESITE_PILLAR = registerStonePillar(Blocks.ANDESITE, "andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE, () -> new ItemLike[] {Items.ANDESITE, Items.POLISHED_ANDESITE});
++    public static final Block CALCITE_PILLAR = registerStonePillar(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE, () -> new ItemLike[] {Items.CALCITE, SuCraftItems.POLISHED_CALCITE});
++    public static final Block DIORITE_PILLAR = registerStonePillar(Blocks.DIORITE, "diorite", Blocks.POLISHED_DIORITE, MaterialColor.QUARTZ, () -> new ItemLike[] {Items.DIORITE, Items.POLISHED_DIORITE});
++    public static final Block DRIPSTONE_PILLAR = registerStonePillar(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN, () -> new ItemLike[] {Items.DRIPSTONE_BLOCK, SuCraftItems.POLISHED_DRIPSTONE});
++    public static final Block GRANITE_PILLAR = registerStonePillar(Blocks.GRANITE, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT, () -> new ItemLike[] {Items.GRANITE, Items.POLISHED_GRANITE});
++    public static final Block TUFF_PILLAR = registerStonePillar(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY, () -> new ItemLike[] {Items.TUFF, SuCraftItems.POLISHED_TUFF});
 +    public static final Block FIERY_BIRCH_LEAVES = registerLeaves("fiery_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_ORANGE);
 +    public static final Block YELLOW_BIRCH_LEAVES = registerLeaves("yellow_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_YELLOW);
 +    public static final Block RED_OAK_LEAVES = registerLeaves("red_oak", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_RED);
@@ -6590,7 +6788,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustomFurnaceRecipe(SOUL_SANDSTONE, 0.1F, 200);
 +
 +    public static final Block SMOOTH_SOUL_SANDSTONE_SLAB = registerFakeSlab(SMOOTH_SOUL_SANDSTONE, null, "smooth_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("smooth_soul_sandstone"), NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, null, Blocks.DARK_OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
 +    public static final Block CUT_SOUL_SANDSTONE_SLAB = registerFakeSlab(CUT_SOUL_SANDSTONE, null, "cut_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("cut_soul_sandstone"), null, NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, Blocks.DARK_OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
@@ -6602,7 +6800,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +    public static final Block RAW_IRON_SLAB = registerFakeRawMetalSlab(Blocks.RAW_IRON_BLOCK, "iron", Blocks.JUNGLE_SLAB);
 +    public static final Block ANCIENT_DEBRIS_SLAB = registerFakeSlab(Blocks.ANCIENT_DEBRIS, null, "ancient_debris", NamespacedKeyWithoutIntention.minecraft("ancient_debris"), NamespacedKeyWithoutIntention.minecraft("ancient_debris_side"), NamespacedKeyWithoutIntention.minecraft("ancient_debris_top"), null, null, null, Blocks.POLISHED_GRANITE_SLAB, null).mineableWithPickaxe();
 +    public static final Block DIRT_BRICK_SLAB = registerFakeSlab(DIRT_BRICKS, "dirt_brick", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
-+    public static final Block STONE_PILLAR = registerStonePillar(Blocks.STONE, "stone", Blocks.STONE, MaterialColor.STONE);
++    public static final Block STONE_PILLAR = registerStonePillar(Blocks.STONE, "stone", Blocks.STONE, MaterialColor.STONE, () -> new ItemLike[] {Items.STONE});
 +    public static final Block STONE_PILLAR_SLAB = registerFakeCustomStonePillarSlab(STONE_PILLAR, "stone", Blocks.STONE_SLAB);
 +    public static final Block OAK_LOG_SLAB = registerFakeLogSlab(Blocks.OAK_LOG, "oak", Blocks.OAK_SLAB);
 +    public static final Block SPRUCE_LOG_SLAB = registerFakeLogSlab(Blocks.SPRUCE_LOG, "spruce", Blocks.SPRUCE_SLAB);
@@ -6654,7 +6852,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new RotatedPillarBlock(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BLACK).strength(2.0F).sound(SoundType.BONE_BLOCK)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustomFurnaceRecipe(Blocks.BONE_BLOCK, 0.1F, 200);
 +
 +    public static final Block WITHER_BONE_SLAB = registerFakeSlabFromYPillarCustomBlock(WITHER_BONE_BLOCK, null, "wither_bone", "wither_bone_block", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block BASALT_SLAB = registerFakeSlab(Blocks.BASALT, null, "basalt", NamespacedKeyWithoutIntention.minecraft("basalt"), NamespacedKeyWithoutIntention.minecraft("basalt_side"), NamespacedKeyWithoutIntention.minecraft("basalt_top"), null, null, null, Blocks.COBBLESTONE_SLAB, null).mineableWithPickaxe();
@@ -6673,7 +6871,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BLACK).strength(5.0F, 6.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustom3x3SquareRecipe("charcoal_block", () -> Items.CHARCOAL, 1);
 +
 +    public static final Block CHARCOAL_SLAB = registerFakeSlab(CHARCOAL_BLOCK, "charcoal", null, Blocks.BLACKSTONE_SLAB);
 +
@@ -6689,10 +6887,24 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.SAND, DyeColor.LIGHT_GRAY).strength(0.5F).sound(SoundType.SAND)).breakBeforeClientKnowsToBreak().mineableWithShovel(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustom2x2SquareRecipe("gunpowder_block", () -> Items.GUNPOWDER, 1);
 +
 +    public static final Block GUNPOWDER_SLAB = registerFakeSlab(GUNPOWDER_BLOCK, "gunpowder", null, Blocks.SMOOTH_STONE_SLAB);
-+    public static final Block PEAT = registerPeat(null);
++    public static final Block PEAT = registerPeat(null).withFutureCustomRecipe(() -> {
++        var leafIngredientChoice = StreamSupport.stream(Registry.BLOCK.getTagOrEmpty(BlockTags.LEAVES).spliterator(), false).map(holder -> holder.value()).map(block -> block.asItem()).toArray(ItemLike[]::new);
++        var recipeKey = ResourceLocation.sucraft("dirt_and_leaves_to_peat");
++        return new Item.CustomChoiceShapedRecipe(
++            recipeKey,
++            null,
++            new Item.CustomChoiceShapedRecipeIngredientDefinition[]{
++                new Item.CustomChoiceShapedRecipeIngredientDefinition('$', leafIngredientChoice),
++                new Item.CustomChoiceShapedRecipeIngredientDefinition('%', new ItemLike[] {Items.DIRT})
++            },
++            new String[] {"$%", "%$"},
++            Arrays.stream(leafIngredientChoice).map(ingredient -> new Item.CustomRecipeUnlockByItem(() -> ingredient)).toArray(Item.CustomRecipeUnlock[]::new),
++            2
++        );
++    });
 +    public static final Block SMOULDERING_PEAT = registerPeat("smouldering");
 +    public static final Block PEAT_SLAB = registerFakeSlab(PEAT, "peat", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block SCULK_SLAB = registerFakeSlab(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
@@ -6725,7 +6937,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.WOOL, DyeColor.WHITE).strength(0.5F).sound(SoundType.SNOW)).breakBeforeClientKnowsToBreak().mineableWithAxe(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustom3x3SquareRecipe("paper_block", () -> Items.PAPER, 1);
 +    public static final Block PAPER_SLAB = registerFakeSlabFromYPillarCustomBlock(PAPER_BLOCK, null, "paper", "paper_block", Blocks.SMOOTH_QUARTZ_SLAB).breakBeforeClientKnowsToBreak().mineableWithAxe();
 +
 +    /**
@@ -6752,7 +6964,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_CYAN).strength(1.5F, 3.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustom2x2SquareRecipe("ender_pearl_block", () -> Items.ENDER_PEARL, 1);
 +    public static final Block FLINT_BLOCK = register(
 +        "flint_block",
 +        new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -6762,7 +6974,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_GRAY).strength(3.5F, 6.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    );
++    ).withCustom2x2SquareRecipe("flint_block", () -> Items.FLINT, 1);
 +    public static final Block FLINT_PILLAR = register(
 +        "flint_pillar",
 +        new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -6772,7 +6984,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new ConcreteDirectionalBlock(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_GRAY).strength(3.5F, 6.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK);
++    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK).withCustom2VerticalChoiceRecipe("flint_blocks_to_flint_pillar", () -> new ItemLike[] {SuCraftItems.FLINT_BLOCK}, 2);
 +    public static final Block FLINT_PILLAR_SLAB = registerFakeSlabFromYPillarCustomBlock(FLINT_PILLAR, null, "flint_pillar", Blocks.DEEPSLATE_TILE_SLAB).mineableWithPickaxe();
 +    public static final Block FLINT_TILES = register(
 +        "flint_tiles",
@@ -6783,7 +6995,7 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_GRAY).strength(3.5F, 6.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK);
++    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK).withCustom2x2SquareRecipe("flint_tiles", FLINT_BLOCK, 4);
 +    public static final Block FLINT_TILE_SLAB = registerFakeSlab(FLINT_TILES, "flint_tile", null, Blocks.DEEPSLATE_TILE_SLAB).mineableWithPickaxe();
 +    public static final Block OBSIDIAN_SLAB = registerFakeSlab(Blocks.OBSIDIAN, "obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block CRYING_OBSIDIAN_SLAB = registerFakeSlab(Blocks.CRYING_OBSIDIAN, "crying_obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
@@ -7070,8 +7282,9 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +     * Based on {@link Blocks#POLISHED_ANDESITE}
 +     */
 +    private static @NotNull Block registerPolished(@NotNull Block originalBlock, @NotNull String unpolished, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
++        @NotNull String id = "polished_" + unpolished;
 +        return register(
-+            "polished_" + unpolished,
++            id,
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .withNoteBlockHost()
 +                .withFallback(fallback)
@@ -7079,15 +7292,16 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +                .withFullBlockBoundingBoxItem(),
 +            new Block(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
-+        ).withCustomOneToOneStonecutterRecipe(originalBlock);
++        ).withCustomOneToOneStonecutterRecipe(originalBlock).withCustom2x2SquareRecipe(id, originalBlock, 4);
 +    }
 +
 +    /**
 +     * Based on {@link Blocks#STONE_BRICKS}
 +     */
-+    private static @NotNull Block registerBricks(@NotNull Block originalBlock, @NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
-+        return register(
-+            type + "_bricks",
++    private static @NotNull Block registerBricks(@NotNull Block originalBlock, @NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor, @Nullable Block additionalStonecuttingOriginalBlock, @Nullable Block craftIn2x2SquareBlock) {
++        @NotNull String id = type + "_bricks";
++        @NotNull Block block = register(
++            id,
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .withNoteBlockHost()
 +                .withFallback(fallback)
@@ -7096,14 +7310,26 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            new Block(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
 +        ).withCustomOneToOneStonecutterRecipe(originalBlock);
++        if (additionalStonecuttingOriginalBlock != null) {
++            block = block.withCustomOneToOneStonecutterRecipe(additionalStonecuttingOriginalBlock);
++        }
++        if (craftIn2x2SquareBlock != null) {
++            block = block.withCustom2x2SquareRecipe(id, craftIn2x2SquareBlock, 4);
++        }
++        return block;
++    }
++
++    private static @NotNull Block registerBricks(@NotNull Block originalBlock, @NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor, @Nullable Block additionalStonecuttingOriginalAndCraftIn2x2SquareBlock) {
++        return registerBricks(originalBlock, type, fallback, materialColor, additionalStonecuttingOriginalAndCraftIn2x2SquareBlock, additionalStonecuttingOriginalAndCraftIn2x2SquareBlock);
 +    }
 +
 +    /**
 +     * Based on {@link Blocks#CHISELED_STONE_BRICKS}
 +     */
-+    private static @NotNull Block registerChiseledBricks(@NotNull Block bricksBlock, @NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
-+        return register(
-+            "chiseled_" + type + "_bricks",
++    private static @NotNull Block registerChiseledBricks(@NotNull Block bricksBlock, @NotNull String type, @NotNull Block fallback, @NotNull MaterialColor materialColor, @Nullable Supplier<@NotNull ItemLike @NotNull []> slabItemSupplier) {
++        @NotNull String id = "chiseled_" + type + "_bricks";
++        @NotNull Block block = register(
++            id,
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .withNoteBlockHost()
 +                .withFallback(fallback)
@@ -7112,6 +7338,10 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            new Block(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
 +        ).withCustomOneToOneStonecutterRecipe(bricksBlock);
++        if (slabItemSupplier != null) {
++            block = block.withCustom2VerticalChoiceRecipe(type + "slabs_to_" + id, slabItemSupplier, 1);
++        }
++        return block;
 +    }
 +
 +    /**
@@ -7133,9 +7363,10 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +    /**
 +     * Based on {@link Blocks#QUARTZ_PILLAR}
 +     */
-+    private static @NotNull Block registerStonePillar(@NotNull Block originalBlock, @NotNull String stoneType, @NotNull Block fallback, @NotNull MaterialColor materialColor) {
-+        return register(
-+            stoneType + "_pillar",
++    private static @NotNull Block registerStonePillar(@NotNull Block originalBlock, @NotNull String stoneType, @NotNull Block fallback, @NotNull MaterialColor materialColor, @Nullable Supplier<@NotNull ItemLike @NotNull []> craftableFullBlockItemSupplier) {
++        @NotNull String id = stoneType + "_pillar";
++        @NotNull Block block = register(
++            id,
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .withNoteBlockHosts()
 +                .withFallback(fallback)
@@ -7144,6 +7375,10 @@ index 0000000000000000000000000000000000000000..7f9b984f9fbd6a27153fc2fdbfac2176
 +            new RotatedPillarBlock(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
 +        ).withCustomOneToOneStonecutterRecipe(originalBlock);
++        if (craftableFullBlockItemSupplier != null) {
++            block = block.withCustom2VerticalChoiceRecipe(stoneType + "_full_blocks_to_" + id, craftableFullBlockItemSupplier, 2);
++        }
++        return block;
 +    }
 +
 +    /**
@@ -12756,15 +12991,16 @@ index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..917c455e91e112efca8e3e2f7bb7ad146956484c
+index 0000000000000000000000000000000000000000..4ec14a32dc7982b3874678493e52923a57d5d53c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
-@@ -0,0 +1,212 @@
+@@ -0,0 +1,228 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.item;
 +
 +import com.google.common.collect.ImmutableMap;
++import it.unimi.dsi.fastutil.Pair;
 +import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap;
 +import net.minecraft.core.Registry;
 +import net.minecraft.resources.ResourceLocation;
@@ -12777,16 +13013,20 @@ index 0000000000000000000000000000000000000000..917c455e91e112efca8e3e2f7bb7ad14
 +import net.minecraft.world.item.crafting.RecipeManager;
 +import net.minecraft.world.item.crafting.RecipeType;
 +import net.minecraft.world.item.crafting.StonecutterRecipe;
++import net.minecraft.world.level.ItemLike;
++import org.apache.commons.lang3.tuple.Triple;
 +import org.bukkit.Bukkit;
 +import org.bukkit.Material;
 +import org.bukkit.NamespacedKey;
 +import org.bukkit.craftbukkit.inventory.CraftItemStack;
 +import org.bukkit.craftbukkit.util.CraftMagicNumbers;
++import org.bukkit.inventory.RecipeChoice;
 +import org.bukkit.inventory.ShapedRecipe;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
 +import java.util.Arrays;
++import java.util.List;
 +import java.util.Map;
 +import java.util.stream.Stream;
 +
@@ -12855,69 +13095,49 @@ index 0000000000000000000000000000000000000000..917c455e91e112efca8e3e2f7bb7ad14
 +        // Add other recipes
 +
 +        // Working with wood in stonecutters
-+        addStonecutterRecipe(Items.OAK_PLANKS, Items.OAK_STAIRS);
-+        addStonecutterRecipe(Items.SPRUCE_PLANKS, Items.SPRUCE_STAIRS);
-+        addStonecutterRecipe(Items.BIRCH_PLANKS, Items.BIRCH_STAIRS);
-+        addStonecutterRecipe(Items.JUNGLE_PLANKS, Items.JUNGLE_STAIRS);
-+        addStonecutterRecipe(Items.ACACIA_PLANKS, Items.ACACIA_STAIRS);
-+        addStonecutterRecipe(Items.DARK_OAK_PLANKS, Items.DARK_OAK_STAIRS);
-+        addStonecutterRecipe(Items.WARPED_PLANKS, Items.WARPED_STAIRS);
-+        addStonecutterRecipe(Items.CRIMSON_PLANKS, Items.CRIMSON_STAIRS);
-+        addStonecutterRecipe(Items.MANGROVE_PLANKS, Items.MANGROVE_STAIRS);
-+        addStonecutterRecipe(Items.OAK_PLANKS, Items.OAK_SLAB, 2);
-+        addStonecutterRecipe(Items.SPRUCE_PLANKS, Items.SPRUCE_SLAB, 2);
-+        addStonecutterRecipe(Items.BIRCH_PLANKS, Items.BIRCH_SLAB, 2);
-+        addStonecutterRecipe(Items.JUNGLE_PLANKS, Items.JUNGLE_SLAB, 2);
-+        addStonecutterRecipe(Items.ACACIA_PLANKS, Items.ACACIA_SLAB, 2);
-+        addStonecutterRecipe(Items.DARK_OAK_PLANKS, Items.DARK_OAK_SLAB, 2);
-+        addStonecutterRecipe(Items.WARPED_PLANKS, Items.WARPED_SLAB, 2);
-+        addStonecutterRecipe(Items.CRIMSON_PLANKS, Items.CRIMSON_SLAB, 2);
-+        addStonecutterRecipe(Items.MANGROVE_PLANKS, Items.MANGROVE_SLAB, 2);
-+        Stream.of(Items.OAK_LOG, Items.STRIPPED_OAK_LOG, Items.OAK_WOOD, Items.STRIPPED_OAK_WOOD).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.OAK_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.OAK_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.OAK_SLAB, 8);
-+        });
-+        Stream.of(Items.SPRUCE_LOG, Items.STRIPPED_SPRUCE_LOG, Items.SPRUCE_WOOD, Items.STRIPPED_SPRUCE_WOOD).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.SPRUCE_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.SPRUCE_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.SPRUCE_SLAB, 8);
-+        });
-+        Stream.of(Items.BIRCH_LOG, Items.STRIPPED_BIRCH_LOG, Items.BIRCH_WOOD, Items.STRIPPED_BIRCH_WOOD).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.BIRCH_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.BIRCH_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.BIRCH_SLAB, 8);
-+        });
-+        Stream.of(Items.JUNGLE_LOG, Items.STRIPPED_JUNGLE_LOG, Items.JUNGLE_WOOD, Items.STRIPPED_JUNGLE_WOOD).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.JUNGLE_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.JUNGLE_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.JUNGLE_SLAB, 8);
-+        });
-+        Stream.of(Items.ACACIA_LOG, Items.STRIPPED_ACACIA_LOG, Items.ACACIA_WOOD, Items.STRIPPED_ACACIA_WOOD).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.ACACIA_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.ACACIA_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.ACACIA_SLAB, 8);
-+        });
-+        Stream.of(Items.DARK_OAK_LOG, Items.STRIPPED_DARK_OAK_LOG, Items.DARK_OAK_WOOD, Items.STRIPPED_DARK_OAK_WOOD).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.DARK_OAK_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.DARK_OAK_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.DARK_OAK_SLAB, 8);
-+        });
-+        Stream.of(Items.WARPED_STEM, Items.STRIPPED_WARPED_STEM, Items.WARPED_HYPHAE, Items.STRIPPED_WARPED_HYPHAE).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.WARPED_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.WARPED_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.WARPED_SLAB, 8);
-+        });
-+        Stream.of(Items.CRIMSON_STEM, Items.STRIPPED_CRIMSON_STEM, Items.CRIMSON_HYPHAE, Items.STRIPPED_CRIMSON_HYPHAE).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.CRIMSON_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.CRIMSON_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.CRIMSON_SLAB, 8);
-+        });
-+        Stream.of(Items.MANGROVE_LOG, Items.STRIPPED_MANGROVE_LOG, Items.MANGROVE_WOOD, Items.STRIPPED_MANGROVE_WOOD).forEach(ingredient -> {
-+            addStonecutterRecipe(ingredient, Items.MANGROVE_PLANKS, 4);
-+            addStonecutterRecipe(ingredient, Items.MANGROVE_STAIRS, 4);
-+            addStonecutterRecipe(ingredient, Items.MANGROVE_SLAB, 8);
-+        });
++        for (Item[] woodBlocks : new Item[][] {
++            {Items.OAK_PLANKS, Items.OAK_SLAB, Items.OAK_STAIRS, Items.OAK_LOG, Items.STRIPPED_OAK_LOG, Items.OAK_WOOD, Items.STRIPPED_OAK_WOOD, SuCraftItems.OAK_LOG_SLAB, SuCraftItems.STRIPPED_OAK_LOG_SLAB, SuCraftItems.OAK_WOOD_SLAB, SuCraftItems.STRIPPED_OAK_WOOD_SLAB},
++            {Items.SPRUCE_PLANKS, Items.SPRUCE_SLAB, Items.SPRUCE_STAIRS, Items.SPRUCE_LOG, Items.STRIPPED_SPRUCE_LOG, Items.SPRUCE_WOOD, Items.STRIPPED_SPRUCE_WOOD, SuCraftItems.SPRUCE_LOG_SLAB, SuCraftItems.STRIPPED_SPRUCE_LOG_SLAB, SuCraftItems.SPRUCE_WOOD_SLAB, SuCraftItems.STRIPPED_SPRUCE_WOOD_SLAB},
++            {Items.BIRCH_PLANKS, Items.BIRCH_SLAB, Items.BIRCH_STAIRS, Items.BIRCH_LOG, Items.STRIPPED_BIRCH_LOG, Items.BIRCH_WOOD, Items.STRIPPED_BIRCH_WOOD, SuCraftItems.BIRCH_LOG_SLAB, SuCraftItems.STRIPPED_BIRCH_LOG_SLAB, SuCraftItems.BIRCH_WOOD_SLAB, SuCraftItems.STRIPPED_BIRCH_WOOD_SLAB},
++            {Items.JUNGLE_PLANKS, Items.JUNGLE_SLAB, Items.JUNGLE_STAIRS, Items.JUNGLE_LOG, Items.STRIPPED_JUNGLE_LOG, Items.JUNGLE_WOOD, Items.STRIPPED_JUNGLE_WOOD, SuCraftItems.JUNGLE_LOG_SLAB, SuCraftItems.STRIPPED_JUNGLE_LOG_SLAB, SuCraftItems.JUNGLE_WOOD_SLAB, SuCraftItems.STRIPPED_JUNGLE_WOOD_SLAB},
++            {Items.ACACIA_PLANKS, Items.ACACIA_SLAB, Items.ACACIA_STAIRS, Items.ACACIA_LOG, Items.STRIPPED_ACACIA_LOG, Items.ACACIA_WOOD, Items.STRIPPED_ACACIA_WOOD, SuCraftItems.ACACIA_LOG_SLAB, SuCraftItems.STRIPPED_ACACIA_LOG_SLAB, SuCraftItems.ACACIA_WOOD_SLAB, SuCraftItems.STRIPPED_ACACIA_WOOD_SLAB},
++            {Items.DARK_OAK_PLANKS, Items.DARK_OAK_SLAB, Items.DARK_OAK_STAIRS, Items.DARK_OAK_LOG, Items.STRIPPED_DARK_OAK_LOG, Items.DARK_OAK_WOOD, Items.STRIPPED_DARK_OAK_WOOD, SuCraftItems.DARK_OAK_LOG_SLAB, SuCraftItems.STRIPPED_DARK_OAK_LOG_SLAB, SuCraftItems.DARK_OAK_WOOD_SLAB, SuCraftItems.STRIPPED_DARK_OAK_WOOD_SLAB},
++            {Items.WARPED_PLANKS, Items.WARPED_SLAB, Items.WARPED_STAIRS, Items.WARPED_STEM, Items.STRIPPED_WARPED_STEM, Items.WARPED_HYPHAE, Items.STRIPPED_WARPED_HYPHAE, SuCraftItems.WARPED_STEM_SLAB, SuCraftItems.STRIPPED_WARPED_STEM_SLAB, SuCraftItems.WARPED_HYPHAE_SLAB, SuCraftItems.STRIPPED_WARPED_HYPHAE_SLAB},
++            {Items.CRIMSON_PLANKS, Items.CRIMSON_SLAB, Items.CRIMSON_STAIRS, Items.CRIMSON_STEM, Items.STRIPPED_CRIMSON_STEM, Items.CRIMSON_HYPHAE, Items.STRIPPED_CRIMSON_HYPHAE, SuCraftItems.CRIMSON_STEM_SLAB, SuCraftItems.STRIPPED_CRIMSON_STEM_SLAB, SuCraftItems.CRIMSON_HYPHAE_SLAB, SuCraftItems.STRIPPED_CRIMSON_HYPHAE_SLAB},
++            {Items.MANGROVE_PLANKS, Items.MANGROVE_SLAB, Items.MANGROVE_STAIRS, Items.MANGROVE_LOG, Items.STRIPPED_MANGROVE_LOG, Items.MANGROVE_WOOD, Items.STRIPPED_MANGROVE_WOOD, SuCraftItems.MANGROVE_LOG_SLAB, SuCraftItems.STRIPPED_MANGROVE_LOG_SLAB, SuCraftItems.MANGROVE_WOOD_SLAB, SuCraftItems.STRIPPED_MANGROVE_WOOD_SLAB}
++        }) {
++            Item planks = woodBlocks[0];
++            Item slab = woodBlocks[1];
++            Item stairs = woodBlocks[2];
++            Item log = woodBlocks[3];
++            Item strippedLog = woodBlocks[4];
++            Item wood = woodBlocks[5];
++            Item strippedWood = woodBlocks[6];
++            Item logSlab = woodBlocks[7];
++            Item strippedLogSlab = woodBlocks[8];
++            Item woodSlab = woodBlocks[9];
++            Item strippedWoodSlab = woodBlocks[10];
++            // stonecutter: planks -> stairs, slab
++            addStonecutterRecipe(planks, stairs);
++            addStonecutterRecipe(planks, slab, 2);
++            // stonecutter: log, wood -> planks, stairs, slab
++            for (Item ingredient : new Item[] {log, wood, strippedLog, strippedWood}) {
++                addStonecutterRecipe(ingredient, planks, 4);
++                addStonecutterRecipe(ingredient, stairs, 4);
++                addStonecutterRecipe(ingredient, slab, 8);
++            }
++            // stonecutter: log slab, wood slab -> planks, stairs, slab
++            for (Item ingredient : new Item[] {logSlab, woodSlab, strippedLogSlab, strippedWoodSlab}) {
++                addStonecutterRecipe(ingredient, planks, 2);
++                addStonecutterRecipe(ingredient, stairs, 2);
++                addStonecutterRecipe(ingredient, slab, 4);
++            }
++            // crafting: log slab, wood slab -> planks
++            ItemLike[] craftingPlanksFromLogOrWoodSlabIngredients = {logSlab.asItem(), woodSlab.asItem(), strippedLogSlab.asItem(), strippedWoodSlab.asItem()};
++            var craftingPlanksFromLogOrWoodSlabRecipe = new Item.CustomChoiceShapelessRecipe(ResourceLocation.sucraft(planks.id.getPath() + "_from_log_or_wood_slab"), null, new ItemLike[][] {craftingPlanksFromLogOrWoodSlabIngredients}, Arrays.stream(craftingPlanksFromLogOrWoodSlabIngredients).map(ingredient -> new Item.CustomRecipeUnlockByItem(() -> ingredient)).toArray(Item.CustomRecipeUnlockByItem[]::new), 2);
++            addRecipe(craftingPlanksFromLogOrWoodSlabRecipe.build(planks));
++            craftingPlanksFromLogOrWoodSlabRecipe.registerUnlocks();
++        }
 +
 +        // Shortcuts
 +        addStonecutterRecipe(Items.BASALT, SuCraftItems.POLISHED_BASALT_SLAB, 2);
@@ -12962,11 +13182,42 @@ index 0000000000000000000000000000000000000000..917c455e91e112efca8e3e2f7bb7ad14
 +            var recipeKey = recipeMinecraftKey.asBukkit();
 +            var shapedRecipe = new ShapedRecipe(recipeKey, new org.bukkit.inventory.ItemStack(CraftMagicNumbers.getMaterial(result)));
 +            shapedRecipe.setGroup(recipeKey.getKey());
-+            shapedRecipe.shape(new String[] {"$$$", "%%%", "$$$"});
++            shapedRecipe.shape("$$$", "%%%", "$$$");
 +            shapedRecipe.setIngredient('$', CraftMagicNumbers.getMaterial(plankIngredient));
 +            shapedRecipe.setIngredient('%', Material.BOOK);
 +            addRecipe(shapedRecipe);
 +            Item.CustomRecipeUnlockByItem.register(Items.BOOK, recipeMinecraftKey);
++        }
++
++        // Remove some existing vanilla chiseled block recipes (to be replaced by the new recipes below)
++        removeRecipe(ResourceLocation.minecraft("chiseled_stone_bricks"));
++        removeRecipe(ResourceLocation.minecraft("chiseled_sandstone"));
++        removeRecipe(ResourceLocation.minecraft("chiseled_red_sandstone"));
++        removeRecipe(ResourceLocation.minecraft("chiseled_quartz_block"));
++        removeRecipe(ResourceLocation.minecraft("quartz_pillar"));
++
++        // Allow crafting vanilla chiseled blocks with (combinations of) more types of slabs
++        // (And also allow crafting quartz pillars with more types of quartz)
++        for (Triple<String, Item, Item[]> triple : List.of(
++            Triple.of("stone_slabs_to_chiseled_stone_bricks", Items.CHISELED_STONE_BRICKS, new Item[] {Items.STONE_SLAB, Items.STONE_BRICK_SLAB}),
++            Triple.of("sandstone_slabs_to_chiseled_sandstone", Items.CHISELED_SANDSTONE, new Item[] {Items.SANDSTONE_SLAB, Items.CUT_SANDSTONE_SLAB, Items.SMOOTH_SANDSTONE_SLAB}),
++            Triple.of("red_sandstone_slabs_to_chiseled_red_sandstone", Items.CHISELED_RED_SANDSTONE, new Item[] {Items.RED_SANDSTONE_SLAB, Items.CUT_RED_SANDSTONE_SLAB, Items.SMOOTH_RED_SANDSTONE_SLAB}),
++            Triple.of("quartz_slabs_to_chiseled_quartz", Items.CHISELED_QUARTZ_BLOCK, new Item[] {Items.QUARTZ_SLAB, Items.SMOOTH_QUARTZ_SLAB, SuCraftItems.QUARTZ_BRICK_SLAB}),
++            Triple.of("quartz_to_quartz_pillar", Items.QUARTZ_PILLAR, new Item[] {Items.QUARTZ_BLOCK, Items.SMOOTH_QUARTZ})
++        )) {
++            String recipeKeyPath = triple.getLeft();
++            Item result = triple.getMiddle();
++            Item[] ingredients = triple.getRight();
++            var recipeMinecraftKey = ResourceLocation.sucraft(recipeKeyPath);
++            var recipeKey = recipeMinecraftKey.asBukkit();
++            var shapedRecipe = new ShapedRecipe(recipeKey, new org.bukkit.inventory.ItemStack(CraftMagicNumbers.getMaterial(result), result.equals(Items.QUARTZ_PILLAR) ? 2 : 1)); // For any pair of slabs, the result has amount 1, but for the quartz pillar (since the ingredients are full blocks) the result has amount 2
++            shapedRecipe.setGroup(recipeKey.getKey());
++            shapedRecipe.shape("$", "$");
++            shapedRecipe.setIngredient('$', new RecipeChoice.MaterialChoice(Arrays.stream(ingredients).map(ingredient -> CraftMagicNumbers.getMaterial(ingredient)).toArray(Material[]::new)));
++            addRecipe(shapedRecipe);
++            for (Item ingredient : ingredients) {
++                Item.CustomRecipeUnlockByItem.register(ingredient, recipeMinecraftKey);
++            }
 +        }
 +
 +    }
@@ -12974,7 +13225,7 @@ index 0000000000000000000000000000000000000000..917c455e91e112efca8e3e2f7bb7ad14
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..24e0a2753bd0b84e42a4fb7793f984927091381f
+index 0000000000000000000000000000000000000000..e6129cbf7a81c8af114e16ddf4b878e749a331fc
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 @@ -0,0 +1,795 @@
@@ -13061,7 +13312,6 @@ index 0000000000000000000000000000000000000000..24e0a2753bd0b84e42a4fb7793f98492
 +
 +    public static final Item SANDSTONE_BRICKS = registerBricks(SuCraftBlocks.SANDSTONE_BRICKS, "Sandstone", () -> Items.SANDSTONE);
 +    public static final Item RED_SANDSTONE_BRICKS = registerBricks(SuCraftBlocks.RED_SANDSTONE_BRICKS, "Red Sandstone", () -> Items.RED_SANDSTONE);
-+    public static final Item SOUL_SANDSTONE_BRICKS = registerBricks(SuCraftBlocks.SOUL_SANDSTONE_BRICKS, "Soul Sandstone", () -> Items.SOUL_SOIL);
 +
 +    /**
 +     * Based on {@link Items#CHISELED_SANDSTONE}
@@ -13073,6 +13323,7 @@ index 0000000000000000000000000000000000000000..24e0a2753bd0b84e42a4fb7793f98492
 +     */
 +    public static final Item CUT_SOUL_SANDSTONE = registerBlock(SuCraftBlocks.CUT_SOUL_SANDSTONE, "Cut Soul Sandstone", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.SOUL_SOIL));
 +
++    public static final Item SOUL_SANDSTONE_BRICKS = registerBricks(SuCraftBlocks.SOUL_SANDSTONE_BRICKS, "Soul Sandstone", () -> Items.SOUL_SOIL);
 +    public static final Item ANDESITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.ANDESITE_COBBLESTONE, "Andesite", () -> Items.ANDESITE);
 +    public static final Item DIORITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.DIORITE_COBBLESTONE, "Diorite", () -> Items.DIORITE);
 +    public static final Item GRANITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.GRANITE_COBBLESTONE, "Granite", () -> Items.GRANITE);
@@ -14757,10 +15008,10 @@ index 0000000000000000000000000000000000000000..d2c7592594da0701ed1fcd03261fd8ec
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..de23cc2b6e448f766bd7f618e793d1dec46f7fed
+index 0000000000000000000000000000000000000000..8a31dc0b96a47de37b915110908a0fd85c269782
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
-@@ -0,0 +1,437 @@
+@@ -0,0 +1,438 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.blockstates;
@@ -14862,7 +15113,7 @@ index 0000000000000000000000000000000000000000..de23cc2b6e448f766bd7f618e793d1de
 +
 +    @Override
 +    public void addFireModels(@NotNull BlockState hostState, @NotNull String fireType) {
-+        this.updateJsonDirectly(json -> {
++        this.replaceJsonDirectly(json -> {
 +            if (!setUpFire) {
 +                setUpFire = true;
 +                // Based on vanilla Minecraft resource file /assets/minecraft/blockstates/fire.json
@@ -15193,6 +15444,7 @@ index 0000000000000000000000000000000000000000..de23cc2b6e448f766bd7f618e793d1de
 +                    hostState.getValue(BlockStateProperties.AGE_15)
 +                )).getAsJsonArray()
 +            );
++            return json;
 +        });
 +        this.setDirty();
 +    }
@@ -15622,10 +15874,10 @@ index 0000000000000000000000000000000000000000..e36cb8277fa667532f558ced487808db
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..179dc7d0b6c6bacf0948a2f0b515669eecb8f7d7
+index 0000000000000000000000000000000000000000..0ca340ba27381fda53f78adf0da4d749393d9df1
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java
-@@ -0,0 +1,93 @@
+@@ -0,0 +1,98 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.json;
@@ -15643,6 +15895,7 @@ index 0000000000000000000000000000000000000000..179dc7d0b6c6bacf0948a2f0b515669e
 +import java.io.IOException;
 +import java.io.OutputStream;
 +import java.util.function.Consumer;
++import java.util.function.Function;
 +
 +/**
 + * Base implementation of {@link MutableJsonResourcePackAsset}
@@ -15674,6 +15927,10 @@ index 0000000000000000000000000000000000000000..179dc7d0b6c6bacf0948a2f0b515669e
 +
 +    protected void updateJsonDirectly(@NotNull Consumer<@NotNull JsonObject> jsonConsumer) {
 +        jsonConsumer.accept(this.json);
++    }
++
++    protected void replaceJsonDirectly(@NotNull Function<@NotNull JsonObject, @NotNull JsonObject> jsonFunction) {
++        this.json = jsonFunction.apply(this.json);
 +    }
 +
 +    protected @NotNull JsonObject getUpToDateJson() {
@@ -16993,7 +17250,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..66ca4f7269ba6780fdbd747d9d3a7deb50d30ef3
+index 0000000000000000000000000000000000000000..3ee7b981a9c20c806785b24a90d136ccb350dad4
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -17069,7 +17326,7 @@ index 0000000000000000000000000000000000000000..66ca4f7269ba6780fdbd747d9d3a7deb
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 158;
++            currentResourcePackVersion = 163;
 +        }
 +    }
 +
