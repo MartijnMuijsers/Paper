@@ -3325,6 +3325,40 @@ index d4f71422b25f70abfe50481d6071abea6ad147c0..a5063cc97aee67887944fa9c337cc472
              }
  
              // CraftBukkit start
+diff --git a/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java b/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java
+index 81994943198b92a3975910e1c50b9579912ff008..087e6b186015d18e62f2379205b5515a09202749 100644
+--- a/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java
++++ b/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java
+@@ -17,6 +17,8 @@ import net.minecraft.world.level.block.CandleCakeBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+ import net.minecraft.world.level.gameevent.GameEvent;
++import nl.martijnmuijsers.paper.block.PeatBlock;
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ 
+ public class FlintAndSteelItem extends Item {
+ 
+@@ -31,7 +33,7 @@ public class FlintAndSteelItem extends Item {
+         BlockPos blockposition = context.getClickedPos();
+         BlockState iblockdata = world.getBlockState(blockposition);
+ 
+-        if (!CampfireBlock.canLight(iblockdata) && !CandleBlock.canLight(iblockdata) && !CandleCakeBlock.canLight(iblockdata)) {
++        if (!CampfireBlock.canLight(iblockdata) && !CandleBlock.canLight(iblockdata) && !CandleCakeBlock.canLight(iblockdata) && !PeatBlock.canLightPeat(iblockdata)) { // Martijn - custom blocks
+             BlockPos blockposition1 = blockposition.relative(context.getClickedFace());
+ 
+             if (BaseFireBlock.canBePlacedAt(world, blockposition1, context.getHorizontalDirection())) {
+@@ -71,7 +73,10 @@ public class FlintAndSteelItem extends Item {
+             }
+             // CraftBukkit end
+             world.playSound(entityhuman, blockposition, SoundEvents.FLINTANDSTEEL_USE, SoundSource.BLOCKS, 1.0F, world.getRandom().nextFloat() * 0.4F + 0.8F);
+-            world.setBlock(blockposition, (BlockState) iblockdata.setValue(BlockStateProperties.LIT, true), 11);
++            // Martijn start - custom blocks and items
++            var newBlockState = iblockdata.getBlock().equals(SuCraftBlocks.PEAT) ? SuCraftBlocks.SMOULDERING_PEAT.defaultBlockState() : (BlockState) iblockdata.setValue(BlockStateProperties.LIT, true);
++            world.setBlock(blockposition, newBlockState, 11);
++            // Martijn end - custom blocks and items
+             world.gameEvent((Entity) entityhuman, GameEvent.BLOCK_CHANGE, blockposition);
+             if (entityhuman != null) {
+                 context.getItemInHand().hurtAndBreak(1, entityhuman, (entityhuman1) -> {
 diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
 index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de11501815 100644
 --- a/src/main/java/net/minecraft/world/item/Item.java
@@ -6158,6 +6192,37 @@ index 0000000000000000000000000000000000000000..b5c3f679c8a3d0abbd6dbccfba6c7437
 +    }
 +
 +}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/PeatBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/PeatBlock.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..c04688f3a34cf0d1460283d76d4aa66f29b481f4
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/PeatBlock.java
+@@ -0,0 +1,25 @@
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.state.BlockBehaviour;
++import net.minecraft.world.level.block.state.BlockState;
++
++public class PeatBlock extends Block {
++
++    private final boolean lit;
++
++    public PeatBlock(BlockBehaviour.Properties settings, boolean lit) {
++        super(settings);
++        this.lit = lit;
++    }
++
++    public static boolean isLitPeat(BlockState state) {
++        Block block = state.getBlock();
++        return block instanceof PeatBlock peatBlock && peatBlock.lit;
++    }
++
++    public static boolean canLightPeat(BlockState state) {
++        return !isLitPeat(state);
++    }
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..5a2e8c0c52ee2e6109d85445f1e4242fe6a1b851
@@ -6481,7 +6546,7 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b9c09cac94b09dee1d852579d663658aa3317d3f
+index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7ea2f16608
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 @@ -0,0 +1,1443 @@
@@ -6890,7 +6955,7 @@ index 0000000000000000000000000000000000000000..b9c09cac94b09dee1d852579d663658a
 +    ).withCustom2x2SquareRecipe("gunpowder_block", () -> Items.GUNPOWDER, 1);
 +
 +    public static final Block GUNPOWDER_SLAB = registerFakeSlab(GUNPOWDER_BLOCK, "gunpowder", null, Blocks.SMOOTH_STONE_SLAB);
-+    public static final Block PEAT = registerPeat(null).withFutureCustomRecipe(() -> {
++    public static final Block PEAT = registerPeat(null, false).withFutureCustomRecipe(() -> {
 +        var leafIngredientChoice = StreamSupport.stream(Registry.BLOCK.getTagOrEmpty(BlockTags.LEAVES).spliterator(), false).map(holder -> holder.value()).map(block -> block.asItem()).toArray(ItemLike[]::new);
 +        var recipeKey = ResourceLocation.sucraft("dirt_and_leaves_to_peat");
 +        return new Item.CustomChoiceShapedRecipe(
@@ -6905,7 +6970,7 @@ index 0000000000000000000000000000000000000000..b9c09cac94b09dee1d852579d663658a
 +            2
 +        );
 +    });
-+    public static final Block SMOULDERING_PEAT = registerPeat("smouldering");
++    public static final Block SMOULDERING_PEAT = registerPeat("smouldering", true);
 +    public static final Block PEAT_SLAB = registerFakeSlab(PEAT, "peat", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block SCULK_SLAB = registerFakeSlab(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
 +    public static final Block CHISELED_QUARTZ_SLAB = registerFakeSlabFromYPillarVanillaBlock(Blocks.CHISELED_QUARTZ_BLOCK, null, "chiseled_quartz", "chiseled_quartz_block", Blocks.QUARTZ_SLAB).mineableWithPickaxe();
@@ -7893,7 +7958,7 @@ index 0000000000000000000000000000000000000000..b9c09cac94b09dee1d852579d663658a
 +        return registerFakeStairs(fullBlock, "raw_" + type, "raw_" + type + "_block", host).mineableWithPickaxe();
 +    }
 +
-+    private static @NotNull Block registerPeat(@NotNull String type) {
++    private static @NotNull Block registerPeat(@NotNull String type, boolean lit) {
 +        return register(
 +            (type == null ? "" : type + "_") + "peat",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -7901,7 +7966,7 @@ index 0000000000000000000000000000000000000000..b9c09cac94b09dee1d852579d663658a
 +                .withFallback(Blocks.COARSE_DIRT)
 +                .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
 +                .withFullBlockBoundingBoxItem(),
-+            new Block(BlockBehaviour.Properties.of(Material.DIRT, MaterialColor.DIRT).strength(1.0F, 2.0F).sound(SoundType.GRAVEL)).breakBeforeClientKnowsToBreak().mineableWithShovel(),
++            new PeatBlock(BlockBehaviour.Properties.of(Material.DIRT, MaterialColor.DIRT).strength(1.0F, 2.0F).sound(SoundType.GRAVEL), lit).breakBeforeClientKnowsToBreak().mineableWithShovel(),
 +            SuCraftBlockLoot::dropSelf
 +        );
 +    }
