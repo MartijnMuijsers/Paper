@@ -3325,6 +3325,89 @@ index d4f71422b25f70abfe50481d6071abea6ad147c0..a5063cc97aee67887944fa9c337cc472
              }
  
              // CraftBukkit start
+diff --git a/src/main/java/net/minecraft/world/item/AxeItem.java b/src/main/java/net/minecraft/world/item/AxeItem.java
+index 03a6a99dcc0c8fcc32776dd49cf6092b899bf6ed..7056462eda051ba95abd03bdff9f24bc24a75b70 100644
+--- a/src/main/java/net/minecraft/world/item/AxeItem.java
++++ b/src/main/java/net/minecraft/world/item/AxeItem.java
+@@ -19,9 +19,68 @@ import net.minecraft.world.level.block.RotatedPillarBlock;
+ import net.minecraft.world.level.block.WeatheringCopper;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.gameevent.GameEvent;
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ 
+ public class AxeItem extends DiggerItem {
+-    protected static final Map<Block, Block> STRIPPABLES = (new ImmutableMap.Builder<Block, Block>()).put(Blocks.OAK_WOOD, Blocks.STRIPPED_OAK_WOOD).put(Blocks.OAK_LOG, Blocks.STRIPPED_OAK_LOG).put(Blocks.DARK_OAK_WOOD, Blocks.STRIPPED_DARK_OAK_WOOD).put(Blocks.DARK_OAK_LOG, Blocks.STRIPPED_DARK_OAK_LOG).put(Blocks.ACACIA_WOOD, Blocks.STRIPPED_ACACIA_WOOD).put(Blocks.ACACIA_LOG, Blocks.STRIPPED_ACACIA_LOG).put(Blocks.BIRCH_WOOD, Blocks.STRIPPED_BIRCH_WOOD).put(Blocks.BIRCH_LOG, Blocks.STRIPPED_BIRCH_LOG).put(Blocks.JUNGLE_WOOD, Blocks.STRIPPED_JUNGLE_WOOD).put(Blocks.JUNGLE_LOG, Blocks.STRIPPED_JUNGLE_LOG).put(Blocks.SPRUCE_WOOD, Blocks.STRIPPED_SPRUCE_WOOD).put(Blocks.SPRUCE_LOG, Blocks.STRIPPED_SPRUCE_LOG).put(Blocks.WARPED_STEM, Blocks.STRIPPED_WARPED_STEM).put(Blocks.WARPED_HYPHAE, Blocks.STRIPPED_WARPED_HYPHAE).put(Blocks.CRIMSON_STEM, Blocks.STRIPPED_CRIMSON_STEM).put(Blocks.CRIMSON_HYPHAE, Blocks.STRIPPED_CRIMSON_HYPHAE).put(Blocks.MANGROVE_WOOD, Blocks.STRIPPED_MANGROVE_WOOD).put(Blocks.MANGROVE_LOG, Blocks.STRIPPED_MANGROVE_LOG).build();
++
++    // Martijn start - custom blocks and items
++    protected static final Map<Block, Block> STRIPPABLES = new ImmutableMap.Builder<Block, Block>()
++        .put(Blocks.OAK_WOOD, Blocks.STRIPPED_OAK_WOOD)
++        .put(Blocks.OAK_LOG, Blocks.STRIPPED_OAK_LOG)
++        .put(Blocks.DARK_OAK_WOOD, Blocks.STRIPPED_DARK_OAK_WOOD)
++        .put(Blocks.DARK_OAK_LOG, Blocks.STRIPPED_DARK_OAK_LOG)
++        .put(Blocks.ACACIA_WOOD, Blocks.STRIPPED_ACACIA_WOOD)
++        .put(Blocks.ACACIA_LOG, Blocks.STRIPPED_ACACIA_LOG)
++        .put(Blocks.BIRCH_WOOD, Blocks.STRIPPED_BIRCH_WOOD)
++        .put(Blocks.BIRCH_LOG, Blocks.STRIPPED_BIRCH_LOG)
++        .put(Blocks.JUNGLE_WOOD, Blocks.STRIPPED_JUNGLE_WOOD)
++        .put(Blocks.JUNGLE_LOG, Blocks.STRIPPED_JUNGLE_LOG)
++        .put(Blocks.SPRUCE_WOOD, Blocks.STRIPPED_SPRUCE_WOOD)
++        .put(Blocks.SPRUCE_LOG, Blocks.STRIPPED_SPRUCE_LOG)
++        .put(Blocks.WARPED_STEM, Blocks.STRIPPED_WARPED_STEM)
++        .put(Blocks.WARPED_HYPHAE, Blocks.STRIPPED_WARPED_HYPHAE)
++        .put(Blocks.CRIMSON_STEM, Blocks.STRIPPED_CRIMSON_STEM)
++        .put(Blocks.CRIMSON_HYPHAE, Blocks.STRIPPED_CRIMSON_HYPHAE)
++        .put(Blocks.MANGROVE_WOOD, Blocks.STRIPPED_MANGROVE_WOOD)
++        .put(Blocks.MANGROVE_LOG, Blocks.STRIPPED_MANGROVE_LOG)
++        .put(SuCraftBlocks.OAK_WOOD_SLAB, SuCraftBlocks.STRIPPED_OAK_WOOD_SLAB)
++        .put(SuCraftBlocks.OAK_LOG_SLAB, SuCraftBlocks.STRIPPED_OAK_LOG_SLAB)
++        .put(SuCraftBlocks.DARK_OAK_WOOD_SLAB, SuCraftBlocks.STRIPPED_DARK_OAK_WOOD_SLAB)
++        .put(SuCraftBlocks.DARK_OAK_LOG_SLAB, SuCraftBlocks.STRIPPED_DARK_OAK_LOG_SLAB)
++        .put(SuCraftBlocks.ACACIA_WOOD_SLAB, SuCraftBlocks.STRIPPED_ACACIA_WOOD_SLAB)
++        .put(SuCraftBlocks.ACACIA_LOG_SLAB, SuCraftBlocks.STRIPPED_ACACIA_LOG_SLAB)
++        .put(SuCraftBlocks.BIRCH_WOOD_SLAB, SuCraftBlocks.STRIPPED_BIRCH_WOOD_SLAB)
++        .put(SuCraftBlocks.BIRCH_LOG_SLAB, SuCraftBlocks.STRIPPED_BIRCH_LOG_SLAB)
++        .put(SuCraftBlocks.JUNGLE_WOOD_SLAB, SuCraftBlocks.STRIPPED_JUNGLE_WOOD_SLAB)
++        .put(SuCraftBlocks.JUNGLE_LOG_SLAB, SuCraftBlocks.STRIPPED_JUNGLE_LOG_SLAB)
++        .put(SuCraftBlocks.SPRUCE_WOOD_SLAB, SuCraftBlocks.STRIPPED_SPRUCE_WOOD_SLAB)
++        .put(SuCraftBlocks.SPRUCE_LOG_SLAB, SuCraftBlocks.STRIPPED_SPRUCE_LOG_SLAB)
++        .put(SuCraftBlocks.WARPED_STEM_SLAB, SuCraftBlocks.STRIPPED_WARPED_STEM_SLAB)
++        .put(SuCraftBlocks.WARPED_HYPHAE_SLAB, SuCraftBlocks.STRIPPED_WARPED_HYPHAE_SLAB)
++        .put(SuCraftBlocks.CRIMSON_STEM_SLAB, SuCraftBlocks.STRIPPED_CRIMSON_STEM_SLAB)
++        .put(SuCraftBlocks.CRIMSON_HYPHAE_SLAB, SuCraftBlocks.STRIPPED_CRIMSON_HYPHAE_SLAB)
++        .put(SuCraftBlocks.MANGROVE_WOOD_SLAB, SuCraftBlocks.STRIPPED_MANGROVE_WOOD_SLAB)
++        .put(SuCraftBlocks.MANGROVE_LOG_SLAB, SuCraftBlocks.STRIPPED_MANGROVE_LOG_SLAB)
++        .put(SuCraftBlocks.OAK_WOOD_STAIRS, SuCraftBlocks.STRIPPED_OAK_WOOD_STAIRS)
++        .put(SuCraftBlocks.OAK_LOG_STAIRS, SuCraftBlocks.STRIPPED_OAK_LOG_STAIRS)
++        .put(SuCraftBlocks.DARK_OAK_WOOD_STAIRS, SuCraftBlocks.STRIPPED_DARK_OAK_WOOD_STAIRS)
++        .put(SuCraftBlocks.DARK_OAK_LOG_STAIRS, SuCraftBlocks.STRIPPED_DARK_OAK_LOG_STAIRS)
++        .put(SuCraftBlocks.ACACIA_WOOD_STAIRS, SuCraftBlocks.STRIPPED_ACACIA_WOOD_STAIRS)
++        .put(SuCraftBlocks.ACACIA_LOG_STAIRS, SuCraftBlocks.STRIPPED_ACACIA_LOG_STAIRS)
++        .put(SuCraftBlocks.BIRCH_WOOD_STAIRS, SuCraftBlocks.STRIPPED_BIRCH_WOOD_STAIRS)
++        .put(SuCraftBlocks.BIRCH_LOG_STAIRS, SuCraftBlocks.STRIPPED_BIRCH_LOG_STAIRS)
++        .put(SuCraftBlocks.JUNGLE_WOOD_STAIRS, SuCraftBlocks.STRIPPED_JUNGLE_WOOD_STAIRS)
++        .put(SuCraftBlocks.JUNGLE_LOG_STAIRS, SuCraftBlocks.STRIPPED_JUNGLE_LOG_STAIRS)
++        .put(SuCraftBlocks.SPRUCE_WOOD_STAIRS, SuCraftBlocks.STRIPPED_SPRUCE_WOOD_STAIRS)
++        .put(SuCraftBlocks.SPRUCE_LOG_STAIRS, SuCraftBlocks.STRIPPED_SPRUCE_LOG_STAIRS)
++        .put(SuCraftBlocks.WARPED_STEM_STAIRS, SuCraftBlocks.STRIPPED_WARPED_STEM_STAIRS)
++        .put(SuCraftBlocks.WARPED_HYPHAE_STAIRS, SuCraftBlocks.STRIPPED_WARPED_HYPHAE_STAIRS)
++        .put(SuCraftBlocks.CRIMSON_STEM_STAIRS, SuCraftBlocks.STRIPPED_CRIMSON_STEM_STAIRS)
++        .put(SuCraftBlocks.CRIMSON_HYPHAE_STAIRS, SuCraftBlocks.STRIPPED_CRIMSON_HYPHAE_STAIRS)
++        .put(SuCraftBlocks.MANGROVE_WOOD_STAIRS, SuCraftBlocks.STRIPPED_MANGROVE_WOOD_STAIRS)
++        .put(SuCraftBlocks.MANGROVE_LOG_STAIRS, SuCraftBlocks.STRIPPED_MANGROVE_LOG_STAIRS)
++        .build();
++    // Martijn end - custom blocks and items
+ 
+     protected AxeItem(Tier material, float attackDamage, float attackSpeed, Item.Properties settings) {
+         super(attackDamage, attackSpeed, material, BlockTags.MINEABLE_WITH_AXE, settings);
+@@ -74,7 +133,7 @@ public class AxeItem extends DiggerItem {
+ 
+     private Optional<BlockState> getStripped(BlockState state) {
+         return Optional.ofNullable(STRIPPABLES.get(state.getBlock())).map((block) -> {
+-            return block.defaultBlockState().setValue(RotatedPillarBlock.AXIS, state.getValue(RotatedPillarBlock.AXIS));
++            return block.withPropertiesOf(state); // Martijn - custom blocks and items
+         });
+     }
+ }
 diff --git a/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java b/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java
 index 81994943198b92a3975910e1c50b9579912ff008..087e6b186015d18e62f2379205b5515a09202749 100644
 --- a/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java
@@ -4731,7 +4814,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..b03ff0ce6c3b2a1843c1119da78b34e4
 +
  }
 diff --git a/src/main/java/net/minecraft/world/level/block/Blocks.java b/src/main/java/net/minecraft/world/level/block/Blocks.java
-index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc695543d0500c8 100644
+index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..38e27d177dfb3942e8f2c66849bb2b71eb572a6a 100644
 --- a/src/main/java/net/minecraft/world/level/block/Blocks.java
 +++ b/src/main/java/net/minecraft/world/level/block/Blocks.java
 @@ -7,6 +7,7 @@ import net.minecraft.core.Registry;
@@ -4742,15 +4825,19 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc69554
  import net.minecraft.util.valueproviders.UniformInt;
  import net.minecraft.world.effect.MobEffects;
  import net.minecraft.world.entity.EntityType;
-@@ -34,6 +35,7 @@ import net.minecraft.world.level.block.state.properties.WoodType;
+@@ -34,6 +35,11 @@ import net.minecraft.world.level.block.state.properties.WoodType;
  import net.minecraft.world.level.material.Fluids;
  import net.minecraft.world.level.material.Material;
  import net.minecraft.world.level.material.MaterialColor;
++import nl.martijnmuijsers.paper.block.StrippedHyphaeBlock;
++import nl.martijnmuijsers.paper.block.StrippedLogBlock;
++import nl.martijnmuijsers.paper.block.StrippedStemBlock;
++import nl.martijnmuijsers.paper.block.StrippedWoodBlock;
 +import nl.martijnmuijsers.paper.block.SuCraftBlocks;
  import org.jetbrains.annotations.NotNull;
  
  public class Blocks {
-@@ -1095,7 +1097,7 @@ public class Blocks {
+@@ -1095,7 +1101,7 @@ public class Blocks {
          return (boolean)true;
      }
  
@@ -4759,7 +4846,7 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc69554
          return type == EntityType.OCELOT || type == EntityType.PARROT;
      }
  
-@@ -1142,7 +1144,7 @@ public class Blocks {
+@@ -1142,7 +1148,7 @@ public class Blocks {
          return true;
      }
  
@@ -4768,7 +4855,7 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc69554
          return false;
      }
  
-@@ -1150,7 +1152,7 @@ public class Blocks {
+@@ -1150,7 +1156,7 @@ public class Blocks {
          return new StainedGlassBlock(color, BlockBehaviour.Properties.of(Material.GLASS, color).strength(0.3F).sound(SoundType.GLASS).noOcclusion().isValidSpawn(Blocks::never).isRedstoneConductor(Blocks::never).isSuffocating(Blocks::never).isViewBlocking(Blocks::never));
      }
  
@@ -4777,7 +4864,7 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc69554
          return new LeavesBlock(BlockBehaviour.Properties.of(Material.LEAVES).strength(0.2F).randomTicks().sound(soundGroup).noOcclusion().isValidSpawn(Blocks::ocelotOrParrot).isSuffocating(Blocks::never).isViewBlocking(Blocks::never));
      }
  
-@@ -1174,6 +1176,7 @@ public class Blocks {
+@@ -1174,6 +1180,7 @@ public class Blocks {
      }
  
      private static Block register(String id, Block block) {
@@ -4785,7 +4872,7 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..1a95ca57cf674e1e07d4ccafcdc69554
          return Registry.register(Registry.BLOCK, id, block);
      }
  
-@@ -1182,13 +1185,60 @@ public class Blocks {
+@@ -1182,13 +1189,60 @@ public class Blocks {
      }
  
      static {
@@ -6223,6 +6310,285 @@ index 0000000000000000000000000000000000000000..c04688f3a34cf0d1460283d76d4aa66f
 +    }
 +
 +}
+diff --git a/src/main/java/net/minecraft/world/level/block/StrippedBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/StrippedBlock.java
+similarity index 84%
+rename from src/main/java/net/minecraft/world/level/block/StrippedBlock.java
+rename to src/main/java/nl/martijnmuijsers/paper/block/StrippedBlock.java
+index 86f2705b9a943a8aa599d2354d1270e5be3de126..d0a83213b84ade6294aaf2e241fd2fbd383a3350 100644
+--- a/src/main/java/net/minecraft/world/level/block/StrippedBlock.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/StrippedBlock.java
+@@ -1,6 +1,6 @@
+ // Martijn - bone meal regrows bark
+ 
+-package net.minecraft.world.level.block;
++package nl.martijnmuijsers.paper.block;
+ 
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.server.level.ServerLevel;
+@@ -11,6 +11,10 @@ import net.minecraft.util.RandomSource;
+ import net.minecraft.world.entity.player.Player;
+ import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.BonemealableBlock;
++import net.minecraft.world.level.block.RotatedPillarBlock;
++import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.gameevent.GameEvent;
+@@ -23,8 +27,8 @@ public abstract class StrippedBlock extends RotatedPillarBlock implements Boneme
+ 
+     public final @NotNull Block unstrippedBlock;
+ 
+-    public StrippedBlock(@NotNull Block unstrippedBlock, BlockBehaviour.Properties settingsWithoutStrenthOrSound, SoundType soundType) {
+-        super(settingsWithoutStrenthOrSound.strength(2.0F).sound(soundType));
++    public StrippedBlock(@NotNull Block unstrippedBlock, BlockBehaviour.Properties settingsWithoutStrengthOrSound, SoundType soundType) {
++        super(settingsWithoutStrengthOrSound.strength(2.0F).sound(soundType));
+         this.unstrippedBlock = unstrippedBlock;
+     }
+ 
+@@ -59,7 +63,7 @@ public abstract class StrippedBlock extends RotatedPillarBlock implements Boneme
+     @Override
+     public void performBonemeal(@Nullable Player player, ServerLevel world, RandomSource random, BlockPos pos, BlockState state) {
+         world.playSound(null, pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0F, 1.0F);
+-        BlockState newState = unstrippedBlock.defaultBlockState().setValue(RotatedPillarBlock.AXIS, state.getValue(RotatedPillarBlock.AXIS));
++        BlockState newState = this.unstrippedBlock.withPropertiesOf(state);
+         world.setBlock(pos, newState, 3);
+         world.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(player, newState));
+     }
+diff --git a/src/main/java/net/minecraft/world/level/block/StrippedHyphaeBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/StrippedHyphaeBlock.java
+similarity index 78%
+rename from src/main/java/net/minecraft/world/level/block/StrippedHyphaeBlock.java
+rename to src/main/java/nl/martijnmuijsers/paper/block/StrippedHyphaeBlock.java
+index 67c3945e2c396cb2cb6dbf01771cc7237a2d5590..ff1dc0c9b34dfd6c1c9e8d6f30ad7446fb25ac65 100644
+--- a/src/main/java/net/minecraft/world/level/block/StrippedHyphaeBlock.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/StrippedHyphaeBlock.java
+@@ -1,7 +1,9 @@
+ // Martijn - bone meal regrows bark
+ 
+-package net.minecraft.world.level.block;
++package nl.martijnmuijsers.paper.block;
+ 
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.material.MaterialColor;
+ import org.jetbrains.annotations.NotNull;
+diff --git a/src/main/java/net/minecraft/world/level/block/StrippedLogBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/StrippedLogBlock.java
+similarity index 79%
+rename from src/main/java/net/minecraft/world/level/block/StrippedLogBlock.java
+rename to src/main/java/nl/martijnmuijsers/paper/block/StrippedLogBlock.java
+index 00e7ba6762e9dd3201db59f43dadd6d333d4aa1a..fdd9dc671fffea2113e51b5e8e2ad6718306ac7d 100644
+--- a/src/main/java/net/minecraft/world/level/block/StrippedLogBlock.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/StrippedLogBlock.java
+@@ -1,8 +1,11 @@
+ // Martijn - bone meal regrows bark
+ 
+-package net.minecraft.world.level.block;
++package nl.martijnmuijsers.paper.block;
+ 
+ import net.minecraft.core.Direction;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.RotatedPillarBlock;
++import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.material.MaterialColor;
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/StrippedSlabBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/StrippedSlabBlock.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..64f29a739d85db6a31f3716570c9dace96b43f79
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/StrippedSlabBlock.java
+@@ -0,0 +1,75 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.sounds.SoundEvents;
++import net.minecraft.sounds.SoundSource;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.level.BlockGetter;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.BonemealableBlock;
++import net.minecraft.world.level.block.RotatedPillarBlock;
++import net.minecraft.world.level.block.SlabBlock;
++import net.minecraft.world.level.block.SoundType;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gameevent.GameEvent;
++import net.minecraft.world.level.material.Material;
++import net.minecraft.world.level.material.MaterialColor;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public class StrippedSlabBlock extends SlabBlock implements BonemealableBlock {
++
++    /**
++     * Only null while not initialized yet
++     */
++    public @Nullable Block unstrippedBlock;
++
++    public StrippedSlabBlock(Properties settings) {
++        super(settings);
++    }
++
++    public @NotNull StrippedSlabBlock withUnstrippedBlock(@NotNull Block unstrippedBlock) {
++        if (this.unstrippedBlock != null) {
++            throw new IllegalStateException("Cannot set unstripped block of a stripped slab block (" + this.id + ") while it was already set (to " + this.unstrippedBlock.id + ")");
++        }
++        this.unstrippedBlock = unstrippedBlock;
++        return this;
++    }
++
++    @Override
++    public boolean isValidBonemealTarget(BlockGetter world, BlockPos pos, BlockState state, boolean isClient) {
++        if (world instanceof Level level) {
++            return level.paperConfig().boneMealRegrowsBark.enabled;
++        }
++        return false;
++    }
++
++    @Override
++    public boolean isBonemealSuccess(Level world, RandomSource random, BlockPos pos, BlockState state) {
++        return true;
++    }
++
++    @Override
++    public void performBonemeal(ServerLevel world, RandomSource random, BlockPos pos, BlockState state) {
++        performBonemeal(null, world, random, pos, state);
++    }
++
++    @Override
++    public void performBonemeal(@Nullable Player player, ServerLevel world, RandomSource random, BlockPos pos, BlockState state) {
++        world.playSound(null, pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0F, 1.0F);
++        BlockState newState = this.unstrippedBlock.withPropertiesOf(state);
++        world.setBlock(pos, newState, 3);
++        world.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(player, newState));
++    }
++
++    @Override
++    public boolean isBonemealUsedUp(Level world, RandomSource random, BlockPos pos, BlockState state, boolean success) {
++        return (double) world.random.nextFloat() < world.paperConfig().boneMealRegrowsBark.boneMealIsUsedUpChance;
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/StrippedStairBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/StrippedStairBlock.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8be887cdbbfa6e1abea8672dffc45c75f00267a1
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/StrippedStairBlock.java
+@@ -0,0 +1,72 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.server.level.ServerLevel;
++import net.minecraft.sounds.SoundEvents;
++import net.minecraft.sounds.SoundSource;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.level.BlockGetter;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.BonemealableBlock;
++import net.minecraft.world.level.block.SlabBlock;
++import net.minecraft.world.level.block.StairBlock;
++import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.gameevent.GameEvent;
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++public class StrippedStairBlock extends StairBlock implements BonemealableBlock {
++
++    /**
++	 * Only null while not initialized yet
++     */
++    public @Nullable Block unstrippedBlock;
++
++    public StrippedStairBlock(BlockState baseBlockState, Properties settings) {
++        super(baseBlockState, settings);
++    }
++
++    public @NotNull StrippedStairBlock withUnstrippedBlock(@NotNull Block unstrippedBlock) {
++        if (this.unstrippedBlock != null) {
++            throw new IllegalStateException("Cannot set unstripped block of a stripped stair block (" + this.id + ") while it was already set (to " + this.unstrippedBlock.id + ")");
++        }
++        this.unstrippedBlock = unstrippedBlock;
++        return this;
++    }
++
++    @Override
++    public boolean isValidBonemealTarget(BlockGetter world, BlockPos pos, BlockState state, boolean isClient) {
++        if (world instanceof Level level) {
++            return level.paperConfig().boneMealRegrowsBark.enabled;
++        }
++        return false;
++    }
++
++    @Override
++    public boolean isBonemealSuccess(Level world, RandomSource random, BlockPos pos, BlockState state) {
++        return true;
++    }
++
++    @Override
++    public void performBonemeal(ServerLevel world, RandomSource random, BlockPos pos, BlockState state) {
++        performBonemeal(null, world, random, pos, state);
++    }
++
++    @Override
++    public void performBonemeal(@Nullable Player player, ServerLevel world, RandomSource random, BlockPos pos, BlockState state) {
++        world.playSound(null, pos, SoundEvents.AXE_STRIP, SoundSource.BLOCKS, 1.0F, 1.0F);
++        BlockState newState = this.unstrippedBlock.withPropertiesOf(state);
++        world.setBlock(pos, newState, 3);
++        world.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(player, newState));
++    }
++
++    @Override
++    public boolean isBonemealUsedUp(Level world, RandomSource random, BlockPos pos, BlockState state, boolean success) {
++        return (double) world.random.nextFloat() < world.paperConfig().boneMealRegrowsBark.boneMealIsUsedUpChance;
++    }
++
++}
+diff --git a/src/main/java/net/minecraft/world/level/block/StrippedStemBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/StrippedStemBlock.java
+similarity index 77%
+rename from src/main/java/net/minecraft/world/level/block/StrippedStemBlock.java
+rename to src/main/java/nl/martijnmuijsers/paper/block/StrippedStemBlock.java
+index e88632f8005dee66908c773fd4e37c0ac0ec665a..696d924be3255690ae676ed3cb8cf9a7a0d531ad 100644
+--- a/src/main/java/net/minecraft/world/level/block/StrippedStemBlock.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/StrippedStemBlock.java
+@@ -1,7 +1,9 @@
+ // Martijn - bone meal regrows bark
+ 
+-package net.minecraft.world.level.block;
++package nl.martijnmuijsers.paper.block;
+ 
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.material.MaterialColor;
+ import org.jetbrains.annotations.NotNull;
+diff --git a/src/main/java/net/minecraft/world/level/block/StrippedWoodBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/StrippedWoodBlock.java
+similarity index 77%
+rename from src/main/java/net/minecraft/world/level/block/StrippedWoodBlock.java
+rename to src/main/java/nl/martijnmuijsers/paper/block/StrippedWoodBlock.java
+index 4d99b2911919e486f368faad86b4e47f75400b64..9a77c84d6f7c6a608cff04835776fadf611a7f59 100644
+--- a/src/main/java/net/minecraft/world/level/block/StrippedWoodBlock.java
++++ b/src/main/java/nl/martijnmuijsers/paper/block/StrippedWoodBlock.java
+@@ -1,7 +1,9 @@
+ // Martijn - bone meal regrows bark
+ 
+-package net.minecraft.world.level.block;
++package nl.martijnmuijsers.paper.block;
+ 
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.SoundType;
+ import net.minecraft.world.level.material.Material;
+ import net.minecraft.world.level.material.MaterialColor;
+ import org.jetbrains.annotations.NotNull;
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockLoot.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..5a2e8c0c52ee2e6109d85445f1e4242fe6a1b851
@@ -6546,10 +6912,10 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7ea2f16608
+index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5d48a7bb1
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1443 @@
+@@ -0,0 +1,1457 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -6876,15 +7242,15 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +    public static final Block WARPED_STEM_SLAB = registerFakeStemSlab(Blocks.WARPED_STEM, "warped", Blocks.WARPED_SLAB);
 +    public static final Block CRIMSON_STEM_SLAB = registerFakeStemSlab(Blocks.CRIMSON_STEM, "crimson", Blocks.CRIMSON_SLAB);
 +    public static final Block MANGROVE_LOG_SLAB = registerFakeLogSlab(Blocks.MANGROVE_LOG, "mangrove", Blocks.MANGROVE_SLAB);
-+    public static final Block STRIPPED_OAK_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_OAK_LOG, "oak", Blocks.OAK_SLAB);
-+    public static final Block STRIPPED_SPRUCE_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_SPRUCE_LOG, "spruce", Blocks.SPRUCE_SLAB);
-+    public static final Block STRIPPED_BIRCH_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_BIRCH_LOG, "birch", Blocks.BIRCH_SLAB);
-+    public static final Block STRIPPED_JUNGLE_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_JUNGLE_LOG, "jungle", Blocks.JUNGLE_SLAB);
-+    public static final Block STRIPPED_ACACIA_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_ACACIA_LOG, "acacia", Blocks.ACACIA_SLAB);
-+    public static final Block STRIPPED_DARK_OAK_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_DARK_OAK_LOG, "dark_oak", Blocks.DARK_OAK_SLAB);
-+    public static final Block STRIPPED_WARPED_STEM_SLAB = registerFakeStrippedStemSlab(Blocks.STRIPPED_WARPED_STEM, "warped", Blocks.WARPED_SLAB);
-+    public static final Block STRIPPED_CRIMSON_STEM_SLAB = registerFakeStrippedStemSlab(Blocks.STRIPPED_CRIMSON_STEM, "crimson", Blocks.CRIMSON_SLAB);
-+    public static final Block STRIPPED_MANGROVE_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_MANGROVE_LOG, "mangrove", Blocks.MANGROVE_SLAB);
++    public static final Block STRIPPED_OAK_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_OAK_LOG, "oak", Blocks.OAK_SLAB, OAK_LOG_SLAB);
++    public static final Block STRIPPED_SPRUCE_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_SPRUCE_LOG, "spruce", Blocks.SPRUCE_SLAB, SPRUCE_LOG_SLAB);
++    public static final Block STRIPPED_BIRCH_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_BIRCH_LOG, "birch", Blocks.BIRCH_SLAB, BIRCH_LOG_SLAB);
++    public static final Block STRIPPED_JUNGLE_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_JUNGLE_LOG, "jungle", Blocks.JUNGLE_SLAB, JUNGLE_LOG_SLAB);
++    public static final Block STRIPPED_ACACIA_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_ACACIA_LOG, "acacia", Blocks.ACACIA_SLAB, ACACIA_LOG_SLAB);
++    public static final Block STRIPPED_DARK_OAK_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_DARK_OAK_LOG, "dark_oak", Blocks.DARK_OAK_SLAB, DARK_OAK_LOG_SLAB);
++    public static final Block STRIPPED_WARPED_STEM_SLAB = registerFakeStrippedStemSlab(Blocks.STRIPPED_WARPED_STEM, "warped", Blocks.WARPED_SLAB, WARPED_STEM_SLAB);
++    public static final Block STRIPPED_CRIMSON_STEM_SLAB = registerFakeStrippedStemSlab(Blocks.STRIPPED_CRIMSON_STEM, "crimson", Blocks.CRIMSON_SLAB, CRIMSON_STEM_SLAB);
++    public static final Block STRIPPED_MANGROVE_LOG_SLAB = registerFakeStrippedLogSlab(Blocks.STRIPPED_MANGROVE_LOG, "mangrove", Blocks.MANGROVE_SLAB, MANGROVE_LOG_SLAB);
 +    public static final Block OAK_WOOD_SLAB = registerFakeWoodSlab(Blocks.OAK_WOOD, "oak", Blocks.OAK_SLAB);
 +    public static final Block SPRUCE_WOOD_SLAB = registerFakeWoodSlab(Blocks.SPRUCE_WOOD, "spruce", Blocks.SPRUCE_SLAB);
 +    public static final Block BIRCH_WOOD_SLAB = registerFakeWoodSlab(Blocks.BIRCH_WOOD, "birch", Blocks.BIRCH_SLAB);
@@ -6894,15 +7260,15 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +    public static final Block WARPED_HYPHAE_SLAB = registerFakeHyphaeSlab(Blocks.WARPED_HYPHAE, "warped", Blocks.WARPED_SLAB);
 +    public static final Block CRIMSON_HYPHAE_SLAB = registerFakeHyphaeSlab(Blocks.CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_SLAB);
 +    public static final Block MANGROVE_WOOD_SLAB = registerFakeWoodSlab(Blocks.MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_SLAB);
-+    public static final Block STRIPPED_OAK_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_OAK_WOOD, "oak", Blocks.OAK_SLAB);
-+    public static final Block STRIPPED_SPRUCE_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_SPRUCE_WOOD, "spruce", Blocks.SPRUCE_SLAB);
-+    public static final Block STRIPPED_BIRCH_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_BIRCH_WOOD, "birch", Blocks.BIRCH_SLAB);
-+    public static final Block STRIPPED_JUNGLE_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_JUNGLE_WOOD, "jungle", Blocks.JUNGLE_SLAB);
-+    public static final Block STRIPPED_ACACIA_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_ACACIA_WOOD, "acacia", Blocks.ACACIA_SLAB);
-+    public static final Block STRIPPED_DARK_OAK_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_DARK_OAK_WOOD, "dark_oak", Blocks.DARK_OAK_SLAB);
-+    public static final Block STRIPPED_WARPED_HYPHAE_SLAB = registerFakeStrippedHyphaeSlab(Blocks.STRIPPED_WARPED_HYPHAE, "warped", Blocks.WARPED_SLAB);
-+    public static final Block STRIPPED_CRIMSON_HYPHAE_SLAB = registerFakeStrippedHyphaeSlab(Blocks.STRIPPED_CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_SLAB);
-+    public static final Block STRIPPED_MANGROVE_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_SLAB);
++    public static final Block STRIPPED_OAK_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_OAK_WOOD, "oak", Blocks.OAK_SLAB, OAK_WOOD_SLAB);
++    public static final Block STRIPPED_SPRUCE_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_SPRUCE_WOOD, "spruce", Blocks.SPRUCE_SLAB, SPRUCE_WOOD_SLAB);
++    public static final Block STRIPPED_BIRCH_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_BIRCH_WOOD, "birch", Blocks.BIRCH_SLAB, BIRCH_WOOD_SLAB);
++    public static final Block STRIPPED_JUNGLE_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_JUNGLE_WOOD, "jungle", Blocks.JUNGLE_SLAB, JUNGLE_WOOD_SLAB);
++    public static final Block STRIPPED_ACACIA_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_ACACIA_WOOD, "acacia", Blocks.ACACIA_SLAB, ACACIA_WOOD_SLAB);
++    public static final Block STRIPPED_DARK_OAK_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_DARK_OAK_WOOD, "dark_oak", Blocks.DARK_OAK_SLAB, DARK_OAK_WOOD_SLAB);
++    public static final Block STRIPPED_WARPED_HYPHAE_SLAB = registerFakeStrippedHyphaeSlab(Blocks.STRIPPED_WARPED_HYPHAE, "warped", Blocks.WARPED_SLAB, WARPED_HYPHAE_SLAB);
++    public static final Block STRIPPED_CRIMSON_HYPHAE_SLAB = registerFakeStrippedHyphaeSlab(Blocks.STRIPPED_CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_SLAB, CRIMSON_HYPHAE_SLAB);
++    public static final Block STRIPPED_MANGROVE_WOOD_SLAB = registerFakeStrippedWoodSlab(Blocks.STRIPPED_MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_SLAB, MANGROVE_WOOD_SLAB);
 +    public static final Block BONE_SLAB = registerFakeSlab(Blocks.BONE_BLOCK, null, "bone", NamespacedKeyWithoutIntention.minecraft("bone_block"), NamespacedKeyWithoutIntention.minecraft("bone_block_side"), NamespacedKeyWithoutIntention.minecraft("bone_block_top"), null, null, null, Blocks.SMOOTH_QUARTZ_SLAB, null).mineableWithPickaxe();//registerFakeSlabFromYPillarVanillaBlock(Blocks.BONE_BLOCK, null, "bone", "bone_block", Blocks.SMOOTH_QUARTZ_SLAB).mineableWithPickaxe();
 +
 +    /**
@@ -6955,7 +7321,7 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +    ).withCustom2x2SquareRecipe("gunpowder_block", () -> Items.GUNPOWDER, 1);
 +
 +    public static final Block GUNPOWDER_SLAB = registerFakeSlab(GUNPOWDER_BLOCK, "gunpowder", null, Blocks.SMOOTH_STONE_SLAB);
-+    public static final Block PEAT = registerPeat(null, false).withFutureCustomRecipe(() -> {
++    public static final Block PEAT = registerPeat(null, false, null).withFutureCustomRecipe(() -> {
 +        var leafIngredientChoice = StreamSupport.stream(Registry.BLOCK.getTagOrEmpty(BlockTags.LEAVES).spliterator(), false).map(holder -> holder.value()).map(block -> block.asItem()).toArray(ItemLike[]::new);
 +        var recipeKey = ResourceLocation.sucraft("dirt_and_leaves_to_peat");
 +        return new Item.CustomChoiceShapedRecipe(
@@ -6970,7 +7336,7 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +            2
 +        );
 +    });
-+    public static final Block SMOULDERING_PEAT = registerPeat("smouldering", true);
++    public static final Block SMOULDERING_PEAT = registerPeat("smouldering", true, PEAT);
 +    public static final Block PEAT_SLAB = registerFakeSlab(PEAT, "peat", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
 +    public static final Block SCULK_SLAB = registerFakeSlab(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
 +    public static final Block CHISELED_QUARTZ_SLAB = registerFakeSlabFromYPillarVanillaBlock(Blocks.CHISELED_QUARTZ_BLOCK, null, "chiseled_quartz", "chiseled_quartz_block", Blocks.QUARTZ_SLAB).mineableWithPickaxe();
@@ -7211,15 +7577,15 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +    public static final Block WARPED_STEM_STAIRS = registerFakeStemStairs(Blocks.WARPED_STEM, "warped", Blocks.WARPED_STAIRS);
 +    public static final Block CRIMSON_STEM_STAIRS = registerFakeStemStairs(Blocks.CRIMSON_STEM, "crimson", Blocks.CRIMSON_STAIRS);
 +    public static final Block MANGROVE_LOG_STAIRS = registerFakeLogStairs(Blocks.MANGROVE_LOG, "mangrove", Blocks.MANGROVE_STAIRS);
-+    public static final Block STRIPPED_OAK_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_OAK_LOG, "oak", Blocks.OAK_STAIRS);
-+    public static final Block STRIPPED_SPRUCE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_SPRUCE_LOG, "spruce", Blocks.SPRUCE_STAIRS);
-+    public static final Block STRIPPED_BIRCH_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_BIRCH_LOG, "birch", Blocks.BIRCH_STAIRS);
-+    public static final Block STRIPPED_JUNGLE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_JUNGLE_LOG, "jungle", Blocks.JUNGLE_STAIRS);
-+    public static final Block STRIPPED_ACACIA_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_ACACIA_LOG, "acacia", Blocks.ACACIA_STAIRS);
-+    public static final Block STRIPPED_DARK_OAK_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_DARK_OAK_LOG, "dark_oak", Blocks.DARK_OAK_STAIRS);
-+    public static final Block STRIPPED_WARPED_STEM_STAIRS = registerFakeStrippedStemStairs(Blocks.STRIPPED_WARPED_STEM, "warped", Blocks.WARPED_STAIRS);
-+    public static final Block STRIPPED_CRIMSON_STEM_STAIRS = registerFakeStrippedStemStairs(Blocks.STRIPPED_CRIMSON_STEM, "crimson", Blocks.CRIMSON_STAIRS);
-+    public static final Block STRIPPED_MANGROVE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_MANGROVE_LOG, "mangrove", Blocks.MANGROVE_STAIRS);
++    public static final Block STRIPPED_OAK_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_OAK_LOG, "oak", Blocks.OAK_STAIRS, OAK_LOG_STAIRS);
++    public static final Block STRIPPED_SPRUCE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_SPRUCE_LOG, "spruce", Blocks.SPRUCE_STAIRS, SPRUCE_LOG_STAIRS);
++    public static final Block STRIPPED_BIRCH_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_BIRCH_LOG, "birch", Blocks.BIRCH_STAIRS, BIRCH_LOG_STAIRS);
++    public static final Block STRIPPED_JUNGLE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_JUNGLE_LOG, "jungle", Blocks.JUNGLE_STAIRS, JUNGLE_LOG_STAIRS);
++    public static final Block STRIPPED_ACACIA_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_ACACIA_LOG, "acacia", Blocks.ACACIA_STAIRS, ACACIA_LOG_STAIRS);
++    public static final Block STRIPPED_DARK_OAK_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_DARK_OAK_LOG, "dark_oak", Blocks.DARK_OAK_STAIRS, DARK_OAK_LOG_STAIRS);
++    public static final Block STRIPPED_WARPED_STEM_STAIRS = registerFakeStrippedStemStairs(Blocks.STRIPPED_WARPED_STEM, "warped", Blocks.WARPED_STAIRS, WARPED_STEM_STAIRS);
++    public static final Block STRIPPED_CRIMSON_STEM_STAIRS = registerFakeStrippedStemStairs(Blocks.STRIPPED_CRIMSON_STEM, "crimson", Blocks.CRIMSON_STAIRS, CRIMSON_STEM_STAIRS);
++    public static final Block STRIPPED_MANGROVE_LOG_STAIRS = registerFakeStrippedLogStairs(Blocks.STRIPPED_MANGROVE_LOG, "mangrove", Blocks.MANGROVE_STAIRS, MANGROVE_LOG_STAIRS);
 +    public static final Block OAK_WOOD_STAIRS = registerFakeWoodStairs(Blocks.OAK_WOOD, "oak", Blocks.OAK_STAIRS);
 +    public static final Block SPRUCE_WOOD_STAIRS = registerFakeWoodStairs(Blocks.SPRUCE_WOOD, "spruce", Blocks.SPRUCE_STAIRS);
 +    public static final Block BIRCH_WOOD_STAIRS = registerFakeWoodStairs(Blocks.BIRCH_WOOD, "birch", Blocks.BIRCH_STAIRS);
@@ -7229,15 +7595,15 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +    public static final Block WARPED_HYPHAE_STAIRS = registerFakeHyphaeStairs(Blocks.WARPED_HYPHAE, "warped", Blocks.WARPED_STAIRS);
 +    public static final Block CRIMSON_HYPHAE_STAIRS = registerFakeHyphaeStairs(Blocks.CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_STAIRS);
 +    public static final Block MANGROVE_WOOD_STAIRS = registerFakeWoodStairs(Blocks.MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_STAIRS);
-+    public static final Block STRIPPED_OAK_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_OAK_WOOD, "oak", Blocks.OAK_STAIRS);
-+    public static final Block STRIPPED_SPRUCE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_SPRUCE_WOOD, "spruce", Blocks.SPRUCE_STAIRS);
-+    public static final Block STRIPPED_BIRCH_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_BIRCH_WOOD, "birch", Blocks.BIRCH_STAIRS);
-+    public static final Block STRIPPED_JUNGLE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_JUNGLE_WOOD, "jungle", Blocks.JUNGLE_STAIRS);
-+    public static final Block STRIPPED_ACACIA_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_ACACIA_WOOD, "acacia", Blocks.ACACIA_STAIRS);
-+    public static final Block STRIPPED_DARK_OAK_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_DARK_OAK_WOOD, "dark_oak", Blocks.DARK_OAK_STAIRS);
-+    public static final Block STRIPPED_WARPED_HYPHAE_STAIRS = registerFakeStrippedHyphaeStairs(Blocks.STRIPPED_WARPED_HYPHAE, "warped", Blocks.WARPED_STAIRS);
-+    public static final Block STRIPPED_CRIMSON_HYPHAE_STAIRS = registerFakeStrippedHyphaeStairs(Blocks.STRIPPED_CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_STAIRS);
-+    public static final Block STRIPPED_MANGROVE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_STAIRS);
++    public static final Block STRIPPED_OAK_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_OAK_WOOD, "oak", Blocks.OAK_STAIRS, OAK_WOOD_STAIRS);
++    public static final Block STRIPPED_SPRUCE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_SPRUCE_WOOD, "spruce", Blocks.SPRUCE_STAIRS, SPRUCE_WOOD_STAIRS);
++    public static final Block STRIPPED_BIRCH_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_BIRCH_WOOD, "birch", Blocks.BIRCH_STAIRS, BIRCH_WOOD_STAIRS);
++    public static final Block STRIPPED_JUNGLE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_JUNGLE_WOOD, "jungle", Blocks.JUNGLE_STAIRS, JUNGLE_WOOD_STAIRS);
++    public static final Block STRIPPED_ACACIA_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_ACACIA_WOOD, "acacia", Blocks.ACACIA_STAIRS, ACACIA_WOOD_STAIRS);
++    public static final Block STRIPPED_DARK_OAK_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_DARK_OAK_WOOD, "dark_oak", Blocks.DARK_OAK_STAIRS, DARK_OAK_WOOD_STAIRS);
++    public static final Block STRIPPED_WARPED_HYPHAE_STAIRS = registerFakeStrippedHyphaeStairs(Blocks.STRIPPED_WARPED_HYPHAE, "warped", Blocks.WARPED_STAIRS, WARPED_HYPHAE_STAIRS);
++    public static final Block STRIPPED_CRIMSON_HYPHAE_STAIRS = registerFakeStrippedHyphaeStairs(Blocks.STRIPPED_CRIMSON_HYPHAE, "crimson", Blocks.CRIMSON_STAIRS, CRIMSON_HYPHAE_STAIRS);
++    public static final Block STRIPPED_MANGROVE_WOOD_STAIRS = registerFakeStrippedWoodStairs(Blocks.STRIPPED_MANGROVE_WOOD, "mangrove", Blocks.MANGROVE_STAIRS, MANGROVE_WOOD_STAIRS);
 +    public static final Block ANDESITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(ANDESITE_PILLAR, "andesite", Blocks.POLISHED_ANDESITE_STAIRS);
 +    public static final Block CALCITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(CALCITE_PILLAR, "calcite", Blocks.QUARTZ_STAIRS);
 +    public static final Block DIORITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(DIORITE_PILLAR, "diorite", Blocks.POLISHED_DIORITE_STAIRS);
@@ -7487,6 +7853,13 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +        if (fallback == null) {
 +            fallback = host;
 +        }
++        var blockProperties = properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties;
++        @NotNull Block block;
++        if (fullBlock instanceof StrippedBlock) {
++            block = new StrippedSlabBlock(blockProperties);
++        } else {
++            block = new SlabBlock(blockProperties);
++        }
 +        return register(
 +            type + "_slab",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -7495,7 +7868,7 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForSlabReplacedBySlab(doubleSlabModelCreation, sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture)
 +                .withRealItemRuleFromHostBlock(),
-+            new SlabBlock(properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties).withAddedTagsLike(fullBlock).slab(),
++            block.withAddedTagsLike(fullBlock).slab(),
 +            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
 +        ).withCustomSlabStonecutterRecipe(fullBlock).withCustomSlabCraftingRecipe(fullBlock);
 +    }
@@ -7503,6 +7876,13 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +    private static @NotNull Block registerFakeStairs(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull Texture sideTexture, @Nullable Texture bottomTexture, @Nullable Texture topTexture, @NotNull Block host, @Nullable Block fallback) {
 +        if (fallback == null) {
 +            fallback = host;
++        }
++        var blockProperties = properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties;
++        @NotNull Block block;
++        if (fullBlock instanceof StrippedBlock) {
++            block = new StrippedStairBlock(fullBlock.defaultBlockState(), blockProperties);
++        } else {
++            block = new StairBlock(fullBlock.defaultBlockState(), blockProperties);
 +        }
 +        return register(
 +            type + "_stairs",
@@ -7512,7 +7892,7 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForStairsReplacedByStairs(sideTexture, bottomTexture, topTexture)
 +                .withRealItemRuleFromHostBlock(),
-+            new StairBlock(fullBlock.defaultBlockState(), properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties).withAddedTagsLike(fullBlock).stairs(),
++            block.withAddedTagsLike(fullBlock).stairs(),
 +            SuCraftBlockLoot::dropSelf
 +        ).withCustomOneToOneStonecutterRecipe(fullBlock).withCustomStairsCraftingRecipe(fullBlock);
 +    }
@@ -7695,28 +8075,28 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +        return registerFakeLogOrStemStairs(fullBlock, type + "_stem", host);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedLogOrStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeLogOrStemSlab(fullBlock, "stripped_" + type, host);
++    private static @NotNull Block registerFakeStrippedLogOrStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return ((StrippedSlabBlock) registerFakeLogOrStemSlab(fullBlock, "stripped_" + type, host)).withUnstrippedBlock(unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedLogOrStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeLogOrStemStairs(fullBlock, "stripped_" + type, host);
++    private static @NotNull Block registerFakeStrippedLogOrStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return ((StrippedStairBlock) registerFakeLogOrStemStairs(fullBlock, "stripped_" + type, host)).withUnstrippedBlock(unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedLogSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStrippedLogOrStemSlab(fullBlock, type + "_log", host);
++    private static @NotNull Block registerFakeStrippedLogSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return registerFakeStrippedLogOrStemSlab(fullBlock, type + "_log", host, unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedLogStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStrippedLogOrStemStairs(fullBlock, type + "_log", host);
++    private static @NotNull Block registerFakeStrippedLogStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return registerFakeStrippedLogOrStemStairs(fullBlock, type + "_log", host, unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStrippedLogOrStemSlab(fullBlock, type + "_stem", host);
++    private static @NotNull Block registerFakeStrippedStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return  registerFakeStrippedLogOrStemSlab(fullBlock, type + "_stem", host, unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStrippedLogOrStemStairs(fullBlock, type + "_stem", host);
++    private static @NotNull Block registerFakeStrippedStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return registerFakeStrippedLogOrStemStairs(fullBlock, type + "_stem", host, unstripped);
 +    }
 +
 +    private static @NotNull Block registerFakeWoodOrHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
@@ -7746,28 +8126,28 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +        return registerFakeWoodOrHyphaeStairs(fullBlock, type + "_hyphae", type + "_stem", host);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedWoodOrHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
-+        return registerFakeWoodOrHyphaeSlab(fullBlock, "stripped_" + type, "stripped_" + textureType, host);
++    private static @NotNull Block registerFakeStrippedWoodOrHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host, @NotNull Block unstripped) {
++        return ((StrippedSlabBlock) registerFakeWoodOrHyphaeSlab(fullBlock, "stripped_" + type, "stripped_" + textureType, host)).withUnstrippedBlock(unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedWoodOrHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
-+        return registerFakeWoodOrHyphaeStairs(fullBlock, "stripped_" + type, "stripped_" + textureType, host);
++    private static @NotNull Block registerFakeStrippedWoodOrHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host, @NotNull Block unstripped) {
++        return ((StrippedStairBlock) registerFakeWoodOrHyphaeStairs(fullBlock, "stripped_" + type, "stripped_" + textureType, host)).withUnstrippedBlock(unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedWoodSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStrippedWoodOrHyphaeSlab(fullBlock, type + "_wood", type + "_log", host);
++    private static @NotNull Block registerFakeStrippedWoodSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return registerFakeStrippedWoodOrHyphaeSlab(fullBlock, type + "_wood", type + "_log", host, unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedWoodStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStrippedWoodOrHyphaeStairs(fullBlock, type + "_wood", type + "_log", host);
++    private static @NotNull Block registerFakeStrippedWoodStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return registerFakeStrippedWoodOrHyphaeStairs(fullBlock, type + "_wood", type + "_log", host, unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStrippedWoodOrHyphaeSlab(fullBlock, type + "_hyphae", type + "_stem", host);
++    private static @NotNull Block registerFakeStrippedHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return registerFakeStrippedWoodOrHyphaeSlab(fullBlock, type + "_hyphae", type + "_stem", host, unstripped);
 +    }
 +
-+    private static @NotNull Block registerFakeStrippedHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStrippedWoodOrHyphaeStairs(fullBlock, type + "_hyphae", type + "_stem", host);
++    private static @NotNull Block registerFakeStrippedHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Block unstripped) {
++        return registerFakeStrippedWoodOrHyphaeStairs(fullBlock, type + "_hyphae", type + "_stem", host, unstripped);
 +    }
 +
 +    /**
@@ -7958,7 +8338,7 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +        return registerFakeStairs(fullBlock, "raw_" + type, "raw_" + type + "_block", host).mineableWithPickaxe();
 +    }
 +
-+    private static @NotNull Block registerPeat(@NotNull String type, boolean lit) {
++    private static @NotNull Block registerPeat(@NotNull String type, boolean lit, @Nullable Block dropWithoutSilkTouch) {
 +        return register(
 +            (type == null ? "" : type + "_") + "peat",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -7967,7 +8347,7 @@ index 0000000000000000000000000000000000000000..fbffa4d43e670cb2717ba5360e1c0a7e
 +                .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
 +                .withFullBlockBoundingBoxItem(),
 +            new PeatBlock(BlockBehaviour.Properties.of(Material.DIRT, MaterialColor.DIRT).strength(1.0F, 2.0F).sound(SoundType.GRAVEL), lit).breakBeforeClientKnowsToBreak().mineableWithShovel(),
-+            SuCraftBlockLoot::dropSelf
++            dropWithoutSilkTouch == null ? SuCraftBlockLoot::dropSelf : block -> SuCraftBlockLoot.dropSingleItemAndSingleItemWhenSilkTouch(dropWithoutSilkTouch, block)
 +        );
 +    }
 +
