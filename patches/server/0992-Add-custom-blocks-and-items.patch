@@ -312,11 +312,14 @@ index f7c856535cc6a1f010d82f0a0b31a34978854310..69bb527caa960df890e3dee9910f9543
      }
  
 diff --git a/src/main/java/net/minecraft/core/MappedRegistry.java b/src/main/java/net/minecraft/core/MappedRegistry.java
-index 16c37e5f8af31c366286254b210439082cc418dc..9fd30fd735bed9fee236fb17126653d47060541e 100644
+index 16c37e5f8af31c366286254b210439082cc418dc..7c8c733a6d9f7978d191c6ae64b85cd43bbadf55 100644
 --- a/src/main/java/net/minecraft/core/MappedRegistry.java
 +++ b/src/main/java/net/minecraft/core/MappedRegistry.java
-@@ -35,9 +35,12 @@ import net.minecraft.tags.TagKey;
+@@ -33,12 +33,17 @@ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.tags.StructureTags;
+ import net.minecraft.tags.TagKey;
  import net.minecraft.util.RandomSource;
++import net.minecraft.world.item.Item;
  import net.minecraft.world.level.biome.Biome;
  import net.minecraft.world.level.biome.Biomes;
 +import net.minecraft.world.level.block.Block;
@@ -326,9 +329,11 @@ index 16c37e5f8af31c366286254b210439082cc418dc..9fd30fd735bed9fee236fb17126653d4
 +import nl.martijnmuijsers.paper.block.SuCraftBlockTagsProvider;
 +import nl.martijnmuijsers.paper.block.SuCraftObservableBlockTagsSpreader;
  import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
++import nl.martijnmuijsers.paper.item.SuCraftItemTagsProvider;
  import nl.martijnmuijsers.paper.structure.SuCraftBuiltinStructures;
  import nl.martijnmuijsers.paper.structure.SuCraftStructureTagsProvider;
-@@ -394,6 +397,10 @@ public class MappedRegistry<T> extends WritableRegistry<T> {
+ import org.apache.commons.lang3.Validate;
+@@ -394,6 +399,12 @@ public class MappedRegistry<T> extends WritableRegistry<T> {
              tagEntries = ((SuCraftTagsProvider<T>) new SuCraftStructureTagsProvider((Registry<Structure>) this)).run(tagEntries);
          } else if (this.key().equals(BIOME_REGISTRY)) {
              tagEntries = ((SuCraftTagsProvider<T>) new SuCraftBiomeTagsProvider((Registry<Biome>) this)).run(tagEntries);
@@ -336,6 +341,8 @@ index 16c37e5f8af31c366286254b210439082cc418dc..9fd30fd735bed9fee236fb17126653d4
 +            tagEntries = ((SuCraftTagsProvider<T>) new SuCraftBlockTagsProvider((Registry<Block>) this)).run(tagEntries);
 +            var spreader = (SuCraftTagsProvider<T>) new SuCraftObservableBlockTagsSpreader((Registry<Block>) this);
 +            tagEntries = spreader.run(tagEntries);
++        } else if (this.key().equals(ITEM_REGISTRY)) {
++            tagEntries = ((SuCraftTagsProvider<T>) new SuCraftItemTagsProvider((Registry<Item>) this)).run(tagEntries);
          }
          // Martijn end - custom resource
          tagEntries.forEach((tag, entries) -> {
@@ -3408,6 +3415,91 @@ index 03a6a99dcc0c8fcc32776dd49cf6092b899bf6ed..7056462eda051ba95abd03bdff9f24bc
          });
      }
  }
+diff --git a/src/main/java/net/minecraft/world/item/DyeItem.java b/src/main/java/net/minecraft/world/item/DyeItem.java
+index 6a492ac3e67c743210d632aaddb5d5e67948468d..d698b7d62f9e697bda2cf9ce4dbf3be38e5db166 100644
+--- a/src/main/java/net/minecraft/world/item/DyeItem.java
++++ b/src/main/java/net/minecraft/world/item/DyeItem.java
+@@ -2,14 +2,25 @@ package net.minecraft.world.item;
+ 
+ import com.google.common.collect.Maps;
+ import java.util.Map;
++
++import net.minecraft.core.BlockPos;
+ import net.minecraft.sounds.SoundEvents;
+ import net.minecraft.sounds.SoundSource;
++import net.minecraft.tags.BlockTags;
+ import net.minecraft.world.InteractionHand;
+ import net.minecraft.world.InteractionResult;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.LivingEntity;
+ import net.minecraft.world.entity.animal.Sheep;
+ import net.minecraft.world.entity.player.Player;
++import net.minecraft.world.item.context.UseOnContext;
++import net.minecraft.world.level.Level;
++import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.EndPortalFrameBlock;
++import net.minecraft.world.level.block.state.BlockState;
++import nl.martijnmuijsers.paper.block.SuCraftBlockTags;
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ import org.bukkit.event.entity.SheepDyeWoolEvent; // CraftBukkit
+ 
+ public class DyeItem extends Item {
+@@ -23,6 +34,54 @@ public class DyeItem extends Item {
+         DyeItem.ITEM_BY_COLOR.put(color, this);
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    @Override
++    public InteractionResult useOn(UseOnContext context) {
++        Level world = context.getLevel();
++        BlockPos blockposition = context.getClickedPos();
++        BlockState iblockdata = world.getBlockState(blockposition);
++        if (iblockdata.is(Blocks.SOUL_FIRE) || iblockdata.is(SuCraftBlockTags.COLORED_FIRE)) {
++            if (world.isClientSide) {
++                return InteractionResult.SUCCESS;
++            } else {
++
++                Block block1 = switch (this.dyeColor) {
++                    case WHITE -> SuCraftBlocks.WHITE_FIRE;
++                    case ORANGE -> SuCraftBlocks.ORANGE_FIRE;
++                    case MAGENTA -> SuCraftBlocks.MAGENTA_FIRE;
++                    case LIGHT_BLUE -> SuCraftBlocks.LIGHT_BLUE_FIRE;
++                    case YELLOW -> SuCraftBlocks.YELLOW_FIRE;
++                    case LIME -> SuCraftBlocks.LIME_FIRE;
++                    case PINK -> SuCraftBlocks.PINK_FIRE;
++                    case GRAY -> SuCraftBlocks.GRAY_FIRE;
++                    case LIGHT_GRAY -> SuCraftBlocks.LIGHT_GRAY_FIRE;
++                    case CYAN -> SuCraftBlocks.CYAN_FIRE;
++                    case PURPLE -> SuCraftBlocks.PURPLE_FIRE;
++                    case BLUE -> SuCraftBlocks.BLUE_FIRE;
++                    case BROWN -> SuCraftBlocks.BROWN_FIRE;
++                    case GREEN -> SuCraftBlocks.GREEN_FIRE;
++                    case RED -> SuCraftBlocks.RED_FIRE;
++                    case BLACK -> SuCraftBlocks.BLACK_FIRE;
++                };
++                if (iblockdata.is(block1)) {
++                    return InteractionResult.PASS;
++                }
++                BlockState iblockdata1 = block1.defaultBlockState();
++
++                world.setBlock(blockposition, iblockdata1, 2);
++                context.getItemInHand().shrink(1);
++
++                return InteractionResult.CONSUME;
++
++            }
++        } else {
++            return InteractionResult.PASS;
++        }
++    }
++
++    // Martijn end - custom blocks and items
++
+     @Override
+     public InteractionResult interactLivingEntity(ItemStack stack, Player user, LivingEntity entity, InteractionHand hand) {
+         if (entity instanceof Sheep) {
 diff --git a/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java b/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java
 index 81994943198b92a3975910e1c50b9579912ff008..087e6b186015d18e62f2379205b5515a09202749 100644
 --- a/src/main/java/net/minecraft/world/item/FlintAndSteelItem.java
@@ -4295,7 +4387,7 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
      }
  
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 224ce424b9a22548212ac157ec273c6dd80d6cfb..b03ff0ce6c3b2a1843c1119da78b34e46f296871 100644
+index 224ce424b9a22548212ac157ec273c6dd80d6cfb..fe5175b74e7196f6b63798f05fa9cd9bbfbd0e91 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
 @@ -6,10 +6,14 @@ import com.google.common.cache.LoadingCache;
@@ -4384,7 +4476,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..b03ff0ce6c3b2a1843c1119da78b34e4
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +164,413 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +164,481 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -4511,12 +4603,80 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..b03ff0ce6c3b2a1843c1119da78b34e4
 +        return this.withTag(() -> SuCraftBlockTags.BOOKSHELVES);
 +    }
 +
++    public @NotNull Block bookshelfFullBlock() {
++        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_FULL_BLOCKS);
++    }
++
 +    public @NotNull Block bookshelfSlab() {
 +        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_SLABS).slab();
 +    }
 +
 +    public @NotNull Block bookshelfStairs() {
 +        return this.withTag(() -> SuCraftBlockTags.BOOKSHELF_STAIRS).stairs();
++    }
++
++    public @NotNull Block woolFullBlock() {
++        return this.withTag(() -> SuCraftBlockTags.WOOL_FULL_BLOCKS);
++    }
++
++    public @NotNull Block woolSlab() {
++        return this.withTag(() -> SuCraftBlockTags.WOOL_SLABS).slab();
++    }
++
++    public @NotNull Block woolStairs() {
++        return this.withTag(() -> SuCraftBlockTags.WOOL_STAIRS).stairs();
++    }
++
++    public @NotNull Block logFullBlock() {
++        return this.withTag(() -> SuCraftBlockTags.LOG_FULL_BLOCKS);
++    }
++
++    public @NotNull Block logSlab() {
++        return this.withTag(() -> SuCraftBlockTags.LOG_SLABS).slab();
++    }
++
++    public @NotNull Block logStairs() {
++        return this.withTag(() -> SuCraftBlockTags.LOG_STAIRS).stairs();
++    }
++
++    public @NotNull Block plankFullBlock() {
++        return this.withTag(() -> SuCraftBlockTags.PLANK_FULL_BLOCKS).planks();
++    }
++
++    public @NotNull Block dyedPlanks() {
++        return this.withTag(() -> SuCraftBlockTags.DYED_PLANKS).planks();
++    }
++
++    public @NotNull Block dyedPlankFullBlock() {
++        return this.withTag(() -> SuCraftBlockTags.DYED_PLANK_FULL_BLOCKS).dyedPlanks().plankFullBlock();
++    }
++
++    public @NotNull Block dyedPlankSlab() {
++        return this.withTag(() -> SuCraftBlockTags.DYED_PLANK_SLABS).dyedPlanks().woodenSlab();
++    }
++
++    public @NotNull Block dyedPlankStairs() {
++        return this.withTag(() -> SuCraftBlockTags.DYED_PLANK_STAIRS).dyedPlanks().woodenStairs();
++    }
++
++    public @NotNull Block coloredFire() {
++        return this.withTag(() -> SuCraftBlockTags.COLORED_FIRE).fire();
++    }
++
++    public @NotNull Block peat() {
++        return this.withTag(() -> SuCraftBlockTags.PEAT);
++    }
++
++    public @NotNull Block peatFullBlock() {
++        return this.withTag(() -> SuCraftBlockTags.PEAT_FULL_BLOCKS).peat();
++    }
++
++    public @NotNull Block peatSlab() {
++        return this.withTag(() -> SuCraftBlockTags.PEAT_SLABS).peat();
++    }
++
++    public @NotNull Block peatStairs() {
++        return this.withTag(() -> SuCraftBlockTags.PEAT_STAIRS).peat();
 +    }
 +
 +    public @NotNull Block withAddedTagsLike(@NotNull Block block) {
@@ -4798,7 +4958,7 @@ index 224ce424b9a22548212ac157ec273c6dd80d6cfb..b03ff0ce6c3b2a1843c1119da78b34e4
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +1083,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +1151,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -4934,7 +5094,7 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..38e27d177dfb3942e8f2c66849bb2b71
      }
  }
 diff --git a/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java b/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
-index f4ee3ce287528337a0f9a3b612c157254f895a58..4687e7fc66bd22421962ac9f63cb7297f1a5443d 100644
+index f4ee3ce287528337a0f9a3b612c157254f895a58..ac96e9274929850c61d5bc499e2ba9eb2eef8cbb 100644
 --- a/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
 +++ b/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
 @@ -5,6 +5,7 @@ import javax.annotation.Nullable;
@@ -4966,7 +5126,7 @@ index f4ee3ce287528337a0f9a3b612c157254f895a58..4687e7fc66bd22421962ac9f63cb7297
 -        return world.getBlockState(tablePos.offset(bookshelfOffset)).is(Blocks.BOOKSHELF) && world.isEmptyBlock(tablePos.offset(bookshelfOffset.getX() / 2, bookshelfOffset.getY(), bookshelfOffset.getZ() / 2));
 +        // Martijn start - custom blocks and items
 +        var blockState = world.getBlockState(tablePos.offset(bookshelfOffset));
-+        return (blockState.is(SuCraftBlockTags.BOOKSHELVES) || blockState.is(SuCraftBlockTags.BOOKSHELF_STAIRS) || (blockState.is(SuCraftBlockTags.BOOKSHELF_SLABS) && blockState.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE)) && world.isEmptyBlock(tablePos.offset(bookshelfOffset.getX() / 2, bookshelfOffset.getY(), bookshelfOffset.getZ() / 2));
++        return (blockState.is(SuCraftBlockTags.BOOKSHELF_FULL_BLOCKS) || blockState.is(SuCraftBlockTags.BOOKSHELF_STAIRS) || (blockState.is(SuCraftBlockTags.BOOKSHELF_SLABS) && blockState.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE)) && world.isEmptyBlock(tablePos.offset(bookshelfOffset.getX() / 2, bookshelfOffset.getY(), bookshelfOffset.getZ() / 2));
 +        // Martijn end - custom blocks and items
      }
  
@@ -5307,6 +5467,85 @@ index 0a95842c53a9d0286c57bcb42db97e468e30fb7d..52e1e78adc7c3fe69edb9eec0242a4e3
      public static final DirectionProperty FACING = HorizontalDirectionalBlock.FACING;
      protected static final VoxelShape SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 9.0D, 16.0D);
  
+diff --git a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index 4977f3fad3bfc12fd4c5f9fbe8beea2895247c57..b20d2ca196a429554e7e1952b827f2e1543ad284 100644
+--- a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -45,6 +45,9 @@ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.phys.Vec3;
+ // CraftBukkit start
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
++import nl.martijnmuijsers.paper.item.SuCraftItemTags;
++import nl.martijnmuijsers.paper.item.SuCraftItems;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+@@ -143,11 +146,27 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+ 
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.LAVA_BUCKET, 20000);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.COAL_BLOCK, 16000);
++        // Martijn start - custom blocks and items
++        AbstractFurnaceBlockEntity.add(map, (ItemLike) SuCraftBlocks.COAL_STAIRS, 16000);
++        AbstractFurnaceBlockEntity.add(map, (ItemLike) SuCraftBlocks.COAL_SLAB, 8000);
++        AbstractFurnaceBlockEntity.add(map, (ItemLike) SuCraftBlocks.CHARCOAL_BLOCK, 16000);
++        AbstractFurnaceBlockEntity.add(map, (ItemLike) SuCraftBlocks.CHARCOAL_STAIRS, 16000);
++        AbstractFurnaceBlockEntity.add(map, (ItemLike) SuCraftBlocks.CHARCOAL_SLAB, 8000);
++        // Martijn end - custom blocks and items
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.BLAZE_ROD, 2400);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.COAL, 1600);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.CHARCOAL, 1600);
+-        AbstractFurnaceBlockEntity.add(map, ItemTags.LOGS, 300);
+-        AbstractFurnaceBlockEntity.add(map, ItemTags.PLANKS, 300);
++        // Martijn start - custom blocks and items
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.PEAT_FULL_BLOCKS, 450);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.PEAT_STAIRS, 450);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.PEAT_SLABS, 225);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.LOG_FULL_BLOCKS, 300);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.LOG_STAIRS, 300);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.LOG_SLABS, 150);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.PLANK_FULL_BLOCKS, 300);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.DYED_PLANK_STAIRS, 300);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.DYED_PLANK_SLABS, 150);
++        // Martijn end - custom blocks and items
+         AbstractFurnaceBlockEntity.add(map, ItemTags.WOODEN_STAIRS, 300);
+         AbstractFurnaceBlockEntity.add(map, ItemTags.WOODEN_SLABS, 150);
+         AbstractFurnaceBlockEntity.add(map, ItemTags.WOODEN_TRAPDOORS, 300);
+@@ -167,7 +186,11 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.ACACIA_FENCE_GATE, 300);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.MANGROVE_FENCE_GATE, 300);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.NOTE_BLOCK, 300);
+-        AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.BOOKSHELF, 300);
++        // Martijn start - custom blocks and items
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.BOOKSHELF_FULL_BLOCKS, 300);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.BOOKSHELF_STAIRS, 300);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.BOOKSHELF_SLABS, 150);
++        // Martijn end - custom blocks and items
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.LECTERN, 300);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.JUKEBOX, 300);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.CHEST, 300);
+@@ -186,13 +209,20 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.WOODEN_PICKAXE, 200);
+         AbstractFurnaceBlockEntity.add(map, ItemTags.WOODEN_DOORS, 200);
+         AbstractFurnaceBlockEntity.add(map, ItemTags.BOATS, 1200);
+-        AbstractFurnaceBlockEntity.add(map, ItemTags.WOOL, 100);
++        // Martijn start - custom blocks and items
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.WOOL_FULL_BLOCKS, 100);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.WOOL_STAIRS, 100);
++        AbstractFurnaceBlockEntity.add(map, SuCraftItemTags.WOOL_SLABS, 50);
++        // Martijn end - custom blocks and items
+         AbstractFurnaceBlockEntity.add(map, ItemTags.WOODEN_BUTTONS, 100);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.STICK, 100);
+         AbstractFurnaceBlockEntity.add(map, ItemTags.SAPLINGS, 100);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.BOWL, 100);
+         AbstractFurnaceBlockEntity.add(map, ItemTags.WOOL_CARPETS, 67);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.DRIED_KELP_BLOCK, 4001);
++        // Martijn start - custom blocks and items
++        AbstractFurnaceBlockEntity.add(map, (ItemLike) SuCraftBlocks.DRIED_KELP_SLAB, 2001);
++        // Martijn end - custom blocks and items
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.CROSSBOW, 300);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.BAMBOO, 50);
+         AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.DEAD_BUSH, 100);
 diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
 index e8eb061181e9b5e6bde99253079864626bc8ad4b..23b6f79c868484421b8ee80dd2ec0e09b1b18183 100644
 --- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
@@ -6281,10 +6520,10 @@ index 0000000000000000000000000000000000000000..b5c3f679c8a3d0abbd6dbccfba6c7437
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/PeatBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/PeatBlock.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..c04688f3a34cf0d1460283d76d4aa66f29b481f4
+index 0000000000000000000000000000000000000000..9f5d1433e5550428406b27350f4e86991d45af91
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/PeatBlock.java
-@@ -0,0 +1,25 @@
+@@ -0,0 +1,26 @@
 +package nl.martijnmuijsers.paper.block;
 +
 +import net.minecraft.world.level.block.Block;
@@ -6306,7 +6545,8 @@ index 0000000000000000000000000000000000000000..c04688f3a34cf0d1460283d76d4aa66f
 +    }
 +
 +    public static boolean canLightPeat(BlockState state) {
-+        return !isLitPeat(state);
++        Block block = state.getBlock();
++        return block instanceof PeatBlock peatBlock && !peatBlock.lit;
 +    }
 +
 +}
@@ -6646,10 +6886,10 @@ index 0000000000000000000000000000000000000000..5a2e8c0c52ee2e6109d85445f1e4242f
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b06ae6de007ce4b06310b28c63fb82214bfb5c63
+index 0000000000000000000000000000000000000000..974406bb0afe3eaf895099a8cb24cebf33a1b5f3
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,44 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.block;
@@ -6657,6 +6897,7 @@ index 0000000000000000000000000000000000000000..b06ae6de007ce4b06310b28c63fb8221
 +import net.minecraft.core.Registry;
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.tags.TagKey;
++import net.minecraft.world.item.Item;
 +import net.minecraft.world.level.biome.Biome;
 +import net.minecraft.world.level.block.Block;
 +
@@ -6667,8 +6908,25 @@ index 0000000000000000000000000000000000000000..b06ae6de007ce4b06310b28c63fb8221
 +
 +    // Martijn start - custom blocks and items
 +    public static final TagKey<Block> BOOKSHELVES = create("bookshelves");
++    public static final TagKey<Block> BOOKSHELF_FULL_BLOCKS = create("bookshelf_full_blocks");
 +    public static final TagKey<Block> BOOKSHELF_SLABS = create("bookshelf_slabs");
 +    public static final TagKey<Block> BOOKSHELF_STAIRS = create("bookshelf_stairs");
++    public static final TagKey<Block> WOOL_FULL_BLOCKS = create("wool_full_blocks");
++    public static final TagKey<Block> WOOL_SLABS = create("wool_slabs");
++    public static final TagKey<Block> WOOL_STAIRS = create("wool_stairs");
++    public static final TagKey<Block> LOG_FULL_BLOCKS = create("log_full_blocks");
++    public static final TagKey<Block> LOG_SLABS = create("log_slabs");
++    public static final TagKey<Block> LOG_STAIRS = create("log_stairs");
++    public static final TagKey<Block> PLANK_FULL_BLOCKS = create("plank_full_blocks");
++    public static final TagKey<Block> DYED_PLANKS = create("dyed_planks");
++    public static final TagKey<Block> DYED_PLANK_FULL_BLOCKS = create("dyed_plank_full_blocks");
++    public static final TagKey<Block> DYED_PLANK_SLABS = create("dyed_plank_slabs");
++    public static final TagKey<Block> DYED_PLANK_STAIRS = create("dyed_plank_stairs");
++    public static final TagKey<Block> COLORED_FIRE = create("colored_fire");
++    public static final TagKey<Block> PEAT = create("peat");
++    public static final TagKey<Block> PEAT_FULL_BLOCKS = create("peat_full_blocks");
++    public static final TagKey<Block> PEAT_SLABS = create("peat_slabs");
++    public static final TagKey<Block> PEAT_STAIRS = create("peat_stairs");
 +    // Martijn end - custom blocks and items
 +
 +    private static TagKey<Block> create(String id) {
@@ -6678,7 +6936,7 @@ index 0000000000000000000000000000000000000000..b06ae6de007ce4b06310b28c63fb8221
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435ebadc65df
+index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e80127dc3a
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
 @@ -0,0 +1,228 @@
@@ -6686,7 +6944,6 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +
 +package nl.martijnmuijsers.paper.block;
 +
-+import it.unimi.dsi.fastutil.Pair;
 +import net.minecraft.core.Holder;
 +import net.minecraft.core.Registry;
 +import net.minecraft.server.MinecraftServer;
@@ -6697,15 +6954,10 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +import net.minecraft.world.level.block.SlabBlock;
 +import net.minecraft.world.level.block.StairBlock;
 +import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
-+import org.bukkit.Tag;
 +import org.jetbrains.annotations.NotNull;
 +
-+import java.util.Collections;
 +import java.util.List;
 +import java.util.Map;
-+import java.util.Set;
-+import java.util.HashMap;
-+import java.util.HashSet;
 +import java.util.function.Supplier;
 +
 +/**
@@ -6724,6 +6976,10 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +        // Martijn start - custom blocks and items
 +
 +        this.tag(SuCraftBlockTags.BOOKSHELVES).add(Blocks.BOOKSHELF);
++        this.tag(SuCraftBlockTags.BOOKSHELF_FULL_BLOCKS).add(Blocks.BOOKSHELF);
++        this.tag(SuCraftBlockTags.LOG_FULL_BLOCKS).addTag(BlockTags.LOGS_THAT_BURN).addTag(BlockTags.CRIMSON_STEMS).addTag(BlockTags.WARPED_STEMS);
++        this.tag(SuCraftBlockTags.WOOL_FULL_BLOCKS).add(Blocks.RED_WOOL, Blocks.ORANGE_WOOL, Blocks.YELLOW_WOOL, Blocks.LIME_WOOL, Blocks.GREEN_WOOL, Blocks.CYAN_WOOL, Blocks.LIGHT_BLUE_WOOL, Blocks.BLUE_WOOL, Blocks.BLACK_WOOL, Blocks.GRAY_WOOL, Blocks.LIGHT_GRAY_WOOL, Blocks.WHITE_WOOL, Blocks.BROWN_WOOL, Blocks.PURPLE_WOOL, Blocks.MAGENTA_WOOL, Blocks.PINK_WOOL);
++        this.tag(SuCraftBlockTags.PLANK_FULL_BLOCKS).add(Blocks.OAK_PLANKS, Blocks.SPRUCE_PLANKS, Blocks.BIRCH_PLANKS, Blocks.JUNGLE_PLANKS, Blocks.ACACIA_PLANKS, Blocks.DARK_OAK_PLANKS, Blocks.WARPED_PLANKS, Blocks.CRIMSON_PLANKS, Blocks.MANGROVE_PLANKS);
 +
 +//        final List<TagKey<Block>> mineableTags = List.of(BlockTags.MINEABLE_WITH_AXE, BlockTags.MINEABLE_WITH_HOE, BlockTags.MINEABLE_WITH_PICKAXE, BlockTags.MINEABLE_WITH_SHOVEL);
 +//        for (TagKey<Block> tag : mineableTags) {
@@ -6738,6 +6994,8 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +                }
 +            });
 +        }
++
++        this.tag(BlockTags.INFINIBURN_OVERWORLD).addTag(SuCraftBlockTags.PEAT);
 +
 +        // Martijn end - custom blocks and items
 +
@@ -6900,7 +7158,7 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +    public static boolean isValidTagFor(@NotNull TagKey<Block> tag, @NotNull Block block) {
 +        
 +        // Don't spread tags meant for full blocks to stairs and slabs
-+        if (tag.equals(SuCraftBlockTags.BOOKSHELVES)) {
++        if (tag.equals(SuCraftBlockTags.BOOKSHELF_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.WOOL_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.LOG_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.PLANK_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.DYED_PLANK_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.PEAT_FULL_BLOCKS)) {
 +            if (block.defaultBlockState().is(BlockTags.SLABS) || block.defaultBlockState().is(BlockTags.STAIRS) || block instanceof SlabBlock || block instanceof StairBlock) {
 +                return false;
 +            }
@@ -6912,7 +7170,7 @@ index 0000000000000000000000000000000000000000..e6522b87ac38fb87d88dd4b609b5435e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5d48a7bb1
+index 0000000000000000000000000000000000000000..712199a514d224adb1b481fd8804654c8b78f14c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 @@ -0,0 +1,1457 @@
@@ -6978,22 +7236,22 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +    public static final Block WARPED_BOOKSHELF = registerBookshelf("warped");
 +    public static final Block CRIMSON_BOOKSHELF = registerBookshelf("crimson");
 +//    public static final Block MANGROVE_BOOKSHELF = registerBookshelf("mangrove");
-+    public static final Block BLACK_PLANKS = registerPlanks("black", Blocks.DARK_OAK_PLANKS, DyeColor.BLACK.getMaterialColor(), () -> Items.BLACK_DYE);
-+    public static final Block BLUE_PLANKS = registerPlanks("blue", Blocks.WARPED_PLANKS, DyeColor.BLUE.getMaterialColor(), () -> Items.BLUE_DYE);
-+    public static final Block BROWN_PLANKS = registerPlanks("brown", Blocks.SPRUCE_PLANKS, DyeColor.BROWN.getMaterialColor(), () -> Items.BROWN_DYE);
-+    public static final Block CYAN_PLANKS = registerPlanks("cyan", Blocks.WARPED_PLANKS, DyeColor.CYAN.getMaterialColor(), () -> Items.CYAN_DYE);
-+    public static final Block GRAY_PLANKS = registerPlanks("gray", Blocks.SPRUCE_PLANKS, DyeColor.GRAY.getMaterialColor(), () -> Items.GRAY_DYE);
-+    public static final Block GREEN_PLANKS = registerPlanks("green", Blocks.WARPED_PLANKS, DyeColor.GREEN.getMaterialColor(), () -> Items.GREEN_DYE);
-+    public static final Block LIGHT_BLUE_PLANKS = registerPlanks("light_blue", Blocks.WARPED_PLANKS, DyeColor.LIGHT_BLUE.getMaterialColor(), () -> Items.LIGHT_BLUE_DYE);
-+    public static final Block LIGHT_GRAY_PLANKS = registerPlanks("light_gray", Blocks.OAK_PLANKS, DyeColor.LIGHT_GRAY.getMaterialColor(), () -> Items.LIGHT_GRAY_DYE);
-+    public static final Block LIME_PLANKS = registerPlanks("lime", Blocks.WARPED_PLANKS, DyeColor.LIME.getMaterialColor(), () -> Items.LIME_DYE);
-+    public static final Block MAGENTA_PLANKS = registerPlanks("magenta", Blocks.CRIMSON_PLANKS, DyeColor.MAGENTA.getMaterialColor(), () -> Items.MAGENTA_DYE);
-+    public static final Block ORANGE_PLANKS = registerPlanks("orange", Blocks.ACACIA_PLANKS, DyeColor.ORANGE.getMaterialColor(), () -> Items.ORANGE_DYE);
-+    public static final Block PINK_PLANKS = registerPlanks("pink", Blocks.JUNGLE_PLANKS, DyeColor.PINK.getMaterialColor(), () -> Items.PINK_DYE);
-+    public static final Block PURPLE_PLANKS = registerPlanks("purple", Blocks.CRIMSON_PLANKS, DyeColor.PURPLE.getMaterialColor(), () -> Items.PURPLE_DYE);
-+    public static final Block RED_PLANKS = registerPlanks("red", Blocks.MANGROVE_PLANKS, DyeColor.RED.getMaterialColor(), () -> Items.RED_DYE);
-+    public static final Block WHITE_PLANKS = registerPlanks("white", Blocks.BIRCH_PLANKS, DyeColor.WHITE.getMaterialColor(), () -> Items.WHITE_DYE);
-+    public static final Block YELLOW_PLANKS = registerPlanks("yellow", Blocks.BIRCH_PLANKS, DyeColor.YELLOW.getMaterialColor(), () -> Items.YELLOW_DYE);
++    public static final Block BLACK_PLANKS = registerDyedPlanks("black", Blocks.DARK_OAK_PLANKS, DyeColor.BLACK.getMaterialColor(), () -> Items.BLACK_DYE);
++    public static final Block BLUE_PLANKS = registerDyedPlanks("blue", Blocks.WARPED_PLANKS, DyeColor.BLUE.getMaterialColor(), () -> Items.BLUE_DYE);
++    public static final Block BROWN_PLANKS = registerDyedPlanks("brown", Blocks.SPRUCE_PLANKS, DyeColor.BROWN.getMaterialColor(), () -> Items.BROWN_DYE);
++    public static final Block CYAN_PLANKS = registerDyedPlanks("cyan", Blocks.WARPED_PLANKS, DyeColor.CYAN.getMaterialColor(), () -> Items.CYAN_DYE);
++    public static final Block GRAY_PLANKS = registerDyedPlanks("gray", Blocks.SPRUCE_PLANKS, DyeColor.GRAY.getMaterialColor(), () -> Items.GRAY_DYE);
++    public static final Block GREEN_PLANKS = registerDyedPlanks("green", Blocks.WARPED_PLANKS, DyeColor.GREEN.getMaterialColor(), () -> Items.GREEN_DYE);
++    public static final Block LIGHT_BLUE_PLANKS = registerDyedPlanks("light_blue", Blocks.WARPED_PLANKS, DyeColor.LIGHT_BLUE.getMaterialColor(), () -> Items.LIGHT_BLUE_DYE);
++    public static final Block LIGHT_GRAY_PLANKS = registerDyedPlanks("light_gray", Blocks.OAK_PLANKS, DyeColor.LIGHT_GRAY.getMaterialColor(), () -> Items.LIGHT_GRAY_DYE);
++    public static final Block LIME_PLANKS = registerDyedPlanks("lime", Blocks.WARPED_PLANKS, DyeColor.LIME.getMaterialColor(), () -> Items.LIME_DYE);
++    public static final Block MAGENTA_PLANKS = registerDyedPlanks("magenta", Blocks.CRIMSON_PLANKS, DyeColor.MAGENTA.getMaterialColor(), () -> Items.MAGENTA_DYE);
++    public static final Block ORANGE_PLANKS = registerDyedPlanks("orange", Blocks.ACACIA_PLANKS, DyeColor.ORANGE.getMaterialColor(), () -> Items.ORANGE_DYE);
++    public static final Block PINK_PLANKS = registerDyedPlanks("pink", Blocks.JUNGLE_PLANKS, DyeColor.PINK.getMaterialColor(), () -> Items.PINK_DYE);
++    public static final Block PURPLE_PLANKS = registerDyedPlanks("purple", Blocks.CRIMSON_PLANKS, DyeColor.PURPLE.getMaterialColor(), () -> Items.PURPLE_DYE);
++    public static final Block RED_PLANKS = registerDyedPlanks("red", Blocks.MANGROVE_PLANKS, DyeColor.RED.getMaterialColor(), () -> Items.RED_DYE);
++    public static final Block WHITE_PLANKS = registerDyedPlanks("white", Blocks.BIRCH_PLANKS, DyeColor.WHITE.getMaterialColor(), () -> Items.WHITE_DYE);
++    public static final Block YELLOW_PLANKS = registerDyedPlanks("yellow", Blocks.BIRCH_PLANKS, DyeColor.YELLOW.getMaterialColor(), () -> Items.YELLOW_DYE);
 +
 +    /**
 +     * Based on {@link Blocks#DIRT}
@@ -7316,7 +7574,7 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +            .withFallback(Blocks.LIGHT_GRAY_CONCRETE_POWDER)
 +            .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
 +            .withFullBlockBoundingBoxItem(),
-+        new Block(BlockBehaviour.Properties.of(Material.SAND, DyeColor.LIGHT_GRAY).strength(0.5F).sound(SoundType.SAND)).breakBeforeClientKnowsToBreak().mineableWithShovel(),
++        new Block(BlockBehaviour.Properties.of(Material.SAND, DyeColor.LIGHT_GRAY).strength(0.5F).sound(SoundType.SAND))/*.breakBeforeClientKnowsToBreak()*/.mineableWithShovel(),
 +        SuCraftBlockLoot::dropSelf
 +    ).withCustom2x2SquareRecipe("gunpowder_block", () -> Items.GUNPOWDER, 1);
 +
@@ -7337,7 +7595,7 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +        );
 +    });
 +    public static final Block SMOULDERING_PEAT = registerPeat("smouldering", true, PEAT);
-+    public static final Block PEAT_SLAB = registerFakeSlab(PEAT, "peat", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block PEAT_SLAB = registerFakeSlab(PEAT, "peat", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel().peatSlab();
 +    public static final Block SCULK_SLAB = registerFakeSlab(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
 +    public static final Block CHISELED_QUARTZ_SLAB = registerFakeSlabFromYPillarVanillaBlock(Blocks.CHISELED_QUARTZ_BLOCK, null, "chiseled_quartz", "chiseled_quartz_block", Blocks.QUARTZ_SLAB).mineableWithPickaxe();
 +    public static final Block QUARTZ_PILLAR_SLAB = registerFakeVanillaStonePillarSlab(Blocks.QUARTZ_PILLAR, "quartz", Blocks.QUARTZ_SLAB);
@@ -7366,7 +7624,7 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +            .withFallback(Blocks.WHITE_WOOL)
 +            .withModelCreation(Model.YPillarCube.defaultCreation().withNoParameters())
 +            .withFullBlockBoundingBoxItem(),
-+        new Block(BlockBehaviour.Properties.of(Material.WOOL, DyeColor.WHITE).strength(0.5F).sound(SoundType.SNOW)).breakBeforeClientKnowsToBreak().mineableWithAxe(),
++        new Block(BlockBehaviour.Properties.of(Material.WOOL, DyeColor.WHITE).strength(0.5F).sound(SoundType.SNOW))/*.breakBeforeClientKnowsToBreak()*/.mineableWithAxe(),
 +        SuCraftBlockLoot::dropSelf
 +    ).withCustom3x3SquareRecipe("paper_block", () -> Items.PAPER, 1);
 +    public static final Block PAPER_SLAB = registerFakeSlabFromYPillarCustomBlock(PAPER_BLOCK, null, "paper", "paper_block", Blocks.SMOOTH_QUARTZ_SLAB).breakBeforeClientKnowsToBreak().mineableWithAxe();
@@ -7440,7 +7698,7 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +    public static final Block DIRT_BRICK_STAIRS = registerFakeStairs(DIRT_BRICKS, "dirt_brick", null, Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
 +    public static final Block CHARCOAL_STAIRS = registerFakeStairs(CHARCOAL_BLOCK, "charcoal", null, Blocks.BLACKSTONE_STAIRS);
 +    public static final Block GUNPOWDER_STAIRS = registerFakeStairs(GUNPOWDER_BLOCK, "gunpowder", null, Blocks.ANDESITE_STAIRS);
-+    public static final Block PEAT_STAIRS = registerFakeStairs(PEAT, "peat", null, Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel();
++    public static final Block PEAT_STAIRS = registerFakeStairs(PEAT, "peat", null, Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel().peatStairs();
 +    public static final Block FLINT_TILE_STAIRS = registerFakeStairs(FLINT_TILES, "flint_tile", null, Blocks.DEEPSLATE_TILE_STAIRS).mineableWithPickaxe();
 +    public static final Block BLACK_PLANK_STAIRS = registerFakeDyedPlankStairs(BLACK_PLANKS, "black", Blocks.DARK_OAK_STAIRS);
 +    public static final Block BLUE_PLANK_STAIRS = registerFakeDyedPlankStairs(BLUE_PLANKS, "blue", Blocks.WARPED_STAIRS);
@@ -7696,7 +7954,7 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +    /**
 +     * Based on {@link Blocks#OAK_PLANKS}
 +     */
-+    private static @NotNull Block registerPlanks(@NotNull String description, @NotNull Block fallback, @NotNull MaterialColor materialColor, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++    private static @NotNull Block registerDyedPlanks(@NotNull String description, @NotNull Block fallback, @NotNull MaterialColor materialColor, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
 +        return register(
 +            description + "_planks",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -7704,7 +7962,7 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +                .withFallback(fallback)
 +                .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
 +                .withFullBlockBoundingBoxItem(),
-+            new Block(BlockBehaviour.Properties.of(Material.WOOD, materialColor).strength(2.0F, 3.0F).sound(SoundType.WOOD)).mineableWithAxe().planks(),
++            new Block(BlockBehaviour.Properties.of(Material.WOOD, materialColor).strength(2.0F, 3.0F).sound(SoundType.WOOD)).mineableWithAxe().dyedPlankFullBlock(),
 +            SuCraftBlockLoot::dropSelf
 +        ).withCustomDyedPlanksRecipe(description, dyeItemSupplier);
 +    }
@@ -8052,11 +8310,11 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +    }
 +
 +    private static @NotNull Block registerFakeLogOrStemSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeSlabFromYPillarVanillaBlock(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, host).mineableWithAxe();
++        return registerFakeSlabFromYPillarVanillaBlock(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, host).mineableWithAxe().logSlab();
 +    }
 +
 +    private static @NotNull Block registerFakeLogOrStemStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStairsFromYPillarVanillaBlock(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, host).mineableWithAxe();
++        return registerFakeStairsFromYPillarVanillaBlock(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, host).mineableWithAxe().logStairs();
 +    }
 +
 +    private static @NotNull Block registerFakeLogSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -8102,12 +8360,12 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +    private static @NotNull Block registerFakeWoodOrHyphaeSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
 +        NamespacedKeyWithoutIntention doubleSlabKey = NamespacedKeyWithoutIntention.minecraft(type);
 +        NamespacedKeyWithoutIntention textureKey = NamespacedKeyWithoutIntention.minecraft(textureType);
-+        return registerFakeSlab(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, doubleSlabKey, textureKey, null, null, null, null, host, null).mineableWithAxe();
++        return registerFakeSlab(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, doubleSlabKey, textureKey, null, null, null, null, host, null).mineableWithAxe().logSlab();
 +    }
 +
 +    private static @NotNull Block registerFakeWoodOrHyphaeStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull String textureType, @NotNull Block host) {
 +        NamespacedKeyWithoutIntention textureKey = NamespacedKeyWithoutIntention.minecraft(textureType);
-+        return registerFakeStairs(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, textureKey, null, null, host, null).mineableWithAxe();
++        return registerFakeStairs(fullBlock, BlockBehaviour.Properties.of(Material.WOOD, fullBlock.defaultMaterialColor()).strength(2.0F, 3.0F).sound(SoundType.WOOD), type, textureKey, null, null, host, null).mineableWithAxe().logStairs();
 +    }
 +
 +    private static @NotNull Block registerFakeWoodSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -8219,19 +8477,19 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +    }
 +
 +    private static @NotNull Block registerFakeDyedPlankSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeSlab(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().woodenSlab();
++        return registerFakeSlab(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankSlab();
 +    }
 +
 +    private static @NotNull Block registerFakeDyedPlankStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStairs(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().woodenStairs();
++        return registerFakeStairs(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankStairs();
 +    }
 +
 +    private static @NotNull Block registerFakeWoolSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeSlab(fullBlock, type + "_wool", type + "_wool", host).breakBeforeClientKnowsToBreak().wool();
++        return registerFakeSlab(fullBlock, type + "_wool", type + "_wool", host).breakBeforeClientKnowsToBreak().wool().woolSlab();
 +    }
 +
 +    private static @NotNull Block registerFakeWoolStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStairs(fullBlock, type + "_wool", type + "_wool", host).breakBeforeClientKnowsToBreak().wool();
++        return registerFakeStairs(fullBlock, type + "_wool", type + "_wool", host).breakBeforeClientKnowsToBreak().wool().woolStairs();
 +    }
 +
 +    private static @NotNull Block registerFakeConcreteSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -8346,7 +8604,7 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +                .withFallback(Blocks.COARSE_DIRT)
 +                .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
 +                .withFullBlockBoundingBoxItem(),
-+            new PeatBlock(BlockBehaviour.Properties.of(Material.DIRT, MaterialColor.DIRT).strength(1.0F, 2.0F).sound(SoundType.GRAVEL), lit).breakBeforeClientKnowsToBreak().mineableWithShovel(),
++            new PeatBlock(BlockBehaviour.Properties.of(Material.DIRT, MaterialColor.DIRT).strength(1.0F, 2.0F).sound(SoundType.GRAVEL), lit)/*.breakBeforeClientKnowsToBreak()*/.mineableWithShovel().peatFullBlock(),
 +            dropWithoutSilkTouch == null ? SuCraftBlockLoot::dropSelf : block -> SuCraftBlockLoot.dropSingleItemAndSingleItemWhenSilkTouch(dropWithoutSilkTouch, block)
 +        );
 +    }
@@ -8360,7 +8618,7 @@ index 0000000000000000000000000000000000000000..549eb92bc5617e9652215a80368b5fa5
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .withFireHost()
 +                .withFallback(fallback),
-+            new SoulFireBlock(BlockBehaviour.Properties.of(Material.FIRE, materialColor).noCollission().instabreak().sound(SoundType.WOOL).lightLevel(state -> 10)).fire(),
++            new SoulFireBlock(BlockBehaviour.Properties.of(Material.FIRE, materialColor).noCollission().instabreak().sound(SoundType.WOOL).lightLevel(state -> 10)).coloredFire(),
 +            () -> null
 +        );
 +        block.customFireType = fireType;
@@ -13668,6 +13926,124 @@ index 0000000000000000000000000000000000000000..4ec14a32dc7982b3874678493e52923a
 +    }
 +
 +}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTags.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTags.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cd1487d65ef7b3ff3e1467fff930fc7491ba6504
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTags.java
+@@ -0,0 +1,41 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.item;
++
++import net.minecraft.core.Registry;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.tags.TagKey;
++import net.minecraft.world.item.Item;
++
++/**
++ * Based on {@link net.minecraft.tags.ItemTags}
++ */
++public class SuCraftItemTags {
++
++    // Martijn start - custom blocks and items
++    public static final TagKey<Item> BOOKSHELVES = bind("bookshelves");
++    public static final TagKey<Item> BOOKSHELF_FULL_BLOCKS = bind("bookshelf_full_blocks");
++    public static final TagKey<Item> BOOKSHELF_SLABS = bind("bookshelf_slabs");
++    public static final TagKey<Item> BOOKSHELF_STAIRS = bind("bookshelf_stairs");
++    public static final TagKey<Item> WOOL_FULL_BLOCKS = bind("wool_full_blocks");
++    public static final TagKey<Item> WOOL_SLABS = bind("wool_slabs");
++    public static final TagKey<Item> WOOL_STAIRS = bind("wool_stairs");
++    public static final TagKey<Item> LOG_FULL_BLOCKS = bind("log_full_blocks");
++    public static final TagKey<Item> LOG_SLABS = bind("log_slabs");
++    public static final TagKey<Item> LOG_STAIRS = bind("log_stairs");
++    public static final TagKey<Item> PLANK_FULL_BLOCKS = bind("plank_full_blocks");
++    public static final TagKey<Item> DYED_PLANKS = bind("dyed_planks");
++    public static final TagKey<Item> DYED_PLANK_FULL_BLOCKS = bind("dyed_plank_full_blocks");
++    public static final TagKey<Item> DYED_PLANK_SLABS = bind("dyed_plank_slabs");
++    public static final TagKey<Item> DYED_PLANK_STAIRS = bind("dyed_plank_stairs");
++    public static final TagKey<Item> PEAT = bind("peat");
++    public static final TagKey<Item> PEAT_FULL_BLOCKS = bind("peat_full_blocks");
++    public static final TagKey<Item> PEAT_SLABS = bind("peat_slabs");
++    public static final TagKey<Item> PEAT_STAIRS = bind("peat_stairs");
++    // Martijn end - custom blocks and items
++
++    private static TagKey<Item> bind(String id) {
++        return TagKey.create(Registry.ITEM_REGISTRY, ResourceLocation.sucraft(id));
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTagsProvider.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e854626408
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTagsProvider.java
+@@ -0,0 +1,65 @@
++// Martijn - custom resources
++
++package nl.martijnmuijsers.paper.item;
++
++import net.minecraft.core.Holder;
++import net.minecraft.core.Registry;
++import net.minecraft.server.MinecraftServer;
++import net.minecraft.tags.BlockTags;
++import net.minecraft.tags.ItemTags;
++import net.minecraft.tags.TagBuilder;
++import net.minecraft.tags.TagKey;
++import net.minecraft.world.item.Item;
++import net.minecraft.world.level.block.Block;
++import nl.martijnmuijsers.paper.block.SuCraftBlockTags;
++import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
++
++import java.util.List;
++import java.util.Map;
++import java.util.stream.StreamSupport;
++
++/**
++ * Based on {@link net.minecraft.data.tags.ItemTagsProvider}
++ */
++public class SuCraftItemTagsProvider extends SuCraftTagsProvider<Item> {
++
++    private Map<TagKey<Item>, List<Holder<Item>>> existingRegistryTagEntries = null;
++
++    public SuCraftItemTagsProvider(Registry<Item> registry) {
++        super(registry);
++    }
++
++
++    @Override
++    protected void addTags(Map<TagKey<Item>, List<Holder<Item>>> existingRegistryTagEntries) {
++        MinecraftServer.LOGGER.info("Adding onto existing item tags...");
++        this.existingRegistryTagEntries = existingRegistryTagEntries;
++
++        this.copy(SuCraftBlockTags.BOOKSHELVES, SuCraftItemTags.BOOKSHELVES);
++        this.copy(SuCraftBlockTags.BOOKSHELF_FULL_BLOCKS, SuCraftItemTags.BOOKSHELF_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.BOOKSHELF_SLABS, SuCraftItemTags.BOOKSHELF_SLABS);
++        this.copy(SuCraftBlockTags.BOOKSHELF_STAIRS, SuCraftItemTags.BOOKSHELF_STAIRS);
++        this.copy(SuCraftBlockTags.WOOL_FULL_BLOCKS, SuCraftItemTags.WOOL_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.WOOL_SLABS, SuCraftItemTags.WOOL_SLABS);
++        this.copy(SuCraftBlockTags.WOOL_STAIRS, SuCraftItemTags.WOOL_STAIRS);
++        this.copy(SuCraftBlockTags.LOG_FULL_BLOCKS, SuCraftItemTags.LOG_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.LOG_SLABS, SuCraftItemTags.LOG_SLABS);
++        this.copy(SuCraftBlockTags.LOG_STAIRS, SuCraftItemTags.LOG_STAIRS);
++        this.copy(SuCraftBlockTags.PLANK_FULL_BLOCKS, SuCraftItemTags.PLANK_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.DYED_PLANKS, SuCraftItemTags.DYED_PLANKS);
++        this.copy(SuCraftBlockTags.DYED_PLANK_FULL_BLOCKS, SuCraftItemTags.DYED_PLANK_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.DYED_PLANK_SLABS, SuCraftItemTags.DYED_PLANK_SLABS);
++        this.copy(SuCraftBlockTags.DYED_PLANK_STAIRS, SuCraftItemTags.DYED_PLANK_STAIRS);
++        this.copy(SuCraftBlockTags.PEAT, SuCraftItemTags.PEAT);
++        this.copy(SuCraftBlockTags.PEAT_FULL_BLOCKS, SuCraftItemTags.PEAT_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.PEAT_SLABS, SuCraftItemTags.PEAT_SLABS);
++        this.copy(SuCraftBlockTags.PEAT_STAIRS, SuCraftItemTags.PEAT_STAIRS);
++
++        this.existingRegistryTagEntries = null;
++    }
++
++    protected void copy(TagKey<Block> blockTag, TagKey<Item> itemTag) {
++        this.tag(itemTag).add(StreamSupport.stream(Registry.BLOCK.getTagOrEmpty(blockTag).spliterator(), false).map(holder -> holder.value().asItem()).toArray(Item[]::new));
++    }
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..e6129cbf7a81c8af114e16ddf4b878e749a331fc
@@ -15453,10 +15829,10 @@ index 0000000000000000000000000000000000000000..d2c7592594da0701ed1fcd03261fd8ec
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8a31dc0b96a47de37b915110908a0fd85c269782
+index 0000000000000000000000000000000000000000..5015af3310bdeaf1691b80e11c49f9d5d0f004d7
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
-@@ -0,0 +1,438 @@
+@@ -0,0 +1,499 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.blockstates;
@@ -15563,6 +15939,7 @@ index 0000000000000000000000000000000000000000..8a31dc0b96a47de37b915110908a0fd8
 +                setUpFire = true;
 +                // Based on vanilla Minecraft resource file /assets/minecraft/blockstates/fire.json
 +                // All parts have an age 0 requirement added (spread over every when condition)
++                // Additionally, the 'all sides' is split from the individual sides, so that only the individual sides use the model with an extra margin (to accommodate fire on the side of blocks rendered using entities)
 +                json = JsonParser.parseString("""
 +                    {
 +                      "multipart": [
@@ -15600,20 +15977,12 @@ index 0000000000000000000000000000000000000000..8a31dc0b96a47de37b915110908a0fd8
 +                            }
 +                          ],
 +                          "when": {
-+                            "OR": [
-+                              {
-+                                "north": "true",
-+                                "age": 0
-+                              },
-+                              {
-+                                "east": "false",
-+                                "north": "false",
-+                                "south": "false",
-+                                "up": "false",
-+                                "west": "false",
-+                                "age": 0
-+                              }
-+                            ]
++                            "east": "false",
++                            "north": "false",
++                            "south": "false",
++                            "up": "false",
++                            "west": "false",
++                            "age": 0
 +                          }
 +                        },
 +                        {
@@ -15636,20 +16005,12 @@ index 0000000000000000000000000000000000000000..8a31dc0b96a47de37b915110908a0fd8
 +                            }
 +                          ],
 +                          "when": {
-+                            "OR": [
-+                              {
-+                                "east": "true",
-+                                "age": 0
-+                              },
-+                              {
-+                                "east": "false",
-+                                "north": "false",
-+                                "south": "false",
-+                                "up": "false",
-+                                "west": "false",
-+                                "age": 0
-+                              }
-+                            ]
++                            "east": "false",
++                            "north": "false",
++                            "south": "false",
++                            "up": "false",
++                            "west": "false",
++                            "age": 0
 +                          }
 +                        },
 +                        {
@@ -15672,20 +16033,12 @@ index 0000000000000000000000000000000000000000..8a31dc0b96a47de37b915110908a0fd8
 +                            }
 +                          ],
 +                          "when": {
-+                            "OR": [
-+                              {
-+                                "south": "true",
-+                                "age": 0
-+                              },
-+                              {
-+                                "east": "false",
-+                                "north": "false",
-+                                "south": "false",
-+                                "up": "false",
-+                                "west": "false",
-+                                "age": 0
-+                              }
-+                            ]
++                            "east": "false",
++                            "north": "false",
++                            "south": "false",
++                            "up": "false",
++                            "west": "false",
++                            "age": 0
 +                          }
 +                        },
 +                        {
@@ -15708,20 +16061,104 @@ index 0000000000000000000000000000000000000000..8a31dc0b96a47de37b915110908a0fd8
 +                            }
 +                          ],
 +                          "when": {
-+                            "OR": [
-+                              {
-+                                "west": "true",
-+                                "age": 0
-+                              },
-+                              {
-+                                "east": "false",
-+                                "north": "false",
-+                                "south": "false",
-+                                "up": "false",
-+                                "west": "false",
-+                                "age": 0
-+                              }
-+                            ]
++                            "east": "false",
++                            "north": "false",
++                            "south": "false",
++                            "up": "false",
++                            "west": "false",
++                            "age": 0
++                          }
++                        },
++                        {
++                          "apply": [
++                            {
++                              "model": "sucraft:block/margin_fire_side0"
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side1"
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side_alt0"
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side_alt1"
++                            }
++                          ],
++                          "when": {
++                            "north": "true",
++                            "age": 0
++                          }
++                        },
++                        {
++                          "apply": [
++                            {
++                              "model": "sucraft:block/margin_fire_side0",
++                              "y": 90
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side1",
++                              "y": 90
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side_alt0",
++                              "y": 90
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side_alt1",
++                              "y": 90
++                            }
++                          ],
++                          "when": {
++                            "east": "true",
++                            "age": 0
++                          }
++                        },
++                        {
++                          "apply": [
++                            {
++                              "model": "sucraft:block/margin_fire_side0",
++                              "y": 180
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side1",
++                              "y": 180
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side_alt0",
++                              "y": 180
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side_alt1",
++                              "y": 180
++                            }
++                          ],
++                          "when": {
++                            "south": "true",
++                            "age": 0
++                          }
++                        },
++                        {
++                          "apply": [
++                            {
++                              "model": "sucraft:block/margin_fire_side0",
++                              "y": 270
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side1",
++                              "y": 270
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side_alt0",
++                              "y": 270
++                            },
++                            {
++                              "model": "sucraft:block/margin_fire_side_alt1",
++                              "y": 270
++                            }
++                          ],
++                          "when": {
++                            "west": "true",
++                            "age": 0
 +                          }
 +                        },
 +                        {
@@ -17695,7 +18132,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3ee7b981a9c20c806785b24a90d136ccb350dad4
+index 0000000000000000000000000000000000000000..e86011f3f8271f86a3b81f29519eecf73af7a935
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -17771,7 +18208,7 @@ index 0000000000000000000000000000000000000000..3ee7b981a9c20c806785b24a90d136cc
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 163;
++            currentResourcePackVersion = 166;
 +        }
 +    }
 +
