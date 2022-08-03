@@ -5132,7 +5132,7 @@ index f4ee3ce287528337a0f9a3b612c157254f895a58..ac96e9274929850c61d5bc499e2ba9eb
  
      @Override
 diff --git a/src/main/java/net/minecraft/world/level/block/FireBlock.java b/src/main/java/net/minecraft/world/level/block/FireBlock.java
-index e34b8cff424ad58eee65a65fa510fa9908dbdf39..448965d34ee100046f2356b41c1530bae0811c67 100644
+index e34b8cff424ad58eee65a65fa510fa9908dbdf39..1bd3a713da05357df049aa67324a763d78d8684b 100644
 --- a/src/main/java/net/minecraft/world/level/block/FireBlock.java
 +++ b/src/main/java/net/minecraft/world/level/block/FireBlock.java
 @@ -28,6 +28,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
@@ -5273,15 +5273,16 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..448965d34ee100046f2356b41c1530ba
          blockfire.setFlammable(Blocks.MANGROVE_ROOTS, 5, 20);
          blockfire.setFlammable(Blocks.OAK_LEAVES, 30, 60);
          blockfire.setFlammable(Blocks.SPRUCE_LEAVES, 30, 60);
-@@ -452,7 +569,40 @@ public class FireBlock extends BaseFireBlock {
+@@ -452,7 +569,41 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.ACACIA_LEAVES, 30, 60);
          blockfire.setFlammable(Blocks.DARK_OAK_LEAVES, 30, 60);
          blockfire.setFlammable(Blocks.MANGROVE_LEAVES, 30, 60);
 +
 +        // Martijn start - custom blocks and items
 +
-+        blockfire.setFlammable(SuCraftBlocks.YELLOW_BIRCH_LEAVES, 30, 60);
-+        blockfire.setFlammable(SuCraftBlocks.FIERY_BIRCH_LEAVES, 30, 60);
++        blockfire.setFlammable(SuCraftBlocks.PALE_BIRCH_LEAVES, 30, 60);
++        // Not included in initial release
++//        blockfire.setFlammable(SuCraftBlocks.FIERY_BIRCH_LEAVES, 30, 60);
 +        blockfire.setFlammable(SuCraftBlocks.ORANGE_OAK_LEAVES, 30, 60);
 +        blockfire.setFlammable(SuCraftBlocks.RED_OAK_LEAVES, 30, 60);
 +        blockfire.setFlammable(SuCraftBlocks.YELLOW_MAPLE_LEAVES, 30, 60);
@@ -5314,7 +5315,7 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..448965d34ee100046f2356b41c1530ba
          blockfire.setFlammable(Blocks.TNT, 15, 100);
          blockfire.setFlammable(Blocks.GRASS, 60, 100);
          blockfire.setFlammable(Blocks.FERN, 60, 100);
-@@ -492,8 +642,57 @@ public class FireBlock extends BaseFireBlock {
+@@ -492,8 +643,57 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.GREEN_WOOL, 30, 60);
          blockfire.setFlammable(Blocks.RED_WOOL, 30, 60);
          blockfire.setFlammable(Blocks.BLACK_WOOL, 30, 60);
@@ -5372,21 +5373,21 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..448965d34ee100046f2356b41c1530ba
          blockfire.setFlammable(Blocks.HAY_BLOCK, 60, 20);
          blockfire.setFlammable(Blocks.TARGET, 15, 20);
          blockfire.setFlammable(Blocks.WHITE_CARPET, 60, 20);
-@@ -513,6 +712,13 @@ public class FireBlock extends BaseFireBlock {
+@@ -513,6 +713,13 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.RED_CARPET, 60, 20);
          blockfire.setFlammable(Blocks.BLACK_CARPET, 60, 20);
          blockfire.setFlammable(Blocks.DRIED_KELP_BLOCK, 30, 60);
 +
 +        // Martijn start - custom blocks and items
-+
-+        blockfire.setFlammable(SuCraftBlocks.DRIED_KELP_SLAB, 30, 60);
++        // Not included in initial release
++//        blockfire.setFlammable(SuCraftBlocks.DRIED_KELP_SLAB, 30, 60);
 +
 +        // Martijn end - custom blocks and items
 +
          blockfire.setFlammable(Blocks.BAMBOO, 60, 60);
          blockfire.setFlammable(Blocks.SCAFFOLDING, 60, 60);
          blockfire.setFlammable(Blocks.LECTERN, 30, 20);
-@@ -532,5 +738,14 @@ public class FireBlock extends BaseFireBlock {
+@@ -532,5 +739,14 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.SMALL_DRIPLEAF, 60, 100);
          blockfire.setFlammable(Blocks.HANGING_ROOTS, 30, 60);
          blockfire.setFlammable(Blocks.GLOW_LICHEN, 15, 100);
@@ -5468,7 +5469,7 @@ index 0a95842c53a9d0286c57bcb42db97e468e30fb7d..52e1e78adc7c3fe69edb9eec0242a4e3
      protected static final VoxelShape SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 9.0D, 16.0D);
  
 diff --git a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
-index 4977f3fad3bfc12fd4c5f9fbe8beea2895247c57..b20d2ca196a429554e7e1952b827f2e1543ad284 100644
+index 4977f3fad3bfc12fd4c5f9fbe8beea2895247c57..f74754711dd43ac8b303231eb6efdc2e6d96b246 100644
 --- a/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
 +++ b/src/main/java/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
 @@ -45,6 +45,9 @@ import net.minecraft.world.level.block.Blocks;
@@ -5524,7 +5525,7 @@ index 4977f3fad3bfc12fd4c5f9fbe8beea2895247c57..b20d2ca196a429554e7e1952b827f2e1
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.LECTERN, 300);
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.JUKEBOX, 300);
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.CHEST, 300);
-@@ -186,13 +209,20 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+@@ -186,13 +209,21 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.WOODEN_PICKAXE, 200);
          AbstractFurnaceBlockEntity.add(map, ItemTags.WOODEN_DOORS, 200);
          AbstractFurnaceBlockEntity.add(map, ItemTags.BOATS, 1200);
@@ -5541,7 +5542,8 @@ index 4977f3fad3bfc12fd4c5f9fbe8beea2895247c57..b20d2ca196a429554e7e1952b827f2e1
          AbstractFurnaceBlockEntity.add(map, ItemTags.WOOL_CARPETS, 67);
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.DRIED_KELP_BLOCK, 4001);
 +        // Martijn start - custom blocks and items
-+        AbstractFurnaceBlockEntity.add(map, (ItemLike) SuCraftBlocks.DRIED_KELP_SLAB, 2001);
++        // Not included in initial release
++//        AbstractFurnaceBlockEntity.add(map, (ItemLike) SuCraftBlocks.DRIED_KELP_SLAB, 2001);
 +        // Martijn end - custom blocks and items
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.CROSSBOW, 300);
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.BAMBOO, 50);
@@ -7170,10 +7172,10 @@ index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..712199a514d224adb1b481fd8804654c8b78f14c
+index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b96abfa0ba
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1457 @@
+@@ -0,0 +1,1464 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -7329,9 +7331,10 @@ index 0000000000000000000000000000000000000000..712199a514d224adb1b481fd8804654c
 +    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE).withCustom2x2SquareRecipe("cut_soul_sandstone", SOUL_SANDSTONE, 4);
 +
 +    public static final Block SOUL_SANDSTONE_BRICKS = registerBricks(SOUL_SANDSTONE, "soul_sandstone", Blocks.SOUL_SOIL, MaterialColor.COLOR_BROWN, CUT_SOUL_SANDSTONE).soulSpeed().soulFireBase();
-+    public static final Block ANDESITE_COBBLESTONE = registerCobblestone(Blocks.ANDESITE, "andesite", Blocks.ANDESITE, MaterialColor.STONE);
-+    public static final Block DIORITE_COBBLESTONE = registerCobblestone(Blocks.DIORITE, "diorite", Blocks.DIORITE, MaterialColor.QUARTZ);
-+    public static final Block GRANITE_COBBLESTONE = registerCobblestone(Blocks.GRANITE, "granite", Blocks.GRANITE, MaterialColor.DIRT);
++    // Not included in initial release
++//    public static final Block ANDESITE_COBBLESTONE = registerCobblestone(Blocks.ANDESITE, "andesite", Blocks.ANDESITE, MaterialColor.STONE);
++//    public static final Block DIORITE_COBBLESTONE = registerCobblestone(Blocks.DIORITE, "diorite", Blocks.DIORITE, MaterialColor.QUARTZ);
++//    public static final Block GRANITE_COBBLESTONE = registerCobblestone(Blocks.GRANITE, "granite", Blocks.GRANITE, MaterialColor.DIRT);
 +    public static final Block CHISELED_PRISMARINE_BRICKS = registerChiseledBricks(Blocks.PRISMARINE_BRICKS, "prismarine", Blocks.PRISMARINE_BRICKS, MaterialColor.DIAMOND, () -> new ItemLike[] {Items.PRISMARINE_BRICK_SLAB});
 +    public static final Block ANDESITE_PILLAR = registerStonePillar(Blocks.ANDESITE, "andesite", Blocks.POLISHED_ANDESITE, MaterialColor.STONE, () -> new ItemLike[] {Items.ANDESITE, Items.POLISHED_ANDESITE});
 +    public static final Block CALCITE_PILLAR = registerStonePillar(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE, () -> new ItemLike[] {Items.CALCITE, SuCraftItems.POLISHED_CALCITE});
@@ -7339,8 +7342,9 @@ index 0000000000000000000000000000000000000000..712199a514d224adb1b481fd8804654c
 +    public static final Block DRIPSTONE_PILLAR = registerStonePillar(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN, () -> new ItemLike[] {Items.DRIPSTONE_BLOCK, SuCraftItems.POLISHED_DRIPSTONE});
 +    public static final Block GRANITE_PILLAR = registerStonePillar(Blocks.GRANITE, "granite", Blocks.POLISHED_GRANITE, MaterialColor.DIRT, () -> new ItemLike[] {Items.GRANITE, Items.POLISHED_GRANITE});
 +    public static final Block TUFF_PILLAR = registerStonePillar(Blocks.TUFF, "tuff", Blocks.TUFF, MaterialColor.TERRACOTTA_GRAY, () -> new ItemLike[] {Items.TUFF, SuCraftItems.POLISHED_TUFF});
-+    public static final Block FIERY_BIRCH_LEAVES = registerLeaves("fiery_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_ORANGE);
-+    public static final Block YELLOW_BIRCH_LEAVES = registerLeaves("yellow_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_YELLOW);
++    // Not included in initial release
++//    public static final Block RUSTY_BIRCH_LEAVES = registerLeaves("rusty_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_ORANGE);
++    public static final Block PALE_BIRCH_LEAVES = registerLeaves("pale_birch", Blocks.BIRCH_LEAVES, Blocks.BIRCH_SAPLING/*TODO make drop specific sapling*/, Blocks.BIRCH_LEAVES, MaterialColor.COLOR_YELLOW);
 +    public static final Block RED_OAK_LEAVES = registerLeaves("red_oak", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_RED);
 +    public static final Block ORANGE_OAK_LEAVES = registerLeaves("orange_oak", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_ORANGE);
 +    public static final Block RED_MAPLE_LEAVES = registerLeaves("red_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_RED);
@@ -7489,8 +7493,9 @@ index 0000000000000000000000000000000000000000..712199a514d224adb1b481fd8804654c
 +    public static final Block RAW_IRON_SLAB = registerFakeRawMetalSlab(Blocks.RAW_IRON_BLOCK, "iron", Blocks.JUNGLE_SLAB);
 +    public static final Block ANCIENT_DEBRIS_SLAB = registerFakeSlab(Blocks.ANCIENT_DEBRIS, null, "ancient_debris", NamespacedKeyWithoutIntention.minecraft("ancient_debris"), NamespacedKeyWithoutIntention.minecraft("ancient_debris_side"), NamespacedKeyWithoutIntention.minecraft("ancient_debris_top"), null, null, null, Blocks.POLISHED_GRANITE_SLAB, null).mineableWithPickaxe();
 +    public static final Block DIRT_BRICK_SLAB = registerFakeSlab(DIRT_BRICKS, "dirt_brick", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
-+    public static final Block STONE_PILLAR = registerStonePillar(Blocks.STONE, "stone", Blocks.STONE, MaterialColor.STONE, () -> new ItemLike[] {Items.STONE});
-+    public static final Block STONE_PILLAR_SLAB = registerFakeCustomStonePillarSlab(STONE_PILLAR, "stone", Blocks.STONE_SLAB);
++    // Not included in initial release
++//    public static final Block STONE_PILLAR = registerStonePillar(Blocks.STONE, "stone", Blocks.STONE, MaterialColor.STONE, () -> new ItemLike[] {Items.STONE});
++//    public static final Block STONE_PILLAR_SLAB = registerFakeCustomStonePillarSlab(STONE_PILLAR, "stone", Blocks.STONE_SLAB);
 +    public static final Block OAK_LOG_SLAB = registerFakeLogSlab(Blocks.OAK_LOG, "oak", Blocks.OAK_SLAB);
 +    public static final Block SPRUCE_LOG_SLAB = registerFakeLogSlab(Blocks.SPRUCE_LOG, "spruce", Blocks.SPRUCE_SLAB);
 +    public static final Block BIRCH_LOG_SLAB = registerFakeLogSlab(Blocks.BIRCH_LOG, "birch", Blocks.BIRCH_SLAB);
@@ -7596,11 +7601,13 @@ index 0000000000000000000000000000000000000000..712199a514d224adb1b481fd8804654c
 +    });
 +    public static final Block SMOULDERING_PEAT = registerPeat("smouldering", true, PEAT);
 +    public static final Block PEAT_SLAB = registerFakeSlab(PEAT, "peat", null, Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel().peatSlab();
-+    public static final Block SCULK_SLAB = registerFakeSlab(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    // Not included in initial release
++//    public static final Block SCULK_SLAB = registerFakeSlab(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
 +    public static final Block CHISELED_QUARTZ_SLAB = registerFakeSlabFromYPillarVanillaBlock(Blocks.CHISELED_QUARTZ_BLOCK, null, "chiseled_quartz", "chiseled_quartz_block", Blocks.QUARTZ_SLAB).mineableWithPickaxe();
 +    public static final Block QUARTZ_PILLAR_SLAB = registerFakeVanillaStonePillarSlab(Blocks.QUARTZ_PILLAR, "quartz", Blocks.QUARTZ_SLAB);
 +    public static final Block QUARTZ_BRICK_SLAB = registerFakeVanillaBrickSlab(Blocks.QUARTZ_BRICKS, "quartz", Blocks.QUARTZ_SLAB);
-+    public static final Block DRIED_KELP_SLAB = registerFakeSlab(Blocks.DRIED_KELP_BLOCK, null, "dried_kelp", NamespacedKeyWithoutIntention.minecraft("dried_kelp_block"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_side"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_bottom"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_top"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_bottom"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_top"), Blocks.DARK_PRISMARINE_SLAB, null).mineableWithHoe();
++    // Not included in initial release
++//    public static final Block DRIED_KELP_SLAB = registerFakeSlab(Blocks.DRIED_KELP_BLOCK, null, "dried_kelp", NamespacedKeyWithoutIntention.minecraft("dried_kelp_block"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_side"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_bottom"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_top"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_bottom"), NamespacedKeyWithoutIntention.minecraft("dried_kelp_top"), Blocks.DARK_PRISMARINE_SLAB, null).mineableWithHoe();
 +    public static final Block RED_FIRE = registerFire("red", Blocks.FIRE, DyeColor.RED.getMaterialColor());
 +    public static final Block ORANGE_FIRE = registerFire("orange", Blocks.FIRE, DyeColor.ORANGE.getMaterialColor());
 +    public static final Block YELLOW_FIRE = registerFire("yellow", Blocks.FIRE, DyeColor.YELLOW.getMaterialColor());
@@ -7644,16 +7651,17 @@ index 0000000000000000000000000000000000000000..712199a514d224adb1b481fd8804654c
 +    );
 +
 +    public static final Block QUARTZ_SPIRAL_MEANDER_SLAB = registerFakeSlab(QUARTZ_SPIRAL_MEANDER, null, "quartz_spiral_meander", NamespacedKeyWithoutIntention.sucraft("quartz_spiral_meander"), NamespacedKeyWithoutIntention.minecraft("chiseled_quartz_block_top"), null, null, null, null, Blocks.QUARTZ_SLAB, null).mineableWithPickaxe();
-+    public static final Block ENDER_PEARL_BLOCK = register(
-+        "ender_pearl_block",
-+        new SingleMultiStateRealBlockReplacementRuleBuilder()
-+            .withNoteBlockHost()
-+            .withFallback(Blocks.WARPED_PLANKS)
-+            .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
-+            .withFullBlockBoundingBoxItem(),
-+        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_CYAN).strength(1.5F, 3.0F)).mineableWithPickaxe(),
-+        SuCraftBlockLoot::dropSelf
-+    ).withCustom2x2SquareRecipe("ender_pearl_block", () -> Items.ENDER_PEARL, 1);
++    // Not included in initial release
++//    public static final Block ENDER_PEARL_BLOCK = register(
++//        "ender_pearl_block",
++//        new SingleMultiStateRealBlockReplacementRuleBuilder()
++//            .withNoteBlockHost()
++//            .withFallback(Blocks.WARPED_PLANKS)
++//            .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
++//            .withFullBlockBoundingBoxItem(),
++//        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_CYAN).strength(1.5F, 3.0F)).mineableWithPickaxe(),
++//        SuCraftBlockLoot::dropSelf
++//    ).withCustom2x2SquareRecipe("ender_pearl_block", () -> Items.ENDER_PEARL, 1);
 +    public static final Block FLINT_BLOCK = register(
 +        "flint_block",
 +        new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -7809,7 +7817,8 @@ index 0000000000000000000000000000000000000000..712199a514d224adb1b481fd8804654c
 +    public static final Block NETHERRACK_STAIRS = registerFakeStairs(Blocks.NETHERRACK, "netherrack", Blocks.RED_NETHER_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithPickaxe();
 +    public static final Block SOUL_SOIL_STAIRS = registerFakeStairs(Blocks.SOUL_SOIL, "soul_soil", Blocks.DARK_OAK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel().soulSpeed().soulFireBase();
 +    public static final Block SMOOTH_BASALT_STAIRS = registerFakeStairs(Blocks.SMOOTH_BASALT, "smooth_basalt", Blocks.COBBLED_DEEPSLATE_STAIRS);
-+    public static final Block SCULK_STAIRS = registerFakeStairs(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    // Not included in initial release
++//    public static final Block SCULK_STAIRS = registerFakeStairs(Blocks.SCULK, "sculk", Blocks.BLACKSTONE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithHoe();
 +    public static final Block OBSIDIAN_STAIRS = registerFakeStairs(Blocks.OBSIDIAN, "obsidian", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
 +    public static final Block CRYING_OBSIDIAN_STAIRS = registerFakeStairs(Blocks.CRYING_OBSIDIAN, "crying_obsidian", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
 +    public static final Block GILDED_BLACKSTONE_STAIRS = registerFakeStairs(Blocks.GILDED_BLACKSTONE, "gilded_blackstone", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
@@ -14070,10 +14079,10 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3fcb6a05365adfe853bc3b7962c390580e0dbf80
+index 0000000000000000000000000000000000000000..315195c20f6711997a501cc2b3737d57d6a0ad8c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,822 @@
+@@ -0,0 +1,829 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -14176,9 +14185,10 @@ index 0000000000000000000000000000000000000000..3fcb6a05365adfe853bc3b7962c39058
 +    public static final Item CUT_SOUL_SANDSTONE = registerBlock(SuCraftBlocks.CUT_SOUL_SANDSTONE, "Cut Soul Sandstone", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.SOUL_SOIL));
 +
 +    public static final Item SOUL_SANDSTONE_BRICKS = registerBricks(SuCraftBlocks.SOUL_SANDSTONE_BRICKS, "Soul Sandstone", () -> Items.SOUL_SOIL);
-+    public static final Item ANDESITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.ANDESITE_COBBLESTONE, "Andesite", () -> Items.ANDESITE);
-+    public static final Item DIORITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.DIORITE_COBBLESTONE, "Diorite", () -> Items.DIORITE);
-+    public static final Item GRANITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.GRANITE_COBBLESTONE, "Granite", () -> Items.GRANITE);
++    // Not included in initial release
++//    public static final Item ANDESITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.ANDESITE_COBBLESTONE, "Andesite", () -> Items.ANDESITE);
++//    public static final Item DIORITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.DIORITE_COBBLESTONE, "Diorite", () -> Items.DIORITE);
++//    public static final Item GRANITE_COBBLESTONE = registerCobblestone(SuCraftBlocks.GRANITE_COBBLESTONE, "Granite", () -> Items.GRANITE);
 +    public static final Item CHISELED_PRISMARINE_BRICKS = registerChiseledBricks(SuCraftBlocks.CHISELED_PRISMARINE_BRICKS, "Prismarine", () -> Items.PRISMARINE_BRICKS);
 +    public static final Item ANDESITE_PILLAR = registerPillar(SuCraftBlocks.ANDESITE_PILLAR, "Andesite", () -> Items.POLISHED_ANDESITE);
 +    public static final Item CALCITE_PILLAR = registerPillar(SuCraftBlocks.CALCITE_PILLAR, "Calcite", () -> Items.CALCITE);
@@ -14186,8 +14196,9 @@ index 0000000000000000000000000000000000000000..3fcb6a05365adfe853bc3b7962c39058
 +    public static final Item DRIPSTONE_PILLAR = registerPillar(SuCraftBlocks.DRIPSTONE_PILLAR, "Dripstone", () -> Items.DRIPSTONE_BLOCK);
 +    public static final Item GRANITE_PILLAR = registerPillar(SuCraftBlocks.GRANITE_PILLAR, "Granite", () -> Items.POLISHED_GRANITE);
 +    public static final Item TUFF_PILLAR = registerPillar(SuCraftBlocks.TUFF_PILLAR, "Tuff", () -> Items.TUFF);
-+    public static final Item FIERY_BIRCH_LEAVES = registerLeaves(SuCraftBlocks.FIERY_BIRCH_LEAVES, "Fiery Birch", () -> Items.ACACIA_LEAVES);
-+    public static final Item YELLOW_BIRCH_LEAVES = registerLeaves(SuCraftBlocks.YELLOW_BIRCH_LEAVES, "Yellow Birch", () -> Items.ACACIA_LEAVES);
++    // Not included in initial release
++//    public static final Item RUSTY_BIRCH_LEAVES = registerLeaves(SuCraftBlocks.RUSTY_BIRCH_LEAVES, "Rusty Birch", () -> Items.ACACIA_LEAVES);
++    public static final Item PALE_BIRCH_LEAVES = registerLeaves(SuCraftBlocks.PALE_BIRCH_LEAVES, "Pale Birch", () -> Items.ACACIA_LEAVES);
 +    public static final Item RED_OAK_LEAVES = registerLeaves(SuCraftBlocks.RED_OAK_LEAVES, "Red Oak", () -> Items.ACACIA_LEAVES);
 +    public static final Item ORANGE_OAK_LEAVES = registerLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES, "Orange Oak", () -> Items.ACACIA_LEAVES);
 +    public static final Item RED_MAPLE_LEAVES = registerLeaves(SuCraftBlocks.RED_MAPLE_LEAVES, "Red Maple", () -> Items.ACACIA_LEAVES);
@@ -14327,8 +14338,9 @@ index 0000000000000000000000000000000000000000..3fcb6a05365adfe853bc3b7962c39058
 +    public static final Item RAW_IRON_SLAB = registerRawMetalSlab(SuCraftBlocks.RAW_IRON_SLAB, "Iron");
 +    public static final Item ANCIENT_DEBRIS_SLAB = registerSlab(SuCraftBlocks.ANCIENT_DEBRIS_SLAB, "Ancient Debris");
 +    public static final Item DIRT_BRICK_SLAB = registerSlab(SuCraftBlocks.DIRT_BRICK_SLAB, "Dirt Brick");
-+    public static final Item STONE_PILLAR = registerPillar(SuCraftBlocks.STONE_PILLAR, "Stone", () -> Items.STONE);
-+    public static final Item STONE_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.STONE_PILLAR_SLAB, "Stone");
++    // Not included in initial release
++//    public static final Item STONE_PILLAR = registerPillar(SuCraftBlocks.STONE_PILLAR, "Stone", () -> Items.STONE);
++//    public static final Item STONE_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.STONE_PILLAR_SLAB, "Stone");
 +    public static final Item OAK_LOG_SLAB = registerLogSlab(SuCraftBlocks.OAK_LOG_SLAB, "Oak");
 +    public static final Item SPRUCE_LOG_SLAB = registerLogSlab(SuCraftBlocks.SPRUCE_LOG_SLAB, "Spruce");
 +    public static final Item BIRCH_LOG_SLAB = registerLogSlab(SuCraftBlocks.BIRCH_LOG_SLAB, "Birch");
@@ -14393,16 +14405,19 @@ index 0000000000000000000000000000000000000000..3fcb6a05365adfe853bc3b7962c39058
 +    public static final Item PEAT = registerBlock(SuCraftBlocks.PEAT, "Peat", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.COARSE_DIRT));
 +    public static final Item SMOULDERING_PEAT = registerBlock(SuCraftBlocks.SMOULDERING_PEAT, "Smouldering Peat", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.COARSE_DIRT));
 +    public static final Item PEAT_SLAB = registerSlab(SuCraftBlocks.PEAT_SLAB, "Peat");
-+    public static final Item SCULK_SLAB = registerSlab(SuCraftBlocks.SCULK_SLAB, "Sculk");
++    // Not included in initial release
++//    public static final Item SCULK_SLAB = registerSlab(SuCraftBlocks.SCULK_SLAB, "Sculk");
 +    public static final Item CHISELED_QUARTZ_SLAB = registerSlab(SuCraftBlocks.CHISELED_QUARTZ_SLAB, "Chiseled Quartz");
 +    public static final Item QUARTZ_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.QUARTZ_PILLAR_SLAB, "Quartz");
 +    public static final Item QUARTZ_BRICK_SLAB = registerBrickSlab(SuCraftBlocks.QUARTZ_BRICK_SLAB, "Quartz");
-+    public static final Item DRIED_KELP_SLAB = registerSlab(SuCraftBlocks.DRIED_KELP_SLAB, "Dried Kelp");
++    // Not included in initial release
++//    public static final Item DRIED_KELP_SLAB = registerSlab(SuCraftBlocks.DRIED_KELP_SLAB, "Dried Kelp");
 +    public static final Item PAPER_BLOCK = registerBlock(SuCraftBlocks.PAPER_BLOCK, "Paper Block", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.WHITE_WOOL));
 +    public static final Item PAPER_SLAB = registerSlab(SuCraftBlocks.PAPER_SLAB, "Paper");
 +    public static final Item QUARTZ_SPIRAL_MEANDER = registerBlock(SuCraftBlocks.QUARTZ_SPIRAL_MEANDER, "Quartz Meander", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.CHISELED_QUARTZ_BLOCK));
 +    public static final Item QUARTZ_SPIRAL_MEANDER_SLAB = registerSlab(SuCraftBlocks.QUARTZ_SPIRAL_MEANDER_SLAB, "Quartz Meander");
-+    public static final Item ENDER_PEARL_BLOCK = registerBlock(SuCraftBlocks.ENDER_PEARL_BLOCK, "Ender Pearl Block", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.WARPED_PLANKS));
++    // Not included in initial release
++//    public static final Item ENDER_PEARL_BLOCK = registerBlock(SuCraftBlocks.ENDER_PEARL_BLOCK, "Ender Pearl Block", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.WARPED_PLANKS));
 +    public static final Item FLINT_BLOCK = registerBlock(SuCraftBlocks.FLINT_BLOCK, "Flint Block", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.DEEPSLATE_TILES));
 +    public static final Item FLINT_PILLAR = registerBlock(SuCraftBlocks.FLINT_PILLAR, "Flint Pillar", CreativeModeTab.TAB_BUILDING_BLOCKS, rule -> rule.withHighPingHost(() -> Items.POLISHED_BASALT));
 +    public static final Item FLINT_PILLAR_SLAB = registerSlab(SuCraftBlocks.FLINT_PILLAR_SLAB, "Flint Pillar");
@@ -14531,7 +14546,8 @@ index 0000000000000000000000000000000000000000..3fcb6a05365adfe853bc3b7962c39058
 +    public static final Item NETHERRACK_STAIRS = registerStairs(SuCraftBlocks.NETHERRACK_STAIRS, "Netherrack");
 +    public static final Item SOUL_SOIL_STAIRS = registerStairs(SuCraftBlocks.SOUL_SOIL_STAIRS, "Soul Soil");
 +    public static final Item SMOOTH_BASALT_STAIRS = registerStairs(SuCraftBlocks.SMOOTH_BASALT_STAIRS, "Smooth Basalt");
-+    public static final Item SCULK_STAIRS = registerStairs(SuCraftBlocks.SCULK_STAIRS, "Sculk");
++    // Not included in initial release
++//    public static final Item SCULK_STAIRS = registerStairs(SuCraftBlocks.SCULK_STAIRS, "Sculk");
 +    public static final Item OBSIDIAN_STAIRS = registerStairs(SuCraftBlocks.OBSIDIAN_STAIRS, "Obsidian");
 +    public static final Item CRYING_OBSIDIAN_STAIRS = registerStairs(SuCraftBlocks.CRYING_OBSIDIAN_STAIRS, "Crying Obsidian");
 +    public static final Item GILDED_BLACKSTONE_STAIRS = registerStairs(SuCraftBlocks.GILDED_BLACKSTONE_STAIRS, "Gilded Blackstone");

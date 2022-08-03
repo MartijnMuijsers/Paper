@@ -5,10 +5,10 @@ Subject: [PATCH] Add custom blocks and items
 
 
 diff --git a/src/main/java/org/bukkit/Material.java b/src/main/java/org/bukkit/Material.java
-index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d056f632a 100644
+index 2d39ecea67cd033858eaa713e405260a87c718a3..4853a6c3cbece9be9ac1fbd2cef96befc247ad56 100644
 --- a/src/main/java/org/bukkit/Material.java
 +++ b/src/main/java/org/bukkit/Material.java
-@@ -4055,7 +4055,472 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4055,7 +4055,479 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      LEGACY_RECORD_11(2266, 1),
      @Deprecated
      LEGACY_RECORD_12(2267, 1),
@@ -66,9 +66,10 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
 +    SUCRAFT_CHISELED_SOUL_SANDSTONE(78178, SUCRAFT_SOUL_SANDSTONE),
 +    SUCRAFT_CUT_SOUL_SANDSTONE(78179, SUCRAFT_SOUL_SANDSTONE),
 +    SUCRAFT_SOUL_SANDSTONE_BRICKS(78180, SUCRAFT_SANDSTONE_BRICKS),
-+    SUCRAFT_ANDESITE_COBBLESTONE(78181, COBBLESTONE),
-+    SUCRAFT_DIORITE_COBBLESTONE(78182, SUCRAFT_ANDESITE_COBBLESTONE),
-+    SUCRAFT_GRANITE_COBBLESTONE(78183, SUCRAFT_ANDESITE_COBBLESTONE),
++    // Not included in initial release
++//    SUCRAFT_ANDESITE_COBBLESTONE(78181, COBBLESTONE),
++//    SUCRAFT_DIORITE_COBBLESTONE(78182, SUCRAFT_ANDESITE_COBBLESTONE),
++//    SUCRAFT_GRANITE_COBBLESTONE(78183, SUCRAFT_ANDESITE_COBBLESTONE),
 +    SUCRAFT_CHISELED_PRISMARINE_BRICKS(78184, PRISMARINE_BRICKS),
 +    SUCRAFT_ANDESITE_PILLAR(78185, QUARTZ_PILLAR),
 +    SUCRAFT_CALCITE_PILLAR(78186, SUCRAFT_ANDESITE_PILLAR),
@@ -76,9 +77,10 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
 +    SUCRAFT_DRIPSTONE_PILLAR(78188, SUCRAFT_ANDESITE_PILLAR),
 +    SUCRAFT_GRANITE_PILLAR(78189, SUCRAFT_ANDESITE_PILLAR),
 +    SUCRAFT_TUFF_PILLAR(78190, SUCRAFT_ANDESITE_PILLAR),
-+    SUCRAFT_FIERY_BIRCH_LEAVES(78191, BIRCH_LEAVES),
-+    SUCRAFT_YELLOW_BIRCH_LEAVES(78192, SUCRAFT_FIERY_BIRCH_LEAVES),
-+    SUCRAFT_RED_OAK_LEAVES(78193, SUCRAFT_FIERY_BIRCH_LEAVES),
++    // Not included in initial release
++//    SUCRAFT_RUSTY_BIRCH_LEAVES(78191, BIRCH_LEAVES),
++    SUCRAFT_PALE_BIRCH_LEAVES(78192, BIRCH_LEAVES),
++    SUCRAFT_RED_OAK_LEAVES(78193, SUCRAFT_PALE_BIRCH_LEAVES),
 +    SUCRAFT_ORANGE_OAK_LEAVES(78194, SUCRAFT_RED_OAK_LEAVES),
 +    SUCRAFT_RED_MAPLE_LEAVES(78195, SUCRAFT_RED_OAK_LEAVES),
 +    SUCRAFT_ORANGE_MAPLE_LEAVES(78196, SUCRAFT_RED_MAPLE_LEAVES),
@@ -212,8 +214,9 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
 +    SUCRAFT_RAW_IRON_SLAB(78324, SUCRAFT_RAW_COPPER_SLAB),
 +    SUCRAFT_ANCIENT_DEBRIS_SLAB(78325, CUT_COPPER_SLAB),
 +    SUCRAFT_DIRT_BRICK_SLAB(78326, SUCRAFT_DIRT_SLAB),
-+    SUCRAFT_STONE_PILLAR(78327, SUCRAFT_ANDESITE_PILLAR),
-+    SUCRAFT_STONE_PILLAR_SLAB(78328, STONE_SLAB),
++    // Not included in initial release
++//    SUCRAFT_STONE_PILLAR(78327, SUCRAFT_ANDESITE_PILLAR),
++//    SUCRAFT_STONE_PILLAR_SLAB(78328, STONE_SLAB),
 +    SUCRAFT_OAK_LOG_SLAB(78329, OAK_SLAB),
 +    SUCRAFT_SPRUCE_LOG_SLAB(78330, SPRUCE_SLAB),
 +    SUCRAFT_BIRCH_LOG_SLAB(78331, BIRCH_SLAB),
@@ -263,11 +266,13 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
 +    SUCRAFT_PEAT(78375, COARSE_DIRT),
 +    SUCRAFT_SMOULDERING_PEAT(78376, SUCRAFT_PEAT),
 +    SUCRAFT_PEAT_SLAB(78377, SUCRAFT_COARSE_DIRT_SLAB),
-+    SUCRAFT_SCULK_SLAB(78378, BLACKSTONE_SLAB),
++    // Not included in initial release
++//    SUCRAFT_SCULK_SLAB(78378, BLACKSTONE_SLAB),
 +    SUCRAFT_CHISELED_QUARTZ_SLAB(78379, QUARTZ_SLAB),
 +    SUCRAFT_QUARTZ_PILLAR_SLAB(78380, QUARTZ_SLAB),
 +    SUCRAFT_QUARTZ_BRICK_SLAB(78381, QUARTZ_SLAB),
-+    SUCRAFT_DRIED_KELP_SLAB(78382, MUD_BRICK_SLAB),
++    // Not included in initial release
++//    SUCRAFT_DRIED_KELP_SLAB(78382, MUD_BRICK_SLAB),
 +    SUCRAFT_RED_FIRE(78383, SOUL_FIRE),
 +    SUCRAFT_ORANGE_FIRE(78384, SUCRAFT_RED_FIRE),
 +    SUCRAFT_YELLOW_FIRE(78385, SUCRAFT_RED_FIRE),
@@ -288,7 +293,8 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
 +    SUCRAFT_PAPER_SLAB(78400, SUCRAFT_WHITE_WOOL_SLAB),
 +    SUCRAFT_QUARTZ_SPIRAL_MEANDER(78401, CHISELED_QUARTZ_BLOCK),
 +    SUCRAFT_QUARTZ_SPIRAL_MEANDER_SLAB(78402, SUCRAFT_CHISELED_QUARTZ_SLAB),
-+    SUCRAFT_ENDER_PEARL_BLOCK(78403, AMETHYST_BLOCK),
++    // Not included in initial release
++//    SUCRAFT_ENDER_PEARL_BLOCK(78403, AMETHYST_BLOCK),
 +    SUCRAFT_FLINT_BLOCK(78404, COAL_BLOCK),
 +    SUCRAFT_FLINT_PILLAR(78405, SUCRAFT_FLINT_BLOCK),
 +    SUCRAFT_FLINT_PILLAR_SLAB(78406, BLACKSTONE_SLAB),
@@ -417,7 +423,8 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
 +    SUCRAFT_NETHERRACK_STAIRS(78529, MUD_BRICK_STAIRS),
 +    SUCRAFT_SOUL_SOIL_STAIRS(78530, MUD_BRICK_STAIRS),
 +    SUCRAFT_SMOOTH_BASALT_STAIRS(78531, COBBLESTONE_STAIRS),
-+    SUCRAFT_SCULK_STAIRS(78532, BLACKSTONE_STAIRS),
++    // Not included in initial release
++//    SUCRAFT_SCULK_STAIRS(78532, BLACKSTONE_STAIRS),
 +    SUCRAFT_OBSIDIAN_STAIRS(78533, BLACKSTONE_STAIRS),
 +    SUCRAFT_CRYING_OBSIDIAN_STAIRS(78534, SUCRAFT_OBSIDIAN_STAIRS),
 +    SUCRAFT_GILDED_BLACKSTONE_STAIRS(78535, BLACKSTONE_STAIRS),
@@ -482,7 +489,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
      //</editor-fold>
  
      @Deprecated
-@@ -4071,6 +4536,10 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4071,6 +4543,10 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      private final NamespacedKey key;
      private boolean isBlock; // Paper
  
@@ -493,7 +500,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
      private Material(final int id) {
          this(id, 64);
      }
-@@ -4097,7 +4566,14 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4097,7 +4573,14 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          this.maxStack = stack;
          this.data = data;
          this.legacy = this.name().startsWith(LEGACY_PREFIX);
@@ -509,7 +516,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          // try to cache the constructor for this material
          try {
              if (MaterialData.class.isAssignableFrom(data)) {
-@@ -4112,6 +4588,13 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4112,6 +4595,13 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          }
      }
  
@@ -523,7 +530,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
      // Paper start
  
      /**
-@@ -4317,6 +4800,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -4317,6 +4807,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      }
      private boolean isBlock0() {
      // Paper end
@@ -535,7 +542,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isBlock">
              case ACACIA_BUTTON:
-@@ -5441,6 +5929,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -5441,6 +5936,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return True if this material represents a playable music disk.
       */
      public boolean isRecord() {
@@ -547,7 +554,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isRecord">
              case MUSIC_DISC_5:
-@@ -5474,6 +5967,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -5474,6 +5974,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock() || id == 0) {
              return false;
          }
@@ -559,7 +566,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isSolid">
              case ACACIA_DOOR:
-@@ -6409,6 +6907,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -6409,6 +6914,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return True if this material is an air block.
       */
      public boolean isAir() {
@@ -571,7 +578,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isAir">
              case AIR:
-@@ -6435,6 +6938,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -6435,6 +6945,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -583,7 +590,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isTransparent">
              case ACACIA_BUTTON:
-@@ -6631,6 +7139,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -6631,6 +7146,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -595,7 +602,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isFlammable">
              case ACACIA_DOOR:
-@@ -6929,6 +7442,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -6929,6 +7449,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -607,7 +614,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isBurnable">
              case ACACIA_FENCE:
-@@ -7133,6 +7651,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -7133,6 +7658,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return true if this Material can be used as fuel.
       */
      public boolean isFuel() {
@@ -619,7 +626,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isFuel">
              case ACACIA_BOAT:
-@@ -7419,6 +7942,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -7419,6 +7949,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -631,7 +638,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isOccluding">
              case ACACIA_LOG:
-@@ -7878,6 +8406,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -7878,6 +8413,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
          if (!isBlock()) {
              return false;
          }
@@ -643,7 +650,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="hasGravity">
              case ANVIL:
-@@ -7921,6 +8454,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -7921,6 +8461,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return true if this material is an item
       */
      public boolean isItem() {
@@ -655,7 +662,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              //<editor-fold defaultstate="collapsed" desc="isItem">
              case ACACIA_WALL_SIGN:
-@@ -8129,6 +8667,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -8129,6 +8674,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       * @return true if this material can be interacted with.
       */
      public boolean isInteractable() {
@@ -667,7 +674,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="isInteractable">
              case ACACIA_BUTTON:
-@@ -8425,6 +8968,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -8425,6 +8975,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       */
      public float getHardness() {
          Preconditions.checkArgument(isBlock(), "The Material is not a block!");
@@ -679,7 +686,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getBlockHardness">
              case BARRIER:
-@@ -9257,6 +9805,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -9257,6 +9812,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       */
      public float getBlastResistance() {
          Preconditions.checkArgument(isBlock(), "The Material is not a block!");
@@ -691,7 +698,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getBlastResistance">
              case BIG_DRIPLEAF:
-@@ -10090,6 +10643,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10090,6 +10650,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       */
      public float getSlipperiness() {
          Preconditions.checkArgument(isBlock(), "The Material is not a block!");
@@ -703,7 +710,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getSlipperiness">
              default:
-@@ -10117,6 +10675,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10117,6 +10682,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      @Nullable
      public Material getCraftingRemainingItem() {
          Preconditions.checkArgument(isItem(), "The Material is not an item!");
@@ -715,7 +722,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getCraftingRemainingItem">
              case WATER_BUCKET:
-@@ -10142,6 +10705,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10142,6 +10712,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      @NotNull
      public EquipmentSlot getEquipmentSlot() {
          Preconditions.checkArgument(isItem(), "The Material is not an item!");
@@ -727,7 +734,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          switch (this) {
              // <editor-fold defaultstate="collapsed" desc="getEquipmentSlot">
              case CARVED_PUMPKIN:
-@@ -10205,7 +10773,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10205,7 +10780,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
      @NotNull
      public Multimap<Attribute, AttributeModifier> getDefaultAttributeModifiers(@NotNull EquipmentSlot slot) {
          Preconditions.checkArgument(isItem(), "The Material is not an item!");
@@ -740,7 +747,7 @@ index 2d39ecea67cd033858eaa713e405260a87c718a3..853c79dd4cc1ad98771290b043e22e5d
          return Bukkit.getUnsafe().getDefaultAttributeModifiers(this, slot);
      }
  
-@@ -10216,6 +10788,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
+@@ -10216,6 +10795,11 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
       */
      @Nullable
      public CreativeCategory getCreativeCategory() {
