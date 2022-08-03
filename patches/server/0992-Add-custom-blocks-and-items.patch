@@ -1178,7 +1178,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
 diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-index 35377576ed182814051c11f902e02e8e921e84e3..52642ec2abf26b20fcfd353732326d26a39ef335 100644
+index 35377576ed182814051c11f902e02e8e921e84e3..a126fe57ff9eb8ec1a36931c2ccf799f2dc89d9f 100644
 --- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
 +++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
 @@ -60,6 +60,7 @@ import net.minecraft.network.chat.Component;
@@ -1270,7 +1270,7 @@ index 35377576ed182814051c11f902e02e8e921e84e3..52642ec2abf26b20fcfd353732326d26
 +            if (tryRename && item.customDisplayName != null) {
 +                @NotNull ItemStack replacedStack = stack.copy();
 +                CompoundTag tag = replacedStack.getOrCreateTag();
-+                ItemReplacementRule.SimpleItemReplacementRule.replaceItemStackDisplayName(replacedStack, tag, null, item.customDisplayNameJSON, item.customDisplayNameInLoreJSON);
++                ItemReplacementRule.SimpleItemReplacementRule.replaceItemStackDisplayName(replacedStack, tag, null, item.customDisplayNameJSON, item.customDisplayNameInLoreJSON, false);
 +                ItemReplacementRule.storeOriginalItemInfoInItemStackNBT(replacedStack, tag, stack);
 +                stack = replacedStack;
 +            }
@@ -13175,10 +13175,10 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9d186ee53
+index 0000000000000000000000000000000000000000..b7d2bf62fc65be321ec36c36709770273d7971e4
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
-@@ -0,0 +1,513 @@
+@@ -0,0 +1,537 @@
 +package nl.martijnmuijsers.paper.item;
 +
 +import com.google.common.collect.Lists;
@@ -13398,7 +13398,7 @@ index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9
 +         * @param tag Optional, just for convenience in case we already have it to avoid unnecessarily retrieving it twice
 +         * @param rarity Optional as an override, will otherwise be retrieved from the item if needed
 +         */
-+        public static void replaceItemStackDisplayName(@NotNull ItemStack item, @Nullable CompoundTag tag, @Nullable Rarity rarity, @NotNull String displayNameJSON, @NotNull String displayNameInLoreJSON) {
++        public static void replaceItemStackDisplayName(@NotNull ItemStack item, @Nullable CompoundTag tag, @Nullable Rarity rarity, @NotNull String displayNameJSON, @NotNull String displayNameInLoreJSON, boolean addRendersAsEntityLore) {
 +            if (tag == null) {
 +                tag = item.getOrCreateTag();
 +            }
@@ -13408,11 +13408,22 @@ index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9
 +            // Setting display name is based on CraftMetaItem.applyToItem(CompoundTag)
 +            // Could potentially also be based on ItemStack.setHoverName(Component)
 +            final CompoundTag display = tag.getCompound(CraftMetaItem.DISPLAY.NBT);
++            if (addRendersAsEntityLore) {
++                ListTag lore;
++                if (!display.contains(CraftMetaItem.LORE.NBT)) {
++                    lore = new ListTag();
++                    display.put(CraftMetaItem.LORE.NBT, lore);
++                } else {
++                    lore = display.getList(CraftMetaItem.LORE.NBT, 8);
++                }
++                lore.add(0, StringTag.valueOf(SuCraftItems.RENDERS_AS_ENTITY_LORE_ADDITION_JSON));
++            }
 +            if (!tag.contains(CraftMetaItem.DISPLAY.NBT)) {
 +                tag.put(CraftMetaItem.DISPLAY.NBT, display);
 +            }
 +            if (!display.contains(CraftMetaItem.NAME.NBT)) {
 +                display.putString(CraftMetaItem.NAME.NBT, displayNameJSON);
++//                System.out.println("TEMP DEBUG - set display name directly");
 +            } else {
 +                display.putString(CraftMetaItem.NAME.NBT, Component.Serializer.toJson(Component.Serializer.fromJson(display.getString(CraftMetaItem.NAME.NBT)).withStyle(Style.EMPTY.withColor(rarity.color))));
 +                ListTag lore;
@@ -13429,6 +13440,18 @@ index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9
 +        @Override
 +        public @Nullable ItemStack replace(@NotNull ItemStack item, boolean hasResourcePack, boolean hasHighPing, boolean isStonecutterRecipeResult) {
 +            if (item.is(this.getReal())) {
++                boolean rendersAsEntity = false;
++                @Nullable Block block = Registry.BLOCK.get(this.getReal().id);
++                if (block != null) {
++                    var blockReplacementRule = block.replacementRule;
++                    if (blockReplacementRule != null) {
++                        if (blockReplacementRule.hasAsReal(block)) {
++                            if (blockReplacementRule.rendersAsEntity()) {
++                                rendersAsEntity = true;
++                            }
++                        }
++                    }
++                }
 +                @NotNull ItemStack clone = item.copy();
 +                CompoundTag tag = clone.getOrCreateTag();
 +                if (hasResourcePack) {
@@ -13444,7 +13467,8 @@ index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9
 +                } else {
 +                    clone.setItem(this.getFallback());
 +                }
-+                replaceItemStackDisplayName(clone, tag, item.getRarity(), this.real.customDisplayNameJSON, this.real.customDisplayNameInLoreJSON);
++                replaceItemStackDisplayName(clone, tag, item.getRarity(), this.real.customDisplayNameJSON, this.real.customDisplayNameInLoreJSON, rendersAsEntity);
++//                System.out.println("TEMP DEBUG - replaced item display name for " + item.getItem() + " with: " + this.real.customDisplayNameJSON);
 +                storeOriginalItemInfoInItemStackNBT(clone, tag, item);
 +                return clone;
 +            } else if (this.isBlockHostReplacing(item.getItem()) && hasResourcePack) {
@@ -13452,7 +13476,7 @@ index 0000000000000000000000000000000000000000..4c1a94ac8a0eea9c12c8908c5e1bd8f9
 +                clone.setItem(this.getBlockHostReplacingItemReplacement(item.getItem()));
 +                var description = Component.translatable(item.getDescriptionId());
 +                CompoundTag tag = clone.getOrCreateTag();
-+                replaceItemStackDisplayName(clone, tag, item.getRarity(), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(clone.getRarity().color).withItalic(false))), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR).withItalic(false))));
++                replaceItemStackDisplayName(clone, tag, item.getRarity(), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(clone.getRarity().color).withItalic(false))), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR).withItalic(false))), false);
 +                storeOriginalItemInfoInItemStackNBT(clone, tag, item);
 +                return clone;
 +            }
@@ -14046,10 +14070,10 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e6129cbf7a81c8af114e16ddf4b878e749a331fc
+index 0000000000000000000000000000000000000000..3fcb6a05365adfe853bc3b7962c390580e0dbf80
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,795 @@
+@@ -0,0 +1,822 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -14057,6 +14081,8 @@ index 0000000000000000000000000000000000000000..e6129cbf7a81c8af114e16ddf4b878e7
 +
 +import io.papermc.paper.adventure.PaperAdventure;
 +import net.kyori.adventure.text.Component;
++import net.kyori.adventure.text.format.NamedTextColor;
++import net.kyori.adventure.text.format.TextColor;
 +import net.kyori.adventure.text.format.TextDecoration;
 +import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
 +import net.minecraft.ChatFormatting;
@@ -14080,6 +14106,11 @@ index 0000000000000000000000000000000000000000..e6129cbf7a81c8af114e16ddf4b878e7
 +public class SuCraftItems {
 +
 +    public static final @NotNull ChatFormatting CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR = ChatFormatting.DARK_GRAY;
++    public static final @Nullable TextColor RENDERS_AS_ENTITY_DISPLAY_NAME_COLOR = null;//TextColor.color(0xdddcf8);
++    public static final @Nullable TextColor RENDERS_AS_ENTITY_DISPLAY_NAME_IN_LORE_COLOR = null;//TextColor.color(0x7877a3);
++    public static final @NotNull TextColor RENDERS_AS_ENTITY_LORE_ADDITION_COLOR = NamedTextColor.DARK_GRAY;
++    public static final @NotNull String RENDERS_AS_ENTITY_LORE_ADDITION_TEXT = "Entity";
++    public static final @NotNull String RENDERS_AS_ENTITY_LORE_ADDITION_JSON = GsonComponentSerializer.gson().serialize(net.kyori.adventure.text.Component.text(SuCraftItems.RENDERS_AS_ENTITY_LORE_ADDITION_TEXT, SuCraftItems.RENDERS_AS_ENTITY_LORE_ADDITION_COLOR).decoration(TextDecoration.ITALIC, false));
 +
 +    public static final Item SNOWY_STONE_BRICKS = registerStoneBricks(SuCraftBlocks.SNOWY_STONE_BRICKS, "Snowy", () -> Items.STONE_BRICKS);
 +    public static final Item DIRTY_STONE_BRICKS = registerStoneBricks(SuCraftBlocks.DIRTY_STONE_BRICKS, "Dirty", () -> Items.STONE_BRICKS);
@@ -14567,6 +14598,17 @@ index 0000000000000000000000000000000000000000..e6129cbf7a81c8af114e16ddf4b878e7
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group, @Nullable Function<ItemReplacementRule.SimpleItemReplacementRule.Builder, ItemReplacementRule.SimpleItemReplacementRule.Builder> replacementRuleFunction) {
 +        Item registeredItem = Items.registerBlock(block, group);
++        boolean rendersAsEntity = false;
++//        System.out.println("TEMP DEBUG - " + block.id + " is being registered");
++        var blockReplacementRule = block.replacementRule;
++        if (blockReplacementRule != null) {
++            if (blockReplacementRule.hasAsReal(block)) {
++                if (blockReplacementRule.rendersAsEntity()) {
++                    rendersAsEntity = true;
++//                    System.out.println("TEMP DEBUG - " + block.id + " renders as entity");
++                }
++            }
++        }
 +        block.customItemForBlock = registeredItem;
 +        registeredItem.isVanilla = false;
 +        registeredItem.customKey = block.customKey;
@@ -14575,9 +14617,18 @@ index 0000000000000000000000000000000000000000..e6129cbf7a81c8af114e16ddf4b878e7
 +            replacementRuleBuilder = replacementRuleFunction.apply(replacementRuleBuilder);
 +        }
 +        registeredItem.replacementRule = replacementRuleBuilder.build();
-+        registeredItem.customDisplayName = Component.text(displayName, PaperAdventure.asAdventure(registeredItem.rarity.color)).decoration(TextDecoration.ITALIC, false);
++        var customDisplayNameColor = PaperAdventure.asAdventure(registeredItem.rarity.color);
++        if (rendersAsEntity && RENDERS_AS_ENTITY_DISPLAY_NAME_COLOR != null) {
++            customDisplayNameColor = RENDERS_AS_ENTITY_DISPLAY_NAME_COLOR;
++        }
++        registeredItem.customDisplayName = Component.text(displayName, customDisplayNameColor).decoration(TextDecoration.ITALIC, false);
++//        System.out.println("TEMP DEBUG - " + block.id + " gets custom display name: " + registeredItem.customDisplayName);
 +        registeredItem.customDisplayNameJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayName);
-+        registeredItem.customDisplayNameInLore = Component.text(displayName, PaperAdventure.asAdventure(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR)).decoration(TextDecoration.ITALIC, false);
++        var customDisplayNameInLoreColor = PaperAdventure.asAdventure(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR);
++        if (rendersAsEntity && RENDERS_AS_ENTITY_DISPLAY_NAME_IN_LORE_COLOR != null) {
++            customDisplayNameInLoreColor = RENDERS_AS_ENTITY_DISPLAY_NAME_IN_LORE_COLOR;
++        }
++        registeredItem.customDisplayNameInLore = Component.text(displayName, customDisplayNameInLoreColor).decoration(TextDecoration.ITALIC, false);
 +        registeredItem.customDisplayNameInLoreJSON = GsonComponentSerializer.gson().serialize(registeredItem.customDisplayNameInLore);
 +        // Add crafting recipes
 +        for (var customRecipe : block.customRecipes) {
