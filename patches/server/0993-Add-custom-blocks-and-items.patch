@@ -2936,10 +2936,10 @@ index 7123b7a821e2b3b75701976ed5382f4f3aaecfda..1a34ef9e4c242a8048b3d21ab73126a1
  
                      this.level.destroyBlockProgress(this.player.getId(), pos, k);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898fef8a0f1 100644
+index 1d87b9baef13b39ddd78c94403da7fb765d04ff9..1ea3163a0e74072266008d31ed34e3d069ef65d3 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -30,6 +30,7 @@ import java.util.function.BiFunction;
+@@ -29,6 +29,7 @@ import java.util.function.BiFunction;
  import java.util.function.Consumer;
  import java.util.function.UnaryOperator;
  import java.util.stream.Collectors;
@@ -2947,7 +2947,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  import net.minecraft.ChatFormatting;
-@@ -142,6 +143,7 @@ import net.minecraft.world.entity.LivingEntity;
+@@ -141,6 +142,7 @@ import net.minecraft.world.entity.LivingEntity;
  import net.minecraft.world.entity.Mob;
  import net.minecraft.world.entity.MoverType;
  import net.minecraft.world.entity.PlayerRideableJumping;
@@ -2955,7 +2955,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898
  import net.minecraft.world.item.BlockItem;
  import net.minecraft.world.item.BucketItem;
  import net.minecraft.world.item.Item;
-@@ -170,6 +172,7 @@ import net.minecraft.world.phys.Vec3;
+@@ -169,6 +171,7 @@ import net.minecraft.world.phys.Vec3;
  import net.minecraft.world.phys.shapes.BooleanOp;
  import net.minecraft.world.phys.shapes.Shapes;
  import net.minecraft.world.phys.shapes.VoxelShape;
@@ -2963,7 +2963,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898
  import org.apache.commons.lang3.StringUtils;
  import org.slf4j.Logger;
  
-@@ -1990,7 +1993,30 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -1989,7 +1992,30 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
          }
          // Paper start
          PlayerResourcePackStatusEvent.Status packStatus = PlayerResourcePackStatusEvent.Status.values()[packet.action.ordinal()];
@@ -2994,7 +2994,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898
          this.cserver.getPluginManager().callEvent(new PlayerResourcePackStatusEvent(this.getCraftPlayer(), packStatus)); // CraftBukkit
          // Paper end
      }
-@@ -3064,6 +3090,17 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3063,6 +3089,17 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
                              return;
                          }
  
@@ -3012,7 +3012,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898
                          switch (event.getResult()) {
                              case ALLOW:
                              case DEFAULT:
-@@ -3131,10 +3168,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3130,10 +3167,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
                      while (objectiterator.hasNext()) {
                          Entry<ItemStack> entry = (Entry) objectiterator.next();
  
@@ -3025,7 +3025,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898
                      this.player.containerMenu.resumeRemoteUpdates();
                      if (flag) {
                          this.player.containerMenu.broadcastFullState();
-@@ -3191,7 +3228,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3190,7 +3227,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
          PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
          if (this.player.gameMode.isCreative()) {
              boolean flag = packet.getSlotNum() < 0;
@@ -3037,7 +3037,7 @@ index 40712b51b84a812737f6c5f58eefece1e11608a3..323ffabfc90b27e612d7f4df758e8898
              CompoundTag nbttagcompound = BlockItem.getBlockEntityData(itemstack);
  
              if (!itemstack.isEmpty() && nbttagcompound != null && nbttagcompound.contains("x") && nbttagcompound.contains("y") && nbttagcompound.contains("z") && this.player.getBukkitEntity().hasPermission("minecraft.nbt.copy")) { // Spigot
-@@ -3210,10 +3250,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3209,10 +3249,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
              boolean flag1 = packet.getSlotNum() >= 1 && packet.getSlotNum() <= 45;
              boolean flag2 = itemstack.isEmpty() || itemstack.getDamageValue() >= 0 && itemstack.getCount() <= 64 && !itemstack.isEmpty();

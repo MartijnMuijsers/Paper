@@ -94,10 +94,10 @@ index 57a6065523041c67856f84e6db9623ae16f5f111..cebf8782b35bdaadae3d7feef1ffd8fa
      public final MinecraftServer server;
      public final ServerPlayerGameMode gameMode;
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index ae3c43e0c87cd8924eb0246f4d903a689ad09530..40712b51b84a812737f6c5f58eefece1e11608a3 100644
+index 4b18994ed45336074a936900a44e32f02c6e6956..1d87b9baef13b39ddd78c94403da7fb765d04ff9 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2082,6 +2082,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -2081,6 +2081,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
          }
      }
  

@@ -367,10 +367,10 @@ index ecc7eb09e8f3791e31efa5082f6e61d2da099eef..57a6065523041c67856f84e6db9623ae
  
      public void untrackChunk(ChunkPos chunkPos, boolean concernsTracking) {
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index eae057b98eee0514733b43624b435156f9bb78c9..ae3c43e0c87cd8924eb0246f4d903a689ad09530 100644
+index c7f5d83ccaf3f7fc51628a2f8a5052c9f328b7b3..4b18994ed45336074a936900a44e32f02c6e6956 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -3331,11 +3331,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
+@@ -3330,11 +3330,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Ser
  
      @Override
      public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
