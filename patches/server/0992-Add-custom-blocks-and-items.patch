@@ -7708,10 +7708,10 @@ index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3750b3dedc58dfad6e84f0c703480cfdfb204fb0
+index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d71a929f15
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1475 @@
+@@ -0,0 +1,1476 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -7888,7 +7888,8 @@ index 0000000000000000000000000000000000000000..3750b3dedc58dfad6e84f0c703480cfd
 +    public static final Block RED_MAPLE_LEAVES = registerLeaves("red_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_RED);
 +    public static final Block ORANGE_MAPLE_LEAVES = registerLeaves("orange_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_ORANGE);
 +    public static final Block YELLOW_MAPLE_LEAVES = registerLeaves("yellow_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_YELLOW);
-+    public static final Block DIRT_SLAB = registerRealSlab(Blocks.DIRT, "dirt", null, Blocks.WAXED_CUT_COPPER_SLAB, Blocks.CUT_COPPER_SLAB, Blocks.MUD_BRICK_SLAB, BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F).sound(SoundType.GRAVEL)).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
++    public static final Block DIRT_SLAB = registerFakeSlab(Blocks.DIRT, "dirt", Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
++//    public static final Block DIRT_SLAB = registerRealSlab(Blocks.DIRT, "dirt", null, Blocks.WAXED_CUT_COPPER_SLAB, Blocks.CUT_COPPER_SLAB, Blocks.MUD_BRICK_SLAB, BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F).sound(SoundType.GRAVEL)).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
 +    public static final Block SNOWY_STONE_BRICK_SLAB = registerFakeSlab(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_SLAB);
 +    public static final Block DIRTY_STONE_BRICK_SLAB = registerFakeSlab(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_SLAB);
 +    public static final Block CRACKED_STONE_BRICK_SLAB = registerFakeSlab(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_SLAB);
@@ -18858,7 +18859,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..611b6eae7d51378bfc645c320473ced831845790
+index 0000000000000000000000000000000000000000..7a27b7d0f7ef9f1b1de3890130327b85a9b4c7a0
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -18934,7 +18935,7 @@ index 0000000000000000000000000000000000000000..611b6eae7d51378bfc645c320473ced8
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 174;
++            currentResourcePackVersion = 175;
 +        }
 +    }
 +
