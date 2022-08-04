@@ -521,7 +521,7 @@ index 5dda064813a0eb00438a7df909d51a4b2d48942e..6573696e758b52ac9d90ef77c1ff097f
  
  public final class NbtUtils {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd002513fcb43a3 100644
+index aca0dc4ce75b25409b057fe94362276c682cdc21..744dbddf17bdabf46903695996f0881d9c09428d 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -540,7 +540,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
  import io.netty.channel.socket.nio.NioSocketChannel;
  import io.netty.handler.timeout.ReadTimeoutHandler;
  import io.netty.handler.timeout.TimeoutException;
-@@ -29,24 +29,65 @@ import io.netty.util.concurrent.Future;
+@@ -29,24 +29,68 @@ import io.netty.util.concurrent.Future;
  import io.netty.util.concurrent.GenericFutureListener;
  import java.net.InetSocketAddress;
  import java.net.SocketAddress;
@@ -597,9 +597,12 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
 +import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.LevelChunk;
 +import net.minecraft.world.phys.Vec3;
++import nl.martijnmuijsers.paper.blockanditemdata.model.BaseBlockEntityModelVisualProperties;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelPosition;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelProximity;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualProperties;
++import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualPropertiesUniverse;
++import nl.martijnmuijsers.paper.blockanditemdata.model.TypicalBlockEntityModelVisualProperties;
 +import nl.martijnmuijsers.paper.resourcepack.asset.model.ResourcePackModel;
  import org.apache.commons.lang3.Validate;
 +import org.bukkit.craftbukkit.inventory.CraftMetaItem;
@@ -607,7 +610,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
  import org.slf4j.Logger;
  import org.slf4j.Marker;
  import org.slf4j.MarkerFactory;
-@@ -96,6 +137,483 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -96,6 +140,484 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private float averageSentPackets;
      private int tickCount;
      private boolean handlingFault;
@@ -669,9 +672,9 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
 +        this.send(new ClientboundAddEntityPacket(
 +            entityId,
 +            entityUUID,
-+            x + blockEntityInformationToSend.properties.position().armorStandPhysicalTranslationX,
++            x + (blockEntityInformationToSend.properties instanceof TypicalBlockEntityModelVisualProperties typicalProperties ? typicalProperties.getPosition().armorStandPhysicalTranslationX : 0),
 +            y + ResourcePackModel.BLOCK_ENTITY_ARMOR_STAND_DY,
-+            z + blockEntityInformationToSend.properties.position().armorStandPhysicalTranslationZ,
++            z + (blockEntityInformationToSend.properties instanceof TypicalBlockEntityModelVisualProperties typicalProperties ? typicalProperties.getPosition().armorStandPhysicalTranslationZ : 0),
 +            0F,
 +            0F,
 +            EntityType.ARMOR_STAND,
@@ -710,7 +713,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
 +
 +    private void spawnBlockEntityForFallingBlock(int entityId, @NotNull UUID entityUUID, @NotNull BlockState blockState, @NotNull Vec3 pos) {
 +
-+        @NotNull SentBlockEntityInformation blockEntityInformationToSend = new SentBlockEntityInformation(blockState, new BlockEntityModelVisualProperties(BlockEntityModelPosition.CENTER, BlockEntityModelProximity.NOT_EXPANDED));
++        @NotNull SentBlockEntityInformation blockEntityInformationToSend = new SentBlockEntityInformation(blockState, new BaseBlockEntityModelVisualProperties(BlockEntityModelPosition.CENTER, BlockEntityModelProximity.NOT_EXPANDED));
 +
 +        // Send the add entity packet
 +        this.sendBlockEntityAddEntityPacket(entityId, entityUUID, pos.x, pos.y, pos.z, blockEntityInformationToSend);
@@ -775,12 +778,12 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
 +        long blockKey = blockPos.asLong();
 +        @Nullable SentBlockEntityInformation existingSentBlockEntityInformation = this.sentBlockEntityInformationByBlockPosKey.get(blockKey);
 +        tryUpdateExistingBlockEntity: if (existingSentBlockEntityInformation != null) {
-+            if (existingSentBlockEntityInformation.properties.position() != blockEntityInformationToSend.properties.position()) {
++            if (blockEntityInformationToSend.properties instanceof TypicalBlockEntityModelVisualProperties && ((TypicalBlockEntityModelVisualProperties) existingSentBlockEntityInformation.properties).getPosition() != ((TypicalBlockEntityModelVisualProperties) blockEntityInformationToSend.properties).getPosition()) {
 +                this.despawnBlockEntity(blockPos, true);
 +                break tryUpdateExistingBlockEntity;
 +            }
 +            boolean updated = false;
-+            if (!existingSentBlockEntityInformation.blockState.equals(blockEntityInformationToSend.blockState) || existingSentBlockEntityInformation.properties.proximity() != blockEntityInformationToSend.properties.proximity()) {
++            if (!existingSentBlockEntityInformation.blockState.equals(blockEntityInformationToSend.blockState) || !existingSentBlockEntityInformation.properties.equals(blockEntityInformationToSend.properties)) {
 +                int entityId = this.blockEntityEntityIdByBlockPosKey.get(blockKey);
 +                // Send a set equipment packet to change the observed block state
 +                sendBlockEntitySetEquipmentPacket(entityId, blockEntityInformationToSend);
@@ -815,7 +818,8 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
 +        }
 +        @NotNull BlockEntityModelPosition position;
 +        // Check if one of the block, the block above and the block below is transparent: because then we can just use the center
-+        if (!state.isOpaque() || !level.getBlockState(blockPos.above()).isOpaque() || !level.getBlockState(blockPos.below()).isOpaque()) {
++        BlockEntityModelVisualPropertiesUniverse<?> universe = replacementRule.getEntityRenderModelVisualPropertiesUniverse(state);
++        if (!universe.caresAboutPosition() || !state.isOpaque() || !level.getBlockState(blockPos.above()).isOpaque() || !level.getBlockState(blockPos.below()).isOpaque()) {
 +            position = BlockEntityModelPosition.CENTER;
 +        } else {
 +            // If all three vertical blocks on the positive X, positive Z and positive XZ side are opaque, only then do we assume the negative XZ is a better position
@@ -828,8 +832,8 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
 +                position = BlockEntityModelPosition.POSITIVE_XZ;
 +            }
 +        }
-+        @NotNull BlockEntityModelProximity proximity = this.computeNewProximity(blockKey, SectionPos.of(player), player.blockPosition);
-+        this.updateBlockEntityOrSpawnIfNotSent(blockPos, new SentBlockEntityInformation(state, new BlockEntityModelVisualProperties(position, proximity)));
++        @NotNull BlockEntityModelProximity proximity = universe.caresAboutProximity() ? this.computeNewProximity(blockKey, SectionPos.of(player), player.blockPosition) : BlockEntityModelProximity.NOT_EXPANDED;
++        this.updateBlockEntityOrSpawnIfNotSent(blockPos, new SentBlockEntityInformation(state, new BaseBlockEntityModelVisualProperties(position, proximity)));
 +    }
 +
 +    private ReentrantLock scheduleUpdatePotentialBlockEntitiesInSectionSpawnNewLock = new ReentrantLock();
@@ -1031,11 +1035,11 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
 +    }
 +
 +    private @NotNull SentBlockEntityInformation sendUpdateBlockEntityClosebyModelIfNeeded(long blockKey, @NotNull SentBlockEntityInformation existingSentBlockEntityInformation, @NotNull BlockEntityModelProximity newProximity) {
-+        if (existingSentBlockEntityInformation.properties.proximity() == newProximity) {
++        if (!(existingSentBlockEntityInformation.properties instanceof TypicalBlockEntityModelVisualProperties) || ((TypicalBlockEntityModelVisualProperties) existingSentBlockEntityInformation.properties).getProximity() == newProximity) {
 +            return existingSentBlockEntityInformation;
 +        }
 +        int entityId = this.blockEntityEntityIdByBlockPosKey.get(blockKey);
-+        var newBlockEntityInformation = new SentBlockEntityInformation(existingSentBlockEntityInformation.blockState, new BlockEntityModelVisualProperties(existingSentBlockEntityInformation.properties.position(), newProximity));
++        var newBlockEntityInformation = new SentBlockEntityInformation(existingSentBlockEntityInformation.blockState, ((TypicalBlockEntityModelVisualProperties) existingSentBlockEntityInformation.properties).cloneWithProximity(newProximity));
 +        this.sendBlockEntitySetEquipmentPacket(entityId, newBlockEntityInformation);
 +        return newBlockEntityInformation;
 +    }
@@ -1091,7 +1095,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
      // Paper start - NetworkClient implementation
      public int protocolVersion;
      public java.net.InetSocketAddress virtualHost;
-@@ -327,6 +845,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -327,6 +849,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              return null;
          }
      }
@@ -1113,7 +1117,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
      private static class InnerUtil { // Attempt to hide these methods from ProtocolLib so it doesn't accidently pick them up.
          private static java.util.List<Packet> buildExtraPackets(Packet packet) {
              java.util.List<Packet> extra = packet.getExtraPackets();
-@@ -363,7 +896,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -363,7 +900,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
                  packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
@@ -1130,7 +1134,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
              // Martijn end - more packets that can be sent immediately
          }
          // Paper end
-@@ -380,6 +921,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -380,6 +925,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          if (!connected && !preparing) {
              return; // Do nothing
          }
@@ -1142,7 +1146,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
          packet.onPacketDispatch(getPlayer());
          if (connected && (InnerUtil.canSendImmediate(this, packet) || (
              net.minecraft.server.MCUtil.isMainThread() && packet.isReady() && this.queue.isEmpty() &&
-@@ -414,6 +960,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -414,6 +964,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
      private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
@@ -1208,7 +1212,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
          // Martijn start - more packets without delay
          final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket
-@@ -421,6 +1026,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -421,6 +1030,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
@@ -1223,7 +1227,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
              ; // no delay for certain packets
          // Martijn end - more packets without delay
          // Paper end - add flush parameter
-@@ -433,20 +1046,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -433,20 +1050,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              this.channel.config().setAutoRead(false);
          }
  
@@ -1249,7 +1253,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd00251
              });
              } // Paper
          }
-@@ -558,6 +1173,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -558,6 +1177,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
@@ -6605,16 +6609,17 @@ index 0000000000000000000000000000000000000000..ddceb5f9379d889aa544e108321d9fd7
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftTreeFeatures.java b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftTreeFeatures.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..399e1a5219afcc0750c0bdcb961104ffad05cf1c
+index 0000000000000000000000000000000000000000..1461c3646380f1f4601145b23932bc43411d7cad
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftTreeFeatures.java
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,65 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.biome.features;
 +
 +import net.minecraft.core.Holder;
 +import net.minecraft.data.worldgen.features.TreeFeatures;
++import net.minecraft.world.level.block.Blocks;
 +import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 +import net.minecraft.world.level.levelgen.feature.Feature;
 +import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
@@ -7708,10 +7713,10 @@ index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d71a929f15
+index 0000000000000000000000000000000000000000..9f6ef4f6a0660292e36696a7de180a908a2da8ba
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1476 @@
+@@ -0,0 +1,1483 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -7746,6 +7751,7 @@ index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d7
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContent;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
++import nl.martijnmuijsers.paper.blockanditemdata.model.ProximityBlockEntityModelVisualPropertiesUniverse;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
 +import nl.martijnmuijsers.paper.item.SuCraftItems;
@@ -8673,6 +8679,7 @@ index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d7
 +            type + "_slab",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .rendersAsEntity(realState -> !realState.getValue(BlockStateProperties.SLAB_TYPE).equals(SlabType.DOUBLE))
++                .withBlockEntityModelVisualPropertiesUniverse(ProximityBlockEntityModelVisualPropertiesUniverse.getInstance())
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithSameHostAsFullBlock(fullBlock.defaultBlockState(), sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture)
@@ -8698,6 +8705,7 @@ index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d7
 +            type + "_stairs",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .rendersAsEntity(realState -> true)
++                .withBlockEntityModelVisualPropertiesUniverse(ProximityBlockEntityModelVisualPropertiesUniverse.getInstance())
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForStairsReplacedByStairs(sideTexture, bottomTexture, topTexture)
@@ -8976,6 +8984,7 @@ index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d7
 +            type + "_slab",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .rendersAsEntity(realState -> !realState.getValue(BlockStateProperties.SLAB_TYPE).equals(SlabType.DOUBLE))
++                .withBlockEntityModelVisualPropertiesUniverse(ProximityBlockEntityModelVisualPropertiesUniverse.getInstance())
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithSameHostAsFullBlock(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), fullBlock.defaultBlockState())
@@ -8999,6 +9008,7 @@ index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d7
 +            type + "_stairs",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .rendersAsEntity(realState -> true)
++                .withBlockEntityModelVisualPropertiesUniverse(ProximityBlockEntityModelVisualPropertiesUniverse.getInstance())
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForStairsReplacedByStairs(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey())
@@ -9067,6 +9077,7 @@ index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d7
 +            type + "_slab",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .rendersAsEntity(realState -> !realState.getValue(BlockStateProperties.SLAB_TYPE).equals(SlabType.DOUBLE))
++                .withBlockEntityModelVisualPropertiesUniverse(ProximityBlockEntityModelVisualPropertiesUniverse.getInstance())
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithSameHostAsFullBlock(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), fullBlock.defaultBlockState())
@@ -9088,6 +9099,7 @@ index 0000000000000000000000000000000000000000..d52cb74bf39429bc8c43feb3203438d7
 +            type + "_stairs",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .rendersAsEntity(realState -> true)
++                .withBlockEntityModelVisualPropertiesUniverse(ProximityBlockEntityModelVisualPropertiesUniverse.getInstance())
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForStairsReplacedByStairs(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey())
@@ -9383,10 +9395,10 @@ index 0000000000000000000000000000000000000000..34357c237d9a45e91c9de0b5731fccca
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87fe9581967
+index 0000000000000000000000000000000000000000..f223df37e4e6f8718119b3694c6c82e8dc511a48
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
-@@ -0,0 +1,449 @@
+@@ -0,0 +1,462 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -9403,6 +9415,7 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +import net.minecraft.world.level.block.state.BlockState;
 +import nl.martijnmuijsers.paper.block.UsedHostBlockStates;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualProperties;
++import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualPropertiesUniverse;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContent;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
@@ -9452,6 +9465,13 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
 +     */
 +    boolean rendersAsEntity(@NotNull BlockState realState);
++
++    /**
++     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
++     * <br>
++     * Returns null if and only if the given real state does not render as an entity
++     */
++    @Nullable BlockEntityModelVisualPropertiesUniverse<?> getEntityRenderModelVisualPropertiesUniverse(@NotNull BlockState realState);
 +
 +    /**
 +     * Returns true if and only if {@link #rendersAsEntity(BlockState)} returns true for some state of this rule's real block
@@ -9631,9 +9651,10 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +     * <br>
 +     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
 +     */
-+    default @Nullable Model getBlockEntityItemModel(@NotNull BlockState realState, @NotNull BlockEntityModelVisualProperties properties) {
++    default <P extends BlockEntityModelVisualProperties> @Nullable Model getBlockEntityItemModel(@NotNull BlockState realState, @NotNull P properties) {
++        BlockEntityModelVisualPropertiesUniverse<P> universe = (BlockEntityModelVisualPropertiesUniverse<P>) this.getEntityRenderModelVisualPropertiesUniverse(realState);
 +        Model[] models = this.getBlockEntityItemModels(realState);
-+        return models[properties.getIndex()];
++        return models[universe.getIndex(properties)];
 +    }
 +
 +    /**
@@ -9653,7 +9674,8 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +        if (base == null) {
 +            return null;
 +        }
-+        return Arrays.stream(BlockEntityModelVisualProperties.values).map(base::getBlockEntityVersion).toArray(Model[]::new);
++        BlockEntityModelVisualPropertiesUniverse<?> universe = this.getEntityRenderModelVisualPropertiesUniverse(realState);
++        return Arrays.stream(universe.getValues()).map(base::getBlockEntityVersion).toArray(Model[]::new);
 +    }
 +
 +    /**
@@ -9668,12 +9690,13 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +     * <br>
 +     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
 +     */
-+    default @Nullable Integer getBlockEntityItemCustomModelData(@NotNull BlockState realState, @NotNull BlockEntityModelVisualProperties properties) {
++    default <P extends BlockEntityModelVisualProperties> @Nullable Integer getBlockEntityItemCustomModelData(@NotNull BlockState realState, @NotNull P properties) {
 +        int[] customModelData = this.getBlockEntityItemCustomModelData(realState);
 +        if (customModelData == null) {
 +            return null;
 +        }
-+        return customModelData[properties.getIndex()];
++        BlockEntityModelVisualPropertiesUniverse<P> universe = (BlockEntityModelVisualPropertiesUniverse<P>) this.getEntityRenderModelVisualPropertiesUniverse(realState);
++        return customModelData[universe.getIndex(properties)];
 +    }
 +
 +    /**
@@ -9688,12 +9711,13 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +     * <br>
 +     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
 +     */
-+    default @Nullable ItemStack getBlockEntityItemStack(@NotNull BlockState realState, @NotNull BlockEntityModelVisualProperties properties) {
++    default <P extends BlockEntityModelVisualProperties> @Nullable ItemStack getBlockEntityItemStack(@NotNull BlockState realState, @NotNull P properties) {
 +        var itemStack = this.getBlockEntityItemStack(realState);
 +        if (itemStack == null) {
 +            return null;
 +        }
-+        return itemStack.getForContext(properties);
++        BlockEntityModelVisualPropertiesUniverse<P> universe = (BlockEntityModelVisualPropertiesUniverse<P>) this.getEntityRenderModelVisualPropertiesUniverse(realState);
++        return itemStack.getForContext(properties, universe);
 +    }
 +
 +    class BlockEntityItemStack {
@@ -9705,12 +9729,12 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +         */
 +        private @NotNull ItemStack @Nullable [] forContext;
 +
-+        public @NotNull ItemStack getForContext(@NotNull BlockEntityModelVisualProperties properties) {
++        public <P extends BlockEntityModelVisualProperties> @NotNull ItemStack getForContext(@NotNull P properties, @NotNull BlockEntityModelVisualPropertiesUniverse<P> universe) {
 +            if (this.forContext == null) {
-+                this.forContext = Arrays.stream(BlockEntityModelVisualProperties.values).map(this.forContextFunction).toArray(ItemStack[]::new);
++                this.forContext = Arrays.stream(universe.getValues()).map(this.forContextFunction).toArray(ItemStack[]::new);
 +                this.forContextFunction = null;
 +            }
-+            return this.forContext[properties.getIndex()];
++            return this.forContext[universe.getIndex(properties)];
 +        }
 +
 +        public BlockEntityItemStack(@NotNull Function<@NotNull BlockEntityModelVisualProperties, @NotNull ItemStack> forContextFunction) {
@@ -9746,7 +9770,8 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +        assetLocations.add(Pair.of(ResourcePackAssetType.MODEL, itemHostKey.withIntention(ResourcePackAssetIntention.ITEM)));
 +        for (@NotNull BlockState realState : this.getReal().getStateDefinition().getPossibleStates()) {
 +            if (this.rendersAsEntity(realState)) {
-+                for (@NotNull BlockEntityModelVisualProperties properties : BlockEntityModelVisualProperties.values) {
++                BlockEntityModelVisualPropertiesUniverse<?> universe = this.getEntityRenderModelVisualPropertiesUniverse(realState);
++                for (@NotNull BlockEntityModelVisualProperties properties : universe.getValues()) {
 +                    int customModelData = Validate.notNull(this.getBlockEntityItemCustomModelData(realState, properties));
 +                    var model = Validate.notNull(this.getBlockEntityItemModel(realState, properties));
 +                    assetLocations.addAll(itemHostKeyMinecraftItemModel.addModelOverride(customModelData, model, resourcePack, false, actuallyAdd));
@@ -9838,10 +9863,10 @@ index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87f
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0ec20e7c3e9999b406cc7518fbbe2110391a519f
+index 0000000000000000000000000000000000000000..b4ac181d95b872c64d90c496070e01d9805955d7
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,146 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -9851,6 +9876,7 @@ index 0000000000000000000000000000000000000000..0ec20e7c3e9999b406cc7518fbbe2110
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.FireBlock;
 +import net.minecraft.world.level.block.state.BlockState;
++import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualPropertiesUniverse;
 +import org.apache.commons.lang3.Validate;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
@@ -9876,6 +9902,11 @@ index 0000000000000000000000000000000000000000..0ec20e7c3e9999b406cc7518fbbe2110
 +     */
 +    protected final @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity;
 +
++    /**
++     * Can be null instead of an empty map
++     */
++    protected final @Nullable Map<@NotNull BlockState, @NotNull BlockEntityModelVisualPropertiesUniverse<?>> modelVisualPropertiesUniverseByRealState;
++
 +    protected final boolean rendersSomeStatesAsEntity;
 +    protected final @NotNull List<@NotNull HostItemReplacementRule> hostItemRules;
 +
@@ -9895,11 +9926,12 @@ index 0000000000000000000000000000000000000000..0ec20e7c3e9999b406cc7518fbbe2110
 +     */
 +    protected @Nullable Map<@NotNull Item, @NotNull Item> replacementByHostPlacingItem;
 +
-+    protected BlockReplacementRuleBase(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity, boolean rendersSomeStatesAsEntity, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules) {
++    protected BlockReplacementRuleBase(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity, @Nullable Map<@NotNull BlockState, @NotNull BlockEntityModelVisualPropertiesUniverse<?>> modelVisualPropertiesUniverseByRealState, boolean rendersSomeStatesAsEntity, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules) {
 +        this.real = real;
 +        this.isFire = this.real instanceof BaseFireBlock;
 +        this.realItemRule = realItemRule;
 +        this.realStatesRenderedAsEntity = realStatesRenderedAsEntity;
++        this.modelVisualPropertiesUniverseByRealState = modelVisualPropertiesUniverseByRealState;
 +        this.rendersSomeStatesAsEntity = rendersSomeStatesAsEntity;
 +        this.hostItemRules = Collections.unmodifiableList(hostItemRules);
 +    }
@@ -9930,6 +9962,14 @@ index 0000000000000000000000000000000000000000..0ec20e7c3e9999b406cc7518fbbe2110
 +            return false;
 +        }
 +        return this.realStatesRenderedAsEntity.contains(realState);
++    }
++
++    @Override
++    public @Nullable BlockEntityModelVisualPropertiesUniverse<?> getEntityRenderModelVisualPropertiesUniverse(@NotNull BlockState realState) {
++        if (this.modelVisualPropertiesUniverseByRealState == null) {
++            return null;
++        }
++        return this.modelVisualPropertiesUniverseByRealState.get(realState);
 +    }
 +
 +    @Override
@@ -9975,10 +10015,10 @@ index 0000000000000000000000000000000000000000..0ec20e7c3e9999b406cc7518fbbe2110
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..05a3a94046522bfe77ec4b211f988f13bf33bad8
+index 0000000000000000000000000000000000000000..b9743702c2c33df23be636afc8036e99d3c330c5
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
-@@ -0,0 +1,559 @@
+@@ -0,0 +1,567 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -9994,6 +10034,7 @@ index 0000000000000000000000000000000000000000..05a3a94046522bfe77ec4b211f988f13
 +import net.minecraft.world.level.block.state.properties.SlabType;
 +import net.minecraft.world.level.block.state.properties.StairsShape;
 +import nl.martijnmuijsers.paper.block.UsedHostBlockStates;
++import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualPropertiesUniverse;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelContent;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
@@ -10021,6 +10062,13 @@ index 0000000000000000000000000000000000000000..05a3a94046522bfe77ec4b211f988f13
 +    @NotNull B rendersAsEntity(@NotNull BlockState realState);
 +
 +    @NotNull B rendersAsEntity(@NotNull Predicate<@NotNull BlockState> realStatePredicate);
++
++    /**
++     * One block entity model visual properties universe for all real block states
++     */
++    @NotNull B withBlockEntityModelVisualPropertiesUniverse(@NotNull BlockEntityModelVisualPropertiesUniverse<?> universe);
++
++    @NotNull B withBlockEntityModelVisualPropertiesUniverseForRealState(@NotNull Function<@NotNull BlockState, @Nullable BlockEntityModelVisualPropertiesUniverse<?>> blockEntityModelVisualPropertiesUniverseForRealState);
 +
 +    /**
 +     * One host for all real block states
@@ -10610,10 +10658,10 @@ index 0000000000000000000000000000000000000000..a25b1d9970f82b6d7085b977e29f83e5
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..bb1c78dd5d6530869f49cd5b13443119ed3052e3
+index 0000000000000000000000000000000000000000..6eb69092687f7212bd948618db3a6d52527fc7b4
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
-@@ -0,0 +1,204 @@
+@@ -0,0 +1,206 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -10625,6 +10673,7 @@ index 0000000000000000000000000000000000000000..bb1c78dd5d6530869f49cd5b13443119
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.state.BlockState;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualProperties;
++import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualPropertiesUniverse;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelWithParameters;
 +import nl.martijnmuijsers.paper.item.UsedHostCustomModelData;
@@ -10689,8 +10738,8 @@ index 0000000000000000000000000000000000000000..bb1c78dd5d6530869f49cd5b13443119
 +     */
 +    private @Nullable Map<@NotNull BlockState, @NotNull BlockEntityItemStack> blockEntityItemStackPerRealState;
 +
-+    public MultiStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity, boolean rendersSomeStatesAsEntity, @NotNull List<@NotNull BlockState> hosts, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost, @NotNull List<@NotNull BlockState> fallbacks, @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState, @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost, List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState) {
-+        super(real, realItemRule, realStatesRenderedAsEntity, rendersSomeStatesAsEntity, hostItemRules);
++    public MultiStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity, @Nullable Map<@NotNull BlockState, @NotNull BlockEntityModelVisualPropertiesUniverse<?>> modelVisualPropertiesUniverseByRealState, boolean rendersSomeStatesAsEntity, @NotNull List<@NotNull BlockState> hosts, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost, @NotNull List<@NotNull BlockState> fallbacks, @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState, @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost, List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState) {
++        super(real, realItemRule, realStatesRenderedAsEntity, modelVisualPropertiesUniverseByRealState, rendersSomeStatesAsEntity, hostItemRules);
 +        this.hostSet = Collections.newSetFromMap(new IdentityHashMap<>());
 +        this.hostSet.addAll(hosts);
 +        this.hostList = List.copyOf(hosts);
@@ -10786,7 +10835,8 @@ index 0000000000000000000000000000000000000000..bb1c78dd5d6530869f49cd5b13443119
 +                @NotNull Item item = Validate.notNull(hostPerRealState.get(this.real.defaultBlockState()).getBlock().asItem());
 +                for (@NotNull BlockState possibleRealState : this.getReal().getStateDefinition().getPossibleStates()) {
 +                    if (this.rendersAsEntity(possibleRealState)) {
-+                        int[] customModelData = new int[BlockEntityModelVisualProperties.values.length];
++                        var universe = this.getEntityRenderModelVisualPropertiesUniverse(possibleRealState);
++                        int[] customModelData = new int[universe.getValues().length];
 +                        for (int i = 0; i < customModelData.length; i++) {
 +                            customModelData[i] = UsedHostCustomModelData.generateUnusedHostCustomModelData(item);
 +                        }
@@ -10928,10 +10978,10 @@ index 0000000000000000000000000000000000000000..97d59c6c248d3323c3f3e8d320c2b916
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df64a43804a
+index 0000000000000000000000000000000000000000..8d6a19c4a32bdb74e0b34a0840e2f18205dbeff3
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
-@@ -0,0 +1,292 @@
+@@ -0,0 +1,314 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -10944,6 +10994,7 @@ index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df6
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.FireBlock;
 +import net.minecraft.world.level.block.state.BlockState;
++import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualPropertiesUniverse;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreation;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelCreationWithParameters;
@@ -10973,6 +11024,7 @@ index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df6
 +    protected @Nullable Block real = null;
 +    protected @NotNull Supplier<@Nullable RealItemReplacementRule> justInTimeRealItemRuleSupplier = () -> null;
 +    private @NotNull Predicate<@NotNull BlockState> rendersAsEntityForRealState = $ -> false;
++    private @NotNull Function<@NotNull BlockState, @Nullable BlockEntityModelVisualPropertiesUniverse<?>> blockEntityModelVisualPropertiesUniverseForRealState = $ -> null;
 +    private @NotNull Function<@NotNull BlockState, @Nullable BlockState> hostForRealState = $ -> null;
 +    private @NotNull Function<@NotNull BlockState, @Nullable BlockState> hostReplacementForHost = $ -> null;
 +    private @NotNull Function<@NotNull BlockState, @Nullable BlockState> fallbackForRealState = $ -> null;
@@ -10998,6 +11050,22 @@ index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df6
 +    public @NotNull SingleMultiStateRealBlockReplacementRuleBuilder rendersAsEntity(@NotNull Predicate<@NotNull BlockState> realStatePredicate) {
 +        @NotNull Predicate<@NotNull BlockState> existingRendersAsEntityForRealState = this.rendersAsEntityForRealState;
 +        this.rendersAsEntityForRealState = someRealState -> realStatePredicate.test(someRealState) || existingRendersAsEntityForRealState.test(someRealState);
++        return this;
++    }
++
++    @Override
++    public @NotNull SingleMultiStateRealBlockReplacementRuleBuilder withBlockEntityModelVisualPropertiesUniverse(@NotNull BlockEntityModelVisualPropertiesUniverse<?> universe) {
++        this.blockEntityModelVisualPropertiesUniverseForRealState = $ -> universe;
++        return this;
++    }
++
++    @Override
++    public @NotNull SingleMultiStateRealBlockReplacementRuleBuilder withBlockEntityModelVisualPropertiesUniverseForRealState(@NotNull Function<@NotNull BlockState, @Nullable BlockEntityModelVisualPropertiesUniverse<?>> blockEntityModelVisualPropertiesUniverseForRealState) {
++        @NotNull Function<@NotNull BlockState, @Nullable BlockEntityModelVisualPropertiesUniverse<?>> existingBlockEntityModelVisualPropertiesUniverseForRealState = this.blockEntityModelVisualPropertiesUniverseForRealState;
++        this.blockEntityModelVisualPropertiesUniverseForRealState = realState -> {
++            @Nullable BlockEntityModelVisualPropertiesUniverse<?> universe = blockEntityModelVisualPropertiesUniverseForRealState.apply(realState);
++            return universe != null ? universe : existingBlockEntityModelVisualPropertiesUniverseForRealState.apply(realState);
++        };
 +        return this;
 +    }
 +
@@ -11153,6 +11221,7 @@ index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df6
 +            return new SingleStateRealBlockReplacementRule(
 +                this.real,
 +                realItemRule,
++                rendersAsEntity ? this.blockEntityModelVisualPropertiesUniverseForRealState.apply(realState) : null,
 +                rendersAsEntity,
 +                host,
 +                hostReplacement,
@@ -11169,8 +11238,9 @@ index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df6
 +        @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState = new IdentityHashMap<>(0);
 +        @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost = new IdentityHashMap<>(0);
 +        boolean rendersSomeStatesAsEntity = realStates.stream().anyMatch(this.rendersAsEntityForRealState);
-+        @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState = rendersSomeStatesAsEntity ? new IdentityHashMap<>(0) : null;
-+        @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity = rendersSomeStatesAsEntity ? Collections.newSetFromMap(new IdentityHashMap<>(0)) : null;
++        @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState = rendersSomeStatesAsEntity ? new IdentityHashMap<>(1) : null;
++        @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity = rendersSomeStatesAsEntity ? Collections.newSetFromMap(new IdentityHashMap<>(1)) : null;
++        @Nullable Map<@NotNull BlockState, @NotNull BlockEntityModelVisualPropertiesUniverse<?>> modelVisualPropertiesUniverseByRealState = rendersSomeStatesAsEntity ? new IdentityHashMap<>(1) : null;
 +        for (@NotNull BlockState realState : realStates) {
 +            @NotNull BlockState host = Validate.notNull(this.hostForRealState.apply(realState));
 +            if (!hosts.contains(host)) {
@@ -11203,6 +11273,7 @@ index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df6
 +                if (this.rendersAsEntityForRealState.test(realState)) {
 +                    blockEntityItemModelBasePerRealState.put(realState, modelPerHost.get(hostPerRealState.get(realState)).model());
 +                    realStatesRenderedAsEntity.add(realState);
++                    modelVisualPropertiesUniverseByRealState.put(realState, this.blockEntityModelVisualPropertiesUniverseForRealState.apply(realState));
 +                }
 +            }
 +        }
@@ -11210,6 +11281,7 @@ index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df6
 +            this.real,
 +            realItemRule,
 +            realStatesRenderedAsEntity,
++            modelVisualPropertiesUniverseByRealState,
 +            rendersSomeStatesAsEntity,
 +            hosts,
 +            hostPerRealState,
@@ -11226,10 +11298,10 @@ index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df6
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0cfd81e373a749a8f8c96e6aea74921ce09fc5d1
+index 0000000000000000000000000000000000000000..9cb927da01c085f17acc2e19c4c65eafce481eee
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
-@@ -0,0 +1,237 @@
+@@ -0,0 +1,240 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -11241,6 +11313,7 @@ index 0000000000000000000000000000000000000000..0cfd81e373a749a8f8c96e6aea74921c
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.state.BlockState;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualProperties;
++import nl.martijnmuijsers.paper.blockanditemdata.model.BlockEntityModelVisualPropertiesUniverse;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.Model;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelWithParameters;
 +import nl.martijnmuijsers.paper.item.UsedHostCustomModelData;
@@ -11258,6 +11331,7 @@ index 0000000000000000000000000000000000000000..0cfd81e373a749a8f8c96e6aea74921c
 +import java.util.Collections;
 +import java.util.IdentityHashMap;
 +import java.util.List;
++import java.util.Map;
 +import java.util.Set;
 +import java.util.function.Supplier;
 +import java.util.stream.Collectors;
@@ -11318,8 +11392,8 @@ index 0000000000000000000000000000000000000000..0cfd81e373a749a8f8c96e6aea74921c
 +     */
 +    private @Nullable BlockEntityItemStack blockEntityItemStack;
 +
-+    public SingleStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, boolean rendersAsEntity, @NotNull BlockState host, @NotNull BlockState hostReplacement, @NotNull BlockState fallback, @Nullable ModelWithParameters model, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Model blockEntityItemModelBase) {
-+        super(real, realItemRule, Collections.singleton(real.defaultBlockState()), rendersAsEntity, hostItemRules);
++    public SingleStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @Nullable BlockEntityModelVisualPropertiesUniverse<?> modelVisualPropertiesUniverse, boolean rendersAsEntity, @NotNull BlockState host, @NotNull BlockState hostReplacement, @NotNull BlockState fallback, @Nullable ModelWithParameters model, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Model blockEntityItemModelBase) {
++        super(real, realItemRule, rendersAsEntity ? Collections.singleton(real.defaultBlockState()) : null, rendersAsEntity ? Map.of(real.defaultBlockState(), modelVisualPropertiesUniverse) : null, rendersAsEntity, hostItemRules);
 +        this.host = host;
 +        this.hosts = Collections.singletonList(this.host);
 +        this.hostReplacement = hostReplacement;
@@ -11425,7 +11499,8 @@ index 0000000000000000000000000000000000000000..0cfd81e373a749a8f8c96e6aea74921c
 +        if (this.blockEntityItemCustomModelData == null) {
 +            if (this.rendersSomeStatesAsEntity) {
 +                @NotNull Item item = Validate.notNull(this.host.getBlock().asItem());
-+                this.blockEntityItemCustomModelData = new int[BlockEntityModelVisualProperties.values.length];
++                var universe = this.getEntityRenderModelVisualPropertiesUniverse(realState);
++                this.blockEntityItemCustomModelData = new int[universe.getValues().length];
 +                for (int i = 0; i < blockEntityItemCustomModelData.length; i++) {
 +                    this.blockEntityItemCustomModelData[i] = UsedHostCustomModelData.generateUnusedHostCustomModelData(item);
 +                }
@@ -11467,12 +11542,70 @@ index 0000000000000000000000000000000000000000..0cfd81e373a749a8f8c96e6aea74921c
 +    }
 +
 +}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BaseBlockEntityModelVisualProperties.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BaseBlockEntityModelVisualProperties.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..0cab32e59740f55237ab643e66eb77e0faba610b
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BaseBlockEntityModelVisualProperties.java
+@@ -0,0 +1,50 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.model;
++
++import org.jetbrains.annotations.NotNull;
++
++public class BaseBlockEntityModelVisualProperties implements TypicalBlockEntityModelVisualProperties {
++
++    public final @NotNull BlockEntityModelPosition position;
++    public final @NotNull BlockEntityModelProximity proximity;
++
++    public BaseBlockEntityModelVisualProperties(@NotNull BlockEntityModelPosition position, @NotNull BlockEntityModelProximity proximity) {
++        this.position = position;
++        this.proximity = proximity;
++    }
++
++    @Override
++    public @NotNull String getBlockEntityModelFileSuffix() {
++        return this.position.blockEntityModelFileSuffix + this.proximity.blockEntityModelFileSuffix;
++    }
++
++    @Override
++    public @NotNull BlockEntityModelPosition getPosition() {
++        return this.position;
++    }
++
++    @Override
++    public @NotNull BlockEntityModelProximity getProximity() {
++        return this.proximity;
++    }
++
++    @Override
++    public @NotNull TypicalBlockEntityModelVisualProperties cloneWithProximity(@NotNull BlockEntityModelProximity proximity) {
++        return new BaseBlockEntityModelVisualProperties(this.position, proximity);
++    }
++
++    @Override
++    public int hashCode() {
++        return this.position.ordinal() + BlockEntityModelPosition.values().length * this.proximity.ordinal();
++    }
++
++    @Override
++    public boolean equals(Object obj) {
++        if (obj instanceof BaseBlockEntityModelVisualProperties properties) {
++            return properties.position.equals(this.position) && properties.proximity.equals(this.proximity);
++        }
++        return false;
++    }
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelPosition.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelPosition.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..94aee86ff714ac334b42c874a2ec4d25f5d03ad1
+index 0000000000000000000000000000000000000000..a9ffdb7d6482260b6f99b3b7671fc1c91f42ef19
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelPosition.java
-@@ -0,0 +1,29 @@
+@@ -0,0 +1,31 @@
++// Martijn - custom blocks and items
++
 +package nl.martijnmuijsers.paper.blockanditemdata.model;
 +
 +import org.jetbrains.annotations.NotNull;
@@ -11504,10 +11637,12 @@ index 0000000000000000000000000000000000000000..94aee86ff714ac334b42c874a2ec4d25
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..385648e4f114238adac59c41b8e9e3b160854f24
+index 0000000000000000000000000000000000000000..6198b7bd28de54b6933d893eea6aea71670d7b46
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelProximity.java
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,26 @@
++// Martijn - custom blocks and items
++
 +package nl.martijnmuijsers.paper.blockanditemdata.model;
 +
 +import org.jetbrains.annotations.NotNull;
@@ -11534,10 +11669,12 @@ index 0000000000000000000000000000000000000000..385648e4f114238adac59c41b8e9e3b1
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualProperties.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualProperties.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..894cf141c9a37c85baf30622f110ca6b0b5e691f
+index 0000000000000000000000000000000000000000..70b3b5214f09bfd4a845edd1b83f02362fe4e26d
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualProperties.java
-@@ -0,0 +1,45 @@
+@@ -0,0 +1,14 @@
++// Martijn - custom blocks and items
++
 +package nl.martijnmuijsers.paper.blockanditemdata.model;
 +
 +import org.jetbrains.annotations.NotNull;
@@ -11545,42 +11682,32 @@ index 0000000000000000000000000000000000000000..894cf141c9a37c85baf30622f110ca6b
 +import java.util.ArrayList;
 +import java.util.List;
 +
-+public record BlockEntityModelVisualProperties(@NotNull BlockEntityModelPosition position, @NotNull BlockEntityModelProximity proximity) {
++public interface BlockEntityModelVisualProperties {
 +
-+    public @NotNull String getBlockEntityModelFileSuffix() {
-+        return this.position.blockEntityModelFileSuffix + this.proximity.blockEntityModelFileSuffix;
-+    }
++    @NotNull String getBlockEntityModelFileSuffix();
 +
-+    public static BlockEntityModelVisualProperties[] values;
-+    static {
-+        List<BlockEntityModelVisualProperties> valuesList = new ArrayList<>(BlockEntityModelPosition.values().length * BlockEntityModelProximity.values().length);
-+        for (BlockEntityModelPosition position : BlockEntityModelPosition.values()) {
-+            for (BlockEntityModelProximity proximity : BlockEntityModelProximity.values()) {
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualPropertiesUniverse.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualPropertiesUniverse.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..8387ee1aac7fe2cfaaa471985c8ec1d9b749db89
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/BlockEntityModelVisualPropertiesUniverse.java
+@@ -0,0 +1,17 @@
++// Martijn - custom blocks and items
 +
-+                // Continue if this is not a valid combination of values
-+                if (proximity.equals(BlockEntityModelProximity.NOT_EXPANDED) && !position.equals(BlockEntityModelPosition.CENTER)) {
-+                    continue;
-+                }
++package nl.martijnmuijsers.paper.blockanditemdata.model;
 +
-+                BlockEntityModelVisualProperties properties = new BlockEntityModelVisualProperties(position, proximity);
-+                valuesList.add(properties);
++import org.jetbrains.annotations.NotNull;
 +
-+            }
-+        }
-+        values = valuesList.toArray(BlockEntityModelVisualProperties[]::new);
-+    }
++public interface BlockEntityModelVisualPropertiesUniverse<P extends BlockEntityModelVisualProperties> {
 +
-+    private static int[][] ordinals;
-+    static {
-+        ordinals = new int[BlockEntityModelPosition.values().length][BlockEntityModelProximity.values().length];
-+        for (int i = 0; i < values.length; i++) {
-+            ordinals[values[i].position.ordinal()][values[i].proximity.ordinal()] = i;
-+        }
-+    }
++    @NotNull P @NotNull [] getValues();
 +
-+    public int getIndex() {
-+        return ordinals[this.position.ordinal()][this.proximity.ordinal()];
-+    }
++    int getIndex(@NotNull P properties);
++
++    boolean caresAboutPosition();
++
++    boolean caresAboutProximity();
 +
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/Model.java
@@ -11869,7 +11996,7 @@ index 0000000000000000000000000000000000000000..b6853ca72943d1f620a2ac7faab6b177
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a3c073c60b9be2fa90f066db1eec5b5e00b0c6d3
+index 0000000000000000000000000000000000000000..0f1699b5a2a66d1bc59f60f8c41b08c383ff2912
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
 @@ -0,0 +1,1364 @@
@@ -11935,7 +12062,7 @@ index 0000000000000000000000000000000000000000..a3c073c60b9be2fa90f066db1eec5b5e
 +    abstract @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd);
 +
 +    public @NotNull ModelContent getBlockEntityVersion(@NotNull Model myOwningModel, @NotNull BlockEntityModelVisualProperties properties) throws UnsupportedOperationException {
-+        return new ModelContent.AsBlockEntityReference(myOwningModel, properties.position(), () -> this.getOutwardExpandedElements(properties));
++        return new ModelContent.AsBlockEntityReference(myOwningModel, properties instanceof TypicalBlockEntityModelVisualProperties typicalProperties ? typicalProperties.getPosition() : BlockEntityModelPosition.CENTER, () -> this.getOutwardExpandedElements(properties));
 +    }
 +
 +    abstract @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) throws UnsupportedOperationException;
@@ -11948,7 +12075,7 @@ index 0000000000000000000000000000000000000000..a3c073c60b9be2fa90f066db1eec5b5e
 +
 +        @Override
 +        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) {
-+            return this.getCache().getOutwardExpandedElements(properties.proximity());
++            return this.getCache().getOutwardExpandedElements(properties instanceof TypicalBlockEntityModelVisualProperties typicalProperties ? typicalProperties.getProximity() : BlockEntityModelProximity.NOT_EXPANDED);
 +        }
 +
 +    }
@@ -11965,7 +12092,7 @@ index 0000000000000000000000000000000000000000..a3c073c60b9be2fa90f066db1eec5b5e
 +
 +        @Override
 +        default @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) {
-+            return this.getOutwardExpandedElements(properties.proximity());
++            return this.getOutwardExpandedElements(properties instanceof TypicalBlockEntityModelVisualProperties typicalProperties ? typicalProperties.getProximity() : BlockEntityModelProximity.NOT_EXPANDED);
 +        }
 +
 +    }
@@ -12763,7 +12890,7 @@ index 0000000000000000000000000000000000000000..a3c073c60b9be2fa90f066db1eec5b5e
 +
 +        @Override
 +        @NotNull JsonArray getOutwardExpandedElements(@NotNull BlockEntityModelVisualProperties properties) {
-+            return this.getStairsStateCache().getOutwardExpandedElements(properties.proximity(), this.half, this.facing);
++            return this.getStairsStateCache().getOutwardExpandedElements(properties instanceof TypicalBlockEntityModelVisualProperties typicalProperties ? typicalProperties.getProximity() : BlockEntityModelProximity.NOT_EXPANDED, this.half, this.facing);
 +        }
 +
 +        public static abstract class CreationCompanion<M extends AbstractStairs> {
@@ -13357,6 +13484,161 @@ index 0000000000000000000000000000000000000000..737300e26856d5efdaf8efcb17c38388
 + * A {@link Model}, optionally with accompanying {@link ModelParameters}
 + */
 +public record ModelWithParameters(@NotNull Model model, @Nullable ModelParameters parameters) {}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/PositionAndProximityBlockEntityModelVisualPropertiesUniverse.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/PositionAndProximityBlockEntityModelVisualPropertiesUniverse.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..7f41a978412f7957153eb3cf1c8073c09eab9830
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/PositionAndProximityBlockEntityModelVisualPropertiesUniverse.java
+@@ -0,0 +1,67 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.model;
++
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.ArrayList;
++import java.util.List;
++
++public final class PositionAndProximityBlockEntityModelVisualPropertiesUniverse implements BlockEntityModelVisualPropertiesUniverse<TypicalBlockEntityModelVisualProperties> {
++
++    private PositionAndProximityBlockEntityModelVisualPropertiesUniverse() {}
++    private static @Nullable PositionAndProximityBlockEntityModelVisualPropertiesUniverse instance = null;
++    public static @NotNull PositionAndProximityBlockEntityModelVisualPropertiesUniverse getInstance() {
++        if (instance == null) {
++            instance = new PositionAndProximityBlockEntityModelVisualPropertiesUniverse();
++        }
++        return instance;
++    }
++
++    private final @NotNull TypicalBlockEntityModelVisualProperties @NotNull [] values;
++    {
++        @NotNull List<@NotNull TypicalBlockEntityModelVisualProperties> valuesList = new ArrayList<>(BlockEntityModelPosition.values().length * BlockEntityModelProximity.values().length);
++        for (BlockEntityModelPosition position : BlockEntityModelPosition.values()) {
++            for (BlockEntityModelProximity proximity : BlockEntityModelProximity.values()) {
++
++                // Continue if this is not a valid combination of values
++                if (proximity.equals(BlockEntityModelProximity.NOT_EXPANDED) && !position.equals(BlockEntityModelPosition.CENTER)) {
++                    continue;
++                }
++
++                TypicalBlockEntityModelVisualProperties properties = new BaseBlockEntityModelVisualProperties(position, proximity);
++                valuesList.add(properties);
++
++            }
++        }
++        this.values = valuesList.toArray(TypicalBlockEntityModelVisualProperties[]::new);
++    }
++    private final int @NotNull [] @NotNull [] ordinals;
++    {
++        this.ordinals = new int[BlockEntityModelPosition.values().length][BlockEntityModelProximity.values().length];
++        for (int i = 0; i < this.values.length; i++) {
++            this.ordinals[this.values[i].getPosition().ordinal()][this.values[i].getProximity().ordinal()] = i;
++        }
++    }
++
++    @Override
++    public @NotNull TypicalBlockEntityModelVisualProperties @NotNull [] getValues() {
++        return this.values;
++    }
++
++    @Override
++    public int getIndex(@NotNull TypicalBlockEntityModelVisualProperties properties) {
++        return this.ordinals[properties.getPosition().ordinal()][properties.getProximity().ordinal()];
++    }
++
++    @Override
++    public boolean caresAboutPosition() {
++        return true;
++    }
++
++    public boolean caresAboutProximity() {
++        return true;
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ProximityBlockEntityModelVisualPropertiesUniverse.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ProximityBlockEntityModelVisualPropertiesUniverse.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..e1b976547664cb840052fe21a1843e27eba88530
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ProximityBlockEntityModelVisualPropertiesUniverse.java
+@@ -0,0 +1,55 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.model;
++
++import org.jetbrains.annotations.NotNull;
++import org.jetbrains.annotations.Nullable;
++
++import java.util.Arrays;
++
++public final class ProximityBlockEntityModelVisualPropertiesUniverse implements BlockEntityModelVisualPropertiesUniverse<TypicalBlockEntityModelVisualProperties> {
++
++    private static final @NotNull BlockEntityModelPosition POSITION_USED = BlockEntityModelPosition.CENTER;
++
++    private ProximityBlockEntityModelVisualPropertiesUniverse() {}
++    private static @Nullable ProximityBlockEntityModelVisualPropertiesUniverse instance = null;
++    public static @NotNull ProximityBlockEntityModelVisualPropertiesUniverse getInstance() {
++        if (instance == null) {
++            instance = new ProximityBlockEntityModelVisualPropertiesUniverse();
++        }
++        return instance;
++    }
++
++    private final @NotNull TypicalBlockEntityModelVisualProperties @NotNull [] values;
++    {
++        this.values = Arrays.stream(BlockEntityModelProximity.values()).map(proximity -> new BaseBlockEntityModelVisualProperties(POSITION_USED, proximity)).toArray(TypicalBlockEntityModelVisualProperties[]::new);
++    }
++//    private final int @NotNull [] indices;
++//    {
++//        this.indices = new int[BlockEntityModelProximity.values().length];
++//        for (int i = 0; i < this.values.length; i++) {
++//            this.indices[this.values[i].getProximity().ordinal()] = i;
++//        }
++//    }
++
++    @Override
++    public @NotNull TypicalBlockEntityModelVisualProperties @NotNull [] getValues() {
++        return this.values;
++    }
++
++    @Override
++    public int getIndex(@NotNull TypicalBlockEntityModelVisualProperties properties) {
++//        return this.indices[properties.getProximity().ordinal()];
++        return properties.getProximity().ordinal();
++    }
++
++    @Override
++    public boolean caresAboutPosition() {
++        return false;
++    }
++
++    public boolean caresAboutProximity() {
++        return true;
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/TypicalBlockEntityModelVisualProperties.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/TypicalBlockEntityModelVisualProperties.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..05ef1a8f7c1c2799ee6bff82aff0a2d54694ab1d
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/TypicalBlockEntityModelVisualProperties.java
+@@ -0,0 +1,15 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.blockanditemdata.model;
++
++import org.jetbrains.annotations.NotNull;
++
++public interface TypicalBlockEntityModelVisualProperties extends BlockEntityModelVisualProperties {
++
++    @NotNull BlockEntityModelPosition getPosition();
++
++    @NotNull BlockEntityModelProximity getProximity();
++
++    @NotNull TypicalBlockEntityModelVisualProperties cloneWithProximity(@NotNull BlockEntityModelProximity proximity);
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/Texture.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..c9fa17a7c04692236e8276b24fd7892b0ba971a1
@@ -18859,7 +19141,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7a27b7d0f7ef9f1b1de3890130327b85a9b4c7a0
+index 0000000000000000000000000000000000000000..57a56ca131d5f81b08a8a2b40c9c631dc6d980c5
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -18935,7 +19217,7 @@ index 0000000000000000000000000000000000000000..7a27b7d0f7ef9f1b1de3890130327b85
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 175;
++            currentResourcePackVersion = 176;
 +        }
 +    }
 +
