@@ -4491,6 +4491,35 @@ index 0f062d52e004b6a5f49a11715979de1093458a78..d0500654926c5c5d37cb64a80ab1aa6e
      private final ResourceKey<Biome>[][] MIDDLE_BIOMES_VARIANT = new ResourceKey[][]{{Biomes.ICE_SPIKES, null, Biomes.SNOWY_TAIGA, null, null}, {null, null, null, null, Biomes.OLD_GROWTH_PINE_TAIGA}, {Biomes.SUNFLOWER_PLAINS, null, null, Biomes.OLD_GROWTH_BIRCH_FOREST, null}, {null, null, Biomes.PLAINS, Biomes.SPARSE_JUNGLE, Biomes.BAMBOO_JUNGLE}, {null, null, null, null, null}};
      private final ResourceKey<Biome>[][] PLATEAU_BIOMES = new ResourceKey[][]{{Biomes.SNOWY_PLAINS, Biomes.SNOWY_PLAINS, Biomes.SNOWY_PLAINS, Biomes.SNOWY_TAIGA, Biomes.SNOWY_TAIGA}, {Biomes.MEADOW, Biomes.MEADOW, Biomes.FOREST, Biomes.TAIGA, Biomes.OLD_GROWTH_SPRUCE_TAIGA}, {Biomes.MEADOW, Biomes.MEADOW, Biomes.MEADOW, Biomes.MEADOW, Biomes.DARK_FOREST}, {Biomes.SAVANNA_PLATEAU, Biomes.SAVANNA_PLATEAU, Biomes.FOREST, Biomes.FOREST, Biomes.JUNGLE}, {Biomes.BADLANDS, Biomes.BADLANDS, Biomes.BADLANDS, Biomes.WOODED_BADLANDS, Biomes.WOODED_BADLANDS}};
      private final ResourceKey<Biome>[][] PLATEAU_BIOMES_VARIANT = new ResourceKey[][]{{Biomes.ICE_SPIKES, null, null, null, null}, {null, null, Biomes.MEADOW, Biomes.MEADOW, Biomes.OLD_GROWTH_PINE_TAIGA}, {null, null, Biomes.FOREST, Biomes.BIRCH_FOREST, null}, {null, null, null, null, null}, {Biomes.ERODED_BADLANDS, Biomes.ERODED_BADLANDS, null, null, null}};
+diff --git a/src/main/java/net/minecraft/world/level/block/BaseFireBlock.java b/src/main/java/net/minecraft/world/level/block/BaseFireBlock.java
+index a76c452dc5c2069a3071aec31bfb3e977867161e..0783cf8d12707ec7376d3f578a54b59999f0803d 100644
+--- a/src/main/java/net/minecraft/world/level/block/BaseFireBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/BaseFireBlock.java
+@@ -15,9 +15,12 @@ import net.minecraft.world.level.BlockGetter;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.SlabType;
+ import net.minecraft.world.level.portal.PortalShape;
+ import net.minecraft.world.phys.shapes.CollisionContext;
+ import net.minecraft.world.phys.shapes.VoxelShape;
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ 
+ public abstract class BaseFireBlock extends Block {
+ 
+@@ -196,7 +199,10 @@ public abstract class BaseFireBlock extends Block {
+             for (int j = 0; j < i; ++j) {
+                 Direction enumdirection1 = aenumdirection[j];
+ 
+-                if (world.getBlockState(blockposition_mutableblockposition.set(pos).move(enumdirection1)).is(Blocks.OBSIDIAN)) {
++                // Martijn start - custom blocks and items
++                var relative = world.getBlockState(blockposition_mutableblockposition.set(pos).move(enumdirection1));
++                if (relative.is(Blocks.OBSIDIAN) || relative.is(SuCraftBlocks.OBSIDIAN_STAIRS) || (relative.is(SuCraftBlocks.OBSIDIAN_SLAB) && relative.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE)) {
++                    // Martijn end - custom blocks and items
+                     flag = true;
+                     break;
+                 }
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
 index 224ce424b9a22548212ac157ec273c6dd80d6cfb..fe5175b74e7196f6b63798f05fa9cd9bbfbd0e91 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
@@ -5653,6 +5682,28 @@ index 4977f3fad3bfc12fd4c5f9fbe8beea2895247c57..f74754711dd43ac8b303231eb6efdc2e
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Items.CROSSBOW, 300);
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.BAMBOO, 50);
          AbstractFurnaceBlockEntity.add(map, (ItemLike) Blocks.DEAD_BUSH, 100);
+diff --git a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+index f456ad8a74464414f69b616a48ee9a2c1cee4d90..c4b1a7f8743e81a9baddfa1b18140ff75b2f1dae 100644
+--- a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+@@ -40,6 +40,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
+ // CraftBukkit start
+ import com.google.common.collect.ImmutableList;
+ import java.util.AbstractList;
++
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+ import org.bukkit.event.block.BlockPistonRetractEvent;
+ import org.bukkit.event.block.BlockPistonExtendEvent;
+@@ -301,7 +303,7 @@ public class PistonBaseBlock extends DirectionalBlock {
+         if (pos.getY() >= world.getMinBuildHeight() && pos.getY() <= world.getMaxBuildHeight() - 1 && world.getWorldBorder().isWithinBounds(pos)) {
+             if (state.isAir()) {
+                 return true;
+-            } else if (!state.is(Blocks.OBSIDIAN) && !state.is(Blocks.CRYING_OBSIDIAN) && !state.is(Blocks.RESPAWN_ANCHOR) && !state.is(Blocks.REINFORCED_DEEPSLATE)) {
++            } else if (!state.is(Blocks.OBSIDIAN) && !state.is(SuCraftBlocks.OBSIDIAN_STAIRS) && !state.is(SuCraftBlocks.OBSIDIAN_SLAB) && !state.is(Blocks.CRYING_OBSIDIAN) && !state.is(SuCraftBlocks.CRYING_OBSIDIAN_STAIRS) && !state.is(SuCraftBlocks.CRYING_OBSIDIAN_SLAB) && !state.is(Blocks.RESPAWN_ANCHOR) && !state.is(Blocks.REINFORCED_DEEPSLATE)) {
+                 if (direction == Direction.DOWN && pos.getY() == world.getMinBuildHeight()) {
+                     return false;
+                 } else if (direction == Direction.UP && pos.getY() == world.getMaxBuildHeight() - 1) {
 diff --git a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java b/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
 index e8eb061181e9b5e6bde99253079864626bc8ad4b..23b6f79c868484421b8ee80dd2ec0e09b1b18183 100644
 --- a/src/main/java/net/minecraft/world/level/block/state/BlockBehaviour.java
@@ -6095,6 +6146,30 @@ index b8405113d67a02ee933af65a7b8a912df64356b4..442d6ba895145b0afe7069e5e81c91d0
          public TreeConfiguration build() {
              return new TreeConfiguration(this.trunkProvider, this.trunkPlacer, this.foliageProvider, this.foliagePlacer, this.rootPlacer, this.dirtProvider, this.minimumSize, this.decorators, this.ignoreVines, this.forceDirt);
          }
+diff --git a/src/main/java/net/minecraft/world/level/portal/PortalShape.java b/src/main/java/net/minecraft/world/level/portal/PortalShape.java
+index 3414f3190e1a760c602613e82e551e797c3aa575..99e71bad80a8090968df054e10b465d38b64dadf 100644
+--- a/src/main/java/net/minecraft/world/level/portal/PortalShape.java
++++ b/src/main/java/net/minecraft/world/level/portal/PortalShape.java
+@@ -17,8 +17,10 @@ import net.minecraft.world.level.block.NetherPortalBlock;
+ import net.minecraft.world.level.block.state.BlockBehaviour;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.SlabType;
+ import net.minecraft.world.phys.Vec3;
+ // CraftBukkit start
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
+ import org.bukkit.craftbukkit.event.CraftPortalEvent;
+ import org.bukkit.event.world.PortalCreateEvent;
+ // CraftBukkit end
+@@ -30,7 +32,7 @@ public class PortalShape {
+     private static final int MIN_HEIGHT = 3;
+     public static final int MAX_HEIGHT = 21;
+     private static final BlockBehaviour.StatePredicate FRAME = (iblockdata, iblockaccess, blockposition) -> {
+-        return iblockdata.is(Blocks.OBSIDIAN);
++        return iblockdata.is(Blocks.OBSIDIAN) || iblockdata.is(SuCraftBlocks.OBSIDIAN_STAIRS) || (iblockdata.is(SuCraftBlocks.OBSIDIAN_SLAB) && iblockdata.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE); // Martijn - custom blocks and items
+     };
+     private final LevelAccessor level;
+     private final Direction.Axis axis;
 diff --git a/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java b/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java
 index aef7198ca8b781d02204098811086b25050ab262..c51bd7abafdb609c9e4086b33e6210f1f1f9ba74 100644
 --- a/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java
