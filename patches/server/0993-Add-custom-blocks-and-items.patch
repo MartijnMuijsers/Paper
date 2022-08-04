@@ -7713,10 +7713,10 @@ index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..4ad8187c2795cd7ef72c50da2a9166a925917fa6
+index 0000000000000000000000000000000000000000..fdcf4c008850dbf1cb38aebd463c0a9a75cf112d
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1491 @@
+@@ -0,0 +1,1493 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -8428,9 +8428,11 @@ index 0000000000000000000000000000000000000000..4ad8187c2795cd7ef72c50da2a9166a9
 +    public static final Block POLISHED_BASALT_STAIRS = registerFakeStairs(Blocks.POLISHED_BASALT, null, "polished_basalt", NamespacedKeyWithoutIntention.minecraft("polished_basalt_side"), NamespacedKeyWithoutIntention.minecraft("polished_basalt_top"), null, Blocks.STONE_STAIRS, null).mineableWithPickaxe();
 +    public static final Block CUT_SANDSTONE_STAIRS = registerFakeStairs(Blocks.CUT_SANDSTONE, null, "cut_sandstone", NamespacedKeyWithoutIntention.minecraft("cut_sandstone"), NamespacedKeyWithoutIntention.minecraft("sandstone_top"), null, Blocks.SMOOTH_SANDSTONE_STAIRS, null).mineableWithPickaxe();
 +    public static final Block CUT_RED_SANDSTONE_STAIRS = registerFakeStairs(Blocks.CUT_RED_SANDSTONE, null, "cut_red_sandstone", NamespacedKeyWithoutIntention.minecraft("cut_red_sandstone"), NamespacedKeyWithoutIntention.minecraft("red_sandstone_top"), null, Blocks.SMOOTH_RED_SANDSTONE_STAIRS, null).mineableWithPickaxe();
-+    public static final Block QUARTZ_PILLAR_STAIRS = registerFakeVanillaStonePillarStairs(Blocks.QUARTZ_PILLAR, "quartz", Blocks.QUARTZ_STAIRS);
-+    public static final Block PURPUR_PILLAR_SLAB = registerFakeVanillaStonePillarSlab(Blocks.PURPUR_PILLAR, "purpur", Blocks.PURPUR_SLAB);
-+    public static final Block PURPUR_PILLAR_STAIRS = registerFakeVanillaStonePillarStairs(Blocks.PURPUR_PILLAR, "purpur", Blocks.PURPUR_STAIRS);
++    public static final Block QUARTZ_PILLAR_STAIRS = registerFakeVanillaStonePillarStairs(Blocks.QUARTZ_PILLAR, "quartz", Blocks.QUARTZ_STAIRS).mineableWithPickaxe();
++    public static final Block PURPUR_PILLAR_SLAB = registerFakeVanillaStonePillarSlab(Blocks.PURPUR_PILLAR, "purpur", Blocks.PURPUR_SLAB).mineableWithPickaxe();
++    public static final Block PURPUR_PILLAR_STAIRS = registerFakeVanillaStonePillarStairs(Blocks.PURPUR_PILLAR, "purpur", Blocks.PURPUR_STAIRS).mineableWithPickaxe();
++    public static final Block FLINT_SLAB = registerFakeSlabFromYPillarCustomBlock(FLINT_BLOCK, null, "flint", "flint_block", Blocks.DEEPSLATE_TILE_SLAB).mineableWithPickaxe();
++    public static final Block FLINT_STAIRS = registerFakeStairsFromYPillarCustomBlock(FLINT_BLOCK, null, "flint", "flint_block", Blocks.DEEPSLATE_TILE_STAIRS).mineableWithPickaxe();
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -14669,10 +14671,10 @@ index 0000000000000000000000000000000000000000..24e4ba1707da23d55ca5552c5ea8d335
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b49022c1a97f303641de00c2cd1ef26d29078a7b
+index 0000000000000000000000000000000000000000..eef1497a9895d727bdcf21f939a282a621924a36
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
-@@ -0,0 +1,233 @@
+@@ -0,0 +1,234 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.item;
@@ -14819,15 +14821,16 @@ index 0000000000000000000000000000000000000000..b49022c1a97f303641de00c2cd1ef26d
 +
 +        // Shortcuts
 +        addStonecutterRecipe(Items.BASALT, SuCraftItems.POLISHED_BASALT_SLAB, 2);
-+        addStonecutterRecipe(Items.BASALT, SuCraftItems.POLISHED_BASALT_STAIRS, 1);
++        addStonecutterRecipe(Items.BASALT, SuCraftItems.POLISHED_BASALT_STAIRS);
 +        addStonecutterRecipe(Items.QUARTZ_BLOCK, SuCraftItems.QUARTZ_PILLAR_SLAB, 2);
-+        addStonecutterRecipe(Items.QUARTZ_BLOCK, SuCraftItems.QUARTZ_PILLAR_STAIRS, 1);
++        addStonecutterRecipe(Items.QUARTZ_BLOCK, SuCraftItems.QUARTZ_PILLAR_STAIRS);
 +        addStonecutterRecipe(Items.PURPUR_BLOCK, SuCraftItems.PURPUR_PILLAR_SLAB, 2);
-+        addStonecutterRecipe(Items.PURPUR_BLOCK, SuCraftItems.PURPUR_PILLAR_STAIRS, 1);
++        addStonecutterRecipe(Items.PURPUR_BLOCK, SuCraftItems.PURPUR_PILLAR_STAIRS);
 +
 +        // Quartz meander
 +        Stream.of(Items.QUARTZ_BLOCK, Items.CHISELED_QUARTZ_BLOCK).forEach(ingredient -> {
 +            addStonecutterRecipe(ingredient, SuCraftItems.QUARTZ_SPIRAL_MEANDER);
++            addStonecutterRecipe(ingredient, SuCraftItems.QUARTZ_SPIRAL_MEANDER_STAIRS);
 +            addStonecutterRecipe(ingredient, SuCraftItems.QUARTZ_SPIRAL_MEANDER_SLAB, 2);
 +        });
 +
@@ -15026,10 +15029,10 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..30d4c9fa454af2eb36eaaae7eb3476365bf709f1
+index 0000000000000000000000000000000000000000..8dc2482c4109e74615c800bf51c879908625872b
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,837 @@
+@@ -0,0 +1,839 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -15562,6 +15565,8 @@ index 0000000000000000000000000000000000000000..30d4c9fa454af2eb36eaaae7eb347636
 +    public static final Item QUARTZ_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.QUARTZ_PILLAR_STAIRS, "Quartz");
 +    public static final Item PURPUR_PILLAR_SLAB = registerPillarSlab(SuCraftBlocks.PURPUR_PILLAR_SLAB, "Purpur");
 +    public static final Item PURPUR_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.PURPUR_PILLAR_STAIRS, "Purpur");
++    public static final Item FLINT_SLAB = registerSlab(SuCraftBlocks.FLINT_SLAB, "Flint");
++    public static final Item FLINT_STAIRS = registerStairs(SuCraftBlocks.FLINT_STAIRS, "Flint");
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -19162,7 +19167,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7c2e8bbd6aacaf827d8bbd9bb35268ff7c0c0911
+index 0000000000000000000000000000000000000000..8a677edf3a4b19736309fc4f88bc59e6bc2eca9e
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -19238,7 +19243,7 @@ index 0000000000000000000000000000000000000000..7c2e8bbd6aacaf827d8bbd9bb35268ff
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 179;
++            currentResourcePackVersion = 181;
 +        }
 +    }
 +
