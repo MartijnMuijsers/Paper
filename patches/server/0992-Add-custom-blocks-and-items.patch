@@ -521,7 +521,7 @@ index 5dda064813a0eb00438a7df909d51a4b2d48942e..6573696e758b52ac9d90ef77c1ff097f
  
  public final class NbtUtils {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b29198982f19 100644
+index aca0dc4ce75b25409b057fe94362276c682cdc21..aa4f3bba01e60289e667ded34fd002513fcb43a3 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -807,7 +807,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
 +        var level = player.getLevel();
 +        @NotNull BlockState state = level.getBlockState(blockPos);
 +        @Nullable var replacementRule = state.getBlock().replacementRule;
-+        if (replacementRule == null || !replacementRule.hasAsReal(state.getBlock()) || !replacementRule.rendersAsEntity()) {
++        if (replacementRule == null || !replacementRule.hasAsReal(state.getBlock()) || !replacementRule.rendersAsEntity(state)) {
 +            if (doDespawns && (useGivenSentBlockEntityBlockPosKeys ? (sentBlockEntityBlockPosKeys != null && sentBlockEntityBlockPosKeys.contains(blockKey)) : this.blockEntityEntityIdByBlockPosKey.containsKey(blockKey))) {
 +                this.despawnBlockEntity(blockPos, true);
 +            }
@@ -964,7 +964,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
 +                    @NotNull BlockPos blockPos = BlockPos.of(sentBlockKey);
 +                    @NotNull BlockState state = level.getBlockState(blockPos);
 +                    @Nullable var replacementRule = state.getBlock().replacementRule;
-+                    if (replacementRule == null || !replacementRule.hasAsReal(state.getBlock()) || !replacementRule.rendersAsEntity()) {
++                    if (replacementRule == null || !replacementRule.hasAsReal(state.getBlock()) || !replacementRule.rendersAsEntity(state)) {
 +                        if (toRemoveBlockKeys == null) {
 +                            toRemoveBlockKeys = new LongArrayList(1);
 +                        }
@@ -1142,7 +1142,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
          packet.onPacketDispatch(getPlayer());
          if (connected && (InnerUtil.canSendImmediate(this, packet) || (
              net.minecraft.server.MCUtil.isMainThread() && packet.isReady() && this.queue.isEmpty() &&
-@@ -414,6 +960,56 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -414,6 +960,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
      private void writePacket(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> callback, Boolean flushConditional) {
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
@@ -1160,9 +1160,14 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
 +                        var replacementRule = block.replacementRule;
 +                        if (replacementRule != null) {
 +                            var unpackedData = setEntityDataPacket.getUnpackedData();
++                            // Check that the data packet is not for an armor stand (even though the entity is a falling block), because if it is for an armor stand, it is a valid block entity sent instead of the falling block and we should let it pass
 +                            if (unpackedData == null || unpackedData.stream().noneMatch(dataItem -> dataItem.getAccessor().equals(ArmorStand.DATA_CLIENT_FLAGS))) {
-+                                // Cancel the packets sent for the original falling block entity
-+                                return;
++                                if (replacementRule.rendersSomeStatesAsEntity() && !replacementRule.rendersAsEntity(blockState)) {
++                                    // No need to do anything since we will actually be using the falling block entity packets
++                                } else {
++                                    // Cancel the packets sent for the original falling block entity
++                                    return;
++                                }
 +                            }
 +                        }
 +                    }
@@ -1180,11 +1185,15 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
 +                            Block block = blockState.getBlock();
 +                            var replacementRule = block.replacementRule;
 +                            if (replacementRule != null) {
-+                                if (replacementRule.rendersAsEntity()) {
++                                if (replacementRule.rendersAsEntity(blockState)) {
 +                                    MinecraftServer.LOGGER.info("Spawning block entity for " + blockState.getBlock() + " with id " + addEntityPacket.getId());
 +                                    // Spawn a block entity for a falling block instead
 +                                    this.spawnBlockEntityForFallingBlock(fallingBlockEntity.getId(), fallingBlockEntity.getUUID(), blockState, fallingBlockEntity.position());
 +                                    return;
++                                } else if (replacementRule.rendersSomeStatesAsEntity()) {
++                                    // We can replace the state of the falling block with the used host (such as the full block host for a slab)
++                                    // Based on FallingBlockEntity.getAddEntityPacket
++                                    packet = new ClientboundAddEntityPacket(entity, Block.getId(replacementRule.getHost(blockState)));
 +                                } else {
 +                                    // We don't have a replacement entity to send ready - so we cancel this packet entirely
 +                                    return;
@@ -1199,7 +1208,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
          // Martijn start - more packets without delay
          final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket
-@@ -421,6 +1017,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -421,6 +1026,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
@@ -1214,7 +1223,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
              ; // no delay for certain packets
          // Martijn end - more packets without delay
          // Paper end - add flush parameter
-@@ -433,20 +1037,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -433,20 +1046,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              this.channel.config().setAutoRead(false);
          }
  
@@ -1240,7 +1249,7 @@ index aca0dc4ce75b25409b057fe94362276c682cdc21..1be8568384330b4a9e07c6761be7b291
              });
              } // Paper
          }
-@@ -558,6 +1164,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -558,6 +1173,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
@@ -2608,7 +2617,7 @@ index 94a96e5f85334b46261e2960ca2fec6c8c4bdd43..f8d72c63974ceb7d886c9077a4d35f07
          // Paper end
          DebugPackets.sendPoiPacketsForChunk(this.level, chunk.getPos());
 diff --git a/src/main/java/net/minecraft/server/level/ServerEntity.java b/src/main/java/net/minecraft/server/level/ServerEntity.java
-index 1eb912ad97f9663bf6bd336ad739f2552b0a5c9b..9d581c78af96fd00e33d26925e018f5581a2f1b9 100644
+index 1eb912ad97f9663bf6bd336ad739f2552b0a5c9b..d39a6d41a7b318a3dd7c9ceccb4233b169506159 100644
 --- a/src/main/java/net/minecraft/server/level/ServerEntity.java
 +++ b/src/main/java/net/minecraft/server/level/ServerEntity.java
 @@ -31,6 +31,7 @@ import net.minecraft.world.entity.LivingEntity;
@@ -2628,7 +2637,7 @@ index 1eb912ad97f9663bf6bd336ad739f2552b0a5c9b..9d581c78af96fd00e33d26925e018f55
 +        boolean useSmallerUpdateIntervalForCustomFallingBlocks = false;
 +        if (entity instanceof FallingBlockEntity fallingBlockEntity) {
 +            var replacementRule = fallingBlockEntity.getBlockState().getBlock().replacementRule;
-+            if (replacementRule != null && replacementRule.rendersAsEntity()) {
++            if (replacementRule != null && replacementRule.hasAsReal(fallingBlockEntity.getBlockState().getBlock()) && replacementRule.rendersAsEntity(fallingBlockEntity.getBlockState())) {
 +                useSmallerUpdateIntervalForCustomFallingBlocks = true;
 +            }
 +        }
@@ -5802,7 +5811,7 @@ index ba9b0f419b0785a0b1e3bc57f18bfe5edaa192bd..b21d11d08f7b69240e416bee1a7a2f0b
 +
  }
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
-index 9465b2ab698362824f837abfd824e8f48fe3235c..8b6f2fa03098e3b26d40c8baa6af66ce40347ec1 100644
+index 9465b2ab698362824f837abfd824e8f48fe3235c..6ce8bdd71c7f3f891fcffbbaa7ef058ccb8b3d52 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
 @@ -330,4 +330,27 @@ public class LevelChunkSection {
@@ -5819,7 +5828,7 @@ index 9465b2ab698362824f837abfd824e8f48fe3235c..8b6f2fa03098e3b26d40c8baa6af66ce
 +            var replacementRule = block.replacementRule;
 +            if (replacementRule != null) {
 +                if (replacementRule.hasAsReal(block)) {
-+                    if (replacementRule.rendersAsEntity()) {
++                    if (replacementRule.rendersAsEntity(stateInSection)) {
 +                        potentiallyContainsBlockEntity[0] = true;
 +                        return true;
 +                    }
@@ -7699,10 +7708,10 @@ index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b96abfa0ba
+index 0000000000000000000000000000000000000000..3750b3dedc58dfad6e84f0c703480cfdfb204fb0
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1464 @@
+@@ -0,0 +1,1475 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -7724,6 +7733,8 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +import net.minecraft.world.level.block.SoundType;
 +import net.minecraft.world.level.block.StairBlock;
 +import net.minecraft.world.level.block.state.BlockBehaviour;
++import net.minecraft.world.level.block.state.properties.BlockStateProperties;
++import net.minecraft.world.level.block.state.properties.SlabType;
 +import net.minecraft.world.level.material.Material;
 +import net.minecraft.world.level.material.MaterialColor;
 +import net.minecraft.world.level.storage.loot.LootTable;
@@ -8635,7 +8646,7 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
 +                .withAnalogousHosts(host, hostReplacement)
 +                .withAnalogousFallbacks(fallback)
-+                .withDefaultModelCreationsForSlabReplacedBySlab(NamespacedKeyWithoutIntention.minecraft(textureBlock), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
++                .withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedAsBlockEntityIfItNormallyWould(NamespacedKeyWithoutIntention.minecraft(textureBlock), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
 +                .withRealItemRuleFromHostBlock()
 +                .withHostItemRuleFromHostBlockAndHostReplacementBlock(),
 +            new SlabBlock(properties).slab(),
@@ -8643,6 +8654,9 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +        ).withCustomSlabStonecutterRecipe(fullBlock).withCustomSlabCraftingRecipe(fullBlock);
 +    }
 +
++    /**
++     * For the double slab, this uses the full block host instead of a block entity
++     */
 +    private static @NotNull Block registerFakeSlab(@NotNull Block fullBlock, @Nullable BlockBehaviour.Properties properties, @NotNull String type, @NotNull ModelCreation doubleSlabModelCreation, @NotNull Texture sideTexture, @Nullable Texture bottomHalfBottomTexture, @Nullable Texture bottomHalfTopTexture, @Nullable Texture topHalfBottomTexture, @Nullable Texture topHalfTopTexture, @NotNull Block host, @Nullable Block fallback) {
 +        if (fallback == null) {
 +            fallback = host;
@@ -8657,10 +8671,11 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +        return register(
 +            type + "_slab",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
-+                .rendersAsEntity()
++                .rendersAsEntity(realState -> !realState.getValue(BlockStateProperties.SLAB_TYPE).equals(SlabType.DOUBLE))
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
-+                .withDefaultModelCreationsForSlabReplacedBySlab(doubleSlabModelCreation, sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture)
++                .withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithSameHostAsFullBlock(fullBlock.defaultBlockState(), sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture)
++//                .withDefaultModelCreationsForSlabReplacedBySlab(doubleSlabModelCreation, sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture)
 +                .withRealItemRuleFromHostBlock(),
 +            block.withAddedTagsLike(fullBlock).slab(),
 +            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
@@ -8681,7 +8696,7 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +        return register(
 +            type + "_stairs",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
-+                .rendersAsEntity()
++                .rendersAsEntity(realState -> true)
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForStairsReplacedByStairs(sideTexture, bottomTexture, topTexture)
@@ -8946,6 +8961,9 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +
 +    /**
 +     * Based on {@link Blocks#OAK_SLAB}
++     * <br>
++     * For the double slab, this uses the full block host instead of a block entity
++     *
 +     * @param textureBlock If null, will be the based on the model of the full block, else it will be assumed to be a default Minecraft model as well as texture namespaced key path (for example 'dirt' will mean the model used as double slab is 'minecraft:block/dirt' and the texture used is 'minecraft:block/dirt')
 +     * @param fallback If null, will be the same as host
 +     */
@@ -8956,10 +8974,11 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +        return register(
 +            type + "_slab",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
-+                .rendersAsEntity()
++                .rendersAsEntity(realState -> !realState.getValue(BlockStateProperties.SLAB_TYPE).equals(SlabType.DOUBLE))
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
-+                .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
++                .withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithSameHostAsFullBlock(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), fullBlock.defaultBlockState())
++//                .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
 +                .withRealItemRuleFromHostBlock(),
 +            new SlabBlock(properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties).withAddedTagsLike(fullBlock).slab(),
 +            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
@@ -8978,7 +8997,7 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +        return register(
 +            type + "_stairs",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
-+                .rendersAsEntity()
++                .rendersAsEntity(realState -> true)
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForStairsReplacedByStairs(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey())
@@ -9046,10 +9065,11 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +        return register(
 +            type + "_slab",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
-+                .rendersAsEntity()
++                .rendersAsEntity(realState -> !realState.getValue(BlockStateProperties.SLAB_TYPE).equals(SlabType.DOUBLE))
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
-+                .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
++                .withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithSameHostAsFullBlock(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), fullBlock.defaultBlockState())
++//                .withDefaultModelCreationsForSlabReplacedBySlab(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey(), ModelContent.Existing.ExistingModelContentOutwardExpansionType.CUBE)
 +                .withRealItemRuleFromHostBlock(),
 +            new FallingSlabBlock(properties == null ? BlockBehaviour.Properties.copy(fullBlock).doesNotRequireCorrectToolForDrops() : properties).withAddedTagsLike(fullBlock).slab(),
 +            SuCraftBlockLoot::dropSingleOrDoubleSlabSelf
@@ -9066,7 +9086,7 @@ index 0000000000000000000000000000000000000000..43d99e22602b254b58a0814f0cdb46b9
 +        return register(
 +            type + "_stairs",
 +            new SingleMultiStateRealBlockReplacementRuleBuilder()
-+                .rendersAsEntity()
++                .rendersAsEntity(realState -> true)
 +                .withAnalogousHosts(host)
 +                .withAnalogousFallbacks(fallback)
 +                .withDefaultModelCreationsForStairsReplacedByStairs(textureBlock != null ? NamespacedKeyWithoutIntention.minecraft(textureBlock) : fullBlock.replacementRule.getModel(fullBlock.defaultBlockState()).model().getKey())
@@ -9362,10 +9382,10 @@ index 0000000000000000000000000000000000000000..34357c237d9a45e91c9de0b5731fccca
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfade23b59b
+index 0000000000000000000000000000000000000000..81f7075df905d9885046c164e5e9c87fe9581967
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
-@@ -0,0 +1,435 @@
+@@ -0,0 +1,449 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -9427,7 +9447,15 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +
 +    boolean isFire();
 +
-+    boolean rendersAsEntity();
++    /**
++     * This method will assume (not verify) that the given state is in fact a state of this rule's real block
++     */
++    boolean rendersAsEntity(@NotNull BlockState realState);
++
++    /**
++     * Returns true if and only if {@link #rendersAsEntity(BlockState)} returns true for some state of this rule's real block
++     */
++    boolean rendersSomeStatesAsEntity();
 +
 +    /**
 +     * Contains no duplicates
@@ -9481,7 +9509,7 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +        if (state.is(this.getReal())) {
 +            return hasResourcePack ? this.getHost(state) : this.getFallback(state);
 +        } else if (hasResourcePack && this.hasAsHost(state)) {
-+            if (!this.rendersAsEntity()) {
++            if (!this.rendersSomeStatesAsEntity()) {
 +                return this.getHostReplacement(state);
 +            }
 +        }
@@ -9498,7 +9526,7 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +            Block.addRealStateToPlayerObservableStates(realStateId, hostId);
 +            Block.addRealStateToPlayerObservableStates(realStateId, fallbackId);
 +        }
-+        if (!this.rendersAsEntity()) {
++        if (!this.rendersSomeStatesAsEntity()) {
 +            for (@NotNull BlockState host : this.getHosts()) {
 +                int hostId = Block.BLOCK_STATE_REGISTRY.getId(host);
 +                int hostReplacementId = Block.BLOCK_STATE_REGISTRY.getId(this.getHostReplacement(host));
@@ -9521,7 +9549,7 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +    }
 +
 +    default void updateMinDestroyTimeOfHosts() {
-+        if (!this.rendersAsEntity()) {
++        if (!this.rendersSomeStatesAsEntity()) {
 +            for (@NotNull BlockState host : this.getHosts()) {
 +                host.getBlock().updateDestroyTime(this.getMinDestroyTimeOfHostAndHostReplacement(host));
 +            }
@@ -9536,7 +9564,8 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +     * This method will assume (not verify) that the given state is in fact a host of this rule
 +     */
 +    default float getMinDestroyTimeOfHostAndHostReplacement(@NotNull BlockState host) {
-+        if (this.rendersAsEntity()) {
++//        System.out.println("TEMP DEBUG - Of: " + this.getReal() + " renders as entity: " + this.rendersSomeStatesAsEntity() + " with host " + host.getBlock() + " = " + host.toVariantString());
++        if (this.rendersSomeStatesAsEntity()) {
 +            return host.getBlock().properties.destroyTime;
 +        }
 +        return Math.min(
@@ -9706,7 +9735,7 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +    @Nullable BlockEntityItemStack getBlockEntityItemStack(@NotNull BlockState realState);
 +
 +    default @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> addBlockEntityItemToResourcePack(@NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
-+        if (!this.rendersAsEntity()) {
++        if (!this.rendersSomeStatesAsEntity()) {
 +            return Collections.emptyList();
 +        }
 +        @NotNull Item itemHost = Validate.notNull(this.getHost(this.getReal().defaultBlockState()).getBlock().asItem());
@@ -9715,10 +9744,12 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>();
 +        assetLocations.add(Pair.of(ResourcePackAssetType.MODEL, itemHostKey.withIntention(ResourcePackAssetIntention.ITEM)));
 +        for (@NotNull BlockState realState : this.getReal().getStateDefinition().getPossibleStates()) {
-+            for (@NotNull BlockEntityModelVisualProperties properties : BlockEntityModelVisualProperties.values) {
-+                int customModelData = Validate.notNull(this.getBlockEntityItemCustomModelData(realState, properties));
-+                var model = Validate.notNull(this.getBlockEntityItemModel(realState, properties));
-+                assetLocations.addAll(itemHostKeyMinecraftItemModel.addModelOverride(customModelData, model, resourcePack, false, actuallyAdd));
++            if (this.rendersAsEntity(realState)) {
++                for (@NotNull BlockEntityModelVisualProperties properties : BlockEntityModelVisualProperties.values) {
++                    int customModelData = Validate.notNull(this.getBlockEntityItemCustomModelData(realState, properties));
++                    var model = Validate.notNull(this.getBlockEntityItemModel(realState, properties));
++                    assetLocations.addAll(itemHostKeyMinecraftItemModel.addModelOverride(customModelData, model, resourcePack, false, actuallyAdd));
++                }
 +            }
 +        }
 +        return assetLocations;
@@ -9768,25 +9799,28 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +                )
 +            );
 +        if (actuallyAdd) {
-+            forEachHostBlock:
-+            for (@NotNull Block hostBlock : hostBlocks) {
-+                for (@NotNull BlockState hostBlockState : hostBlock.getStateDefinition().getPossibleStates()) {
-+                    if (!hosts.contains(hostBlockState)) {
-+                        continue forEachHostBlock;
++            // We don't need to do this for blocks rendered partially as entities since they will only use entities (and therefore not have to change the blockstates of their host) or existing hosts now
++            if (!this.rendersSomeStatesAsEntity()) {
++                forEachHostBlock:
++                for (@NotNull Block hostBlock : hostBlocks) {
++                    for (@NotNull BlockState hostBlockState : hostBlock.getStateDefinition().getPossibleStates()) {
++                        if (!hosts.contains(hostBlockState)) {
++                            continue forEachHostBlock;
++                        }
 +                    }
++                    // We now know all host block states are hosts of this rule
++                    // We clear any existing variant strings because we know we will be writing all new ones anyway
++                    @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(hostBlock)).withEmptyIntention();
++                    @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
++                    minecraftBlockStates.clearVariants();
 +                }
-+                // We now know all host block states are hosts of this rule
-+                // We clear any existing variant strings because we know we will be writing all new ones anyway
-+                @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(hostBlock)).withEmptyIntention();
-+                @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
-+                minecraftBlockStates.clearVariants();
 +            }
 +        }
 +        for (@NotNull BlockState host : hosts) {
 +            @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(host.getBlock())).withEmptyIntention();
 +            @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
 +            @Nullable ModelWithParameters model = this.getModel(host);
-+            if (!this.rendersAsEntity()) {
++            if (!this.rendersSomeStatesAsEntity()) {
 +                if (everyStateOfTheHostBlockHasTheSameModel) {
 +                    assetLocations.addAll(minecraftBlockStates.setNoVariantModel(model, resourcePack, false, actuallyAdd));
 +                } else {
@@ -9803,10 +9837,10 @@ index 0000000000000000000000000000000000000000..132b1324dd5cdf94436ffa1033da3bfa
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f49ca0f313f34743a2e449c591d7437073a55582
+index 0000000000000000000000000000000000000000..0ec20e7c3e9999b406cc7518fbbe2110391a519f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
-@@ -0,0 +1,115 @@
+@@ -0,0 +1,131 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -9824,6 +9858,7 @@ index 0000000000000000000000000000000000000000..f49ca0f313f34743a2e449c591d74370
 +import java.util.IdentityHashMap;
 +import java.util.List;
 +import java.util.Map;
++import java.util.Set;
 +import java.util.stream.Collectors;
 +
 +/**
@@ -9834,7 +9869,13 @@ index 0000000000000000000000000000000000000000..f49ca0f313f34743a2e449c591d74370
 +    protected final @NotNull Block real;
 +    protected final boolean isFire;
 +    protected final @Nullable RealItemReplacementRule realItemRule;
-+    protected final boolean rendersAsEntity;
++
++    /**
++     * Can be null instead of an empty set
++     */
++    protected final @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity;
++
++    protected final boolean rendersSomeStatesAsEntity;
 +    protected final @NotNull List<@NotNull HostItemReplacementRule> hostItemRules;
 +
 +    /**
@@ -9853,11 +9894,12 @@ index 0000000000000000000000000000000000000000..f49ca0f313f34743a2e449c591d74370
 +     */
 +    protected @Nullable Map<@NotNull Item, @NotNull Item> replacementByHostPlacingItem;
 +
-+    protected BlockReplacementRuleBase(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, boolean rendersAsEntity, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules) {
++    protected BlockReplacementRuleBase(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity, boolean rendersSomeStatesAsEntity, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules) {
 +        this.real = real;
 +        this.isFire = this.real instanceof BaseFireBlock;
 +        this.realItemRule = realItemRule;
-+        this.rendersAsEntity = rendersAsEntity;
++        this.realStatesRenderedAsEntity = realStatesRenderedAsEntity;
++        this.rendersSomeStatesAsEntity = rendersSomeStatesAsEntity;
 +        this.hostItemRules = Collections.unmodifiableList(hostItemRules);
 +    }
 +
@@ -9882,8 +9924,16 @@ index 0000000000000000000000000000000000000000..f49ca0f313f34743a2e449c591d74370
 +    }
 +
 +    @Override
-+    public boolean rendersAsEntity() {
-+        return this.rendersAsEntity;
++    public boolean rendersAsEntity(@NotNull BlockState realState) {
++        if (this.realStatesRenderedAsEntity == null) {
++            return false;
++        }
++        return this.realStatesRenderedAsEntity.contains(realState);
++    }
++
++    @Override
++    public boolean rendersSomeStatesAsEntity() {
++        return this.rendersSomeStatesAsEntity;
 +    }
 +
 +    @Override
@@ -9924,22 +9974,19 @@ index 0000000000000000000000000000000000000000..f49ca0f313f34743a2e449c591d74370
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7189a0f1eae94ef88b661a0c243af8433aa9237d
+index 0000000000000000000000000000000000000000..05a3a94046522bfe77ec4b211f988f13bf33bad8
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
-@@ -0,0 +1,515 @@
+@@ -0,0 +1,559 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
 +
 +import it.unimi.dsi.fastutil.Pair;
 +import net.minecraft.core.Direction;
-+import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.world.item.Item;
-+import net.minecraft.world.level.block.BaseFireBlock;
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.Blocks;
-+import net.minecraft.world.level.block.FireBlock;
 +import net.minecraft.world.level.block.StairBlock;
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -9963,13 +10010,16 @@ index 0000000000000000000000000000000000000000..7189a0f1eae94ef88b661a0c243af843
 +import java.util.List;
 +import java.util.Map;
 +import java.util.function.Function;
++import java.util.function.Predicate;
 +import java.util.function.Supplier;
 +
 +public interface BlockReplacementRuleBuilder<R extends BlockReplacementRule, B extends BlockReplacementRuleBuilder<R, B>> {
 +
 +    @NotNull B withReal(@NotNull Block real);
 +
-+    @NotNull B rendersAsEntity();
++    @NotNull B rendersAsEntity(@NotNull BlockState realState);
++
++    @NotNull B rendersAsEntity(@NotNull Predicate<@NotNull BlockState> realStatePredicate);
 +
 +    /**
 +     * One host for all real block states
@@ -10267,12 +10317,52 @@ index 0000000000000000000000000000000000000000..7189a0f1eae94ef88b661a0c243af843
 +     * @param fullBlockTextureAndModelKey A key pointing to the full block texture (used as texture basis for the top and bottom slabs), and also pointing to the full block model (used directly as the model for the double slab)
 +     * @see #withDefaultModelCreationsForSlabReplacedBySlab
 +     */
-+    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlab(@NotNull NamespacedKeyWithoutIntention fullBlockTextureAndModelKey, @NotNull ModelContent.Existing.ExistingModelContentOutwardExpansionType doubleSlabExistingModelContentOutwardExpansionType) {
-+        return this.withDefaultModelCreationsForSlabReplacedBySlab((intention, key) -> new Model(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, ModelContent.Existing.getInstance(doubleSlabExistingModelContentOutwardExpansionType)), new Texture(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, TextureContent.Existing.getInstance()), null, null, null, null);
++    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedAsBlockEntityIfItNormallyWould(@NotNull NamespacedKeyWithoutIntention fullBlockTextureAndModelKey, @NotNull ModelContent.Existing.ExistingModelContentOutwardExpansionType doubleSlabExistingModelContentOutwardExpansionType) {
++        return this.withDefaultModelCreationsForSlabReplacedBySlab((intention, key) -> new Model(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, ModelContent.Existing.getInstance(doubleSlabExistingModelContentOutwardExpansionType)), null, new Texture(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, TextureContent.Existing.getInstance()), null, null, null, null);
++    }
++
++    /**
++     * @param fullBlockTextureAndModelKey A key pointing to the full block texture (used as texture basis for the top and bottom slabs)
++     * @see #withDefaultModelCreationsForSlabReplacedBySlab
++     */
++    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithSameHostAsFullBlock(@NotNull NamespacedKeyWithoutIntention fullBlockTextureAndModelKey, @NotNull BlockState fullBlockRealState) {
++        @NotNull BlockState doubleSlabHost;
++        var doubleSlabRealBlockReplacementRule = fullBlockRealState.getBlock().replacementRule;
++        if (doubleSlabRealBlockReplacementRule != null && doubleSlabRealBlockReplacementRule.hasAsReal(fullBlockRealState.getBlock())) {
++            doubleSlabHost = doubleSlabRealBlockReplacementRule.getHost(fullBlockRealState);
++        } else {
++            doubleSlabHost = fullBlockRealState;
++        }
++        return this.withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithGivenHost(fullBlockTextureAndModelKey, doubleSlabHost);
++    }
++
++    /**
++     * @param fullBlockTextureAndModelKey A key pointing to the full block texture (used as texture basis for the top and bottom slabs)
++     * @see #withDefaultModelCreationsForSlabReplacedBySlab
++     */
++    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithGivenHost(@NotNull NamespacedKeyWithoutIntention fullBlockTextureAndModelKey, @NotNull BlockState doubleSlabHost) {
++        return this.withDefaultModelCreationsForSlabReplacedBySlab(null, doubleSlabHost, new Texture(ResourcePackAssetIntention.BLOCK, fullBlockTextureAndModelKey, TextureContent.Existing.getInstance()), null, null, null, null);
++    }
++
++    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithSameHostAsFullBlock(@Nullable BlockState fullBlockRealState, @NotNull Texture sideTexture, @Nullable Texture bottomHalfBottomTexture, @Nullable Texture bottomHalfTopTexture, @Nullable Texture topHalfBottomTexture, @Nullable Texture topHalfTopTexture) {
++        @NotNull BlockState doubleSlabHost;
++        var doubleSlabRealBlockReplacementRule = fullBlockRealState.getBlock().replacementRule;
++        if (doubleSlabRealBlockReplacementRule != null && doubleSlabRealBlockReplacementRule.hasAsReal(fullBlockRealState.getBlock())) {
++            doubleSlabHost = doubleSlabRealBlockReplacementRule.getHost(fullBlockRealState);
++        } else {
++            doubleSlabHost = fullBlockRealState;
++        }
++        return this.withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithGivenHost(doubleSlabHost, sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture);
++    }
++
++    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlabAndDoubleSlabRenderedWithGivenHost(@Nullable BlockState doubleSlabHost, @NotNull Texture sideTexture, @Nullable Texture bottomHalfBottomTexture, @Nullable Texture bottomHalfTopTexture, @Nullable Texture topHalfBottomTexture, @Nullable Texture topHalfTopTexture) {
++        return this.withDefaultModelCreationsForSlabReplacedBySlab(null, doubleSlabHost, sideTexture, bottomHalfBottomTexture, bottomHalfTopTexture, topHalfBottomTexture, topHalfTopTexture);
 +    }
 +
 +    /**
 +     * Set a single host overriding model for the host block, that as a single model encapsulates a slab: the mechanism for this is provided by the parent model alread)
++     *
++     * Either {@param doubleSlabModelCreation} or {@param doubleSlabHost} must be non-null
 +     *
 +     * @param sideTexture             A texture of a block that will be used as the texture of this slab (the mechanism for this is provided by the parent model already)
 +     * @param bottomHalfBottomTexture Will be {@param sideTexture} if null
@@ -10280,7 +10370,7 @@ index 0000000000000000000000000000000000000000..7189a0f1eae94ef88b661a0c243af843
 +     * @param topHalfBottomTexture    Will be {@param bottomHalfTopTexture} if null
 +     * @param topHalfTopTexture       Will be {@param bottomHalfBottomTexture} if null
 +     */
-+    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlab(@NotNull ModelCreation doubleSlabModelCreation, @NotNull Texture sideTexture, @Nullable Texture bottomHalfBottomTexture, @Nullable Texture bottomHalfTopTexture, @Nullable Texture topHalfBottomTexture, @Nullable Texture topHalfTopTexture) {
++    default @NotNull B withDefaultModelCreationsForSlabReplacedBySlab(@Nullable ModelCreation doubleSlabModelCreation, @Nullable BlockState doubleSlabHost, @NotNull Texture sideTexture, @Nullable Texture bottomHalfBottomTexture, @Nullable Texture bottomHalfTopTexture, @Nullable Texture topHalfBottomTexture, @Nullable Texture topHalfTopTexture) {
 +        if (bottomHalfBottomTexture == null) {
 +            bottomHalfBottomTexture = sideTexture;
 +        }
@@ -10297,7 +10387,7 @@ index 0000000000000000000000000000000000000000..7189a0f1eae94ef88b661a0c243af843
 +        final @NotNull Texture finalBottomHalfTopTexture = bottomHalfTopTexture;
 +        final @NotNull Texture finalTopHalfBottomTexture = topHalfBottomTexture;
 +        final @NotNull Texture finalTopHalfTopTexture = topHalfTopTexture;
-+        return this.withModelCreationForRealState(realState ->
++        var builder = this.withModelCreationForRealState(realState ->
 +            switch (realState.getValue(BlockStateProperties.SLAB_TYPE)) {
 +//                case BOTTOM, DOUBLE, TOP -> {
 +//                    return ((ModelCreation) (intention, key) -> {
@@ -10312,13 +10402,17 @@ index 0000000000000000000000000000000000000000..7189a0f1eae94ef88b661a0c243af843
 +                case BOTTOM ->
 +                    Model.creation(ModelContent.BottomSlab.creationCompanion.creation(finalBottomHalfBottomTexture, sideTexture, finalBottomHalfTopTexture)).withNoParameters();
 +                case DOUBLE ->
-+                    doubleSlabModelCreation.withNoParameters();
++                    doubleSlabModelCreation == null ? null : doubleSlabModelCreation.withNoParameters();
 +                case TOP ->
 +                    ((ModelCreation) (intention, key) -> Model.creation(ModelContent.TopSlab.creationCompanion.creation(finalTopHalfBottomTexture, sideTexture, finalTopHalfTopTexture)).create(intention, key.withPathSuffix("_top"))).withNoParameters();
 +                default ->
 +                    throw new IllegalStateException("Unknown slab type: " + realState.getValue(BlockStateProperties.SLAB_TYPE));
 +            }
 +        );
++        if (doubleSlabHost != null) {
++            builder = builder.withHostForRealState(realState -> realState.getValue(BlockStateProperties.SLAB_TYPE) == SlabType.DOUBLE ? doubleSlabHost : null);
++        }
++        return builder;
 +    }
 +
 +    /**
@@ -10515,10 +10609,10 @@ index 0000000000000000000000000000000000000000..a25b1d9970f82b6d7085b977e29f83e5
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..461675bc134a1704d541ac110f996d60ea6093c3
+index 0000000000000000000000000000000000000000..bb1c78dd5d6530869f49cd5b13443119ed3052e3
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
-@@ -0,0 +1,198 @@
+@@ -0,0 +1,204 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -10594,8 +10688,8 @@ index 0000000000000000000000000000000000000000..461675bc134a1704d541ac110f996d60
 +     */
 +    private @Nullable Map<@NotNull BlockState, @NotNull BlockEntityItemStack> blockEntityItemStackPerRealState;
 +
-+    public MultiStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, boolean rendersAsEntity, @NotNull List<@NotNull BlockState> hosts, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost, @NotNull List<@NotNull BlockState> fallbacks, @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState, @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost, List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState) {
-+        super(real, realItemRule, rendersAsEntity, hostItemRules);
++    public MultiStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity, boolean rendersSomeStatesAsEntity, @NotNull List<@NotNull BlockState> hosts, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostPerRealState, @NotNull Map<@NotNull BlockState, @NotNull BlockState> hostReplacementPerHost, @NotNull List<@NotNull BlockState> fallbacks, @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState, @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost, List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState) {
++        super(real, realItemRule, realStatesRenderedAsEntity, rendersSomeStatesAsEntity, hostItemRules);
 +        this.hostSet = Collections.newSetFromMap(new IdentityHashMap<>());
 +        this.hostSet.addAll(hosts);
 +        this.hostList = List.copyOf(hosts);
@@ -10663,16 +10757,18 @@ index 0000000000000000000000000000000000000000..461675bc134a1704d541ac110f996d60
 +
 +    @Override
 +    public @Nullable Model getBlockEntityItemModelBase(@NotNull BlockState realState) {
-+        return this.blockEntityItemModelBasePerRealState == null ? null : blockEntityItemModelBasePerRealState.get(realState);
++        return this.blockEntityItemModelBasePerRealState == null ? null : this.blockEntityItemModelBasePerRealState.get(realState);
 +    }
 +
 +    @Override
 +    public @NotNull Model @Nullable [] getBlockEntityItemModels(@NotNull BlockState realState) {
 +        if (this.blockEntityItemModelsPerRealState == null) {
-+            if (this.rendersAsEntity) {
++            if (this.rendersSomeStatesAsEntity) {
 +                this.blockEntityItemModelsPerRealState = new IdentityHashMap<>(0);
 +                for (@NotNull BlockState possibleRealState : this.getReal().getStateDefinition().getPossibleStates()) {
-+                    this.blockEntityItemModelsPerRealState.put(possibleRealState, this.computeBlockEntityItemModels(possibleRealState));
++                    if (this.rendersAsEntity(possibleRealState)) {
++                        this.blockEntityItemModelsPerRealState.put(possibleRealState, this.computeBlockEntityItemModels(possibleRealState));
++                    }
 +                }
 +            } else {
 +                return null;
@@ -10684,15 +10780,17 @@ index 0000000000000000000000000000000000000000..461675bc134a1704d541ac110f996d60
 +    @Override
 +    public int @Nullable [] getBlockEntityItemCustomModelData(@NotNull BlockState realState) {
 +        if (this.blockEntityItemCustomModelDataPerRealState == null) {
-+            if (this.rendersAsEntity) {
++            if (this.rendersSomeStatesAsEntity) {
 +                this.blockEntityItemCustomModelDataPerRealState = new IdentityHashMap<>(0);
 +                @NotNull Item item = Validate.notNull(hostPerRealState.get(this.real.defaultBlockState()).getBlock().asItem());
 +                for (@NotNull BlockState possibleRealState : this.getReal().getStateDefinition().getPossibleStates()) {
-+                    int[] customModelData = new int[BlockEntityModelVisualProperties.values.length];
-+                    for (int i = 0; i < customModelData.length; i++) {
-+                        customModelData[i] = UsedHostCustomModelData.generateUnusedHostCustomModelData(item);
++                    if (this.rendersAsEntity(possibleRealState)) {
++                        int[] customModelData = new int[BlockEntityModelVisualProperties.values.length];
++                        for (int i = 0; i < customModelData.length; i++) {
++                            customModelData[i] = UsedHostCustomModelData.generateUnusedHostCustomModelData(item);
++                        }
++                        this.blockEntityItemCustomModelDataPerRealState.put(possibleRealState, customModelData);
 +                    }
-+                    this.blockEntityItemCustomModelDataPerRealState.put(possibleRealState, customModelData);
 +                }
 +            } else {
 +                return null;
@@ -10704,10 +10802,12 @@ index 0000000000000000000000000000000000000000..461675bc134a1704d541ac110f996d60
 +    @Override
 +    public @Nullable BlockEntityItemStack getBlockEntityItemStack(@NotNull BlockState realState) {
 +        if (this.blockEntityItemStackPerRealState == null) {
-+            if (this.rendersAsEntity) {
++            if (this.rendersSomeStatesAsEntity) {
 +                this.blockEntityItemStackPerRealState = new IdentityHashMap<>(0);
 +                for (@NotNull BlockState possibleRealState : this.real.getStateDefinition().getPossibleStates()) {
-+                    this.blockEntityItemStackPerRealState.put(possibleRealState, this.computeBlockEntityItemStack(possibleRealState));
++                    if (this.rendersAsEntity(possibleRealState)) {
++                        this.blockEntityItemStackPerRealState.put(possibleRealState, this.computeBlockEntityItemStack(possibleRealState));
++                    }
 +                }
 +            } else {
 +                return null;
@@ -10827,14 +10927,15 @@ index 0000000000000000000000000000000000000000..97d59c6c248d3323c3f3e8d320c2b916
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf61baede78
+index 0000000000000000000000000000000000000000..0f313bbf20ee341f2de6d15229d89df64a43804a
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleMultiStateRealBlockReplacementRuleBuilder.java
-@@ -0,0 +1,275 @@
+@@ -0,0 +1,292 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
 +
++import com.google.common.collect.Sets;
 +import net.minecraft.core.Registry;
 +import net.minecraft.world.item.Item;
 +import net.minecraft.world.item.ItemStack;
@@ -10860,6 +10961,7 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +import java.util.Map;
 +import java.util.Set;
 +import java.util.function.Function;
++import java.util.function.Predicate;
 +import java.util.function.Supplier;
 +
 +/**
@@ -10869,7 +10971,7 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +
 +    protected @Nullable Block real = null;
 +    protected @NotNull Supplier<@Nullable RealItemReplacementRule> justInTimeRealItemRuleSupplier = () -> null;
-+    private boolean rendersAsEntity = false;
++    private @NotNull Predicate<@NotNull BlockState> rendersAsEntityForRealState = $ -> false;
 +    private @NotNull Function<@NotNull BlockState, @Nullable BlockState> hostForRealState = $ -> null;
 +    private @NotNull Function<@NotNull BlockState, @Nullable BlockState> hostReplacementForHost = $ -> null;
 +    private @NotNull Function<@NotNull BlockState, @Nullable BlockState> fallbackForRealState = $ -> null;
@@ -10885,8 +10987,16 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +    }
 +
 +    @Override
-+    public @NotNull SingleMultiStateRealBlockReplacementRuleBuilder rendersAsEntity() {
-+        this.rendersAsEntity = true;
++    public @NotNull SingleMultiStateRealBlockReplacementRuleBuilder rendersAsEntity(@NotNull BlockState realState) {
++        @NotNull Predicate<@NotNull BlockState> existingRendersAsEntityForRealState = this.rendersAsEntityForRealState;
++        this.rendersAsEntityForRealState = someRealState -> someRealState.equals(realState) || existingRendersAsEntityForRealState.test(someRealState);
++        return this;
++    }
++
++    @Override
++    public @NotNull SingleMultiStateRealBlockReplacementRuleBuilder rendersAsEntity(@NotNull Predicate<@NotNull BlockState> realStatePredicate) {
++        @NotNull Predicate<@NotNull BlockState> existingRendersAsEntityForRealState = this.rendersAsEntityForRealState;
++        this.rendersAsEntityForRealState = someRealState -> realStatePredicate.test(someRealState) || existingRendersAsEntityForRealState.test(someRealState);
 +        return this;
 +    }
 +
@@ -11037,11 +11147,12 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +            @NotNull BlockState hostReplacement = Validate.notNull(this.hostReplacementForHost.apply(host));
 +            @NotNull BlockState fallback = Validate.notNull(this.fallbackForRealState.apply(realState));
 +            @Nullable ModelWithParameters model = isFire ? null : Validate.notNull(this.modelForRealState.apply(realState));
-+            @Nullable Model blockEntityItemModelBase = !this.rendersAsEntity ? null : model.model();
++            boolean rendersAsEntity = this.rendersAsEntityForRealState.test(realState);
++            @Nullable Model blockEntityItemModelBase = !rendersAsEntity ? null : model.model();
 +            return new SingleStateRealBlockReplacementRule(
 +                this.real,
 +                realItemRule,
-+                this.rendersAsEntity,
++                rendersAsEntity,
 +                host,
 +                hostReplacement,
 +                fallback,
@@ -11056,7 +11167,9 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +        @NotNull List<@NotNull BlockState> fallbacks = new ArrayList<>();
 +        @NotNull Map<@NotNull BlockState, @NotNull BlockState> fallbackPerRealState = new IdentityHashMap<>(0);
 +        @NotNull Map<@NotNull BlockState, @NotNull ModelWithParameters> modelPerHost = new IdentityHashMap<>(0);
-+        @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState = this.rendersAsEntity ? new IdentityHashMap<>(0) : null;
++        boolean rendersSomeStatesAsEntity = realStates.stream().anyMatch(this.rendersAsEntityForRealState);
++        @Nullable Map<@NotNull BlockState, @NotNull Model> blockEntityItemModelBasePerRealState = rendersSomeStatesAsEntity ? new IdentityHashMap<>(0) : null;
++        @Nullable Set<@NotNull BlockState> realStatesRenderedAsEntity = rendersSomeStatesAsEntity ? Collections.newSetFromMap(new IdentityHashMap<>(0)) : null;
 +        for (@NotNull BlockState realState : realStates) {
 +            @NotNull BlockState host = Validate.notNull(this.hostForRealState.apply(realState));
 +            if (!hosts.contains(host)) {
@@ -11070,7 +11183,7 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +            fallbackPerRealState.put(realState, fallback);
 +            if (!isFire && !modelPerHost.containsKey(host)) {
 +                @Nullable ModelWithParameters model = this.modelForRealState.apply(realState);
-+                if (!this.rendersAsEntity) {
++                if (!rendersSomeStatesAsEntity) {
 +                    Validate.notNull(model);
 +                }
 +                if (model != null) {
@@ -11078,21 +11191,25 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +                }
 +            }
 +        }
-+        if (!this.rendersAsEntity) {
++        if (!rendersSomeStatesAsEntity) {
 +            for (@NotNull BlockState host : hosts) {
 +                @NotNull BlockState hostReplacement = Validate.notNull(this.hostReplacementForHost.apply(host));
 +                hostReplacementPerHost.put(host, hostReplacement);
 +            }
 +        }
-+        if (this.rendersAsEntity) {
++        if (rendersSomeStatesAsEntity) {
 +            for (@NotNull BlockState realState : realStates) {
-+                blockEntityItemModelBasePerRealState.put(realState, modelPerHost.get(hostPerRealState.get(realState)).model());
++                if (this.rendersAsEntityForRealState.test(realState)) {
++                    blockEntityItemModelBasePerRealState.put(realState, modelPerHost.get(hostPerRealState.get(realState)).model());
++                    realStatesRenderedAsEntity.add(realState);
++                }
 +            }
 +        }
 +        return new MultiStateRealBlockReplacementRule(
 +            this.real,
 +            realItemRule,
-+            this.rendersAsEntity,
++            realStatesRenderedAsEntity,
++            rendersSomeStatesAsEntity,
 +            hosts,
 +            hostPerRealState,
 +            hostReplacementPerHost,
@@ -11108,10 +11225,10 @@ index 0000000000000000000000000000000000000000..23a7be7f2206ebf9749d1b47bde0ccf6
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bfa9e52062
+index 0000000000000000000000000000000000000000..0cfd81e373a749a8f8c96e6aea74921ce09fc5d1
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
-@@ -0,0 +1,230 @@
+@@ -0,0 +1,237 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -11176,7 +11293,7 @@ index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bf
 +    private final @NotNull List<@NotNull Pair<@NotNull Block, @NotNull Block>> potentialBlockReplacementPairs;
 +
 +    /**
-+     * Nullable only if {@link isFire} is true
++     * Nullable only if {@link #isFire} is true
 +     */
 +    private final @Nullable ModelWithParameters model;
 +
@@ -11201,7 +11318,7 @@ index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bf
 +    private @Nullable BlockEntityItemStack blockEntityItemStack;
 +
 +    public SingleStateRealBlockReplacementRule(@NotNull Block real, @Nullable RealItemReplacementRule realItemRule, boolean rendersAsEntity, @NotNull BlockState host, @NotNull BlockState hostReplacement, @NotNull BlockState fallback, @Nullable ModelWithParameters model, @NotNull List<@NotNull HostItemReplacementRule> hostItemRules, @Nullable Model blockEntityItemModelBase) {
-+        super(real, realItemRule, rendersAsEntity, hostItemRules);
++        super(real, realItemRule, Collections.singleton(real.defaultBlockState()), rendersAsEntity, hostItemRules);
 +        this.host = host;
 +        this.hosts = Collections.singletonList(this.host);
 +        this.hostReplacement = hostReplacement;
@@ -11215,6 +11332,12 @@ index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bf
 +        ).filter(pair -> !pair.left().equals(pair.right())).distinct().toList();
 +        this.model = model;
 +        this.blockEntityItemModelBase = blockEntityItemModelBase;
++    }
++
++    @Override
++    public boolean rendersAsEntity(@NotNull BlockState realState) {
++        // Tiny optimization: no need for set check as done in BlockReplacementRuleBase
++        return this.rendersSomeStatesAsEntity;
 +    }
 +
 +    @Override
@@ -11289,7 +11412,7 @@ index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bf
 +    @Override
 +    public @NotNull Model @Nullable [] getBlockEntityItemModels(@NotNull BlockState realState) {
 +        if (this.blockEntityItemModels == null) {
-+            if (this.rendersAsEntity) {
++            if (this.rendersSomeStatesAsEntity) {
 +                this.blockEntityItemModels = this.computeBlockEntityItemModels(realState);
 +            }
 +        }
@@ -11299,7 +11422,7 @@ index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bf
 +    @Override
 +    public int @Nullable [] getBlockEntityItemCustomModelData(@NotNull BlockState realState) {
 +        if (this.blockEntityItemCustomModelData == null) {
-+            if (this.rendersAsEntity) {
++            if (this.rendersSomeStatesAsEntity) {
 +                @NotNull Item item = Validate.notNull(this.host.getBlock().asItem());
 +                this.blockEntityItemCustomModelData = new int[BlockEntityModelVisualProperties.values.length];
 +                for (int i = 0; i < blockEntityItemCustomModelData.length; i++) {
@@ -11315,7 +11438,7 @@ index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bf
 +    @Override
 +    public @Nullable BlockEntityItemStack getBlockEntityItemStack(@NotNull BlockState realState) {
 +        if (this.blockEntityItemStack == null) {
-+            if (this.rendersAsEntity) {
++            if (this.rendersSomeStatesAsEntity) {
 +                this.blockEntityItemStack = this.computeBlockEntityItemStack(realState);
 +            } else {
 +                return null;
@@ -11334,6 +11457,7 @@ index 0000000000000000000000000000000000000000..1f5acfd62e432019bd1f5468d0a2e9bf
 +        @NotNull NamespacedKeyWithIntention hostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.BLOCK.getKey(this.host.getBlock())).withEmptyIntention();
 +        @NotNull MutableResourcePackBlockStates minecraftBlockStates = resourcePack.getBlockStates(hostKey);
 +        if (this.host.getBlock().getStateDefinition().getPossibleStates().size() == 1) {
++//            System.out.println("TEMP DEBUG - Set no variant model of " + this.host.getBlock() + " for " + this.getReal() + " to " + this.model.model().getKeyWithIntention());
 +            assetLocations.addAll(minecraftBlockStates.setNoVariantModel(this.model, resourcePack, false, actuallyAdd));
 +        } else {
 +            assetLocations.addAll(minecraftBlockStates.setModel(this.host, this.model, resourcePack, false, actuallyAdd));
@@ -13711,7 +13835,7 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b7d2bf62fc65be321ec36c36709770273d7971e4
+index 0000000000000000000000000000000000000000..24e4ba1707da23d55ca5552c5ea8d3355defb3c3
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 @@ -0,0 +1,537 @@
@@ -13982,7 +14106,7 @@ index 0000000000000000000000000000000000000000..b7d2bf62fc65be321ec36c3670977027
 +                    var blockReplacementRule = block.replacementRule;
 +                    if (blockReplacementRule != null) {
 +                        if (blockReplacementRule.hasAsReal(block)) {
-+                            if (blockReplacementRule.rendersAsEntity()) {
++                            if (blockReplacementRule.rendersSomeStatesAsEntity()) {
 +                                rendersAsEntity = true;
 +                            }
 +                        }
@@ -14606,7 +14730,7 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..315195c20f6711997a501cc2b3737d57d6a0ad8c
+index 0000000000000000000000000000000000000000..faba75b6df493553b33cbc43910fa6c722cdc550
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 @@ -0,0 +1,829 @@
@@ -15146,7 +15270,7 @@ index 0000000000000000000000000000000000000000..315195c20f6711997a501cc2b3737d57
 +        var blockReplacementRule = block.replacementRule;
 +        if (blockReplacementRule != null) {
 +            if (blockReplacementRule.hasAsReal(block)) {
-+                if (blockReplacementRule.rendersAsEntity()) {
++                if (blockReplacementRule.rendersSomeStatesAsEntity()) {
 +                    rendersAsEntity = true;
 +//                    System.out.println("TEMP DEBUG - " + block.id + " renders as entity");
 +                }
@@ -16423,10 +16547,10 @@ index 0000000000000000000000000000000000000000..d2c7592594da0701ed1fcd03261fd8ec
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5015af3310bdeaf1691b80e11c49f9d5d0f004d7
+index 0000000000000000000000000000000000000000..50564cc5c93b69955d45387a663ddc181cb5946c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/blockstates/ConcreteResourcePackBlockStates.java
-@@ -0,0 +1,499 @@
+@@ -0,0 +1,503 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.blockstates;
@@ -16435,6 +16559,7 @@ index 0000000000000000000000000000000000000000..5015af3310bdeaf1691b80e11c49f9d5
 +import com.google.gson.JsonElement;
 +import com.google.gson.JsonObject;
 +import com.google.gson.JsonParser;
++import net.minecraft.server.MinecraftServer;
 +import net.minecraft.world.level.block.state.BlockState;
 +import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelParameters;
@@ -16517,6 +16642,9 @@ index 0000000000000000000000000000000000000000..5015af3310bdeaf1691b80e11c49f9d5
 +            }
 +        });
 +        this.setDirty();
++//        if (this.getKey().withoutIntention().toString().equals("minecraft:infested_stone_bricks")) {
++//            System.out.println("TEMP DEBUG - now json is: " + this.getJsonCopy().toString());
++//        }
 +    }
 +
 +    @Override
@@ -17350,10 +17478,10 @@ index 0000000000000000000000000000000000000000..e36cb8277fa667532f558ced487808db
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0ca340ba27381fda53f78adf0da4d749393d9df1
+index 0000000000000000000000000000000000000000..cc051357807b2a16091639bb28e0d2eada9bc5ab
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/json/SimpleJsonResourcePackAsset.java
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,102 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.asset.json;
@@ -17416,6 +17544,10 @@ index 0000000000000000000000000000000000000000..0ca340ba27381fda53f78adf0da4d749
 +
 +    @Override
 +    public void writeTo(@NotNull OutputStream outputStream) throws IOException {
++//        if (this.getKey().withoutIntention().toString().equals("minecraft:infested_stone_bricks")) {
++//            System.out.println("TEMP DEBUG - writing to output stream as: " + this.getJsonCopy().toString());
++//            System.out.println("TEMP DEBUG - up to date makes: " + this.getUpToDateJson().toString());
++//        }
 +        outputStream.write(this.getUpToDateJson().toString().getBytes(Charsets.UTF_8));
 +    }
 +
@@ -18726,7 +18858,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e0af1a8549b5e8052385b017e12a81a4fa839efe
+index 0000000000000000000000000000000000000000..611b6eae7d51378bfc645c320473ced831845790
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -18802,7 +18934,7 @@ index 0000000000000000000000000000000000000000..e0af1a8549b5e8052385b017e12a81a4
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 167;
++            currentResourcePackVersion = 174;
 +        }
 +    }
 +
