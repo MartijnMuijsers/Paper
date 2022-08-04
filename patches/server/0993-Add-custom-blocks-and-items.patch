@@ -2936,7 +2936,7 @@ index 7123b7a821e2b3b75701976ed5382f4f3aaecfda..1a34ef9e4c242a8048b3d21ab73126a1
  
                      this.level.destroyBlockProgress(this.player.getId(), pos, k);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 1d87b9baef13b39ddd78c94403da7fb765d04ff9..1ea3163a0e74072266008d31ed34e3d069ef65d3 100644
+index 1c2b1e0d3c823cf4209a60f4c54a49c7e6282f58..ea142ef04dace3fab7e67a577a82a88e3fb8a870 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -29,6 +29,7 @@ import java.util.function.BiFunction;
@@ -7713,10 +7713,10 @@ index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9f6ef4f6a0660292e36696a7de180a908a2da8ba
+index 0000000000000000000000000000000000000000..939e8e9a8b3f149e69687733a46dd48262e85813
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1483 @@
+@@ -0,0 +1,1488 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -8423,6 +8423,11 @@ index 0000000000000000000000000000000000000000..9f6ef4f6a0660292e36696a7de180a90
 +    public static final Block GRANITE_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(GRANITE_PILLAR, "granite", Blocks.POLISHED_GRANITE_STAIRS);
 +    public static final Block TUFF_PILLAR_STAIRS = registerFakeCustomStonePillarStairs(TUFF_PILLAR, "tuff", Blocks.COBBLESTONE_STAIRS);
 +    public static final Block MANGROVE_BOOKSHELF = registerBookshelf("mangrove");
++    public static final Block BONE_STAIRS = registerFakeStairs(Blocks.BONE_BLOCK, null, "bone", NamespacedKeyWithoutIntention.minecraft("bone_block_side"), NamespacedKeyWithoutIntention.minecraft("bone_block_top"), null, Blocks.SMOOTH_QUARTZ_STAIRS, null).mineableWithPickaxe();
++    public static final Block BASALT_STAIRS = registerFakeStairs(Blocks.BASALT, null, "basalt", NamespacedKeyWithoutIntention.minecraft("basalt_side"), NamespacedKeyWithoutIntention.minecraft("basalt_top"), null, Blocks.COBBLESTONE_STAIRS, null).mineableWithPickaxe();
++    public static final Block POLISHED_BASALT_STAIRS = registerFakeStairs(Blocks.POLISHED_BASALT, null, "polished_basalt", NamespacedKeyWithoutIntention.minecraft("polished_basalt_side"), NamespacedKeyWithoutIntention.minecraft("polished_basalt_top"), null, Blocks.STONE_STAIRS, null).mineableWithPickaxe();
++    public static final Block CUT_SANDSTONE_STAIRS = registerFakeStairs(Blocks.CUT_SANDSTONE, null, "cut_sandstone", NamespacedKeyWithoutIntention.minecraft("cut_sandstone"), NamespacedKeyWithoutIntention.minecraft("sandstone_top"), null, Blocks.SMOOTH_SANDSTONE_STAIRS, null).mineableWithPickaxe();
++    public static final Block CUT_RED_SANDSTONE_STAIRS = registerFakeStairs(Blocks.CUT_RED_SANDSTONE, null, "cut_red_sandstone", NamespacedKeyWithoutIntention.minecraft("cut_red_sandstone"), NamespacedKeyWithoutIntention.minecraft("red_sandstone_top"), null, Blocks.SMOOTH_RED_SANDSTONE_STAIRS, null).mineableWithPickaxe();
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -15013,10 +15018,10 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..faba75b6df493553b33cbc43910fa6c722cdc550
+index 0000000000000000000000000000000000000000..34fd3424537c5c00d5dd4fd9dbe991156347fe6e
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,829 @@
+@@ -0,0 +1,834 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -15541,6 +15546,11 @@ index 0000000000000000000000000000000000000000..faba75b6df493553b33cbc43910fa6c7
 +    public static final Item GRANITE_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.GRANITE_PILLAR_STAIRS, "Granite");
 +    public static final Item TUFF_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.TUFF_PILLAR_STAIRS, "Tuff");
 +    public static final Item MANGROVE_BOOKSHELF = registerBookshelf(SuCraftBlocks.MANGROVE_BOOKSHELF, "Mangrove", () -> Items.MANGROVE_PLANKS);
++    public static final Item BONE_STAIRS = registerStairs(SuCraftBlocks.BONE_STAIRS, "Bone");
++    public static final Item BASALT_STAIRS = registerStairs(SuCraftBlocks.BASALT_STAIRS, "Basalt");
++    public static final Item POLISHED_BASALT_STAIRS = registerStairs(SuCraftBlocks.POLISHED_BASALT_STAIRS, "Polished Basalt");
++    public static final Item CUT_SANDSTONE_STAIRS = registerStairs(SuCraftBlocks.CUT_SANDSTONE_STAIRS, "Cut Sandstone");
++    public static final Item CUT_RED_SANDSTONE_STAIRS = registerStairs(SuCraftBlocks.CUT_RED_SANDSTONE_STAIRS, "Cut Red Sandstone");
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -19141,7 +19151,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..57a56ca131d5f81b08a8a2b40c9c631dc6d980c5
+index 0000000000000000000000000000000000000000..d62c237e1bcf261627de9a8576e0f86d46212f99
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -19217,7 +19227,7 @@ index 0000000000000000000000000000000000000000..57a56ca131d5f81b08a8a2b40c9c631d
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 176;
++            currentResourcePackVersion = 178;
 +        }
 +    }
 +
