@@ -437,6 +437,77 @@ index 2ae3cf188ed5ab1266b1aae796fecce02f517908..412ae3d0a634cbe183ee2ebeefb35dbe
          Set<ResourceLocation> set = Sets.newHashSet();
  
          for(Block block : Registry.BLOCK) {
+diff --git a/src/main/java/net/minecraft/data/worldgen/biome/Biomes.java b/src/main/java/net/minecraft/data/worldgen/biome/Biomes.java
+index aa8d3566a6979f2d61ebee409f98e2b9af0a6933..8ab934a0f6c0857c68e84af8ce8a56e295644b77 100644
+--- a/src/main/java/net/minecraft/data/worldgen/biome/Biomes.java
++++ b/src/main/java/net/minecraft/data/worldgen/biome/Biomes.java
+@@ -4,6 +4,7 @@ import net.minecraft.core.Holder;
+ import net.minecraft.core.Registry;
+ import net.minecraft.data.BuiltinRegistries;
+ import net.minecraft.world.level.biome.Biome;
++import nl.martijnmuijsers.paper.biome.SuCraftBiomes;
+ 
+ public abstract class Biomes {
+     public static Holder<Biome> bootstrap(Registry<Biome> registry) {
+@@ -69,6 +70,9 @@ public abstract class Biomes {
+         BuiltinRegistries.register(registry, net.minecraft.world.level.biome.Biomes.END_HIGHLANDS, EndBiomes.endHighlands());
+         BuiltinRegistries.register(registry, net.minecraft.world.level.biome.Biomes.END_MIDLANDS, EndBiomes.endMidlands());
+         BuiltinRegistries.register(registry, net.minecraft.world.level.biome.Biomes.SMALL_END_ISLANDS, EndBiomes.smallEndIslands());
+-        return BuiltinRegistries.register(registry, net.minecraft.world.level.biome.Biomes.END_BARRENS, EndBiomes.endBarrens());
++        // Martijn start - custom blocks and items
++        BuiltinRegistries.register(registry, net.minecraft.world.level.biome.Biomes.END_BARRENS, EndBiomes.endBarrens());
++        return SuCraftBiomes.bootstrap(registry);
++        // Martijn end - custom blocks and items
+     }
+ }
+diff --git a/src/main/java/net/minecraft/data/worldgen/biome/OverworldBiomes.java b/src/main/java/net/minecraft/data/worldgen/biome/OverworldBiomes.java
+index e589653c227abfba7b1497b75045e88ef84c9331..6000f3523fde7dbf38e08fb5d6693adc0b2a4740 100644
+--- a/src/main/java/net/minecraft/data/worldgen/biome/OverworldBiomes.java
++++ b/src/main/java/net/minecraft/data/worldgen/biome/OverworldBiomes.java
+@@ -18,6 +18,7 @@ import net.minecraft.world.level.biome.BiomeGenerationSettings;
+ import net.minecraft.world.level.biome.BiomeSpecialEffects;
+ import net.minecraft.world.level.biome.MobSpawnSettings;
+ import net.minecraft.world.level.levelgen.GenerationStep;
++import nl.martijnmuijsers.paper.biome.features.SuCraftBiomeDefaultFeatures;
+ 
+ public class OverworldBiomes {
+     protected static final int NORMAL_WATER_COLOR = 4159204;
+@@ -361,6 +362,12 @@ public class OverworldBiomes {
+     }
+ 
+     public static Biome forest(boolean birch, boolean oldGrowth, boolean flower) {
++        // Martijn start - custom blocks and items
++        return forest(birch, oldGrowth, flower, false);
++    }
++
++    public static Biome forest(boolean birch, boolean oldGrowth, boolean flower, boolean orange) {
++        // Martijn end - custom blocks and items
+         BiomeGenerationSettings.Builder builder = new BiomeGenerationSettings.Builder();
+         globalOverworldGeneration(builder);
+         if (flower) {
+@@ -382,6 +389,10 @@ public class OverworldBiomes {
+                 } else {
+                     BiomeDefaultFeatures.addBirchTrees(builder);
+                 }
++                // Martijn start - custom blocks and items
++            } else if (orange) {
++                SuCraftBiomeDefaultFeatures.addOrangeTintedOtherBirchTrees(builder);
++                // Martijn end - custom blocks and items
+             } else {
+                 BiomeDefaultFeatures.addOtherBirchTrees(builder);
+             }
+@@ -401,9 +412,9 @@ public class OverworldBiomes {
+             builder2.addSpawn(MobCategory.CREATURE, new MobSpawnSettings.SpawnerData(EntityType.WOLF, 5, 4, 4));
+         }
+ 
+-        float f = birch ? 0.6F : 0.7F;
++        float f = birch ? 0.6F : orange ? 0.8F : 0.7F; // Martijn - custom blocks and items
+         Music music = Musics.createGameMusic(SoundEvents.MUSIC_BIOME_JUNGLE_AND_FOREST);
+-        return biome(Biome.Precipitation.RAIN, f, birch ? 0.6F : 0.8F, builder2, builder, music);
++        return biome(Biome.Precipitation.RAIN, f, birch ? 0.6F : orange ? 0.9F : 0.8F, builder2, builder, music); // Martijn - custom blocks and items
+     }
+ 
+     public static Biome taiga(boolean cold) {
 diff --git a/src/main/java/net/minecraft/nbt/NbtUtils.java b/src/main/java/net/minecraft/nbt/NbtUtils.java
 index 5dda064813a0eb00438a7df909d51a4b2d48942e..6573696e758b52ac9d90ef77c1ff097fa48711bb 100644
 --- a/src/main/java/net/minecraft/nbt/NbtUtils.java
@@ -4386,6 +4457,27 @@ index 94dd87584de8cf23ff8fc4396400ff39730709f0..d5cae13c0cdf4171541d43e512970ea2
          this.entitySliceManager = new io.papermc.paper.world.EntitySliceManager((ServerLevel)this); // Paper
      }
  
+diff --git a/src/main/java/net/minecraft/world/level/biome/OverworldBiomeBuilder.java b/src/main/java/net/minecraft/world/level/biome/OverworldBiomeBuilder.java
+index 0f062d52e004b6a5f49a11715979de1093458a78..d0500654926c5c5d37cb64a80ab1aa6eab00ac84 100644
+--- a/src/main/java/net/minecraft/world/level/biome/OverworldBiomeBuilder.java
++++ b/src/main/java/net/minecraft/world/level/biome/OverworldBiomeBuilder.java
+@@ -12,6 +12,7 @@ import net.minecraft.util.ToFloatFunction;
+ import net.minecraft.util.VisibleForDebug;
+ import net.minecraft.world.level.levelgen.DensityFunctions;
+ import net.minecraft.world.level.levelgen.NoiseRouterData;
++import nl.martijnmuijsers.paper.biome.SuCraftBiomes;
+ 
+ public final class OverworldBiomeBuilder {
+     private static final float VALLEY_SIZE = 0.05F;
+@@ -43,7 +44,7 @@ public final class OverworldBiomeBuilder {
+     private final Climate.Parameter midInlandContinentalness = Climate.Parameter.span(0.03F, 0.3F);
+     private final Climate.Parameter farInlandContinentalness = Climate.Parameter.span(0.3F, 1.0F);
+     private final ResourceKey<Biome>[][] OCEANS = new ResourceKey[][]{{Biomes.DEEP_FROZEN_OCEAN, Biomes.DEEP_COLD_OCEAN, Biomes.DEEP_OCEAN, Biomes.DEEP_LUKEWARM_OCEAN, Biomes.WARM_OCEAN}, {Biomes.FROZEN_OCEAN, Biomes.COLD_OCEAN, Biomes.OCEAN, Biomes.LUKEWARM_OCEAN, Biomes.WARM_OCEAN}};
+-    private final ResourceKey<Biome>[][] MIDDLE_BIOMES = new ResourceKey[][]{{Biomes.SNOWY_PLAINS, Biomes.SNOWY_PLAINS, Biomes.SNOWY_PLAINS, Biomes.SNOWY_TAIGA, Biomes.TAIGA}, {Biomes.PLAINS, Biomes.PLAINS, Biomes.FOREST, Biomes.TAIGA, Biomes.OLD_GROWTH_SPRUCE_TAIGA}, {Biomes.FLOWER_FOREST, Biomes.PLAINS, Biomes.FOREST, Biomes.BIRCH_FOREST, Biomes.DARK_FOREST}, {Biomes.SAVANNA, Biomes.SAVANNA, Biomes.FOREST, Biomes.JUNGLE, Biomes.JUNGLE}, {Biomes.DESERT, Biomes.DESERT, Biomes.DESERT, Biomes.DESERT, Biomes.DESERT}};
++    private final ResourceKey<Biome>[][] MIDDLE_BIOMES = new ResourceKey[][]{{Biomes.SNOWY_PLAINS, Biomes.SNOWY_PLAINS, Biomes.SNOWY_PLAINS, Biomes.SNOWY_TAIGA, Biomes.TAIGA}, {Biomes.PLAINS, Biomes.PLAINS, Biomes.FOREST, SuCraftBiomes.ORANGE_FOREST, Biomes.TAIGA, Biomes.OLD_GROWTH_SPRUCE_TAIGA}, {Biomes.FLOWER_FOREST, Biomes.PLAINS, Biomes.FOREST, Biomes.BIRCH_FOREST, Biomes.DARK_FOREST}, {Biomes.SAVANNA, Biomes.SAVANNA, Biomes.FOREST, Biomes.JUNGLE, Biomes.JUNGLE}, {Biomes.DESERT, Biomes.DESERT, Biomes.DESERT, Biomes.DESERT, Biomes.DESERT}}; // Martijn - custom blocks and items
+     private final ResourceKey<Biome>[][] MIDDLE_BIOMES_VARIANT = new ResourceKey[][]{{Biomes.ICE_SPIKES, null, Biomes.SNOWY_TAIGA, null, null}, {null, null, null, null, Biomes.OLD_GROWTH_PINE_TAIGA}, {Biomes.SUNFLOWER_PLAINS, null, null, Biomes.OLD_GROWTH_BIRCH_FOREST, null}, {null, null, Biomes.PLAINS, Biomes.SPARSE_JUNGLE, Biomes.BAMBOO_JUNGLE}, {null, null, null, null, null}};
+     private final ResourceKey<Biome>[][] PLATEAU_BIOMES = new ResourceKey[][]{{Biomes.SNOWY_PLAINS, Biomes.SNOWY_PLAINS, Biomes.SNOWY_PLAINS, Biomes.SNOWY_TAIGA, Biomes.SNOWY_TAIGA}, {Biomes.MEADOW, Biomes.MEADOW, Biomes.FOREST, Biomes.TAIGA, Biomes.OLD_GROWTH_SPRUCE_TAIGA}, {Biomes.MEADOW, Biomes.MEADOW, Biomes.MEADOW, Biomes.MEADOW, Biomes.DARK_FOREST}, {Biomes.SAVANNA_PLATEAU, Biomes.SAVANNA_PLATEAU, Biomes.FOREST, Biomes.FOREST, Biomes.JUNGLE}, {Biomes.BADLANDS, Biomes.BADLANDS, Biomes.BADLANDS, Biomes.WOODED_BADLANDS, Biomes.WOODED_BADLANDS}};
+     private final ResourceKey<Biome>[][] PLATEAU_BIOMES_VARIANT = new ResourceKey[][]{{Biomes.ICE_SPIKES, null, null, null, null}, {null, null, Biomes.MEADOW, Biomes.MEADOW, Biomes.OLD_GROWTH_PINE_TAIGA}, {null, null, Biomes.FOREST, Biomes.BIRCH_FOREST, null}, {null, null, null, null, null}, {Biomes.ERODED_BADLANDS, Biomes.ERODED_BADLANDS, null, null, null}};
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
 index 224ce424b9a22548212ac157ec273c6dd80d6cfb..fe5175b74e7196f6b63798f05fa9cd9bbfbd0e91 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
@@ -5908,6 +6000,88 @@ index 76cfa5797a71df34c7b933798815863f437debcd..f7b8bcbc27c52176b68dcd558531ec83
 +    // Martijn end - custom blocks and items
 +
  }
+diff --git a/src/main/java/net/minecraft/world/level/levelgen/feature/configurations/TreeConfiguration.java b/src/main/java/net/minecraft/world/level/levelgen/feature/configurations/TreeConfiguration.java
+index b8405113d67a02ee933af65a7b8a912df64356b4..442d6ba895145b0afe7069e5e81c91d062e30c19 100644
+--- a/src/main/java/net/minecraft/world/level/levelgen/feature/configurations/TreeConfiguration.java
++++ b/src/main/java/net/minecraft/world/level/levelgen/feature/configurations/TreeConfiguration.java
+@@ -3,15 +3,24 @@ package net.minecraft.world.level.levelgen.feature.configurations;
+ import com.google.common.collect.ImmutableList;
+ import com.mojang.serialization.Codec;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
++
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Optional;
++
++import net.minecraft.core.BlockPos;
++import net.minecraft.util.RandomSource;
++import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.levelgen.feature.featuresize.FeatureSize;
+ import net.minecraft.world.level.levelgen.feature.foliageplacers.FoliagePlacer;
+ import net.minecraft.world.level.levelgen.feature.rootplacers.RootPlacer;
+ import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProvider;
++import net.minecraft.world.level.levelgen.feature.stateproviders.BlockStateProviderType;
+ import net.minecraft.world.level.levelgen.feature.treedecorators.TreeDecorator;
+ import net.minecraft.world.level.levelgen.feature.trunkplacers.TrunkPlacer;
++import org.jetbrains.annotations.NotNull;
+ 
+ public class TreeConfiguration implements FeatureConfiguration {
+     public static final Codec<TreeConfiguration> CODEC = RecordCodecBuilder.create((instance) -> {
+@@ -61,10 +70,29 @@ public class TreeConfiguration implements FeatureConfiguration {
+         this.forceDirt = forceDirt;
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    public @NotNull TreeConfigurationBuilder cloneBuilder() {
++        var builder = new TreeConfigurationBuilder(
++            this.trunkProvider,
++            this.trunkPlacer,
++            this.foliageProvider,
++            this.foliagePlacer,
++            this.rootPlacer,
++            this.minimumSize
++        );
++        builder.decorators = new ArrayList<>(this.decorators);
++        builder.ignoreVines = this.ignoreVines;
++        builder.forceDirt = this.forceDirt;
++        return builder;
++    }
++
++    // Martijn end - custom blocks and items
++
+     public static class TreeConfigurationBuilder {
+-        public final BlockStateProvider trunkProvider;
++        public BlockStateProvider trunkProvider; // Martijn - custom blocks and items
+         private final TrunkPlacer trunkPlacer;
+-        public final BlockStateProvider foliageProvider;
++        public BlockStateProvider foliageProvider; // Martijn - custom blocks and items
+         private final FoliagePlacer foliagePlacer;
+         private final Optional<RootPlacer> rootPlacer;
+         private BlockStateProvider dirtProvider;
+@@ -107,6 +135,20 @@ public class TreeConfiguration implements FeatureConfiguration {
+             return this;
+         }
+ 
++        // Martijn start - custom blocks and items
++
++        public TreeConfiguration.TreeConfigurationBuilder withLog(@NotNull Block log) {
++            this.trunkProvider = BlockStateProvider.simple(log);
++            return this;
++        }
++
++        public TreeConfiguration.TreeConfigurationBuilder withLeaves(@NotNull Block leaves) {
++            this.foliageProvider = BlockStateProvider.simple(leaves);
++            return this;
++        }
++
++        // Martijn end - custom blocks and items
++
+         public TreeConfiguration build() {
+             return new TreeConfiguration(this.trunkProvider, this.trunkPlacer, this.foliageProvider, this.foliagePlacer, this.rootPlacer, this.dirtProvider, this.minimumSize, this.decorators, this.ignoreVines, this.forceDirt);
+         }
 diff --git a/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java b/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java
 index aef7198ca8b781d02204098811086b25050ab262..c51bd7abafdb609c9e4086b33e6210f1f1f9ba74 100644
 --- a/src/main/java/net/minecraft/world/level/storage/loot/LootTables.java
@@ -6287,36 +6461,389 @@ index 0000000000000000000000000000000000000000..a50c702b7e653d74a1f8f7d0f472c6ae
 +
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
-index 347f0b29fbe89eaab83692e3991aa19752c0e8fd..01c9d12bc884e60a69ade60cfa8be985c7964b72 100644
+index 347f0b29fbe89eaab83692e3991aa19752c0e8fd..a78fda932753da88ca14c3b4469431197db9f6e0 100644
 --- a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
 +++ b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomeTagsProvider.java
-@@ -2,12 +2,17 @@
+@@ -2,11 +2,19 @@
  
  package nl.martijnmuijsers.paper.biome;
  
 +import net.minecraft.core.Holder;
  import net.minecraft.core.Registry;
  import net.minecraft.server.MinecraftServer;
++import net.minecraft.tags.BiomeTags;
++import net.minecraft.tags.StructureTags;
 +import net.minecraft.tags.TagKey;
  import net.minecraft.world.level.biome.Biome;
  import nl.martijnmuijsers.paper.data.SuCraftTagsProvider;
  import net.minecraft.world.level.biome.Biomes;
- 
++import nl.martijnmuijsers.paper.structure.SuCraftBuiltinStructures;
++
 +import java.util.List;
 +import java.util.Map;
-+
+ 
  /**
   * Based on {@link net.minecraft.data.tags.BiomeTagsProvider}
-  */
-@@ -18,7 +23,7 @@ public class SuCraftBiomeTagsProvider extends SuCraftTagsProvider<Biome> {
+@@ -18,9 +26,17 @@ public class SuCraftBiomeTagsProvider extends SuCraftTagsProvider<Biome> {
      }
  
      @Override
 -    protected void addTags() {
 +    protected void addTags(Map<TagKey<Biome>, List<Holder<Biome>>> existingRegistryTagEntries) {
++
++        MinecraftServer.LOGGER.info("Adding onto existing biome tags...");
++        this.tag(BiomeTags.IS_FOREST).add(SuCraftBiomes.ORANGE_FOREST);
++        this.tag(BiomeTags.STRONGHOLD_BIASED_TO).add(SuCraftBiomes.ORANGE_FOREST);
++        this.tag(BiomeTags.HAS_MINESHAFT).add(SuCraftBiomes.ORANGE_FOREST);
++        this.tag(BiomeTags.HAS_RUINED_PORTAL_STANDARD).add(SuCraftBiomes.ORANGE_FOREST);
++
          MinecraftServer.LOGGER.info("Adding custom biome tags...");
          this.tag(SuCraftBiomeTags.HAS_STRONGHOLD_SURFACE).add(Biomes.PLAINS).add(Biomes.SUNFLOWER_PLAINS).add(Biomes.SNOWY_PLAINS).add(Biomes.ICE_SPIKES).add(Biomes.DESERT).add(Biomes.FOREST).add(Biomes.FLOWER_FOREST).add(Biomes.BIRCH_FOREST).add(Biomes.DARK_FOREST).add(Biomes.OLD_GROWTH_BIRCH_FOREST).add(Biomes.OLD_GROWTH_PINE_TAIGA).add(Biomes.OLD_GROWTH_SPRUCE_TAIGA).add(Biomes.TAIGA).add(Biomes.SNOWY_TAIGA).add(Biomes.SAVANNA).add(Biomes.SAVANNA_PLATEAU).add(Biomes.WINDSWEPT_HILLS).add(Biomes.WINDSWEPT_GRAVELLY_HILLS).add(Biomes.WINDSWEPT_FOREST).add(Biomes.WINDSWEPT_SAVANNA).add(Biomes.JUNGLE).add(Biomes.SPARSE_JUNGLE).add(Biomes.BAMBOO_JUNGLE).add(Biomes.BADLANDS).add(Biomes.ERODED_BADLANDS).add(Biomes.WOODED_BADLANDS).add(Biomes.MEADOW).add(Biomes.GROVE).add(Biomes.SNOWY_SLOPES).add(Biomes.FROZEN_PEAKS).add(Biomes.JAGGED_PEAKS).add(Biomes.STONY_PEAKS).add(Biomes.MUSHROOM_FIELDS); // Martijn - custom strongholds - surface strongholds
++
      }
+ 
+ }
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomes.java b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomes.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..482cc6dc13643d1101e28ebd15b9dc7a4bc08732
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/SuCraftBiomes.java
+@@ -0,0 +1,28 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.biome;
++
++import net.minecraft.core.Holder;
++import net.minecraft.core.Registry;
++import net.minecraft.data.BuiltinRegistries;
++import net.minecraft.data.worldgen.biome.OverworldBiomes;
++import net.minecraft.resources.ResourceKey;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.level.biome.Biome;
++
++/**
++ * Based on {@link net.minecraft.world.level.biome.Biomes} and {@link net.minecraft.data.worldgen.biome.Biomes}
++ */
++public class SuCraftBiomes {
++
++    public static final ResourceKey<Biome> ORANGE_FOREST = register("orange_forest");
++
++    private static ResourceKey<Biome> register(String name) {
++        return ResourceKey.create(Registry.BIOME_REGISTRY, ResourceLocation.sucraft(name));
++    }
++
++    public static Holder<Biome> bootstrap(Registry<Biome> registry) {
++        return BuiltinRegistries.register(registry, ORANGE_FOREST, OverworldBiomes.forest(false, false, false, true));
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftBiomeDefaultFeatures.java b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftBiomeDefaultFeatures.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..56f7f8e30e56bade4e0d320c151d01cf46c6dd3e
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftBiomeDefaultFeatures.java
+@@ -0,0 +1,18 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.biome.features;
++
++import net.minecraft.world.level.biome.BiomeGenerationSettings;
++import net.minecraft.world.level.levelgen.GenerationStep;
++import nl.martijnmuijsers.paper.biome.placements.SuCraftVegetationPlacements;
++
++/**
++ * Based on {@link net.minecraft.data.worldgen.BiomeDefaultFeatures}
++ */
++public class SuCraftBiomeDefaultFeatures {
++
++    public static void addOrangeTintedOtherBirchTrees(BiomeGenerationSettings.Builder builder) {
++        builder.addFeature(GenerationStep.Decoration.VEGETAL_DECORATION, SuCraftVegetationPlacements.TREES_ORANGE_TINTED_BIRCH_AND_OAK);
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftFeatureUtils.java b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftFeatureUtils.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ddceb5f9379d889aa544e108321d9fd719406952
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftFeatureUtils.java
+@@ -0,0 +1,27 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.biome.features;
++
++import net.minecraft.core.Holder;
++import net.minecraft.data.BuiltinRegistries;
++import net.minecraft.data.worldgen.features.FeatureUtils;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
++import net.minecraft.world.level.levelgen.feature.Feature;
++import net.minecraft.world.level.levelgen.feature.configurations.FeatureConfiguration;
++import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
++
++/**
++ * Based on {@link FeatureUtils}
++ */
++public class SuCraftFeatureUtils {
++
++    public static Holder<ConfiguredFeature<NoneFeatureConfiguration, ?>> register(String id, Feature<NoneFeatureConfiguration> feature) {
++        return FeatureUtils.register(ResourceLocation.sucraft(id).toString(), feature);
++    }
++
++    public static <FC extends FeatureConfiguration, F extends Feature<FC>> Holder<ConfiguredFeature<FC, ?>> register(String id, F feature, FC config) {
++        return FeatureUtils.register(ResourceLocation.sucraft(id).toString(), feature, config);
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftTreeFeatures.java b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftTreeFeatures.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..399e1a5219afcc0750c0bdcb961104ffad05cf1c
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftTreeFeatures.java
+@@ -0,0 +1,64 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.biome.features;
++
++import net.minecraft.core.Holder;
++import net.minecraft.data.worldgen.features.TreeFeatures;
++import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
++import net.minecraft.world.level.levelgen.feature.Feature;
++import net.minecraft.world.level.levelgen.feature.configurations.TreeConfiguration;
++import nl.martijnmuijsers.paper.block.SuCraftBlocks;
++
++/**
++ * Based on {@link TreeFeatures}
++ */
++public class SuCraftTreeFeatures {
++
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> RED_OAK = SuCraftFeatureUtils.register("red_oak", Feature.TREE, TreeFeatures.OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> RED_OAK_BEES_0002 = SuCraftFeatureUtils.register("red_oak_bees_0002", Feature.TREE, TreeFeatures.OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> RED_OAK_BEES_002 = SuCraftFeatureUtils.register("red_oak_bees_002", Feature.TREE, TreeFeatures.OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_RED_OAK = SuCraftFeatureUtils.register("fancy_red_oak", Feature.TREE, TreeFeatures.FANCY_OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_RED_OAK_BEES_0002 = SuCraftFeatureUtils.register("fancy_red_oak_bees_0002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_RED_OAK_BEES_002 = SuCraftFeatureUtils.register("fancy_red_oak_bees_002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_RED_OAK_BEES = SuCraftFeatureUtils.register("fancy_red_oak_bees", Feature.TREE, TreeFeatures.FANCY_OAK_BEES.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_OAK_LEAVES).build());
++
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> ORANGE_OAK = SuCraftFeatureUtils.register("orange_oak", Feature.TREE, TreeFeatures.OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> ORANGE_OAK_BEES_0002 = SuCraftFeatureUtils.register("orange_oak_bees_0002", Feature.TREE, TreeFeatures.OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> ORANGE_OAK_BEES_002 = SuCraftFeatureUtils.register("orange_oak_bees_002", Feature.TREE, TreeFeatures.OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_ORANGE_OAK = SuCraftFeatureUtils.register("fancy_orange_oak", Feature.TREE, TreeFeatures.FANCY_OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_ORANGE_OAK_BEES_0002 = SuCraftFeatureUtils.register("fancy_orange_oak_bees_0002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_ORANGE_OAK_BEES_002 = SuCraftFeatureUtils.register("fancy_orange_oak_bees_002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_ORANGE_OAK_BEES = SuCraftFeatureUtils.register("fancy_orange_oak_bees", Feature.TREE, TreeFeatures.FANCY_OAK_BEES.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_OAK_LEAVES).build());
++
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> YELLOW_MAPLE = SuCraftFeatureUtils.register("yellow_maple", Feature.TREE, TreeFeatures.OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> YELLOW_MAPLE_BEES_0002 = SuCraftFeatureUtils.register("yellow_maple_bees_0002", Feature.TREE, TreeFeatures.OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> YELLOW_MAPLE_BEES_002 = SuCraftFeatureUtils.register("yellow_maple_bees_002", Feature.TREE, TreeFeatures.OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_YELLOW_MAPLE = SuCraftFeatureUtils.register("fancy_yellow_maple", Feature.TREE, TreeFeatures.FANCY_OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_YELLOW_MAPLE_BEES_0002 = SuCraftFeatureUtils.register("fancy_yellow_maple_bees_0002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_YELLOW_MAPLE_BEES_002 = SuCraftFeatureUtils.register("fancy_yellow_maple_bees_002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_YELLOW_MAPLE_BEES = SuCraftFeatureUtils.register("fancy_yellow_maple_bees", Feature.TREE, TreeFeatures.FANCY_OAK_BEES.value().config().cloneBuilder().withLeaves(SuCraftBlocks.YELLOW_MAPLE_LEAVES).build());
++
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> ORANGE_MAPLE = SuCraftFeatureUtils.register("orange_maple", Feature.TREE, TreeFeatures.OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> ORANGE_MAPLE_BEES_0002 = SuCraftFeatureUtils.register("orange_maple_bees_0002", Feature.TREE, TreeFeatures.OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> ORANGE_MAPLE_BEES_002 = SuCraftFeatureUtils.register("orange_maple_bees_002", Feature.TREE, TreeFeatures.OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_ORANGE_MAPLE = SuCraftFeatureUtils.register("fancy_orange_maple", Feature.TREE, TreeFeatures.FANCY_OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_ORANGE_MAPLE_BEES_0002 = SuCraftFeatureUtils.register("fancy_orange_maple_bees_0002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_ORANGE_MAPLE_BEES_002 = SuCraftFeatureUtils.register("fancy_orange_maple_bees_002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_ORANGE_MAPLE_BEES = SuCraftFeatureUtils.register("fancy_orange_maple_bees", Feature.TREE, TreeFeatures.FANCY_OAK_BEES.value().config().cloneBuilder().withLeaves(SuCraftBlocks.ORANGE_MAPLE_LEAVES).build());
++
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> RED_MAPLE = SuCraftFeatureUtils.register("red_maple", Feature.TREE, TreeFeatures.OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> RED_MAPLE_BEES_0002 = SuCraftFeatureUtils.register("red_maple_bees_0002", Feature.TREE, TreeFeatures.OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> RED_MAPLE_BEES_002 = SuCraftFeatureUtils.register("red_maple_bees_002", Feature.TREE, TreeFeatures.OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_RED_MAPLE = SuCraftFeatureUtils.register("fancy_red_maple", Feature.TREE, TreeFeatures.FANCY_OAK.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_RED_MAPLE_BEES_0002 = SuCraftFeatureUtils.register("fancy_red_maple_bees_0002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_RED_MAPLE_BEES_002 = SuCraftFeatureUtils.register("fancy_red_maple_bees_002", Feature.TREE, TreeFeatures.FANCY_OAK_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_MAPLE_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> FANCY_RED_MAPLE_BEES = SuCraftFeatureUtils.register("fancy_red_maple_bees", Feature.TREE, TreeFeatures.FANCY_OAK_BEES.value().config().cloneBuilder().withLeaves(SuCraftBlocks.RED_MAPLE_LEAVES).build());
++
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> PALE_BIRCH = SuCraftFeatureUtils.register("pale_birch", Feature.TREE, TreeFeatures.BIRCH.value().config().cloneBuilder().withLeaves(SuCraftBlocks.PALE_BIRCH_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> PALE_BIRCH_BEES_0002 = SuCraftFeatureUtils.register("pale_birch_bees_0002", Feature.TREE, TreeFeatures.BIRCH_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.PALE_BIRCH_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> PALE_BIRCH_BEES_002 = SuCraftFeatureUtils.register("pale_birch_bees_002", Feature.TREE, TreeFeatures.BIRCH_BEES_002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.PALE_BIRCH_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> PALE_BIRCH_BEES_005 = SuCraftFeatureUtils.register("pale_birch_bees_005", Feature.TREE, TreeFeatures.BIRCH_BEES_005.value().config().cloneBuilder().withLeaves(SuCraftBlocks.PALE_BIRCH_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> SUPER_PALE_BIRCH_BEES_0002 = SuCraftFeatureUtils.register("super_pale_birch_bees_0002", Feature.TREE, TreeFeatures.SUPER_BIRCH_BEES_0002.value().config().cloneBuilder().withLeaves(SuCraftBlocks.PALE_BIRCH_LEAVES).build());
++    public static final Holder<ConfiguredFeature<TreeConfiguration, ?>> SUPER_PALE_BIRCH_BEES= SuCraftFeatureUtils.register("super_pale_birch_bees", Feature.TREE, TreeFeatures.SUPER_BIRCH_BEES.value().config().cloneBuilder().withLeaves(SuCraftBlocks.PALE_BIRCH_LEAVES).build());
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftVegetationFeatures.java b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftVegetationFeatures.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..6fecd575dd2bedfc3837142986378007c23b7594
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/features/SuCraftVegetationFeatures.java
+@@ -0,0 +1,45 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.biome.features;
++
++import net.minecraft.core.Holder;
++import net.minecraft.data.worldgen.features.FeatureUtils;
++import net.minecraft.data.worldgen.placement.TreePlacements;
++import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
++import net.minecraft.world.level.levelgen.feature.Feature;
++import net.minecraft.world.level.levelgen.feature.WeightedPlacedFeature;
++import net.minecraft.world.level.levelgen.feature.configurations.RandomFeatureConfiguration;
++import nl.martijnmuijsers.paper.biome.placements.SuCraftTreePlacements;
++
++import java.util.List;
++
++/**
++ * Based on {@link net.minecraft.data.worldgen.features.VegetationFeatures}
++ */
++public class SuCraftVegetationFeatures {
++
++    public static final Holder<ConfiguredFeature<RandomFeatureConfiguration, ?>> TREES_ORANGE_TINTED_BIRCH_AND_OAK = SuCraftFeatureUtils.register(
++        "trees_orange_tinted_birch_and_oak",
++        Feature.RANDOM_SELECTOR,
++        new RandomFeatureConfiguration(
++            List.of(
++                new WeightedPlacedFeature(TreePlacements.BIRCH_BEES_0002_PLACED, 0.15F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.PALE_BIRCH_BEES_0002, 0.2F),
++                new WeightedPlacedFeature(TreePlacements.OAK_BEES_0002, 0.35F),
++                new WeightedPlacedFeature(TreePlacements.FANCY_OAK_BEES_0002, 0.03F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.RED_OAK_BEES_0002, 0.22F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.FANCY_RED_OAK_BEES_0002, 0.025F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.ORANGE_OAK_BEES_0002, 0.22F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.FANCY_ORANGE_OAK_BEES_0002, 0.025F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.YELLOW_MAPLE_BEES_0002, 0.22F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.FANCY_YELLOW_MAPLE_BEES_0002, 0.025F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.ORANGE_MAPLE_BEES_0002, 0.22F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.FANCY_ORANGE_MAPLE_BEES_0002, 0.025F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.RED_MAPLE_BEES_0002, 0.22F),
++                new WeightedPlacedFeature(SuCraftTreePlacements.FANCY_RED_MAPLE_BEES_0002, 0.025F)
++            ),
++            SuCraftTreePlacements.ORANGE_MAPLE_BEES_0002
++        )
++    );
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftPlacementUtils.java b/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftPlacementUtils.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..174e77c1120b4dfdc118b3abfb6125abe7dcf21a
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftPlacementUtils.java
+@@ -0,0 +1,27 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.biome.placements;
++
++import net.minecraft.core.Holder;
++import net.minecraft.data.worldgen.placement.PlacementUtils;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
++import net.minecraft.world.level.levelgen.placement.PlacedFeature;
++import net.minecraft.world.level.levelgen.placement.PlacementModifier;
++
++import java.util.List;
++
++/**
++ * Based on {@link PlacementUtils}
++ */
++public class SuCraftPlacementUtils {
++
++    public static Holder<PlacedFeature> register(String id, Holder<? extends ConfiguredFeature<?, ?>> registryEntry, List<PlacementModifier> modifiers) {
++        return PlacementUtils.register(ResourceLocation.sucraft(id).toString(), registryEntry, modifiers);
++    }
++
++    public static Holder<PlacedFeature> register(String id, Holder<? extends ConfiguredFeature<?, ?>> registryEntry, PlacementModifier... modifiers) {
++        return PlacementUtils.register(ResourceLocation.sucraft(id).toString(), registryEntry, modifiers);
++    }
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftTreePlacements.java b/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftTreePlacements.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..cabda099246598ac80fb0085bc27302886f41b8a
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftTreePlacements.java
+@@ -0,0 +1,65 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.biome.placements;
++
++import net.minecraft.core.Holder;
++import net.minecraft.data.worldgen.placement.PlacementUtils;
++import net.minecraft.data.worldgen.placement.TreePlacements;
++import net.minecraft.world.level.block.Blocks;
++import net.minecraft.world.level.levelgen.placement.PlacedFeature;
++import nl.martijnmuijsers.paper.biome.features.SuCraftTreeFeatures;
++
++/**
++ * Based on {@link TreePlacements}
++ */
++public class SuCraftTreePlacements {
++
++    public static final Holder<PlacedFeature> RED_OAK = SuCraftPlacementUtils.register("red_oak", SuCraftTreeFeatures.RED_OAK, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> RED_OAK_BEES_0002 = SuCraftPlacementUtils.register("red_oak_bees_0002", SuCraftTreeFeatures.RED_OAK_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> RED_OAK_BEES_002 = SuCraftPlacementUtils.register("red_oak_bees_002", SuCraftTreeFeatures.RED_OAK_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_RED_OAK = SuCraftPlacementUtils.register("fancy_red_oak", SuCraftTreeFeatures.FANCY_RED_OAK, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_RED_OAK_BEES_0002 = SuCraftPlacementUtils.register("fancy_red_oak_bees_0002", SuCraftTreeFeatures.FANCY_RED_OAK_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_RED_OAK_BEES_002 = SuCraftPlacementUtils.register("fancy_red_oak_bees_002", SuCraftTreeFeatures.FANCY_RED_OAK_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_RED_OAK_BEES = SuCraftPlacementUtils.register("fancy_red_oak_bees", SuCraftTreeFeatures.FANCY_RED_OAK_BEES, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++
++    public static final Holder<PlacedFeature> ORANGE_OAK = SuCraftPlacementUtils.register("orange_oak", SuCraftTreeFeatures.ORANGE_OAK, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> ORANGE_OAK_BEES_0002 = SuCraftPlacementUtils.register("orange_oak_bees_0002", SuCraftTreeFeatures.ORANGE_OAK_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> ORANGE_OAK_BEES_002 = SuCraftPlacementUtils.register("orange_oak_bees_002", SuCraftTreeFeatures.ORANGE_OAK_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_ORANGE_OAK = SuCraftPlacementUtils.register("fancy_orange_oak", SuCraftTreeFeatures.FANCY_ORANGE_OAK, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_ORANGE_OAK_BEES_0002 = SuCraftPlacementUtils.register("fancy_orange_oak_bees_0002", SuCraftTreeFeatures.FANCY_ORANGE_OAK_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_ORANGE_OAK_BEES_002 = SuCraftPlacementUtils.register("fancy_orange_oak_bees_002", SuCraftTreeFeatures.FANCY_ORANGE_OAK_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_ORANGE_OAK_BEES = SuCraftPlacementUtils.register("fancy_orange_oak_bees", SuCraftTreeFeatures.FANCY_ORANGE_OAK_BEES, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++
++    public static final Holder<PlacedFeature> YELLOW_MAPLE = SuCraftPlacementUtils.register("yellow_maple", SuCraftTreeFeatures.YELLOW_MAPLE, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> YELLOW_MAPLE_BEES_0002 = SuCraftPlacementUtils.register("yellow_maple_bees_0002", SuCraftTreeFeatures.YELLOW_MAPLE_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> YELLOW_MAPLE_BEES_002 = SuCraftPlacementUtils.register("yellow_maple_bees_002", SuCraftTreeFeatures.YELLOW_MAPLE_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_YELLOW_MAPLE = SuCraftPlacementUtils.register("fancy_yellow_maple", SuCraftTreeFeatures.FANCY_YELLOW_MAPLE, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_YELLOW_MAPLE_BEES_0002 = SuCraftPlacementUtils.register("fancy_yellow_maple_bees_0002", SuCraftTreeFeatures.FANCY_YELLOW_MAPLE_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_YELLOW_MAPLE_BEES_002 = SuCraftPlacementUtils.register("fancy_yellow_maple_bees_002", SuCraftTreeFeatures.FANCY_YELLOW_MAPLE_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_YELLOW_MAPLE_BEES = SuCraftPlacementUtils.register("fancy_yellow_maple_bees", SuCraftTreeFeatures.FANCY_YELLOW_MAPLE_BEES, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++
++    public static final Holder<PlacedFeature> ORANGE_MAPLE = SuCraftPlacementUtils.register("orange_maple", SuCraftTreeFeatures.ORANGE_MAPLE, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> ORANGE_MAPLE_BEES_0002 = SuCraftPlacementUtils.register("orange_maple_bees_0002", SuCraftTreeFeatures.ORANGE_MAPLE_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> ORANGE_MAPLE_BEES_002 = SuCraftPlacementUtils.register("orange_maple_bees_002", SuCraftTreeFeatures.ORANGE_MAPLE_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_ORANGE_MAPLE = SuCraftPlacementUtils.register("fancy_orange_maple", SuCraftTreeFeatures.FANCY_ORANGE_MAPLE, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_ORANGE_MAPLE_BEES_0002 = SuCraftPlacementUtils.register("fancy_orange_maple_bees_0002", SuCraftTreeFeatures.FANCY_ORANGE_MAPLE_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_ORANGE_MAPLE_BEES_002 = SuCraftPlacementUtils.register("fancy_orange_maple_bees_002", SuCraftTreeFeatures.FANCY_ORANGE_MAPLE_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_ORANGE_MAPLE_BEES = SuCraftPlacementUtils.register("fancy_orange_maple_bees", SuCraftTreeFeatures.FANCY_ORANGE_MAPLE_BEES, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++
++    public static final Holder<PlacedFeature> RED_MAPLE = SuCraftPlacementUtils.register("red_maple", SuCraftTreeFeatures.RED_MAPLE, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> RED_MAPLE_BEES_0002 = SuCraftPlacementUtils.register("red_maple_bees_0002", SuCraftTreeFeatures.RED_MAPLE_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> RED_MAPLE_BEES_002 = SuCraftPlacementUtils.register("red_maple_bees_002", SuCraftTreeFeatures.RED_MAPLE_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_RED_MAPLE = SuCraftPlacementUtils.register("fancy_red_maple", SuCraftTreeFeatures.FANCY_RED_MAPLE, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_RED_MAPLE_BEES_0002 = SuCraftPlacementUtils.register("fancy_red_maple_bees_0002", SuCraftTreeFeatures.FANCY_RED_MAPLE_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_RED_MAPLE_BEES_002 = SuCraftPlacementUtils.register("fancy_red_maple_bees_002", SuCraftTreeFeatures.FANCY_RED_MAPLE_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++    public static final Holder<PlacedFeature> FANCY_RED_MAPLE_BEES = SuCraftPlacementUtils.register("fancy_red_maple_bees", SuCraftTreeFeatures.FANCY_RED_MAPLE_BEES, PlacementUtils.filteredByBlockSurvival(Blocks.OAK_SAPLING));
++
++    public static final Holder<PlacedFeature> PALE_BIRCH = SuCraftPlacementUtils.register("pale_birch", SuCraftTreeFeatures.PALE_BIRCH, PlacementUtils.filteredByBlockSurvival(Blocks.BIRCH_SAPLING));
++    public static final Holder<PlacedFeature> PALE_BIRCH_BEES_0002 = SuCraftPlacementUtils.register("pale_birch_bees_0002", SuCraftTreeFeatures.PALE_BIRCH_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.BIRCH_SAPLING));
++    public static final Holder<PlacedFeature> PALE_BIRCH_BEES_002 = SuCraftPlacementUtils.register("pale_birch_bees_002", SuCraftTreeFeatures.PALE_BIRCH_BEES_002, PlacementUtils.filteredByBlockSurvival(Blocks.BIRCH_SAPLING));
++    public static final Holder<PlacedFeature> PALE_BIRCH_BEES_005 = SuCraftPlacementUtils.register("pale_birch_bees_005", SuCraftTreeFeatures.PALE_BIRCH_BEES_005, PlacementUtils.filteredByBlockSurvival(Blocks.BIRCH_SAPLING));
++    public static final Holder<PlacedFeature> SUPER_PALE_BIRCH_BEES_0002 = SuCraftPlacementUtils.register("super_pale_birch_bees_0002", SuCraftTreeFeatures.SUPER_PALE_BIRCH_BEES_0002, PlacementUtils.filteredByBlockSurvival(Blocks.BIRCH_SAPLING));
++    public static final Holder<PlacedFeature> SUPER_PALE_BIRCH_BEES = SuCraftPlacementUtils.register("super_pale_birch_bees", SuCraftTreeFeatures.SUPER_PALE_BIRCH_BEES, PlacementUtils.filteredByBlockSurvival(Blocks.BIRCH_SAPLING));
++
++
++}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftVegetationPlacements.java b/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftVegetationPlacements.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..ac4b0bba19d86495c60d7bd505defd2031252da4
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/biome/placements/SuCraftVegetationPlacements.java
+@@ -0,0 +1,19 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.biome.placements;
++
++import net.minecraft.core.Holder;
++import net.minecraft.data.worldgen.features.VegetationFeatures;
++import net.minecraft.data.worldgen.placement.PlacementUtils;
++import net.minecraft.data.worldgen.placement.VegetationPlacements;
++import net.minecraft.world.level.levelgen.placement.PlacedFeature;
++import nl.martijnmuijsers.paper.biome.features.SuCraftVegetationFeatures;
++
++/**
++ * Based on {@link net.minecraft.data.worldgen.placement.VegetationPlacements}
++ */
++public class SuCraftVegetationPlacements {
++
++    public static final Holder<PlacedFeature> TREES_ORANGE_TINTED_BIRCH_AND_OAK = SuCraftPlacementUtils.register("trees_orange_tinted_birch_and_oak", SuCraftVegetationFeatures.TREES_ORANGE_TINTED_BIRCH_AND_OAK, VegetationPlacements.treePlacement(PlacementUtils.countExtra(10, 0.1F, 1)));
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/ConcreteDirectionalBlock.java b/src/main/java/nl/martijnmuijsers/paper/block/ConcreteDirectionalBlock.java
 new file mode 100644
 index 0000000000000000000000000000000000000000..ea2f292f7d26674b1bb834211af7a3997b21fee0
@@ -18199,7 +18726,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..e86011f3f8271f86a3b81f29519eecf73af7a935
+index 0000000000000000000000000000000000000000..e0af1a8549b5e8052385b017e12a81a4fa839efe
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -18275,7 +18802,7 @@ index 0000000000000000000000000000000000000000..e86011f3f8271f86a3b81f29519eecf7
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 166;
++            currentResourcePackVersion = 167;
 +        }
 +    }
 +
