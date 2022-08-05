@@ -2449,7 +2449,7 @@ index 06e3a868e922f1b7a586d0ca28f64a67ae463b68..0feab0105d15be1847d0064aeb1186ed
          int j = item.getItem().getMaxStackSize();
          int k = j * 100;
 diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
-index 519883c5549744e047a8a96afee142746fcb49cd..cb781b19fcf3da44270a677ef4216d1e7008d0db 100644
+index 519883c5549744e047a8a96afee142746fcb49cd..9b04d5295325075e98e875382eba2f727cfcefb5 100644
 --- a/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/src/main/java/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -13,11 +13,16 @@ import java.net.Proxy;
@@ -2519,8 +2519,8 @@ index 519883c5549744e047a8a96afee142746fcb49cd..cb781b19fcf3da44270a677ef4216d1e
 +                    }
 +                });
 +            });
-+            System.out.println("TEMP DEBUG - Ingredient to result: " + ingredientToResult);
-+            System.out.println("TEMP DEBUG - Result to ingredient: " + resultToIngredient);
++//            System.out.println("TEMP DEBUG - Ingredient to result: " + ingredientToResult);
++//            System.out.println("TEMP DEBUG - Result to ingredient: " + resultToIngredient);
 +            Map<Item, Integer> ingredientToIngredientGroupIndex = new IdentityHashMap<>();
 +            int nextGroupIndex = 0;
 +            for (Item resultToIngredientKey : resultToIngredient.keySet().stream().sorted(Comparator.comparing(item -> item.id.toString())).toList()) {
@@ -2536,18 +2536,18 @@ index 519883c5549744e047a8a96afee142746fcb49cd..cb781b19fcf3da44270a677ef4216d1e
 +                }
 +                nextGroupIndex++;
 +            }
-+            System.out.println("TEMP DEBUG - Ingredient to ingredient group index: " + ingredientToIngredientGroupIndex);
++//            System.out.println("TEMP DEBUG - Ingredient to ingredient group index: " + ingredientToIngredientGroupIndex);
 +            ingredientToIngredientGroupIndex.values().stream().toList().stream().distinct().sorted().map(index -> ingredientToIngredientGroupIndex.entrySet().stream().filter(entry -> entry.getValue().equals(index)).map(entry -> entry.getKey()).toList()).forEach(groupIngredients -> {
 +                groupIngredients = groupIngredients.stream().sorted(Comparator.comparing(item -> item.id.toString())).toList();
-+                System.out.println("TEMP DEBUG - Doing group ingredients: " + groupIngredients);
++//                System.out.println("TEMP DEBUG - Doing group ingredients: " + groupIngredients);
 +                var groupResults = groupIngredients.stream().flatMap(ingredient -> ingredientToResult.get(ingredient).stream().sorted(Comparator.comparing(item -> item.id.toString()))).distinct().sorted(Comparator.comparing(item -> ((Item) item).id.toString())).toList();
-+                System.out.println("TEMP DEBUG - group results: " + groupResults);
++//                System.out.println("TEMP DEBUG - group results: " + groupResults);
 +                List<Item> potentialHosts = StreamSupport.stream(Registry.ITEM.spliterator(), false).filter(item -> item.isVanilla && Registry.BLOCK.containsKey(item.id) && !groupResults.contains(item)).sorted(Comparator.comparing(item -> item.getDescriptionId())).toList();
 +                var customGroupResults = groupResults.stream().filter(result -> !result.isVanilla).toList();
 +                for (int i = 0; i < customGroupResults.size(); i++) {
 +                    var replacementRule = customGroupResults.get(i).replacementRule;
 +                    var host = potentialHosts.get(potentialHosts.size() - customGroupResults.size() + i);
-+                    System.out.println("TEMP DEBUG - for group result " + customGroupResults.get(i) + " using host " + host);
++//                    System.out.println("TEMP DEBUG - for group result " + customGroupResults.get(i) + " using host " + host);
 +                    replacementRule.setStonecutterRecipeHost(host);
 +                }
 +            });
@@ -18253,7 +18253,7 @@ index 0000000000000000000000000000000000000000..cc051357807b2a16091639bb28e0d2ea
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5cda048866e2bcab719731a1206094ac8154cca8
+index 0000000000000000000000000000000000000000..88c9ef8db5afdd6c197616bbaa922d24a41fcd2b
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/asset/model/ConcreteResourcePackModel.java
 @@ -0,0 +1,369 @@
@@ -18589,9 +18589,9 @@ index 0000000000000000000000000000000000000000..5cda048866e2bcab719731a1206094ac
 +        } else {
 +            // Update the model overrides yet to add directly
 +
-+            if (item.equals(Items.WHEAT)) {
-+                MinecraftServer.LOGGER.info("TEMP DEBUG - Before: " + this.overridesYetToWriteToJson.stream().map(pair -> pair.left() + " -> " + pair.right().getKeyWithIntention()).toList());
-+            }
++//            if (item.equals(Items.WHEAT)) {
++//                MinecraftServer.LOGGER.info("TEMP DEBUG - Before: " + this.overridesYetToWriteToJson.stream().map(pair -> pair.left() + " -> " + pair.right().getKeyWithIntention()).toList());
++//            }
 +
 +            Object2IntMap<String> minifiedCustomModelDataByModel = new Object2IntOpenHashMap<>(this.overridesYetToWriteToJson.size() * 2);
 +            int[] nextMinifiedCustomModelData = {1};
@@ -18618,9 +18618,9 @@ index 0000000000000000000000000000000000000000..5cda048866e2bcab719731a1206094ac
 +                });
 +            }
 +
-+            if (item.equals(Items.WHEAT)) {
-+                MinecraftServer.LOGGER.info("TEMP DEBUG - After: " + this.overridesYetToWriteToJson.stream().map(pair -> pair.left() + " -> " + pair.right().getKeyWithIntention()).toList());
-+            }
++//            if (item.equals(Items.WHEAT)) {
++//                MinecraftServer.LOGGER.info("TEMP DEBUG - After: " + this.overridesYetToWriteToJson.stream().map(pair -> pair.left() + " -> " + pair.right().getKeyWithIntention()).toList());
++//            }
 +
 +        }
 +    }
