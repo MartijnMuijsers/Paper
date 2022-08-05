@@ -4129,7 +4129,7 @@ index c18a0bc94d0210396046f4475e49a739088593f3..35a4a6aabb92abfd15d8c0e95fb4431c
          return this.getItem().interactLivingEntity(this, user, entity, hand);
      }
 diff --git a/src/main/java/net/minecraft/world/item/Items.java b/src/main/java/net/minecraft/world/item/Items.java
-index 51016663829b1f36b8e752dcf9c9361282c3f06b..9f96827bdada915bac8f162c06a441c4fcc06d88 100644
+index 51016663829b1f36b8e752dcf9c9361282c3f06b..f7d9190cf8aad61d6f4b7688f84b0e2cd3762e3c 100644
 --- a/src/main/java/net/minecraft/world/item/Items.java
 +++ b/src/main/java/net/minecraft/world/item/Items.java
 @@ -14,6 +14,9 @@ import net.minecraft.world.food.Foods;
@@ -4151,7 +4151,7 @@ index 51016663829b1f36b8e752dcf9c9361282c3f06b..9f96827bdada915bac8f162c06a441c4
      public static final Item PETRIFIED_OAK_SLAB = registerBlock(Blocks.PETRIFIED_OAK_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
      public static final Item COBBLESTONE_SLAB = registerBlock(Blocks.COBBLESTONE_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
      public static final Item BRICK_SLAB = registerBlock(Blocks.BRICK_SLAB, CreativeModeTab.TAB_BUILDING_BLOCKS);
-@@ -1173,15 +1176,15 @@ public class Items {
+@@ -1173,15 +1176,23 @@ public class Items {
          return Optional.empty();
      }
  
@@ -4161,6 +4161,14 @@ index 51016663829b1f36b8e752dcf9c9361282c3f06b..9f96827bdada915bac8f162c06a441c4
      }
  
 -    private static Item registerBlock(Block block, CreativeModeTab group) {
++    // Martijn start - custom blocks and items
++
++    public static Item registerBlock(Block block, Item.Properties properties) {
++        return registerBlock(new BlockItem(block, properties));
++    }
++
++    // Martijn end - custom blocks and items
++
 +    public static Item registerBlock(Block block, CreativeModeTab group) { // Martijn - custom blocks and items
          return registerBlock(new BlockItem(block, (new Item.Properties()).tab(group)));
      }
@@ -4170,7 +4178,7 @@ index 51016663829b1f36b8e752dcf9c9361282c3f06b..9f96827bdada915bac8f162c06a441c4
          return group.map((groupx) -> {
              return registerBlock(block, groupx);
          }).orElseGet(() -> {
-@@ -1189,7 +1192,7 @@ public class Items {
+@@ -1189,7 +1200,7 @@ public class Items {
          });
      }
  
@@ -4179,7 +4187,7 @@ index 51016663829b1f36b8e752dcf9c9361282c3f06b..9f96827bdada915bac8f162c06a441c4
          BlockItem blockItem = new BlockItem(block, (new Item.Properties()).tab(group));
  
          for(Block block2 : blocks) {
-@@ -1199,23 +1202,42 @@ public class Items {
+@@ -1199,23 +1210,42 @@ public class Items {
          return registerBlock(blockItem);
      }
  
@@ -7618,10 +7626,10 @@ index 0000000000000000000000000000000000000000..974406bb0afe3eaf895099a8cb24cebf
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e80127dc3a
+index 0000000000000000000000000000000000000000..00f1a95a3ce5e144b73ee523f48ad878750de9df
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
-@@ -0,0 +1,228 @@
+@@ -0,0 +1,234 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.block;
@@ -7845,6 +7853,12 @@ index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e8
 +                return false;
 +            }
 +        }
++        // Don't spread some tags meant for full blocks to slabs (but they are okay on stairs)
++        if (tag.equals(BlockTags.BEACON_BASE_BLOCKS)) {
++            if (block.defaultBlockState().is(BlockTags.SLABS) || block instanceof SlabBlock) {
++                return false;
++            }
++        }
 +        
 +        return true;
 +    }
@@ -7852,10 +7866,10 @@ index 0000000000000000000000000000000000000000..f66eb40a57073dffe96a193b06a303e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fdcf4c008850dbf1cb38aebd463c0a9a75cf112d
+index 0000000000000000000000000000000000000000..035b1d0de0c319d45469a6d0a4275a5a44b3c449
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1493 @@
+@@ -0,0 +1,1505 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -8572,6 +8586,18 @@ index 0000000000000000000000000000000000000000..fdcf4c008850dbf1cb38aebd463c0a9a
 +    public static final Block PURPUR_PILLAR_STAIRS = registerFakeVanillaStonePillarStairs(Blocks.PURPUR_PILLAR, "purpur", Blocks.PURPUR_STAIRS).mineableWithPickaxe();
 +    public static final Block FLINT_SLAB = registerFakeSlabFromYPillarCustomBlock(FLINT_BLOCK, null, "flint", "flint_block", Blocks.DEEPSLATE_TILE_SLAB).mineableWithPickaxe();
 +    public static final Block FLINT_STAIRS = registerFakeStairsFromYPillarCustomBlock(FLINT_BLOCK, null, "flint", "flint_block", Blocks.DEEPSLATE_TILE_STAIRS).mineableWithPickaxe();
++    public static final Block IRON_SLAB = registerFakeSlab(Blocks.IRON_BLOCK, "iron", "iron_block", Blocks.POLISHED_DIORITE_SLAB);
++    public static final Block GOLD_SLAB = registerFakeSlab(Blocks.GOLD_BLOCK, "gold", "gold_block", Blocks.OAK_SLAB);
++    public static final Block DIAMOND_SLAB = registerFakeSlab(Blocks.DIAMOND_BLOCK, "diamond", "diamond_block", Blocks.PRISMARINE_BRICK_SLAB);
++    public static final Block EMERALD_SLAB = registerFakeSlab(Blocks.EMERALD_BLOCK, "emerald", "emerald_block", Blocks.OXIDIZED_CUT_COPPER_SLAB);
++    public static final Block NETHERITE_SLAB = registerFakeSlab(Blocks.NETHERITE_BLOCK, "netherite", "netherite_block", Blocks.POLISHED_DEEPSLATE_SLAB);
++    public static final Block LAPIS_SLAB = registerFakeSlab(Blocks.LAPIS_BLOCK, "lapis", "lapis_block", Blocks.DARK_PRISMARINE_SLAB);
++    public static final Block IRON_STAIRS = registerFakeStairs(Blocks.IRON_BLOCK, "iron", "iron_block", Blocks.POLISHED_DIORITE_STAIRS);
++    public static final Block GOLD_STAIRS = registerFakeStairs(Blocks.GOLD_BLOCK, "gold", "gold_block", Blocks.OAK_STAIRS);
++    public static final Block DIAMOND_STAIRS = registerFakeStairs(Blocks.DIAMOND_BLOCK, "diamond", "diamond_block", Blocks.PRISMARINE_BRICK_STAIRS);
++    public static final Block EMERALD_STAIRS = registerFakeStairs(Blocks.EMERALD_BLOCK, "emerald", "emerald_block", Blocks.OXIDIZED_CUT_COPPER_STAIRS);
++    public static final Block NETHERITE_STAIRS = registerFakeStairs(Blocks.NETHERITE_BLOCK, "netherite", "netherite_block", Blocks.POLISHED_DEEPSLATE_STAIRS);
++    public static final Block LAPIS_STAIRS = registerFakeStairs(Blocks.LAPIS_BLOCK, "lapis", "lapis_block", Blocks.DARK_PRISMARINE_STAIRS);
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -15168,10 +15194,10 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8dc2482c4109e74615c800bf51c879908625872b
+index 0000000000000000000000000000000000000000..7472ce7180ae6446589e0a838cd9ebc74e847675
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,839 @@
+@@ -0,0 +1,875 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -15706,13 +15732,33 @@ index 0000000000000000000000000000000000000000..8dc2482c4109e74615c800bf51c87990
 +    public static final Item PURPUR_PILLAR_STAIRS = registerPillarStairs(SuCraftBlocks.PURPUR_PILLAR_STAIRS, "Purpur");
 +    public static final Item FLINT_SLAB = registerSlab(SuCraftBlocks.FLINT_SLAB, "Flint");
 +    public static final Item FLINT_STAIRS = registerStairs(SuCraftBlocks.FLINT_STAIRS, "Flint");
++    public static final Item IRON_SLAB = registerSlab(SuCraftBlocks.IRON_SLAB, "Iron");
++    public static final Item GOLD_SLAB = registerSlab(SuCraftBlocks.GOLD_SLAB, "Golden");
++    public static final Item DIAMOND_SLAB = registerSlab(SuCraftBlocks.DIAMOND_SLAB, "Diamond");
++    public static final Item EMERALD_SLAB = registerSlab(SuCraftBlocks.EMERALD_SLAB, "Emerald");
++    public static final Item NETHERITE_SLAB = registerSlab(SuCraftBlocks.NETHERITE_SLAB, "Netherite", new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS).fireResistant());
++    public static final Item LAPIS_SLAB = registerSlab(SuCraftBlocks.LAPIS_SLAB, "Lapis Lazuli");
++    public static final Item IRON_STAIRS = registerStairs(SuCraftBlocks.IRON_STAIRS, "Iron");
++    public static final Item GOLD_STAIRS = registerStairs(SuCraftBlocks.GOLD_STAIRS, "Golden");
++    public static final Item DIAMOND_STAIRS = registerStairs(SuCraftBlocks.DIAMOND_STAIRS, "Diamond");
++    public static final Item EMERALD_STAIRS = registerStairs(SuCraftBlocks.EMERALD_STAIRS, "Emerald");
++    public static final Item NETHERITE_STAIRS = registerStairs(SuCraftBlocks.NETHERITE_STAIRS, "Netherite", new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS).fireResistant());
++    public static final Item LAPIS_STAIRS = registerStairs(SuCraftBlocks.LAPIS_STAIRS, "Lapis Lazuli");
 +
-+    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group) {
++    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, @NotNull CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
 +    }
 +
-+    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, CreativeModeTab group, @Nullable Function<ItemReplacementRule.SimpleItemReplacementRule.Builder, ItemReplacementRule.SimpleItemReplacementRule.Builder> replacementRuleFunction) {
-+        Item registeredItem = Items.registerBlock(block, group);
++    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, @NotNull Item.Properties properties) {
++        return registerBlock(block, displayName, properties, null);
++    }
++
++    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, @NotNull CreativeModeTab group, @Nullable Function<ItemReplacementRule.SimpleItemReplacementRule.Builder, ItemReplacementRule.SimpleItemReplacementRule.Builder> replacementRuleFunction) {
++        return registerBlock(block, displayName, new Item.Properties().tab(group), replacementRuleFunction);
++    }
++
++    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, @NotNull Item.Properties properties, @Nullable Function<ItemReplacementRule.SimpleItemReplacementRule.Builder, ItemReplacementRule.SimpleItemReplacementRule.Builder> replacementRuleFunction) {
++        Item registeredItem = Items.registerBlock(block, properties);
 +        boolean rendersAsEntity = false;
 +//        System.out.println("TEMP DEBUG - " + block.id + " is being registered");
 +        var blockReplacementRule = block.replacementRule;
@@ -15822,18 +15868,34 @@ index 0000000000000000000000000000000000000000..8dc2482c4109e74615c800bf51c87990
 +        return registerBlock(block, typeDisplayName + " Leaves", CreativeModeTab.TAB_DECORATIONS, rule -> rule.withHighPingHost(highPingHostSupplier));
 +    }
 +
++    private static @NotNull Item registerSlab(@NotNull Block block, @NotNull String typeDisplayName, @NotNull Item.Properties properties) {
++        return registerBlock(block, typeDisplayName + " Slab", properties);
++    }
++
++    private static @NotNull Item registerSlab(@NotNull Block block, @NotNull String typeDisplayName, @NotNull CreativeModeTab group) {
++        return registerSlab(block, typeDisplayName, new Item.Properties().tab(group));
++    }
++
 +    /**
 +     * Based on {@link Items#OAK_SLAB}
 +     */
 +    private static @NotNull Item registerSlab(@NotNull Block block, @NotNull String typeDisplayName) {
-+        return registerBlock(block, typeDisplayName + " Slab", CreativeModeTab.TAB_BUILDING_BLOCKS);
++        return registerSlab(block, typeDisplayName, CreativeModeTab.TAB_BUILDING_BLOCKS);
++    }
++
++    private static @NotNull Item registerStairs(@NotNull Block block, @NotNull String typeDisplayName, @NotNull Item.Properties properties) {
++        return registerBlock(block, typeDisplayName + " Stairs", properties);
++    }
++
++    private static @NotNull Item registerStairs(@NotNull Block block, @NotNull String typeDisplayName, @NotNull CreativeModeTab group) {
++        return registerStairs(block, typeDisplayName, new Item.Properties().tab(group));
 +    }
 +
 +    /**
 +     * Based on {@link Items#OAK_STAIRS}
 +     */
 +    private static @NotNull Item registerStairs(@NotNull Block block, @NotNull String typeDisplayName) {
-+        return registerBlock(block, typeDisplayName + " Stairs", CreativeModeTab.TAB_BUILDING_BLOCKS);
++        return registerStairs(block, typeDisplayName, CreativeModeTab.TAB_BUILDING_BLOCKS);
 +    }
 +
 +    private static @NotNull Item registerPlankSlab(@NotNull Block block, @NotNull String typeDisplayName) {
@@ -19306,7 +19368,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8a677edf3a4b19736309fc4f88bc59e6bc2eca9e
+index 0000000000000000000000000000000000000000..dcb5cc41af02c75e3733aaa0ece44bd4b7c3627f
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -19382,7 +19444,7 @@ index 0000000000000000000000000000000000000000..8a677edf3a4b19736309fc4f88bc59e6
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 181;
++            currentResourcePackVersion = 182;
 +        }
 +    }
 +
