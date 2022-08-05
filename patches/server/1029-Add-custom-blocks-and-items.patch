@@ -5299,6 +5299,76 @@ index 5b5086f4016fc9015ac53bafd2c80bc724d575e4..38e27d177dfb3942e8f2c66849bb2b71
 +        // Martijn end - custom blocks and items
      }
  }
+diff --git a/src/main/java/net/minecraft/world/level/block/ComposterBlock.java b/src/main/java/net/minecraft/world/level/block/ComposterBlock.java
+index 2b1983d61fd3ed856770146de5cdfd33b4f63a46..eda86424da5bfccb3eeaad40a4ef837228391321 100644
+--- a/src/main/java/net/minecraft/world/level/block/ComposterBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/ComposterBlock.java
+@@ -38,6 +38,7 @@ import net.minecraft.world.WorldlyContainerHolder;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.item.ItemEntity;
+ import net.minecraft.world.entity.player.Player;
++import nl.martijnmuijsers.paper.item.SuCraftItems;
+ import org.bukkit.craftbukkit.inventory.CraftBlockInventoryHolder;
+ import org.bukkit.craftbukkit.util.DummyGeneratorAccess;
+ // CraftBukkit end
+@@ -75,6 +76,16 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+         ComposterBlock.add(0.3F, Items.BIRCH_LEAVES);
+         ComposterBlock.add(0.3F, Items.AZALEA_LEAVES);
+         ComposterBlock.add(0.3F, Items.MANGROVE_LEAVES);
++        // Martijn start - custom blocks and items
++        ComposterBlock.add(0.3F, SuCraftItems.PALE_BIRCH_LEAVES);
++        // Not included in initial release
++//        ComposterBlock.add(0.3F, SuCraftItems.FIERY_BIRCH_LEAVES);
++        ComposterBlock.add(0.3F, SuCraftItems.ORANGE_OAK_LEAVES);
++        ComposterBlock.add(0.3F, SuCraftItems.RED_OAK_LEAVES);
++        ComposterBlock.add(0.3F, SuCraftItems.YELLOW_MAPLE_LEAVES);
++        ComposterBlock.add(0.3F, SuCraftItems.ORANGE_MAPLE_LEAVES);
++        ComposterBlock.add(0.3F, SuCraftItems.RED_MAPLE_LEAVES);
++        // Martijn end - custom blocks and items
+         ComposterBlock.add(0.3F, Items.OAK_SAPLING);
+         ComposterBlock.add(0.3F, Items.SPRUCE_SAPLING);
+         ComposterBlock.add(0.3F, Items.BIRCH_SAPLING);
+@@ -97,6 +108,10 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+         ComposterBlock.add(0.3F, Items.HANGING_ROOTS);
+         ComposterBlock.add(0.3F, Items.MANGROVE_ROOTS);
+         ComposterBlock.add(0.5F, Items.DRIED_KELP_BLOCK);
++        // Martijn start - custom blocks and items
++        // Not included in initial release
++//        ComposterBlock.add(0.25F, SuCraftItems.DRIED_KELP_SLAB);
++        // Martijn end - custom blocks and items
+         ComposterBlock.add(0.5F, Items.TALL_GRASS);
+         ComposterBlock.add(0.5F, Items.FLOWERING_AZALEA_LEAVES);
+         ComposterBlock.add(0.5F, Items.CACTUS);
+@@ -149,12 +164,29 @@ public class ComposterBlock extends Block implements WorldlyContainerHolder {
+         ComposterBlock.add(0.65F, Items.SPORE_BLOSSOM);
+         ComposterBlock.add(0.65F, Items.AZALEA);
+         ComposterBlock.add(0.65F, Items.MOSS_BLOCK);
++        // Martijn start - custom blocks and items
++        ComposterBlock.add(0.65F, SuCraftItems.MOSS_STAIRS);
++        ComposterBlock.add(0.325F, SuCraftItems.MOSS_SLAB);
++        // Martijn end - custom blocks and items
+         ComposterBlock.add(0.65F, Items.BIG_DRIPLEAF);
+         ComposterBlock.add(0.85F, Items.HAY_BLOCK);
++        // Martijn start - custom blocks and items
++        ComposterBlock.add(0.85F, SuCraftItems.HAY_STAIRS);
++        ComposterBlock.add(0.425F, SuCraftItems.HAY_SLAB);
++        ComposterBlock.add(0.375F, SuCraftItems.THATCH);
++        ComposterBlock.add(0.375F, SuCraftItems.THATCH_STAIRS);
++        ComposterBlock.add(0.1875F, SuCraftItems.THATCH_SLAB);
++        // Martijn end - custom blocks and items
+         ComposterBlock.add(0.85F, Items.BROWN_MUSHROOM_BLOCK);
+         ComposterBlock.add(0.85F, Items.RED_MUSHROOM_BLOCK);
+         ComposterBlock.add(0.85F, Items.NETHER_WART_BLOCK);
+         ComposterBlock.add(0.85F, Items.WARPED_WART_BLOCK);
++        // Martijn start - custom blocks and items
++        ComposterBlock.add(0.85F, SuCraftItems.NETHER_WART_STAIRS);
++        ComposterBlock.add(0.85F, SuCraftItems.WARPED_WART_STAIRS);
++        ComposterBlock.add(0.425F, SuCraftItems.NETHER_WART_SLAB);
++        ComposterBlock.add(0.425F, SuCraftItems.WARPED_WART_SLAB);
++        // Martijn end - custom blocks and items
+         ComposterBlock.add(0.85F, Items.FLOWERING_AZALEA);
+         ComposterBlock.add(0.85F, Items.BREAD);
+         ComposterBlock.add(0.85F, Items.BAKED_POTATO);
 diff --git a/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java b/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
 index f4ee3ce287528337a0f9a3b612c157254f895a58..ac96e9274929850c61d5bc499e2ba9eb2eef8cbb 100644
 --- a/src/main/java/net/minecraft/world/level/block/EnchantmentTableBlock.java
@@ -5338,7 +5408,7 @@ index f4ee3ce287528337a0f9a3b612c157254f895a58..ac96e9274929850c61d5bc499e2ba9eb
  
      @Override
 diff --git a/src/main/java/net/minecraft/world/level/block/FireBlock.java b/src/main/java/net/minecraft/world/level/block/FireBlock.java
-index e34b8cff424ad58eee65a65fa510fa9908dbdf39..1bd3a713da05357df049aa67324a763d78d8684b 100644
+index e34b8cff424ad58eee65a65fa510fa9908dbdf39..0d6bafb4beb01fe6baeb402d8620f36a572ea117 100644
 --- a/src/main/java/net/minecraft/world/level/block/FireBlock.java
 +++ b/src/main/java/net/minecraft/world/level/block/FireBlock.java
 @@ -28,6 +28,7 @@ import net.minecraft.world.phys.shapes.CollisionContext;
@@ -5521,7 +5591,7 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..1bd3a713da05357df049aa67324a763d
          blockfire.setFlammable(Blocks.TNT, 15, 100);
          blockfire.setFlammable(Blocks.GRASS, 60, 100);
          blockfire.setFlammable(Blocks.FERN, 60, 100);
-@@ -492,8 +643,57 @@ public class FireBlock extends BaseFireBlock {
+@@ -492,9 +643,69 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.GREEN_WOOL, 30, 60);
          blockfire.setFlammable(Blocks.RED_WOOL, 30, 60);
          blockfire.setFlammable(Blocks.BLACK_WOOL, 30, 60);
@@ -5577,9 +5647,21 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..1bd3a713da05357df049aa67324a763d
 +        // Martijn end - custom blocks and items
 +
          blockfire.setFlammable(Blocks.HAY_BLOCK, 60, 20);
++
++        // Martijn start - custom blocks and items
++
++        blockfire.setFlammable(SuCraftBlocks.HAY_STAIRS, 60, 20);
++        blockfire.setFlammable(SuCraftBlocks.HAY_SLAB, 60, 20);
++        blockfire.setFlammable(SuCraftBlocks.THATCH, 60, 20);
++        blockfire.setFlammable(SuCraftBlocks.THATCH_STAIRS, 60, 20);
++        blockfire.setFlammable(SuCraftBlocks.THATCH_SLAB, 60, 20);
++
++        // Martijn end - custom blocks and items
++
          blockfire.setFlammable(Blocks.TARGET, 15, 20);
          blockfire.setFlammable(Blocks.WHITE_CARPET, 60, 20);
-@@ -513,6 +713,13 @@ public class FireBlock extends BaseFireBlock {
+         blockfire.setFlammable(Blocks.ORANGE_CARPET, 60, 20);
+@@ -513,6 +724,13 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.RED_CARPET, 60, 20);
          blockfire.setFlammable(Blocks.BLACK_CARPET, 60, 20);
          blockfire.setFlammable(Blocks.DRIED_KELP_BLOCK, 30, 60);
@@ -5593,7 +5675,7 @@ index e34b8cff424ad58eee65a65fa510fa9908dbdf39..1bd3a713da05357df049aa67324a763d
          blockfire.setFlammable(Blocks.BAMBOO, 60, 60);
          blockfire.setFlammable(Blocks.SCAFFOLDING, 60, 60);
          blockfire.setFlammable(Blocks.LECTERN, 30, 20);
-@@ -532,5 +739,14 @@ public class FireBlock extends BaseFireBlock {
+@@ -532,5 +750,14 @@ public class FireBlock extends BaseFireBlock {
          blockfire.setFlammable(Blocks.SMALL_DRIPLEAF, 60, 100);
          blockfire.setFlammable(Blocks.HANGING_ROOTS, 30, 60);
          blockfire.setFlammable(Blocks.GLOW_LICHEN, 15, 100);
@@ -7866,10 +7948,10 @@ index 0000000000000000000000000000000000000000..00f1a95a3ce5e144b73ee523f48ad878
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..035b1d0de0c319d45469a6d0a4275a5a44b3c449
+index 0000000000000000000000000000000000000000..ea894ace334473097eaa05c94f9e4f4c8cb3d5b5
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1505 @@
+@@ -0,0 +1,1530 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -8586,18 +8668,43 @@ index 0000000000000000000000000000000000000000..035b1d0de0c319d45469a6d0a4275a5a
 +    public static final Block PURPUR_PILLAR_STAIRS = registerFakeVanillaStonePillarStairs(Blocks.PURPUR_PILLAR, "purpur", Blocks.PURPUR_STAIRS).mineableWithPickaxe();
 +    public static final Block FLINT_SLAB = registerFakeSlabFromYPillarCustomBlock(FLINT_BLOCK, null, "flint", "flint_block", Blocks.DEEPSLATE_TILE_SLAB).mineableWithPickaxe();
 +    public static final Block FLINT_STAIRS = registerFakeStairsFromYPillarCustomBlock(FLINT_BLOCK, null, "flint", "flint_block", Blocks.DEEPSLATE_TILE_STAIRS).mineableWithPickaxe();
-+    public static final Block IRON_SLAB = registerFakeSlab(Blocks.IRON_BLOCK, "iron", "iron_block", Blocks.POLISHED_DIORITE_SLAB);
-+    public static final Block GOLD_SLAB = registerFakeSlab(Blocks.GOLD_BLOCK, "gold", "gold_block", Blocks.OAK_SLAB);
-+    public static final Block DIAMOND_SLAB = registerFakeSlab(Blocks.DIAMOND_BLOCK, "diamond", "diamond_block", Blocks.PRISMARINE_BRICK_SLAB);
-+    public static final Block EMERALD_SLAB = registerFakeSlab(Blocks.EMERALD_BLOCK, "emerald", "emerald_block", Blocks.OXIDIZED_CUT_COPPER_SLAB);
-+    public static final Block NETHERITE_SLAB = registerFakeSlab(Blocks.NETHERITE_BLOCK, "netherite", "netherite_block", Blocks.POLISHED_DEEPSLATE_SLAB);
-+    public static final Block LAPIS_SLAB = registerFakeSlab(Blocks.LAPIS_BLOCK, "lapis", "lapis_block", Blocks.DARK_PRISMARINE_SLAB);
-+    public static final Block IRON_STAIRS = registerFakeStairs(Blocks.IRON_BLOCK, "iron", "iron_block", Blocks.POLISHED_DIORITE_STAIRS);
-+    public static final Block GOLD_STAIRS = registerFakeStairs(Blocks.GOLD_BLOCK, "gold", "gold_block", Blocks.OAK_STAIRS);
-+    public static final Block DIAMOND_STAIRS = registerFakeStairs(Blocks.DIAMOND_BLOCK, "diamond", "diamond_block", Blocks.PRISMARINE_BRICK_STAIRS);
-+    public static final Block EMERALD_STAIRS = registerFakeStairs(Blocks.EMERALD_BLOCK, "emerald", "emerald_block", Blocks.OXIDIZED_CUT_COPPER_STAIRS);
-+    public static final Block NETHERITE_STAIRS = registerFakeStairs(Blocks.NETHERITE_BLOCK, "netherite", "netherite_block", Blocks.POLISHED_DEEPSLATE_STAIRS);
-+    public static final Block LAPIS_STAIRS = registerFakeStairs(Blocks.LAPIS_BLOCK, "lapis", "lapis_block", Blocks.DARK_PRISMARINE_STAIRS);
++    public static final Block IRON_SLAB = registerFakeSlab(Blocks.IRON_BLOCK, "iron", "iron_block", Blocks.POLISHED_DIORITE_SLAB).mineableWithPickaxe();
++    public static final Block GOLD_SLAB = registerFakeSlab(Blocks.GOLD_BLOCK, "gold", "gold_block", Blocks.OAK_SLAB).mineableWithPickaxe();
++    public static final Block DIAMOND_SLAB = registerFakeSlab(Blocks.DIAMOND_BLOCK, "diamond", "diamond_block", Blocks.PRISMARINE_BRICK_SLAB).mineableWithPickaxe();
++    public static final Block EMERALD_SLAB = registerFakeSlab(Blocks.EMERALD_BLOCK, "emerald", "emerald_block", Blocks.OXIDIZED_CUT_COPPER_SLAB).mineableWithPickaxe();
++    public static final Block NETHERITE_SLAB = registerFakeSlab(Blocks.NETHERITE_BLOCK, "netherite", "netherite_block", Blocks.POLISHED_DEEPSLATE_SLAB).mineableWithPickaxe();
++    public static final Block LAPIS_SLAB = registerFakeSlab(Blocks.LAPIS_BLOCK, "lapis", "lapis_block", Blocks.DARK_PRISMARINE_SLAB).mineableWithPickaxe();
++    public static final Block IRON_STAIRS = registerFakeStairs(Blocks.IRON_BLOCK, "iron", "iron_block", Blocks.POLISHED_DIORITE_STAIRS).mineableWithPickaxe();
++    public static final Block GOLD_STAIRS = registerFakeStairs(Blocks.GOLD_BLOCK, "gold", "gold_block", Blocks.OAK_STAIRS).mineableWithPickaxe();
++    public static final Block DIAMOND_STAIRS = registerFakeStairs(Blocks.DIAMOND_BLOCK, "diamond", "diamond_block", Blocks.PRISMARINE_BRICK_STAIRS).mineableWithPickaxe();
++    public static final Block EMERALD_STAIRS = registerFakeStairs(Blocks.EMERALD_BLOCK, "emerald", "emerald_block", Blocks.OXIDIZED_CUT_COPPER_STAIRS).mineableWithPickaxe();
++    public static final Block NETHERITE_STAIRS = registerFakeStairs(Blocks.NETHERITE_BLOCK, "netherite", "netherite_block", Blocks.POLISHED_DEEPSLATE_STAIRS).mineableWithPickaxe();
++    public static final Block LAPIS_STAIRS = registerFakeStairs(Blocks.LAPIS_BLOCK, "lapis", "lapis_block", Blocks.DARK_PRISMARINE_STAIRS).mineableWithPickaxe();
++    public static final Block MOSS_SLAB = registerFakeSlab(Blocks.MOSS_BLOCK, "moss", "moss_block", Blocks.DARK_PRISMARINE_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block MOSS_STAIRS = registerFakeStairs(Blocks.MOSS_BLOCK, "moss", "moss_block", Blocks.DARK_PRISMARINE_STAIRS).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block NETHER_WART_SLAB = registerFakeSlab(Blocks.NETHER_WART_BLOCK, "nether_wart", "nether_wart_block", Blocks.RED_NETHER_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block NETHER_WART_STAIRS = registerFakeStairs(Blocks.NETHER_WART_BLOCK, "nether_wart", "nether_wart_block", Blocks.RED_NETHER_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block WARPED_WART_SLAB = registerFakeSlab(Blocks.WARPED_WART_BLOCK, "warped_wart", "warped_wart_block", Blocks.WARPED_SLAB).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block WARPED_WART_STAIRS = registerFakeStairs(Blocks.WARPED_WART_BLOCK, "warped_wart", "warped_wart_block", Blocks.WARPED_STAIRS).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block HAY_SLAB = registerFakeSlab(Blocks.HAY_BLOCK, null, "hay", NamespacedKeyWithoutIntention.minecraft("hay_block"), NamespacedKeyWithoutIntention.minecraft("hay_block_side"), NamespacedKeyWithoutIntention.minecraft("hay_block_top"), null, null, null, Blocks.OAK_SLAB, null).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block HAY_STAIRS = registerFakeStairs(Blocks.HAY_BLOCK, null, "hay", NamespacedKeyWithoutIntention.minecraft("hay_block_side"), NamespacedKeyWithoutIntention.minecraft("hay_block_top"), null, Blocks.OAK_STAIRS, null).breakBeforeClientKnowsToBreak().mineableWithHoe();
++
++    /**
++     * Based on {@link Blocks#HAY_BLOCK}
++     */
++    public static final Block THATCH = register(
++        "thatch",
++        new SingleMultiStateRealBlockReplacementRuleBuilder()
++            .withNoteBlockHosts()
++            .withAnalogousFallbacks(Blocks.HAY_BLOCK)
++            .withModelCreationsForRotatedPillarBlockPotentiallyWithAlternativeEndCreation(Texture.defaultCreation())
++            .withFullBlockBoundingBoxItem(),
++        new RotatedPillarBlock(BlockBehaviour.Properties.of(Material.GRASS, MaterialColor.COLOR_YELLOW).strength(0.5F).sound(SoundType.GRASS)).breakBeforeClientKnowsToBreak().mineableWithHoe(),
++        SuCraftBlockLoot::dropSelf
++    ).withCustom2x2SquareRecipe("thatch", () -> Items.WHEAT, 1);
++
++    public static final Block THATCH_SLAB = registerFakeSlab(THATCH, null, "thatch", NamespacedKeyWithoutIntention.sucraft("thatch"), null, null, null, null, null, Blocks.OAK_SLAB, null).breakBeforeClientKnowsToBreak().mineableWithHoe();
++    public static final Block THATCH_STAIRS = registerFakeStairs(THATCH, null, "thatch", NamespacedKeyWithoutIntention.sucraft("thatch"), null, null, Blocks.OAK_STAIRS, null).breakBeforeClientKnowsToBreak().mineableWithHoe();
 +
 +    private static @NotNull Block register(@NotNull String id, @NotNull BlockReplacementRuleBuilder<?, ?> replacementRuleBuilder, @NotNull Block block, @Nullable Supplier<@Nullable LootTable> lootTableSupplier) {
 +        return register(id, replacementRuleBuilder, block, lootTableSupplier == null ? null : ($ -> lootTableSupplier.get()));
@@ -10190,10 +10297,10 @@ index 0000000000000000000000000000000000000000..b4ac181d95b872c64d90c496070e01d9
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b9743702c2c33df23be636afc8036e99d3c330c5
+index 0000000000000000000000000000000000000000..36ca00e54abe2d6787e4ff286a3811dc6fe81e13
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBuilder.java
-@@ -0,0 +1,567 @@
+@@ -0,0 +1,582 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -10218,6 +10325,7 @@ index 0000000000000000000000000000000000000000..b9743702c2c33df23be636afc8036e99
 +import nl.martijnmuijsers.paper.blockanditemdata.model.ModelWithParameters;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.Texture;
 +import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureContent;
++import nl.martijnmuijsers.paper.blockanditemdata.texture.TextureCreation;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import org.jetbrains.annotations.NotNull;
@@ -10485,8 +10593,22 @@ index 0000000000000000000000000000000000000000..b9743702c2c33df23be636afc8036e99
 +     * Sets the host overriding models to a model with parameters specifically for a rotated pillar block, using the default texture names
 +     */
 +    default @NotNull B withDefaultModelCreationsForRotatedPillarBlock() {
-+        @NotNull ModelCreation vertical = Model.YPillarCube.defaultCreation();
-+        @NotNull ModelCreation horizontal = Model.HorizontalYPillarCube.defaultCreation();
++        return this.withModelCreationsForRotatedPillarBlockPotentiallyWithAlternativeEndCreation(null);
++    }
++
++    /**
++     * Sets the host overriding models to a model with parameters specifically for a rotated pillar block, using the alternative textures names where non-null
++     */
++    default @NotNull B withModelCreationsForRotatedPillarBlockPotentiallyWithAlternativeEnd(@Nullable Texture endTexture) {
++        return this.withModelCreationsForRotatedPillarBlockPotentiallyWithAlternativeEndCreation((intention, key) -> endTexture);
++    }
++
++    /**
++     * Sets the host overriding models to a model with parameters specifically for a rotated pillar block, using the alternative textures names where non-null
++     */
++    default @NotNull B withModelCreationsForRotatedPillarBlockPotentiallyWithAlternativeEndCreation(@Nullable TextureCreation endTextureCreation) {
++        @NotNull ModelCreation vertical = endTextureCreation == null ? Model.YPillarCube.defaultCreation() : Model.YPillarCube.defaultCreationWithAlternativeEnd(endTextureCreation);
++        @NotNull ModelCreation horizontal = endTextureCreation == null ? Model.HorizontalYPillarCube.defaultCreation() : Model.HorizontalYPillarCube.defaultCreationWithAlternativeEnd(endTextureCreation);
 +        @NotNull ModelCreationWithParameters xAxisModel = horizontal.withParameters(new ModelParameters(json -> {
 +            json.addProperty("x", 90);
 +            json.addProperty("y", 90);
@@ -14836,10 +14958,10 @@ index 0000000000000000000000000000000000000000..24e4ba1707da23d55ca5552c5ea8d335
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..eef1497a9895d727bdcf21f939a282a621924a36
+index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b5119516838974
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
-@@ -0,0 +1,234 @@
+@@ -0,0 +1,258 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.item;
@@ -14867,6 +14989,7 @@ index 0000000000000000000000000000000000000000..eef1497a9895d727bdcf21f939a282a6
 +import org.bukkit.craftbukkit.util.CraftMagicNumbers;
 +import org.bukkit.inventory.RecipeChoice;
 +import org.bukkit.inventory.ShapedRecipe;
++import org.bukkit.inventory.ShapelessRecipe;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
@@ -15071,6 +15194,29 @@ index 0000000000000000000000000000000000000000..eef1497a9895d727bdcf21f939a282a6
 +            }
 +        }
 +
++        // Deconstructing blocks
++        for (Triple<Item, Item, Integer> triple : List.of(
++            Triple.of(SuCraftItems.GUNPOWDER_BLOCK, Items.GUNPOWDER, 4),
++            // Not included in initial release
++//            Triple.of(SuCraftItems.ENDER_PEARL_BLOCK, Items.ENDER_PEARL, 4),
++            Triple.of(SuCraftItems.FLINT_BLOCK, Items.FLINT, 4),
++            Triple.of(SuCraftItems.THATCH, Items.WHEAT, 4),
++            Triple.of(SuCraftItems.CHARCOAL_BLOCK, Items.CHARCOAL, 9),
++            Triple.of(SuCraftItems.PAPER_BLOCK, Items.PAPER, 9)
++        )) {
++            Item ingredient = triple.getLeft();
++            Item result = triple.getMiddle();
++            int resultAmount = triple.getRight();
++            String recipeKeyPath = "deconstruct_" + ingredient.id.getPath();
++            var recipeMinecraftKey = ResourceLocation.sucraft(recipeKeyPath);
++            var recipeKey = recipeMinecraftKey.asBukkit();
++            var shapelessRecipe = new ShapelessRecipe(recipeKey, new org.bukkit.inventory.ItemStack(CraftMagicNumbers.getMaterial(result), resultAmount));
++            shapelessRecipe.setGroup(recipeKey.getKey());
++            shapelessRecipe.addIngredient(new org.bukkit.inventory.ItemStack(CraftMagicNumbers.getMaterial(ingredient)));
++            addRecipe(shapelessRecipe);
++            Item.CustomRecipeUnlockByItem.register(ingredient, recipeMinecraftKey);
++        }
++
 +    }
 +
 +}
@@ -15194,10 +15340,10 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7472ce7180ae6446589e0a838cd9ebc74e847675
+index 0000000000000000000000000000000000000000..2a29f529509dbeaa2b8327b2b9e2b5355135f64a
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItems.java
-@@ -0,0 +1,875 @@
+@@ -0,0 +1,886 @@
 +
 +// Martijn - custom blocks and items
 +
@@ -15744,6 +15890,17 @@ index 0000000000000000000000000000000000000000..7472ce7180ae6446589e0a838cd9ebc7
 +    public static final Item EMERALD_STAIRS = registerStairs(SuCraftBlocks.EMERALD_STAIRS, "Emerald");
 +    public static final Item NETHERITE_STAIRS = registerStairs(SuCraftBlocks.NETHERITE_STAIRS, "Netherite", new Item.Properties().tab(CreativeModeTab.TAB_BUILDING_BLOCKS).fireResistant());
 +    public static final Item LAPIS_STAIRS = registerStairs(SuCraftBlocks.LAPIS_STAIRS, "Lapis Lazuli");
++    public static final Item MOSS_SLAB = registerSlab(SuCraftBlocks.MOSS_SLAB, "Moss", CreativeModeTab.TAB_DECORATIONS);
++    public static final Item MOSS_STAIRS = registerStairs(SuCraftBlocks.MOSS_STAIRS, "Moss", CreativeModeTab.TAB_DECORATIONS);
++    public static final Item NETHER_WART_SLAB = registerSlab(SuCraftBlocks.NETHER_WART_SLAB, "Nether Wart", CreativeModeTab.TAB_DECORATIONS);
++    public static final Item NETHER_WART_STAIRS = registerStairs(SuCraftBlocks.NETHER_WART_STAIRS, "Nether Wart", CreativeModeTab.TAB_DECORATIONS);
++    public static final Item WARPED_WART_SLAB = registerSlab(SuCraftBlocks.WARPED_WART_SLAB, "Warped Wart", CreativeModeTab.TAB_DECORATIONS);
++    public static final Item WARPED_WART_STAIRS = registerStairs(SuCraftBlocks.WARPED_WART_STAIRS, "Warped Wart", CreativeModeTab.TAB_DECORATIONS);
++    public static final Item HAY_SLAB = registerSlab(SuCraftBlocks.HAY_SLAB, "Hay");
++    public static final Item HAY_STAIRS = registerStairs(SuCraftBlocks.HAY_STAIRS, "Hay");
++    public static final Item THATCH = registerBlock(SuCraftBlocks.THATCH, "Thatch", CreativeModeTab.TAB_BUILDING_BLOCKS);
++    public static final Item THATCH_SLAB = registerSlab(SuCraftBlocks.THATCH_SLAB, "Thatch");
++    public static final Item THATCH_STAIRS = registerStairs(SuCraftBlocks.THATCH_STAIRS, "Thatch");
 +
 +    private static @NotNull Item registerBlock(@NotNull Block block, @NotNull String displayName, @NotNull CreativeModeTab group) {
 +        return registerBlock(block, displayName, group, null);
@@ -19368,7 +19525,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..dcb5cc41af02c75e3733aaa0ece44bd4b7c3627f
+index 0000000000000000000000000000000000000000..05ab576a217ea67530865d8dd05a9610f042935a
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,409 @@
@@ -19444,7 +19601,7 @@ index 0000000000000000000000000000000000000000..dcb5cc41af02c75e3733aaa0ece44bd4
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 182;
++            currentResourcePackVersion = 188;
 +        }
 +    }
 +
