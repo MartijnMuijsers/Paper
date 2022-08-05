@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 5 Aug 2022 12:28:38 +0200
+Subject: [PATCH] Per-player view distance / asidjoasd90
+
+
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index a7557684816c33f583c8b6dc20b52b95e3f7e4d0..97e663504104f269d259614b84b9cb46e6d69a64 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -24,7 +24,6 @@ import java.util.Optional;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Function;
+-import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.FileUtil;
+@@ -1035,7 +1034,7 @@ public abstract class PlayerList {
+             for (int i = 0; i < this.players.size(); ++i) {
+                 final ServerPlayer target = (ServerPlayer) this.players.get(i);
+ 
+-                target.connection.send(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.UPDATE_LATENCY, this.players.stream().filter(new Predicate<ServerPlayer>() {
++                target.connection.send(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.UPDATE_LATENCY, this.players.stream().filter(new java.util.function.Predicate<ServerPlayer>() {
+                     @Override
+                     public boolean test(ServerPlayer input) {
+                         return target.getBukkitEntity().canSee(input.getBukkitEntity());

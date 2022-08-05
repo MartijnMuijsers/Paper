@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 5 Aug 2022 12:24:48 +0200
+Subject: [PATCH] Deobfuscation helpers / 9sasdj9
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 23517c43d1534491d0c28cef683c60184a88b844..bacdc07a589cd9b99e9e3fb572ad6efc795df3f7 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2211,7 +2211,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+ 
+     // Martijn start - OBFHELPER
+ 
+-    public void _send(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> listener) {
++    public void _send(Packet<?> packet, @Nullable PacketSendListener listener) {
+         this.send(packet, listener);
+     }
+ 

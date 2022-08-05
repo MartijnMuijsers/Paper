@@ -1,0 +1,114 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 21 Jun 2022 12:46:55 +0200
+Subject: [PATCH] Deobfuscation helpers
+
+
+diff --git a/src/main/java/net/minecraft/commands/Commands.java b/src/main/java/net/minecraft/commands/Commands.java
+index fcc75660a69122eefc100e4de0a62f587bf97d7b..8cc9246827efe3abb7a4f799f21164183627a7d5 100644
+--- a/src/main/java/net/minecraft/commands/Commands.java
++++ b/src/main/java/net/minecraft/commands/Commands.java
+@@ -492,6 +492,14 @@ public class Commands {
+         return this.dispatcher;
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    public com.mojang.brigadier.CommandDispatcher<CommandSourceStack> _getDispatcher() {
++        return this.getDispatcher();
++    }
++
++    // Martijn end - OBFHELPER
++
+     @Nullable
+     public static <S> CommandSyntaxException getParseException(ParseResults<S> parse) {
+         return !parse.getReader().canRead() ? null : (parse.getExceptions().size() == 1 ? (CommandSyntaxException) parse.getExceptions().values().iterator().next() : (parse.getContext().getRange().isEmpty() ? CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parse.getReader()) : CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(parse.getReader())));
+diff --git a/src/main/java/net/minecraft/nbt/Tag.java b/src/main/java/net/minecraft/nbt/Tag.java
+index 2452fb49ebe5ec791cc7151e3b73b5c572ff2eda..c83e69a4a50dd69c16a7c08923170afb5daeb42a 100644
+--- a/src/main/java/net/minecraft/nbt/Tag.java
++++ b/src/main/java/net/minecraft/nbt/Tag.java
+@@ -39,6 +39,14 @@ public interface Tag {
+         return (new StringTagVisitor()).visit(this);
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    default String _getAsString() {
++        return this.getAsString();
++    }
++
++    // Martijn end - OBFHELPER
++
+     void accept(TagVisitor visitor);
+ 
+     StreamTagVisitor.ValueResult accept(StreamTagVisitor visitor);
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java
+index 7a225421d54f9b30f0c62036888e09379ee28bd2..fe5d0bdf4c2e7efe3d4974ae106e091a42e157aa 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java
+@@ -10,6 +10,11 @@ public class ClientboundGameEventPacket implements Packet<ClientGamePacketListen
+     public static final ClientboundGameEventPacket.Type START_RAINING = new ClientboundGameEventPacket.Type(1);
+     public static final ClientboundGameEventPacket.Type STOP_RAINING = new ClientboundGameEventPacket.Type(2);
+     public static final ClientboundGameEventPacket.Type CHANGE_GAME_MODE = new ClientboundGameEventPacket.Type(3);
++    // Martijn start - OBFHELPER
++    public static ClientboundGameEventPacket.Type _CHANGE_GAME_MODE() {
++        return ClientboundGameEventPacket.CHANGE_GAME_MODE;
++    }
++    // Martijn end - OBFHELPER
+     public static final ClientboundGameEventPacket.Type WIN_GAME = new ClientboundGameEventPacket.Type(4);
+     public static final ClientboundGameEventPacket.Type DEMO_EVENT = new ClientboundGameEventPacket.Type(5);
+     public static final ClientboundGameEventPacket.Type ARROW_HIT_PLAYER = new ClientboundGameEventPacket.Type(6);
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedPlayerList.java b/src/main/java/net/minecraft/server/dedicated/DedicatedPlayerList.java
+index dc96b30c70cd79d7b2a0322f32b9399a0f2faa41..e66865af2ee61821eb2c74456518e182ebf86c90 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedPlayerList.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedPlayerList.java
+@@ -140,6 +140,14 @@ public class DedicatedPlayerList extends PlayerList {
+         return (DedicatedServer)super.getServer();
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    public DedicatedServer _getServer() {
++        return this.getServer();
++    }
++
++    // Martijn end - OBFHELPER
++
+     @Override
+     public boolean canBypassPlayerLimit(GameProfile profile) {
+         return this.getOps().canBypassPlayerLimit(profile);
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index aece079a3c074606ca9d2656a82a166ebf2f43b5..98d9900aecaf974945858f22a9647bf34571a25a 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -465,6 +465,11 @@ public class ServerPlayer extends Player {
+     private static final int NEUTRAL_MOB_DEATH_NOTIFICATION_RADII_XZ = 32;
+     private static final int NEUTRAL_MOB_DEATH_NOTIFICATION_RADII_Y = 10;
+     public ServerGamePacketListenerImpl connection;
++    // Martijn start - OBFHELPER
++    public ServerGamePacketListenerImpl _connection() {
++        return this.connection;
++    }
++    // Martijn end - OBFHELPER
+     public net.minecraft.network.Connection networkManager; // Paper
+     public final MinecraftServer server;
+     public final ServerPlayerGameMode gameMode;
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 37bf7677e8597001088f6a55bfb46508a49b2a9a..e04539856b54434bfa2aa67197c82bd134a16788 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2183,6 +2183,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+         }
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    public void _send(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> listener) {
++        this.send(packet, listener);
++    }
++
++    // Martijn end - OBFHELPER
++
+     @Override
+     public void handleSetCarriedItem(ServerboundSetCarriedItemPacket packet) {
+         PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());

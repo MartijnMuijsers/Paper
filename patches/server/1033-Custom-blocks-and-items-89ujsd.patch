@@ -1,0 +1,188 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 5 Aug 2022 13:03:20 +0200
+Subject: [PATCH] Custom blocks and items / 89ujsd
+
+
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
+index f6bbfbda350086176bf810bf71bbb3887d17bc33..903fb16d7851501ae1f25d9d3e84e0b2ff606e5b 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
+@@ -7,6 +7,7 @@ import net.minecraft.core.SectionPos;
+ import net.minecraft.network.Connection;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.PacketSendListener;
+ import net.minecraft.world.level.ChunkPos;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+@@ -47,17 +48,32 @@ public class ClientboundForgetLevelChunkPacket implements Packet<ClientGamePacke
+     // Martijn start - custom blocks and items
+ 
+     @Override
+-    public <F extends Future<? super Void>> GenericFutureListener<F> updateCallbackWithBlockEntityPacketSends(@Nullable GenericFutureListener<F> callback, @NotNull Connection connection) {
+-        return future -> {
+-            if (callback != null) {
+-                callback.operationComplete(future);
++    public @Nullable PacketSendListener updateCallbackWithBlockEntityPacketSends(@Nullable PacketSendListener callback, @NotNull Connection connection) {
++        return new PacketSendListener() {
++
++            @Override
++            public void onSuccess() {
++
++                if (callback != null) {
++                    callback.onSuccess();
++                }
++                if (connection.isConnected()) {
++                    ChunkPos chunkPos = new ChunkPos(ClientboundBlockUpdatePacket.this.x, ClientboundBlockUpdatePacket.this.z);
++                    for (int y = connection.getPlayer().getLevel().getMinSection(); y <= connection.getPlayer().getLevel().getMaxSection(); y++) {
++                        connection.despawnBlockEntitiesInChunkSection(SectionPos.of(chunkPos, y).asLong());
++                    }
++                }
++
+             }
+-            if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
+-                ChunkPos chunkPos = new ChunkPos(x, z);
+-                for (int y = connection.getPlayer().getLevel().getMinSection(); y <= connection.getPlayer().getLevel().getMaxSection(); y++) {
+-                    connection.despawnBlockEntitiesInChunkSection(SectionPos.of(chunkPos, y).asLong());
++
++            @Override
++            public @Nullable Packet<?> onFailure() {
++                if (callback != null) {
++                    return callback.onFailure();
+                 }
++                return null;
+             }
++
+         };
+     }
+ 
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
+index 20b3c5a8d163db354acfc63072c2b680c56988ea..86dde845b1b68a046cbb5f9422df8909711ecf3a 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
+@@ -12,6 +12,7 @@ import net.minecraft.core.SectionPos;
+ import net.minecraft.network.Connection;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.PacketSendListener;
+ import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.chunk.LevelChunk;
+@@ -103,38 +104,39 @@ public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePa
+ //    }
+ 
+     @Override
+-    public <F extends Future<? super Void>> GenericFutureListener<F> updateCallbackWithBlockEntityPacketSends(@Nullable GenericFutureListener<F> callback, @NotNull Connection connection) {
+-        return future -> {
+-            if (callback != null) {
+-                callback.operationComplete(future);
+-            }
+-            if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
+-                try {
+-                    @Nullable LevelChunk chunk = connection.getPlayer().getLevel().getChunkIfLoaded(this.x, this.z);
+-                    if (chunk != null) {
+-                        int sectionsCount = chunk.getSectionsCount();
+-//                        int chunkMinBlockX = chunk.getPos().getMinBlockX();
+-//                        int chunkMinBlockZ = chunk.getPos().getMinBlockZ();
+-                        for (int sectionYIndex = 0; sectionYIndex < sectionsCount; sectionYIndex++) {
+-                            SectionPos sectionPos = SectionPos.of(this.x, chunk.getSectionYFromSectionIndex(sectionYIndex), this.z);
+-                            connection.updatePotentialBlockEntitiesInSection(sectionPos, false, chunk);
+-//                            var section = chunk.getSection(sectionYIndex);
+-//                            var sectionKey = CoordinateUtils.getChunkSectionKey();
+-//                            @Nullable LongSet sectionSentBlockKeys = connection.getBlockEntityBlockPosKeysForChunkSectionKey(sectionKey);
+-//                            if (section.potentiallyContainsBlockEntity()) {
+-//                                var sectionMinBlockY = section.bottomBlockY();
+-//                                for (int xInSection = 0; xInSection < 16; xInSection++) {
+-//                                    for (int yInSection = 0; yInSection < 16; yInSection++) {
+-//                                        for (int zInSection = 0; zInSection < 16; zInSection++) {
+-//                                            connection.updatePotentialBlockEntityAtPosition(new BlockPos(xInSection + chunkMinBlockX, yInSection + sectionMinBlockY, zInSection + chunkMinBlockZ), true, sectionSentBlockKeys);
+-//                                        }
+-//                                    }
+-//                                }
+-//                            }
++    public @Nullable PacketSendListener updateCallbackWithBlockEntityPacketSends(@Nullable PacketSendListener callback, @NotNull Connection connection) {
++        return new PacketSendListener() {
++
++            @Override
++            public void onSuccess() {
++
++                if (callback != null) {
++                    callback.onSuccess();
++                }
++                if (connection.isConnected()) {
++                    try {
++                        @Nullable LevelChunk chunk = connection.getPlayer().getLevel().getChunkIfLoaded(ClientboundBlockUpdatePacket.this.x, ClientboundBlockUpdatePacket.this.z);
++                        if (chunk != null) {
++                            int sectionsCount = chunk.getSectionsCount();
++                            for (int sectionYIndex = 0; sectionYIndex < sectionsCount; sectionYIndex++) {
++                                SectionPos sectionPos = SectionPos.of(ClientboundBlockUpdatePacket.this.x, chunk.getSectionYFromSectionIndex(sectionYIndex), ClientboundBlockUpdatePacket.this.z);
++                                connection.updatePotentialBlockEntitiesInSection(sectionPos, false, chunk);
++                            }
+                         }
++                    } catch (Exception ignored) {
+                     }
+-                } catch (Exception ignored) {}
++                }
++
+             }
++
++            @Override
++            public @Nullable Packet<?> onFailure() {
++                if (callback != null) {
++                    return callback.onFailure();
++                }
++                return null;
++            }
++
+         };
+     }
+ 
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+index 3decb05ab0a4eb8ada98ad8dc852b7278fd910e7..f5a02991c725d0b4b908145888825eda6bb4001a 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+@@ -14,6 +14,7 @@ import net.minecraft.core.SectionPos;
+ import net.minecraft.network.Connection;
+ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.PacketSendListener;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.world.level.block.Block;
+ import net.minecraft.world.level.block.state.BlockState;
+@@ -153,14 +154,29 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+     }
+ 
+     @Override
+-    public <F extends Future<? super Void>> GenericFutureListener<F> updateCallbackWithBlockEntityPacketSends(@Nullable GenericFutureListener<F> callback, @NotNull Connection connection) {
+-        return future -> {
+-            if (callback != null) {
+-                callback.operationComplete(future);
++    public @Nullable PacketSendListener updateCallbackWithBlockEntityPacketSends(@Nullable PacketSendListener callback, @NotNull Connection connection) {
++        return new PacketSendListener() {
++
++            @Override
++            public void onSuccess() {
++
++                if (callback != null) {
++                    callback.onSuccess();
++                }
++                if (connection.isConnected()) {
++                    connection.updatePotentialBlockEntitiesInSection(ClientboundBlockUpdatePacket.this.sectionPos, true, null);
++                }
++
+             }
+-            if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
+-                connection.updatePotentialBlockEntitiesInSection(this.sectionPos, true, null);
++
++            @Override
++            public @Nullable Packet<?> onFailure() {
++                if (callback != null) {
++                    return callback.onFailure();
++                }
++                return null;
+             }
++
+         };
+     }
+ 
