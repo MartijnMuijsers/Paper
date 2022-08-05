@@ -2735,7 +2735,7 @@ index f58873ef4362bfcc618ead099be94ba2dd4d86ed..47382c71d5aa840f4fe5869b0d1e9e7e
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 98d9900aecaf974945858f22a9647bf34571a25a..769c27c5a813d200d838f3bf8b09f2de33028ace 100644
+index 7d144a970b2f9f718d6b6e5aa087ae4567a9815f..06882adc023301f3959d5b4ceadfc7a7569d4496 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -9,14 +9,18 @@ import com.mojang.logging.LogUtils;
@@ -2826,7 +2826,7 @@ index 98d9900aecaf974945858f22a9647bf34571a25a..769c27c5a813d200d838f3bf8b09f2de
          if (getChessboardDistanceToChunk(chunk) <= GlobalConfiguration.get().networkConstrainedChunkSending.ignoreNetworkConditionsForChunksWithinChessboardDistance) return true;
          synchronized (this.networkConstrainedSendingLock) {
              return this.chunkInitializationPacketsInTransitKeepaliveIds.size() < this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
-@@ -2909,4 +2926,134 @@ public class ServerPlayer extends Player {
+@@ -2910,4 +2927,134 @@ public class ServerPlayer extends Player {
      // CraftBukkit end
  
      public final int getViewDistance() { throw new UnsupportedOperationException("Use PlayerChunkLoader"); } // Paper - placeholder
@@ -3115,7 +3115,7 @@ index 909852b352be4441e8b373e93ff9f87013a7d74c..bacdc07a589cd9b99e9e3fb572ad6efc
                  SlotType type = SlotType.QUICKBAR;
                  if (flag) {
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 99a18eb1aebfd52cfc51596ab3d82abf65aeb301..97e663504104f269d259614b84b9cb46e6d69a64 100644
+index 7b183bf877616903d5d8361ca679ce98fb49686d..7237766b207e6a008a67d702e0069901c9f5a781 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -277,14 +277,21 @@ public abstract class PlayerList {
