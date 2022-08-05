@@ -94,7 +94,7 @@ index aece079a3c074606ca9d2656a82a166ebf2f43b5..98d9900aecaf974945858f22a9647bf3
      public final MinecraftServer server;
      public final ServerPlayerGameMode gameMode;
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 37bf7677e8597001088f6a55bfb46508a49b2a9a..e04539856b54434bfa2aa67197c82bd134a16788 100644
+index 37bf7677e8597001088f6a55bfb46508a49b2a9a..909852b352be4441e8b373e93ff9f87013a7d74c 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -2183,6 +2183,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
@@ -103,7 +103,7 @@ index 37bf7677e8597001088f6a55bfb46508a49b2a9a..e04539856b54434bfa2aa67197c82bd1
  
 +    // Martijn start - OBFHELPER
 +
-+    public void _send(Packet<?> packet, @Nullable GenericFutureListener<? extends Future<? super Void>> listener) {
++    public void _send(Packet<?> packet, @Nullable PacketSendListener listener) {
 +        this.send(packet, listener);
 +    }
 +

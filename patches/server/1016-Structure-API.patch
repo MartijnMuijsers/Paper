@@ -453,7 +453,7 @@ index 0000000000000000000000000000000000000000..1c239af1b0d542665014f11101e33991
 +
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index ddabaae8e504ac0cf555da309adefc6f2010d650..fff4b995363fff4fa9f28f517d84d734e93ab89b 100644
+index ddabaae8e504ac0cf555da309adefc6f2010d650..14b7a0fedb12da0ec8bb3120e2e5ec81c6f92462 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -5,6 +5,7 @@ import com.google.common.base.Predicates;
@@ -464,17 +464,15 @@ index ddabaae8e504ac0cf555da309adefc6f2010d650..fff4b995363fff4fa9f28f517d84d734
  import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
  import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
  import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-@@ -27,6 +28,9 @@ import java.util.stream.Collectors;
+@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
  import net.minecraft.core.BlockPos;
  import net.minecraft.core.Holder;
  import net.minecraft.core.HolderSet;
-+import net.minecraft.core.Registry;
-+import net.minecraft.core.SectionPos;
 +import net.minecraft.data.BuiltinRegistries;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.nbt.Tag;
  import net.minecraft.network.protocol.game.ClientboundCustomSoundPacket;
-@@ -55,13 +59,18 @@ import net.minecraft.world.level.ChunkPos;
+@@ -55,13 +57,17 @@ import net.minecraft.world.level.ChunkPos;
  import net.minecraft.world.level.ClipContext;
  import net.minecraft.world.level.Explosion;
  import net.minecraft.world.level.GameRules;
@@ -482,7 +480,6 @@ index ddabaae8e504ac0cf555da309adefc6f2010d650..fff4b995363fff4fa9f28f517d84d734
  import net.minecraft.world.level.chunk.ChunkAccess;
  import net.minecraft.world.level.chunk.ChunkStatus;
  import net.minecraft.world.level.chunk.ImposterProtoChunk;
-+import net.minecraft.world.level.levelgen.structure.Structure;
 +import net.minecraft.world.level.levelgen.structure.StructureStart;
  import net.minecraft.world.level.storage.LevelResource;
  import net.minecraft.world.phys.AABB;
@@ -493,7 +490,7 @@ index ddabaae8e504ac0cf555da309adefc6f2010d650..fff4b995363fff4fa9f28f517d84d734
  import org.apache.commons.lang.Validate;
  import org.bukkit.BlockChangeDelegate;
  import org.bukkit.Bukkit;
-@@ -135,6 +144,8 @@ import org.bukkit.util.Consumer;
+@@ -135,6 +141,8 @@ import org.bukkit.util.Consumer;
  import org.bukkit.util.RayTraceResult;
  import org.bukkit.util.StructureSearchResult;
  import org.bukkit.util.Vector;
@@ -502,7 +499,7 @@ index ddabaae8e504ac0cf555da309adefc6f2010d650..fff4b995363fff4fa9f28f517d84d734
  
  public class CraftWorld extends CraftRegionAccessor implements World {
      public static final int CUSTOM_DIMENSION_OFFSET = 10;
-@@ -228,6 +239,45 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -228,6 +236,45 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      }
      // Paper end
  
@@ -514,7 +511,7 @@ index ddabaae8e504ac0cf555da309adefc6f2010d650..fff4b995363fff4fa9f28f517d84d734
 +        ChunkPos chunkPos = ((CraftChunk) block.getChunk()).getHandle().getPos();
 +        StructureManager featureManager = this.getHandle().structureManager();
 +
-+        final Set<Structure> features;
++        final Set<net.minecraft.world.level.levelgen.structure.Structure> features;
 +        if (structureType != null) {
 +//            // Base on CraftWorld.locateNearestStructure
 +//            features = this.structureCache.computeIfAbsent(structureType, (type) -> {

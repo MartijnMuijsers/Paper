@@ -27,7 +27,7 @@ index bd86dc2ad2f87969da4add06de2a629f69d4b5de..81837cea1d0f356f3aa14aa75a3602a2
      }
  
 diff --git a/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketBlockControllerAntiXray.java b/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketBlockControllerAntiXray.java
-index dabd93c35bdbac6a8b668a82d5f3d4173a1baa4a..1ea6263a8eb41e3bed530a4b08265a34ecb1d668 100644
+index dabd93c35bdbac6a8b668a82d5f3d4173a1baa4a..97c8a1609930568d3f64499ecd16c097193752f3 100644
 --- a/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketBlockControllerAntiXray.java
 +++ b/src/main/java/com/destroystokyo/paper/antixray/ChunkPacketBlockControllerAntiXray.java
 @@ -20,6 +20,8 @@ import net.minecraft.world.level.block.Blocks;
@@ -53,17 +53,15 @@ index dabd93c35bdbac6a8b668a82d5f3d4173a1baa4a..1ea6263a8eb41e3bed530a4b08265a34
      private final EngineMode engineMode;
      private final int maxBlockHeight;
      private final int updateRadius;
-@@ -53,8 +53,8 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
+@@ -53,7 +53,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
      private final int maxBlockHeightUpdatePosition;
  
      public ChunkPacketBlockControllerAntiXray(Level level, Executor executor) {
 -        this.executor = executor;
--        WorldConfiguration.Anticheat.AntiXray paperWorldConfig = level.paperConfig().anticheat.antiXray;
 +        super(level, executor);
-+        WorldConfiguration.AntiCheat.AntiXRay paperWorldConfig = level.paperConfig().anticheat.antiXray;
+         WorldConfiguration.Anticheat.AntiXray paperWorldConfig = level.paperConfig().anticheat.antiXray;
          engineMode = paperWorldConfig.engineMode;
          maxBlockHeight = paperWorldConfig.maxBlockHeight >> 4 << 4;
-         updateRadius = paperWorldConfig.updateRadius;
 @@ -165,44 +165,24 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
          return !usePermission || !player.getBukkitEntity().hasPermission("paper.antixray.bypass");
      }
@@ -239,6 +237,19 @@ index 3b7a62bc6ad20b07e3741ed5265118fd8265ce4a..7bb72d8331ec7560a3ce20ab1ba5718a
      // Martijn start - custom strongholds
  
      public CustomStrongholds customStrongholds;
+diff --git a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
+index efc90aacf624c906b0888c7696e7503aac35902b..6427e193d9b15efc2b4e2a332e4e369866d3fe96 100644
+--- a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
+@@ -267,7 +267,7 @@ public class WorldConfiguration extends ConfigurationPart {
+ 
+     // Martijn end - bone meal regrows bark
+ 
+-    public AntiCheat anticheat;
++    public Anticheat anticheat;
+ 
+     public class Anticheat extends ConfigurationPart {
+ 
 diff --git a/src/main/java/net/minecraft/commands/Commands.java b/src/main/java/net/minecraft/commands/Commands.java
 index 8cc9246827efe3abb7a4f799f21164183627a7d5..fe70e68ac089369ece9c64c94506cac5f3614bd6 100644
 --- a/src/main/java/net/minecraft/commands/Commands.java
@@ -523,7 +534,7 @@ index 46681f3fa63516aa750de11cf1dee17cb3734fcd..30129e9307b5d289782a6a9a5c3f2bd5
  
  public final class NbtUtils {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index af5e855cb7c22f6f76a9b8ef54be544528cb56c2..a925cd6404de02a413543a4b7376d7eba04410f6 100644
+index af5e855cb7c22f6f76a9b8ef54be544528cb56c2..783789855a7ed8f3dc6be7f7dd36d487d5f2624a 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -1139,7 +1150,7 @@ index af5e855cb7c22f6f76a9b8ef54be544528cb56c2..a925cd6404de02a413543a4b7376d7eb
          }
 +        // Martijn start - custom blocks and items
 +        if (this.doesPlayerHaveSuCraftResourcePack()) {
-+            callback = packet.updateCallbackWithBlockEntityPacketSends(callback, this);
++            packetsendlistener = packet.updateCallbackWithBlockEntityPacketSends(packetsendlistener, this);
 +        }
 +        // Martijn end - custom blocks and items
          packet.onPacketDispatch(getPlayer());
@@ -1378,10 +1389,10 @@ index 5fce1177e7198d791d4ab1c64b394c5b1c145782..78bcdcb62d52ceaac6dd6b76b25d5363
                      int j = friendlyByteBuf.writerIndex() - i;
                      if (j > 8388608) {
 diff --git a/src/main/java/net/minecraft/network/protocol/Packet.java b/src/main/java/net/minecraft/network/protocol/Packet.java
-index e8fcd56906d26f6dc87959e32c4c7c78cfea9658..5fdb104e8df5539f13d05ba35c602c778f71331d 100644
+index e8fcd56906d26f6dc87959e32c4c7c78cfea9658..04a9f8d02f4a0ed0b3c33e3a083c821a8516f224 100644
 --- a/src/main/java/net/minecraft/network/protocol/Packet.java
 +++ b/src/main/java/net/minecraft/network/protocol/Packet.java
-@@ -1,7 +1,13 @@
+@@ -1,7 +1,14 @@
  package net.minecraft.network.protocol;
  
 +import io.netty.util.concurrent.Future;
@@ -1389,13 +1400,14 @@ index e8fcd56906d26f6dc87959e32c4c7c78cfea9658..5fdb104e8df5539f13d05ba35c602c77
 +import net.minecraft.network.Connection;
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.PacketListener;
++import net.minecraft.network.PacketSendListener;
 +import org.jetbrains.annotations.NotNull;
 +
 +import javax.annotation.Nullable;
  
  public interface Packet<T extends PacketListener> {
      void write(FriendlyByteBuf buf);
-@@ -30,4 +36,33 @@ public interface Packet<T extends PacketListener> {
+@@ -30,4 +37,33 @@ public interface Packet<T extends PacketListener> {
      default boolean isSkippable() {
          return false;
      }
@@ -1422,7 +1434,7 @@ index e8fcd56906d26f6dc87959e32c4c7c78cfea9658..5fdb104e8df5539f13d05ba35c602c77
 +        return null;
 +    }
 +
-+    default <F extends Future<? super Void>> GenericFutureListener<F> updateCallbackWithBlockEntityPacketSends(@Nullable GenericFutureListener<F> callback, @NotNull Connection connection) {
++    default @Nullable PacketSendListener updateCallbackWithBlockEntityPacketSends(@Nullable PacketSendListener callback, @NotNull Connection connection) {
 +        return callback;
 +    }
 +
@@ -1430,10 +1442,10 @@ index e8fcd56906d26f6dc87959e32c4c7c78cfea9658..5fdb104e8df5539f13d05ba35c602c77
 +
  }
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
-index 7b4947aa2cdd7f359184689bf348560bde1016dd..ee4b4d93c1814b327a8786829e1b3bcea4fccdfd 100644
+index 7b4947aa2cdd7f359184689bf348560bde1016dd..bde8ecf0e4a8c33beeb2fb49db6eee8367323912 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
 +++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundBlockUpdatePacket.java
-@@ -1,15 +1,24 @@
+@@ -1,15 +1,25 @@
  package net.minecraft.network.protocol.game;
  
 +import io.netty.util.concurrent.Future;
@@ -1442,6 +1454,7 @@ index 7b4947aa2cdd7f359184689bf348560bde1016dd..ee4b4d93c1814b327a8786829e1b3bce
 +import net.minecraft.network.Connection;
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.PacketSendListener;
  import net.minecraft.world.level.BlockGetter;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.state.BlockState;
@@ -1460,7 +1473,7 @@ index 7b4947aa2cdd7f359184689bf348560bde1016dd..ee4b4d93c1814b327a8786829e1b3bce
  
      public ClientboundBlockUpdatePacket(BlockPos pos, BlockState state) {
          this.pos = pos;
-@@ -43,4 +52,61 @@ public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketList
+@@ -43,4 +53,76 @@ public class ClientboundBlockUpdatePacket implements Packet<ClientGamePacketList
      public BlockPos getPos() {
          return this.pos;
      }
@@ -1493,29 +1506,44 @@ index 7b4947aa2cdd7f359184689bf348560bde1016dd..ee4b4d93c1814b327a8786829e1b3bce
 +    }
 +
 +    @Override
-+    public <F extends Future<? super Void>> GenericFutureListener<F> updateCallbackWithBlockEntityPacketSends(@Nullable GenericFutureListener<F> callback, @NotNull Connection connection) {
-+        return future -> {
-+            if (callback != null) {
-+                callback.operationComplete(future);
-+            }
-+            if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
-+                var level = connection.getPlayer().getLevel();
-+                if (level != null) {
-+                    for (int dx = -1; dx <= 1; dx++) {
-+                        for (int dy = -1; dy <= 1; dy++) {
-+                            for (int dz = -1; dz <= 1; dz++) {
-+                                int nx = this.pos.getX() + dx;
-+                                int ny = this.pos.getY() + dy;
-+                                int nz = this.pos.getZ() + dz;
-+                                BlockPos npos = new BlockPos(nx, ny, nz);
-+                                if (level.isLoadedAndInBounds(npos)) {
-+                                    connection.updatePotentialBlockEntityAtPosition(npos, false, null, true);
++    public @Nullable PacketSendListener updateCallbackWithBlockEntityPacketSends(@Nullable PacketSendListener callback, @NotNull Connection connection) {
++        return new PacketSendListener() {
++
++            @Override
++            public void onSuccess() {
++
++                if (callback != null) {
++                    callback.onSuccess();
++                }
++                if (connection.isConnected()) {
++                    var level = connection.getPlayer().getLevel();
++                    if (level != null) {
++                        for (int dx = -1; dx <= 1; dx++) {
++                            for (int dy = -1; dy <= 1; dy++) {
++                                for (int dz = -1; dz <= 1; dz++) {
++                                    int nx = ClientboundBlockUpdatePacket.this.pos.getX() + dx;
++                                    int ny = ClientboundBlockUpdatePacket.this.pos.getY() + dy;
++                                    int nz = ClientboundBlockUpdatePacket.this.pos.getZ() + dz;
++                                    BlockPos npos = new BlockPos(nx, ny, nz);
++                                    if (level.isLoadedAndInBounds(npos)) {
++                                        connection.updatePotentialBlockEntityAtPosition(npos, false, null, true);
++                                    }
 +                                }
 +                            }
 +                        }
 +                    }
 +                }
++
 +            }
++
++            @Override
++            public @Nullable Packet<?> onFailure() {
++                if (callback != null) {
++                    return callback.onFailure();
++                }
++                return null;
++            }
++
 +        };
 +    }
 +
@@ -1626,10 +1654,10 @@ index 13ee7ad9c9415cd785b5487de7131c932c2198a0..0d5bfd1c6c10361059d281ab3f4b43c6
 +
  }
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
-index 578600a56f9461fbf3a6c1abf1d5aad614a93eb6..f6bbfbda350086176bf810bf71bbb3887d17bc33 100644
+index 578600a56f9461fbf3a6c1abf1d5aad614a93eb6..0e4b059d57d021eed38df098395cebb4b1e8b97e 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
 +++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundForgetLevelChunkPacket.java
-@@ -1,7 +1,15 @@
+@@ -1,7 +1,16 @@
  package net.minecraft.network.protocol.game;
  
 +import io.netty.util.concurrent.Future;
@@ -1639,13 +1667,14 @@ index 578600a56f9461fbf3a6c1abf1d5aad614a93eb6..f6bbfbda350086176bf810bf71bbb388
 +import net.minecraft.network.Connection;
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.PacketSendListener;
 +import net.minecraft.world.level.ChunkPos;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
  
  public class ClientboundForgetLevelChunkPacket implements Packet<ClientGamePacketListener> {
      private final int x;
-@@ -35,4 +43,24 @@ public class ClientboundForgetLevelChunkPacket implements Packet<ClientGamePacke
+@@ -35,4 +44,39 @@ public class ClientboundForgetLevelChunkPacket implements Packet<ClientGamePacke
      public int getZ() {
          return this.z;
      }
@@ -1653,17 +1682,32 @@ index 578600a56f9461fbf3a6c1abf1d5aad614a93eb6..f6bbfbda350086176bf810bf71bbb388
 +    // Martijn start - custom blocks and items
 +
 +    @Override
-+    public <F extends Future<? super Void>> GenericFutureListener<F> updateCallbackWithBlockEntityPacketSends(@Nullable GenericFutureListener<F> callback, @NotNull Connection connection) {
-+        return future -> {
-+            if (callback != null) {
-+                callback.operationComplete(future);
-+            }
-+            if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
-+                ChunkPos chunkPos = new ChunkPos(x, z);
-+                for (int y = connection.getPlayer().getLevel().getMinSection(); y <= connection.getPlayer().getLevel().getMaxSection(); y++) {
-+                    connection.despawnBlockEntitiesInChunkSection(SectionPos.of(chunkPos, y).asLong());
++    public @Nullable PacketSendListener updateCallbackWithBlockEntityPacketSends(@Nullable PacketSendListener callback, @NotNull Connection connection) {
++        return new PacketSendListener() {
++
++            @Override
++            public void onSuccess() {
++
++                if (callback != null) {
++                    callback.onSuccess();
 +                }
++                if (connection.isConnected()) {
++                    ChunkPos chunkPos = new ChunkPos(ClientboundForgetLevelChunkPacket.this.x, ClientboundForgetLevelChunkPacket.this.z);
++                    for (int y = connection.getPlayer().getLevel().getMinSection(); y <= connection.getPlayer().getLevel().getMaxSection(); y++) {
++                        connection.despawnBlockEntitiesInChunkSection(SectionPos.of(chunkPos, y).asLong());
++                    }
++                }
++
 +            }
++
++            @Override
++            public @Nullable Packet<?> onFailure() {
++                if (callback != null) {
++                    return callback.onFailure();
++                }
++                return null;
++            }
++
 +        };
 +    }
 +
@@ -1695,10 +1739,10 @@ index 76b6437a1d807c7e1b673f8feeed1f171ee9a803..37d4929d1f858683f1b5c38db976d000
 +
  }
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
-index 000853110c7a89f2d0403a7a2737025a5ac28240..3ee1f0376ce4250889145af4d19dd6312f4b858d 100644
+index 000853110c7a89f2d0403a7a2737025a5ac28240..ff5fe2b10be8105776bc270f910dae3c77292a63 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
 +++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundLevelChunkWithLightPacket.java
-@@ -2,11 +2,21 @@ package net.minecraft.network.protocol.game;
+@@ -2,11 +2,22 @@ package net.minecraft.network.protocol.game;
  
  import java.util.BitSet;
  import javax.annotation.Nullable;
@@ -1712,6 +1756,7 @@ index 000853110c7a89f2d0403a7a2737025a5ac28240..3ee1f0376ce4250889145af4d19dd631
 +import net.minecraft.network.Connection;
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.PacketSendListener;
  import net.minecraft.world.level.ChunkPos;
 +import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.LevelChunk;
@@ -1720,7 +1765,7 @@ index 000853110c7a89f2d0403a7a2737025a5ac28240..3ee1f0376ce4250889145af4d19dd631
  
  public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePacketListener> {
      private final int x;
-@@ -27,8 +37,11 @@ public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePa
+@@ -27,12 +38,14 @@ public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePa
      // Paper end
  
      // Paper start - Anti-Xray - Add chunk packet info
@@ -1734,7 +1779,11 @@ index 000853110c7a89f2d0403a7a2737025a5ac28240..3ee1f0376ce4250889145af4d19dd631
          ChunkPos chunkPos = chunk.getPos();
          this.x = chunkPos.x;
          this.z = chunkPos.z;
-@@ -81,4 +94,51 @@ public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePa
+-        com.destroystokyo.paper.antixray.ChunkPacketInfo<net.minecraft.world.level.block.state.BlockState> chunkPacketInfo = modifyBlocks ? chunk.getLevel().chunkPacketBlockController.getChunkPacketInfo(this, chunk) : null;
+         this.chunkData = new ClientboundLevelChunkPacketData(chunk, chunkPacketInfo);
+         // Paper end
+         this.lightData = new ClientboundLightUpdatePacketData(chunkPos, lightProvider, skyBits, blockBits, nonEdge);
+@@ -81,4 +94,52 @@ public class ClientboundLevelChunkWithLightPacket implements Packet<ClientGamePa
          return this.chunkData.getExtraPackets();
      }
      // Paper end
@@ -1748,38 +1797,39 @@ index 000853110c7a89f2d0403a7a2737025a5ac28240..3ee1f0376ce4250889145af4d19dd631
 +//    }
 +
 +    @Override
-+    public <F extends Future<? super Void>> GenericFutureListener<F> updateCallbackWithBlockEntityPacketSends(@Nullable GenericFutureListener<F> callback, @NotNull Connection connection) {
-+        return future -> {
-+            if (callback != null) {
-+                callback.operationComplete(future);
-+            }
-+            if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
-+                try {
-+                    @Nullable LevelChunk chunk = connection.getPlayer().getLevel().getChunkIfLoaded(this.x, this.z);
-+                    if (chunk != null) {
-+                        int sectionsCount = chunk.getSectionsCount();
-+//                        int chunkMinBlockX = chunk.getPos().getMinBlockX();
-+//                        int chunkMinBlockZ = chunk.getPos().getMinBlockZ();
-+                        for (int sectionYIndex = 0; sectionYIndex < sectionsCount; sectionYIndex++) {
-+                            SectionPos sectionPos = SectionPos.of(this.x, chunk.getSectionYFromSectionIndex(sectionYIndex), this.z);
-+                            connection.updatePotentialBlockEntitiesInSection(sectionPos, false, chunk);
-+//                            var section = chunk.getSection(sectionYIndex);
-+//                            var sectionKey = CoordinateUtils.getChunkSectionKey();
-+//                            @Nullable LongSet sectionSentBlockKeys = connection.getBlockEntityBlockPosKeysForChunkSectionKey(sectionKey);
-+//                            if (section.potentiallyContainsBlockEntity()) {
-+//                                var sectionMinBlockY = section.bottomBlockY();
-+//                                for (int xInSection = 0; xInSection < 16; xInSection++) {
-+//                                    for (int yInSection = 0; yInSection < 16; yInSection++) {
-+//                                        for (int zInSection = 0; zInSection < 16; zInSection++) {
-+//                                            connection.updatePotentialBlockEntityAtPosition(new BlockPos(xInSection + chunkMinBlockX, yInSection + sectionMinBlockY, zInSection + chunkMinBlockZ), true, sectionSentBlockKeys);
-+//                                        }
-+//                                    }
-+//                                }
-+//                            }
++    public @Nullable PacketSendListener updateCallbackWithBlockEntityPacketSends(@Nullable PacketSendListener callback, @NotNull Connection connection) {
++        return new PacketSendListener() {
++
++            @Override
++            public void onSuccess() {
++
++                if (callback != null) {
++                    callback.onSuccess();
++                }
++                if (connection.isConnected()) {
++                    try {
++                        @Nullable LevelChunk chunk = connection.getPlayer().getLevel().getChunkIfLoaded(ClientboundLevelChunkWithLightPacket.this.x, ClientboundLevelChunkWithLightPacket.this.z);
++                        if (chunk != null) {
++                            int sectionsCount = chunk.getSectionsCount();
++                            for (int sectionYIndex = 0; sectionYIndex < sectionsCount; sectionYIndex++) {
++                                SectionPos sectionPos = SectionPos.of(ClientboundLevelChunkWithLightPacket.this.x, chunk.getSectionYFromSectionIndex(sectionYIndex), ClientboundLevelChunkWithLightPacket.this.z);
++                                connection.updatePotentialBlockEntitiesInSection(sectionPos, false, chunk);
++                            }
 +                        }
++                    } catch (Exception ignored) {
 +                    }
-+                } catch (Exception ignored) {}
++                }
++
 +            }
++
++            @Override
++            public @Nullable Packet<?> onFailure() {
++                if (callback != null) {
++                    return callback.onFailure();
++                }
++                return null;
++            }
++
 +        };
 +    }
 +
@@ -1839,10 +1889,10 @@ index dc31aa80ead5765e0b8cc63aa890966ab0bf94a4..d79da37b82063505ecd2dda57a728a4f
 +
  }
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
-index 652bea6868a03a5315965f79c76172fb9dbb93fb..3decb05ab0a4eb8ada98ad8dc852b7278fd910e7 100644
+index 652bea6868a03a5315965f79c76172fb9dbb93fb..835954827bd9f57685ccb06e29c9d5b7fad50d52 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
 +++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
-@@ -1,17 +1,32 @@
+@@ -1,17 +1,33 @@
  package net.minecraft.network.protocol.game;
  
 +import io.netty.util.concurrent.Future;
@@ -1859,6 +1909,7 @@ index 652bea6868a03a5315965f79c76172fb9dbb93fb..3decb05ab0a4eb8ada98ad8dc852b727
 +import net.minecraft.network.Connection;
  import net.minecraft.network.FriendlyByteBuf;
  import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.PacketSendListener;
 +import net.minecraft.server.MinecraftServer;
  import net.minecraft.world.level.block.Block;
  import net.minecraft.world.level.block.state.BlockState;
@@ -1876,7 +1927,7 @@ index 652bea6868a03a5315965f79c76172fb9dbb93fb..3decb05ab0a4eb8ada98ad8dc852b727
  
      private static final int POS_IN_SECTION_BITS = 12;
      private final SectionPos sectionPos;
-@@ -19,6 +34,17 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+@@ -19,6 +35,17 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
      private final BlockState[] states;
      private final boolean suppressLightUpdates;
  
@@ -1894,7 +1945,7 @@ index 652bea6868a03a5315965f79c76172fb9dbb93fb..3decb05ab0a4eb8ada98ad8dc852b727
      public ClientboundSectionBlocksUpdatePacket(SectionPos sectionPos, ShortSet positions, LevelChunkSection section, boolean noLightingUpdates) {
          this.sectionPos = sectionPos;
          this.suppressLightUpdates = noLightingUpdates;
-@@ -94,4 +120,50 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+@@ -94,4 +121,65 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
      public boolean shouldSuppressLightUpdates() {
          return this.suppressLightUpdates;
      }
@@ -1931,14 +1982,29 @@ index 652bea6868a03a5315965f79c76172fb9dbb93fb..3decb05ab0a4eb8ada98ad8dc852b727
 +    }
 +
 +    @Override
-+    public <F extends Future<? super Void>> GenericFutureListener<F> updateCallbackWithBlockEntityPacketSends(@Nullable GenericFutureListener<F> callback, @NotNull Connection connection) {
-+        return future -> {
-+            if (callback != null) {
-+                callback.operationComplete(future);
++    public @Nullable PacketSendListener updateCallbackWithBlockEntityPacketSends(@Nullable PacketSendListener callback, @NotNull Connection connection) {
++        return new PacketSendListener() {
++
++            @Override
++            public void onSuccess() {
++
++                if (callback != null) {
++                    callback.onSuccess();
++                }
++                if (connection.isConnected()) {
++                    connection.updatePotentialBlockEntitiesInSection(ClientboundSectionBlocksUpdatePacket.this.sectionPos, true, null);
++                }
++
 +            }
-+            if (!future.isCancelled() && future.isSuccess() && connection.isConnected()) {
-+                connection.updatePotentialBlockEntitiesInSection(this.sectionPos, true, null);
++
++            @Override
++            public @Nullable Packet<?> onFailure() {
++                if (callback != null) {
++                    return callback.onFailure();
++                }
++                return null;
 +            }
++
 +        };
 +    }
 +
@@ -2934,7 +3000,7 @@ index 280d28257ff2c28775f8a236a324d8c63b53093a..5c2733ece95df1d63ac8c4d69faaf530
  
                      this.level.destroyBlockProgress(this.player.getId(), pos, k);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index e04539856b54434bfa2aa67197c82bd134a16788..23517c43d1534491d0c28cef683c60184a88b844 100644
+index 909852b352be4441e8b373e93ff9f87013a7d74c..bacdc07a589cd9b99e9e3fb572ad6efc795df3f7 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -29,6 +29,7 @@ import java.util.function.BiFunction;
@@ -3049,10 +3115,10 @@ index e04539856b54434bfa2aa67197c82bd134a16788..23517c43d1534491d0c28cef683c6018
                  SlotType type = SlotType.QUICKBAR;
                  if (flag) {
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index 3d6232e731fadfd8e5c4c220f62908ebaecd2e61..a7557684816c33f583c8b6dc20b52b95e3f7e4d0 100644
+index 99a18eb1aebfd52cfc51596ab3d82abf65aeb301..97e663504104f269d259614b84b9cb46e6d69a64 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -278,14 +278,21 @@ public abstract class PlayerList {
+@@ -277,14 +277,21 @@ public abstract class PlayerList {
  
          player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
          playerconnection.send(new ClientboundCustomPayloadPacket(ClientboundCustomPayloadPacket.BRAND, (new FriendlyByteBuf(Unpooled.buffer())).writeUtf(this.getServer().getServerModName())));
@@ -3076,7 +3142,7 @@ index 3d6232e731fadfd8e5c4c220f62908ebaecd2e61..a7557684816c33f583c8b6dc20b52b95
          this.updateEntireScoreboard(worldserver1.getScoreboard(), player);
          this.server.invalidateStatus();
          // Paper start - async load spawn in chunk
-@@ -410,9 +417,11 @@ public abstract class PlayerList {
+@@ -409,9 +416,11 @@ public abstract class PlayerList {
          worldserver1 = player.getLevel(); // CraftBukkit - Update in case join event changed it
          // CraftBukkit end
          this.sendLevelInfo(player, worldserver1);
@@ -3091,7 +3157,7 @@ index 3d6232e731fadfd8e5c4c220f62908ebaecd2e61..a7557684816c33f583c8b6dc20b52b95
          player.sendServerStatus(this.server.getStatus());
          Iterator iterator = player.getActiveEffects().iterator();
  
-@@ -430,7 +439,7 @@ public abstract class PlayerList {
+@@ -429,7 +438,7 @@ public abstract class PlayerList {
                  .getHolderOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
              player.connection.send(new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
                  new net.minecraft.world.level.chunk.EmptyLevelChunk(worldserver1, player.chunkPosition(), plains),
@@ -19854,18 +19920,10 @@ index 0000000000000000000000000000000000000000..465cb288e3fb241a17080fb801ebda3c
 +
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index 524459b11da50a100856980083afeb5992b00229..03d541ff73aac3390d4c44266aafef935a4f7f1e 100644
+index 4ca81510c12d4333709cdf942c5a99f44466e0f9..90ab87189d7177528e5f2c640940ac9a1a7943a0 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-@@ -7,6 +7,7 @@ import com.google.common.collect.ImmutableMap;
- import com.mojang.datafixers.util.Pair;
- import io.papermc.paper.configuration.GlobalConfiguration;
- import io.papermc.paper.world.structure.ConfiguredStructure;
-+import it.unimi.dsi.fastutil.Pair;
- import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
- import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
- import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-@@ -69,6 +70,7 @@ import net.minecraft.world.phys.HitResult;
+@@ -67,6 +67,7 @@ import net.minecraft.world.phys.HitResult;
  import net.minecraft.world.phys.Vec3;
  import nl.martijnmuijsers.paper.structure.WorldStructure;
  import org.apache.commons.lang.Validate;
@@ -19873,7 +19931,7 @@ index 524459b11da50a100856980083afeb5992b00229..03d541ff73aac3390d4c44266aafef93
  import org.bukkit.BlockChangeDelegate;
  import org.bukkit.Bukkit;
  import org.bukkit.Chunk;
-@@ -563,13 +565,16 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -561,13 +562,16 @@ public class CraftWorld extends CraftRegionAccessor implements World {
                  if (playersInRange.isEmpty()) return;
  
                  // Paper start - Anti-Xray - Bypass

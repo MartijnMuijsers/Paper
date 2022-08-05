@@ -2013,10 +2013,18 @@ index 555f45cb011c0528e0cf2dec9e0b043a158854f5..18c2c1c4a15915f545b1d24ff77bccdd
          return this.lastSectionPos;
      }
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index d63bfd9d3194a2972a984ec3a817767a683a940d..3d6232e731fadfd8e5c4c220f62908ebaecd2e61 100644
+index d63bfd9d3194a2972a984ec3a817767a683a940d..99a18eb1aebfd52cfc51596ab3d82abf65aeb301 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -99,6 +99,7 @@ import net.minecraft.world.scores.Team;
+@@ -24,7 +24,6 @@ import java.util.Optional;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Function;
+-import java.util.function.Predicate;
+ import javax.annotation.Nullable;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.FileUtil;
+@@ -99,6 +98,7 @@ import net.minecraft.world.scores.Team;
  import org.slf4j.Logger;
  
  // CraftBukkit start
@@ -2024,7 +2032,7 @@ index d63bfd9d3194a2972a984ec3a817767a683a940d..3d6232e731fadfd8e5c4c220f62908eb
  import java.util.stream.Collectors;
  import net.minecraft.server.dedicated.DedicatedServer;
  import net.minecraft.server.level.ServerLevel;
-@@ -113,7 +114,6 @@ import org.bukkit.Location;
+@@ -113,7 +113,6 @@ import org.bukkit.Location;
  import org.bukkit.craftbukkit.CraftServer;
  import org.bukkit.craftbukkit.CraftWorld;
  import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -2032,7 +2040,7 @@ index d63bfd9d3194a2972a984ec3a817767a683a940d..3d6232e731fadfd8e5c4c220f62908eb
  import org.bukkit.entity.Player;
  import org.bukkit.event.player.PlayerChangedWorldEvent;
  import org.bukkit.event.player.PlayerJoinEvent;
-@@ -274,7 +274,8 @@ public abstract class PlayerList {
+@@ -274,7 +273,8 @@ public abstract class PlayerList {
          boolean flag1 = gamerules.getBoolean(GameRules.RULE_REDUCEDDEBUGINFO);
  
          // Spigot - view distance
@@ -2042,7 +2050,7 @@ index d63bfd9d3194a2972a984ec3a817767a683a940d..3d6232e731fadfd8e5c4c220f62908eb
          player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
          playerconnection.send(new ClientboundCustomPayloadPacket(ClientboundCustomPayloadPacket.BRAND, (new FriendlyByteBuf(Unpooled.buffer())).writeUtf(this.getServer().getServerModName())));
          playerconnection.send(new ClientboundChangeDifficultyPacket(worlddata.getDifficulty(), worlddata.isDifficultyLocked()));
-@@ -953,7 +954,7 @@ public abstract class PlayerList {
+@@ -953,7 +953,7 @@ public abstract class PlayerList {
          // CraftBukkit start
          LevelData worlddata = worldserver1.getLevelData();
          entityplayer1.connection.send(new ClientboundRespawnPacket(worldserver1.dimensionTypeId(), worldserver1.dimension(), BiomeManager.obfuscateSeed(worldserver1.getSeed()), entityplayer1.gameMode.getGameModeForPlayer(), entityplayer1.gameMode.getPreviousGameModeForPlayer(), worldserver1.isDebug(), worldserver1.isFlat(), flag, entityplayer1.getLastDeathLocation()));
@@ -2051,7 +2059,16 @@ index d63bfd9d3194a2972a984ec3a817767a683a940d..3d6232e731fadfd8e5c4c220f62908eb
          entityplayer1.connection.send(new ClientboundSetSimulationDistancePacket(worldserver1.getChunkSource().chunkMap.playerChunkManager.getTargetTickViewDistance())); // Spigot // Paper - replace old player chunk management
          entityplayer1.spawnIn(worldserver1);
          entityplayer1.unsetRemoved();
-@@ -1530,7 +1531,7 @@ public abstract class PlayerList {
+@@ -1025,7 +1025,7 @@ public abstract class PlayerList {
+             for (int i = 0; i < this.players.size(); ++i) {
+                 final ServerPlayer target = (ServerPlayer) this.players.get(i);
+ 
+-                target.connection.send(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.UPDATE_LATENCY, this.players.stream().filter(new Predicate<ServerPlayer>() {
++                target.connection.send(new ClientboundPlayerInfoPacket(ClientboundPlayerInfoPacket.Action.UPDATE_LATENCY, this.players.stream().filter(new java.util.function.Predicate<ServerPlayer>() {
+                     @Override
+                     public boolean test(ServerPlayer input) {
+                         return target.getBukkitEntity().canSee(input.getBukkitEntity());
+@@ -1530,7 +1530,7 @@ public abstract class PlayerList {
              ServerLevel worldserver = (ServerLevel) iterator.next();
  
              if (worldserver != null) {
@@ -2161,7 +2178,7 @@ index 0b08a91ae9dc73c011dbb5f517becac7d08fd1e9..18b731d88dc576da00c0e00c8f914b69
                  // a player.
                  chunkProviderServer.mainThreadProcessor.execute(() -> {
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
-index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb5992b00229 100644
+index 14b7a0fedb12da0ec8bb3120e2e5ec81c6f92462..4ca81510c12d4333709cdf942c5a99f44466e0f9 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 @@ -5,6 +5,7 @@ import com.google.common.base.Predicates;
@@ -2172,7 +2189,7 @@ index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb59
  import io.papermc.paper.world.structure.ConfiguredStructure;
  import it.unimi.dsi.fastutil.longs.Long2ObjectLinkedOpenHashMap;
  import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-@@ -22,14 +23,12 @@ import java.util.Objects;
+@@ -22,7 +23,6 @@ import java.util.Objects;
  import java.util.Random;
  import java.util.Set;
  import java.util.UUID;
@@ -2180,14 +2197,7 @@ index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb59
  import java.util.function.Predicate;
  import java.util.stream.Collectors;
  import net.minecraft.core.BlockPos;
- import net.minecraft.core.Holder;
- import net.minecraft.core.HolderSet;
- import net.minecraft.core.Registry;
--import net.minecraft.core.SectionPos;
- import net.minecraft.data.BuiltinRegistries;
- import net.minecraft.nbt.CompoundTag;
- import net.minecraft.nbt.Tag;
-@@ -47,7 +46,6 @@ import net.minecraft.server.level.ServerPlayer;
+@@ -45,7 +45,6 @@ import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.server.level.Ticket;
  import net.minecraft.server.level.TicketType;
  import net.minecraft.sounds.SoundSource;
@@ -2195,7 +2205,7 @@ index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb59
  import net.minecraft.util.SortedArraySet;
  import net.minecraft.util.Unit;
  import net.minecraft.world.entity.EntityType;
-@@ -69,7 +67,6 @@ import net.minecraft.world.level.storage.LevelResource;
+@@ -66,7 +65,6 @@ import net.minecraft.world.level.storage.LevelResource;
  import net.minecraft.world.phys.AABB;
  import net.minecraft.world.phys.HitResult;
  import net.minecraft.world.phys.Vec3;
@@ -2203,7 +2213,7 @@ index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb59
  import nl.martijnmuijsers.paper.structure.WorldStructure;
  import org.apache.commons.lang.Validate;
  import org.bukkit.BlockChangeDelegate;
-@@ -124,7 +121,6 @@ import org.bukkit.entity.TippedArrow;
+@@ -121,7 +119,6 @@ import org.bukkit.entity.TippedArrow;
  import org.bukkit.entity.Trident;
  import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
  import org.bukkit.event.weather.LightningStrikeEvent;
@@ -2211,7 +2221,7 @@ index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb59
  import org.bukkit.event.world.TimeSkipEvent;
  import org.bukkit.generator.BiomeProvider;
  import org.bukkit.generator.BlockPopulator;
-@@ -563,7 +559,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -560,7 +557,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
  
          playerChunk.getTickingChunkFuture().thenAccept(either -> {
              either.left().ifPresent(chunk -> {
@@ -2220,7 +2230,7 @@ index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb59
                  if (playersInRange.isEmpty()) return;
  
                  // Paper start - Anti-Xray - Bypass
-@@ -2362,7 +2358,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2359,7 +2356,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      // Spigot start
      @Override
      public int getViewDistance() {
@@ -2229,7 +2239,7 @@ index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb59
      }
  
      @Override
-@@ -2378,7 +2374,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2375,7 +2372,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
              throw new IllegalArgumentException("View distance " + viewDistance + " is out of range of [2, 32]");
          }
          net.minecraft.server.level.ChunkMap chunkMap = getHandle().getChunkSource().chunkMap;
@@ -2238,7 +2248,7 @@ index fff4b995363fff4fa9f28f517d84d734e93ab89b..524459b11da50a100856980083afeb59
          // Paper end - replace old player chunk management
      }
  
-@@ -2394,25 +2390,27 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+@@ -2391,25 +2388,27 @@ public class CraftWorld extends CraftRegionAccessor implements World {
      }
      // Paper end - replace old player chunk management
  
