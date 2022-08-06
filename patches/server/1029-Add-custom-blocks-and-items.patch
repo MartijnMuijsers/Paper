@@ -18990,7 +18990,7 @@ index 0000000000000000000000000000000000000000..52b2cda69eb3dc8f4754e439ee644838
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d8105a1b7049a8232591aab67cc8605888569ff0
+index 0000000000000000000000000000000000000000..03d2ae79408650ae5be681ee06437edc4e74444c
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
 @@ -0,0 +1,139 @@
@@ -19022,7 +19022,7 @@ index 0000000000000000000000000000000000000000..d8105a1b7049a8232591aab67cc86058
 +
 +    private static final @NotNull String PROTOCOL = "http";
 +    // Modified for easy testing
-+    private static final @NotNull String IP = new File("paper_test_server").exists() ? "89.35.34.254" : "sucraft.org";
++    private static final @NotNull String IP = new File("paper_test_server").exists() || new File("sucraft_test_server").exists() ? "89.35.34.254" : "sucraft.org";
 +    private static final int PORT = 25454;
 +    private static final @NotNull String PATH = "resourcepack-" + CreateSuCraftResourcePack.getOutputFilePathRandomSuffix();
 +
