@@ -1,0 +1,419 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 9 Jun 2022 01:17:32 +0200
+Subject: [PATCH] Network-constrained chunk sending
+
+
+diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+index fad91a47e97aecd5baf1ff0d8cc7161c4e1f5c2d..89f86e52ff8b85a48e28ff60ca23853105df2f31 100644
+--- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
++++ b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
+@@ -25,7 +25,9 @@ import org.bukkit.entity.Player;
+ import java.util.ArrayDeque;
+ import java.util.ArrayList;
+ import java.util.Iterator;
++import java.util.LinkedList;
+ import java.util.List;
++import java.util.NoSuchElementException;
+ import java.util.TreeSet;
+ import java.util.concurrent.atomic.AtomicInteger;
+ 
+@@ -112,26 +114,35 @@ public final class PlayerChunkLoader {
+         return Integer.compare(System.identityHashCode(p1), System.identityHashCode(p2));
+     });
+ 
+-    protected final TreeSet<PlayerLoaderData> chunkSendWaitQueue = new TreeSet<>((final PlayerLoaderData p1, final PlayerLoaderData p2) -> {
+-        if (p1 == p2) {
+-            return 0;
+-        }
++    // Martijn start - network-constrained chunk sending
+ 
+-        final int timeCompare = Long.compare(p1.nextChunkSendTarget, p2.nextChunkSendTarget);
+-        if (timeCompare != 0) {
+-            return timeCompare;
+-        }
++    protected TreeSet<PlayerLoaderData> createSendWaitQueue() {
++        return new TreeSet<>((final PlayerLoaderData p1, final PlayerLoaderData p2) -> {
++            if (p1 == p2) {
++                return 0;
++            }
+ 
+-        final int idCompare = Integer.compare(p1.player.getId(), p2.player.getId());
++            final int timeCompare = Long.compare(p1.nextChunkSendTarget, p2.nextChunkSendTarget);
++            if (timeCompare != 0) {
++                return timeCompare;
++            }
+ 
+-        if (idCompare != 0) {
+-            return idCompare;
+-        }
++            final int idCompare = Integer.compare(p1.player.getId(), p2.player.getId());
+ 
+-        // last resort
+-        return Integer.compare(System.identityHashCode(p1), System.identityHashCode(p2));
+-    });
++            if (idCompare != 0) {
++                return idCompare;
++            }
+ 
++            // last resort
++            return Integer.compare(System.identityHashCode(p1), System.identityHashCode(p2));
++        });
++    }
++
++    protected final TreeSet<PlayerLoaderData> transmittingWaitQueue = createSendWaitQueue();
++
++    protected final TreeSet<PlayerLoaderData> chunkSendWaitQueue = createSendWaitQueue();
++
++    // Martijn end - network-constrained chunk sending
+ 
+     // no throttling is applied below this VD for loading
+ 
+@@ -522,6 +533,7 @@ public final class PlayerChunkLoader {
+         loaderData.remove();
+         this.chunkLoadQueue.remove(loaderData);
+         this.chunkSendQueue.remove(loaderData);
++        this.transmittingWaitQueue.remove(loaderData);
+         this.chunkSendWaitQueue.remove(loaderData);
+         synchronized (this.sendingChunkCounts) {
+             final int count = this.sendingChunkCounts.removeInt(loaderData);
+@@ -562,6 +574,32 @@ public final class PlayerChunkLoader {
+         if (time < nextChunkSend) {
+             return;
+         }
++        // Martijn start - network-constrained chunk sending
++        // drain entries from busy transmitting wait queue
++        Iterator<PlayerLoaderData> transmittingWaitQueueIterator = this.transmittingWaitQueue.iterator();
++        while (transmittingWaitQueueIterator.hasNext()) {
++            PlayerLoaderData data = transmittingWaitQueueIterator.next();
++            ChunkPriorityHolder firstQueuedSend;
++            try {
++                firstQueuedSend = data.getSendQueue(true).first();
++            } catch (NoSuchElementException e){
++                firstQueuedSend = null;
++            }
++            if (firstQueuedSend == null) {
++                try {
++                    firstQueuedSend = data.getSendQueue(false).first();
++                } catch (NoSuchElementException e) {
++                    firstQueuedSend = null;
++                }
++            }
++            if (firstQueuedSend != null) {
++                if (data.player.canSendChunkInitializationPacketNow(new ChunkPos(firstQueuedSend.chunkX, firstQueuedSend.chunkZ))) {
++                    transmittingWaitQueueIterator.remove();
++                    this.chunkSendWaitQueue.add(data);
++                }
++            }
++        }
++        // Martijn end - network-constrained chunk sending
+         // drain entries from wait queue
+         while (!this.chunkSendWaitQueue.isEmpty()) {
+             final PlayerLoaderData data = this.chunkSendWaitQueue.first();
+@@ -599,13 +637,25 @@ public final class PlayerChunkLoader {
+             final PlayerLoaderData data = this.chunkSendQueue.removeFirst();
+ 
+             // Martijn start - per-player track and see view distance
+-            ChunkPriorityHolder queuedSend = data.getSendQueue(true).pollFirst();
++
++            ChunkPriorityHolder queuedSend;
++            try {
++                queuedSend = data.getSendQueue(true).pollFirst();
++            } catch (NoSuchElementException e){
++                queuedSend = null;
++            }
+             boolean concernsTracking = true;
+             if (queuedSend == null) {
+-                queuedSend = data.getSendQueue(false).pollFirst();
++                try {
++                    queuedSend = data.getSendQueue(false).pollFirst();
++                } catch (NoSuchElementException e) {
++                    queuedSend = null;
++                }
+                 concernsTracking = false;
+             }
++
+             // Martijn end - per-player track and see view distance
++
+             if (queuedSend == null) {
+                 concurrentChunkSends.getAndDecrement(); // we never sent, so decrease
+                 // stop iterating over players who have nothing to send
+@@ -621,7 +671,7 @@ public final class PlayerChunkLoader {
+             }
+ 
+             data.nextChunkSendTarget = nextPlayerDeadline;
+-            this.chunkSendWaitQueue.add(data);
++            this.transmittingWaitQueue.add(data);
+ 
+             synchronized (this.sendingChunkCounts) {
+                 this.sendingChunkCounts.addTo(data, 1);
+@@ -1020,6 +1070,7 @@ public final class PlayerChunkLoader {
+         }
+ 
+         public void update() {
++            this.player.removeOverdueChunkInitializationPacketsInTransit(); // Martijn - network-constrained chunk sending
+             // Martijn start - per-player view distance
+             this.player.level.timings.playerChunkLoaderUpdate.startTiming();
+             final int loadViewDistance = this.player.getLoadViewDistance();
+@@ -1041,7 +1092,7 @@ public final class PlayerChunkLoader {
+                     this.player.getAbilities().flying);
+ 
+             // make sure we're in the send queue
+-            this.loader.chunkSendWaitQueue.add(this);
++            this.loader.transmittingWaitQueue.add(this);
+ 
+             if (
+                 // has view distance stayed the same?
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index 32a20147877ff12de3f2f86d539bc2a20a10f646..3b7a62bc6ad20b07e3741ed5265118fd8265ce4a 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -371,6 +371,33 @@ public class GlobalConfiguration extends ConfigurationPart {
+ 
+     // Martijn end - per-player track and see view distance
+ 
++    // Martijn start - network-constrained chunk sending
++
++    public NetworkConstrainedChunkSending networkConstrainedChunkSending;
++
++    public class NetworkConstrainedChunkSending extends ConfigurationPart {
++
++        public MaxChunkPacketsInTransit maxChunkPacketsInTransit;
++
++        public class MaxChunkPacketsInTransit extends ConfigurationPart {
++            public int initial = 8;
++        }
++
++        /**
++         * In milliseconds
++         * A nonpositive value disables this feature
++         */
++        public int assumePacketsInTransitArrivedAfterTime = -1;
++
++        /**
++         * A negative value disables this feature
++         */
++        public int ignoreNetworkConditionsForChunksWithinChessboardDistance = -1;
++
++    }
++
++    // Martijn end - network-constrained chunk sending
++
+     public Messages messages;
+ 
+     public class Messages extends ConfigurationPart {
+diff --git a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
+index d5704dc5417a46484cd63bca57ec0f257ffa780e..a8b8df44b38b225102dcc3bdef73c36c881956af 100644
+--- a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
+@@ -236,6 +236,23 @@ public class WorldConfiguration extends ConfigurationPart {
+ 
+     // Martijn end - per-player view distance
+ 
++    // Martijn start - network-constrained chunk sending
++
++    public NetworkConstrainedChunkSending networkConstrainedChunkSending;
++
++    public class NetworkConstrainedChunkSending extends ConfigurationPart {
++
++        public MaxChunkPacketsInTransit maxChunkPacketsInTransit;
++
++        public class MaxChunkPacketsInTransit extends ConfigurationPart {
++            public int min = 8;
++            public int max = 8;
++        }
++
++    }
++
++    // Martijn end - network-constrained chunk sending
++
+     public AntiCheat anticheat;
+ 
+     public class Anticheat extends ConfigurationPart {
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 8b8b17e73f7301207e2bdb7f4dc90c345a58df80..0c7cbc0d6d3b319cae455b3bda5d839d59f86d7b 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.server.level;
+ 
++import com.destroystokyo.paper.PaperConfig;
+ import com.destroystokyo.paper.event.entity.PlayerNaturallySpawnCreaturesEvent;
+ import com.google.common.collect.Lists;
+ import com.mojang.authlib.GameProfile;
+@@ -7,6 +8,7 @@ import com.mojang.datafixers.util.Either;
+ import com.mojang.logging.LogUtils;
+ import com.mojang.serialization.DataResult;
+ 
++import java.util.ArrayDeque;
+ import java.util.Collection;
+ import java.util.Comparator;
+ import java.util.Iterator;
+@@ -63,6 +65,7 @@ import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
+ import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
+ import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
+ import net.minecraft.network.protocol.game.ClientboundHorseScreenOpenPacket;
++import net.minecraft.network.protocol.game.ClientboundKeepAlivePacket;
+ import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
+ import net.minecraft.network.protocol.game.ClientboundMerchantOffersPacket;
+ import net.minecraft.network.protocol.game.ClientboundOpenBookPacket;
+@@ -524,6 +527,100 @@ public class ServerPlayer extends Player {
+     public final com.destroystokyo.paper.util.PooledHashSets.PooledObjectLinkedOpenHashSet<ServerPlayer> cachedSingleMobDistanceMap;
+     // Paper end
+ 
++    // Martijn start - network-constrained chunk sending
++
++    private static class ChunkPacketInTransit {
++
++        final long keepaliveId;
++        final long sentTimestamp;
++
++        ChunkPacketInTransit(long keepaliveId, long sentTimestamp) {
++            this.keepaliveId = keepaliveId;
++            this.sentTimestamp = sentTimestamp;
++        }
++
++    }
++
++    private final Object networkConstrainedSendingLock = new Object();
++
++    private int maxNumberOfChunkPacketsInTransitBasedOnConnection = GlobalConfiguration.get().networkConstrainedChunkSending.maxChunkPacketsInTransit.initial;
++    // Keep track of chunk packets in transit
++    private final ArrayDeque<ChunkPacketInTransit> chunkInitializationPacketsInTransitKeepaliveIds = new ArrayDeque<>();
++
++    public int getMaxNumberOfChunkPacketsInTransitBasedOnConnection() {
++        synchronized (this.networkConstrainedSendingLock) {
++            return this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
++        }
++    }
++
++    public void setMaxNumberOfChunkPacketsInTransitBasedOnConnection(int maxNumberOfChunkPacketsInTransitBasedOnConnection) {
++        synchronized (this.networkConstrainedSendingLock) {
++            this.maxNumberOfChunkPacketsInTransitBasedOnConnection = maxNumberOfChunkPacketsInTransitBasedOnConnection;
++        }
++    }
++
++    private void addChunkInitializationPacketInTransit(long keepaliveId) {
++        ChunkPacketInTransit packet = new ChunkPacketInTransit(keepaliveId, System.currentTimeMillis());
++        synchronized (this.networkConstrainedSendingLock) {
++            this.chunkInitializationPacketsInTransitKeepaliveIds.addLast(packet);
++        }
++    }
++
++    public void removeOverdueChunkInitializationPacketsInTransit() {
++        if (GlobalConfiguration.get().networkConstrainedChunkSending.assumePacketsInTransitArrivedAfterTime <= 0) return;
++        synchronized (this.networkConstrainedSendingLock) {
++            while (!chunkInitializationPacketsInTransitKeepaliveIds.isEmpty()) {
++                if (chunkInitializationPacketsInTransitKeepaliveIds.peekFirst().sentTimestamp < System.currentTimeMillis() - GlobalConfiguration.get().networkConstrainedChunkSending.assumePacketsInTransitArrivedAfterTime) {
++                    chunkInitializationPacketsInTransitKeepaliveIds.pollFirst();
++                } else {
++                    break;
++                }
++            }
++        }
++    }
++
++    /**
++     * @return If this keepalive id was recognized as a fake one sent after a chunk initialization
++     */
++    public boolean removePacketsInTransitUpToKeepaliveId(long keepaliveId) {
++        synchronized (this.networkConstrainedSendingLock) {
++            if (this.chunkInitializationPacketsInTransitKeepaliveIds.stream().anyMatch(it -> it.keepaliveId == keepaliveId)) {
++                // This is a response to one of our fake keep-alive packets
++                // We will remove all chunk packets in transition up to the received one that was apparently successful
++                while (!this.chunkInitializationPacketsInTransitKeepaliveIds.isEmpty()) {
++                    if (this.chunkInitializationPacketsInTransitKeepaliveIds.peekFirst().keepaliveId == keepaliveId) {
++                        this.chunkInitializationPacketsInTransitKeepaliveIds.removeFirst();
++                        break;
++                    }
++                    this.chunkInitializationPacketsInTransitKeepaliveIds.removeFirst();
++                }
++                return true;
++            }
++        }
++        return false;
++    }
++
++    public boolean canSendChunkInitializationPacketNow(ChunkPos chunk) {
++        if (getChessboardDistanceToChunk(chunk) <= GlobalConfiguration.get().networkConstrainedChunkSending.ignoreNetworkConditionsForChunksWithinChessboardDistance) return true;
++        synchronized (this.networkConstrainedSendingLock) {
++            return this.chunkInitializationPacketsInTransitKeepaliveIds.size() < this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
++        }
++    }
++
++    public void sendKeepaliveForChunkInTransit() {
++
++        // Quickly write a keepalive packet after sending a chunk
++        // Generate a keepalive challenge that is not the same as any real one (the real ones use the current system time itself)
++        long keepAliveChallenge = -System.currentTimeMillis();
++
++        Packet<?> followingKeepAlivePacket = new net.minecraft.network.protocol.game.ClientboundKeepAlivePacket(keepAliveChallenge);
++        this.addChunkInitializationPacketInTransit(keepAliveChallenge);
++        this.connection.send(followingKeepAlivePacket);
++
++    }
++
++    // Martijn end - network-constrained chunk sending
++
+     // CraftBukkit start
+     public String displayName;
+     public net.kyori.adventure.text.Component adventure$displayName; // Paper
+@@ -2514,6 +2611,7 @@ public class ServerPlayer extends Player {
+             }
+             // Paper end
+         }
++        this.sendKeepaliveForChunkInTransit(); // Martijn - network-constrained chunk sending
+     }
+ 
+     public void untrackChunk(ChunkPos chunkPos, boolean concernsTracking) {
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 020fec69e681599e1d7a92cce59a61c95492d4fe..204af15e00ed3669b19802382448f4e6d9fbbd20 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -3603,11 +3603,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+ 
+     @Override
+     public void handleKeepAlive(ServerboundKeepAlivePacket packet) {
++        if (player.removePacketsInTransitUpToKeepaliveId(packet.getId())) return; // Martijn - network-constrained chunk sending
+         //PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel()); // CraftBukkit // Paper - This shouldn't be on the main thread
+         if (this.keepAlivePending && packet.getId() == this.keepAliveChallenge) {
+             int i = (int) (Util.getMillis() - this.keepAliveTime);
+ 
+             this.player.latency = (this.player.latency * 3 + i) / 4;
++
++            // Martijn start - network-constrained chunk sending
++            // Player ping was updated: if it is too high we update the max number of chunk packets in transit
++            // TODO turn into configuration options
++            if (this.player.latency > 500) {
++                // This ping is unnaceptable
++                this.player.setMaxNumberOfChunkPacketsInTransitBasedOnConnection(player.level.paperConfig().networkConstrainedChunkSending.maxChunkPacketsInTransit.min);
++            } else {
++                int maxNumberOfChunkPacketsInTransitChange = 0;
++                if (this.player.latency > 330) {
++                    // This ping is very undesired
++                    maxNumberOfChunkPacketsInTransitChange = -2;
++                } else if (this.player.latency > 260) {
++                    // This ping is quite undesired
++                    maxNumberOfChunkPacketsInTransitChange = -1;
++                } else if (this.player.latency < 50) {
++                    // This ping is very good
++                    maxNumberOfChunkPacketsInTransitChange = 2;
++                } else if (this.player.latency < 130) {
++                    // This ping is quite good
++                    maxNumberOfChunkPacketsInTransitChange = 1;
++                }
++                if (maxNumberOfChunkPacketsInTransitChange != 0) {
++                    this.player.setMaxNumberOfChunkPacketsInTransitBasedOnConnection(Math.max(
++                        player.level.paperConfig().networkConstrainedChunkSending.maxChunkPacketsInTransit.min,
++                        Math.min(
++                            player.level.paperConfig().networkConstrainedChunkSending.maxChunkPacketsInTransit.max,
++                            this.player.getMaxNumberOfChunkPacketsInTransitBasedOnConnection() + maxNumberOfChunkPacketsInTransitChange
++                        )
++                    ));
++                }
++            }
++            // Martijn end - network-constrained chunk sending
++
+             this.keepAlivePending = false;
+         } else if (!this.isSingleplayerOwner()) {
+             // Martijn start - no disconnect on late or wrong keepalive

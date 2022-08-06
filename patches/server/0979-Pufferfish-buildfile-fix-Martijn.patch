@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 5 Aug 2022 10:46:36 +0200
+Subject: [PATCH] Pufferfish buildfile fix (Martijn)
+
+
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 74c91f79576e85618fefb79be8d313ba871701c7..6fdb3f7edeca19c4d98f412a6b89fbd970262159 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -8,13 +8,13 @@ plugins {
+     id("com.github.johnrengelman.shadow")
+ }
+ 
++repositories {
++    maven { url = uri("https://jitpack.io") }
++}
++
+ dependencies {
+-    implementation(project(":pufferfish-api")) // Pufferfish // Paper
+-    // Pufferfish start
+-    implementation("io.papermc.paper:paper-mojangapi:1.19-R0.1-SNAPSHOT") {
+-        exclude("io.papermc.paper", "paper-api")
+-    }
+-    // Pufferfish end
++    implementation(project(":paper-api"))
++    implementation(project(":paper-mojangapi"))
+     // Paper start
+     implementation("org.jline:jline-terminal-jansi:3.21.0")
+     implementation("net.minecrell:terminalconsoleappender:1.3.0")
+@@ -84,7 +84,7 @@ tasks.jar {
+         attributes(
+             "Main-Class" to "org.bukkit.craftbukkit.Main",
+             "Implementation-Title" to "CraftBukkit",
+-            "Implementation-Version" to "git-Pufferfish-$implementationVersion", // Pufferfish
++						"Implementation-Version" to "git-Paper-$implementationVersion",
+             "Implementation-Vendor" to date, // Paper
+             "Specification-Title" to "Bukkit",
+             "Specification-Version" to project.version,
