@@ -1374,10 +1374,18 @@ index 35377576ed182814051c11f902e02e8e921e84e3..a126fe57ff9eb8ec1a36931c2ccf799f
              this.writeByte(stack.getCount());
              CompoundTag nbttagcompound = null;
 diff --git a/src/main/java/net/minecraft/network/PacketEncoder.java b/src/main/java/net/minecraft/network/PacketEncoder.java
-index 5fce1177e7198d791d4ab1c64b394c5b1c145782..78bcdcb62d52ceaac6dd6b76b25d53630c79c6f1 100644
+index 5fce1177e7198d791d4ab1c64b394c5b1c145782..3e4da70a4e7aad235060cebe43ff9704cfaaebba 100644
 --- a/src/main/java/net/minecraft/network/PacketEncoder.java
 +++ b/src/main/java/net/minecraft/network/PacketEncoder.java
-@@ -38,6 +38,10 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+@@ -8,6 +8,7 @@ import io.papermc.paper.adventure.PaperAdventure; // Paper
+ import java.io.IOException;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.PacketFlow;
++import net.minecraft.network.protocol.game.ClientboundUpdateRecipesPacket;
+ import net.minecraft.util.profiling.jfr.JvmProfiler;
+ import org.slf4j.Logger;
+ 
+@@ -38,6 +39,10 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
  
                  try {
                      int i = friendlyByteBuf.writerIndex();
@@ -1388,6 +1396,15 @@ index 5fce1177e7198d791d4ab1c64b394c5b1c145782..78bcdcb62d52ceaac6dd6b76b25d5363
                      packet.write(friendlyByteBuf);
                      int j = friendlyByteBuf.writerIndex() - i;
                      if (j > 8388608) {
+@@ -57,7 +62,7 @@ public class PacketEncoder extends MessageToByteEncoder<Packet<?>> {
+ 
+                 // Paper start
+                 int packetLength = friendlyByteBuf.readableBytes();
+-                if (packetLength > MAX_PACKET_SIZE) {
++                if (packetLength > MAX_PACKET_SIZE && !(packet instanceof ClientboundUpdateRecipesPacket)) { // Martijn - custom blocks and items
+                     throw new PacketTooLargeException(packet, packetLength);
+                 }
+                 // Paper end
 diff --git a/src/main/java/net/minecraft/network/protocol/Packet.java b/src/main/java/net/minecraft/network/protocol/Packet.java
 index e8fcd56906d26f6dc87959e32c4c7c78cfea9658..04a9f8d02f4a0ed0b3c33e3a083c821a8516f224 100644
 --- a/src/main/java/net/minecraft/network/protocol/Packet.java
