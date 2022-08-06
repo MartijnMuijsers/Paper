@@ -4593,10 +4593,10 @@ index a76c452dc5c2069a3071aec31bfb3e977867161e..0783cf8d12707ec7376d3f578a54b599
                      break;
                  }
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e4aae6c22 100644
+index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e525e4e145c 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
-@@ -6,10 +6,14 @@ import com.google.common.cache.LoadingCache;
+@@ -6,6 +6,9 @@ import com.google.common.cache.LoadingCache;
  import com.google.common.collect.ImmutableMap;
  import com.mojang.logging.LogUtils;
  import it.unimi.dsi.fastutil.objects.Object2ByteLinkedOpenHashMap;
@@ -4606,17 +4606,11 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
  import java.util.Iterator;
  import java.util.List;
  import java.util.function.Function;
- import java.util.function.Supplier;
-+import java.util.stream.Stream;
- import javax.annotation.Nullable;
- import net.minecraft.SharedConstants;
- import net.minecraft.Util;
-@@ -21,9 +25,12 @@ import net.minecraft.core.NonNullList;
+@@ -21,9 +24,11 @@ import net.minecraft.core.NonNullList;
  import net.minecraft.core.Registry;
  import net.minecraft.network.chat.Component;
  import net.minecraft.network.chat.MutableComponent;
 +import net.minecraft.resources.ResourceLocation;
-+import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.level.ServerLevel;
  import net.minecraft.stats.Stats;
  import net.minecraft.tags.BlockTags;
@@ -4624,19 +4618,15 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
  import net.minecraft.util.Mth;
  import net.minecraft.util.RandomSource;
  import net.minecraft.util.valueproviders.IntProvider;
-@@ -39,8 +46,11 @@ import net.minecraft.world.item.BlockItem;
+@@ -39,6 +44,7 @@ import net.minecraft.world.item.BlockItem;
  import net.minecraft.world.item.CreativeModeTab;
  import net.minecraft.world.item.Item;
  import net.minecraft.world.item.ItemStack;
 +import net.minecraft.world.item.Items;
  import net.minecraft.world.item.TooltipFlag;
  import net.minecraft.world.item.context.BlockPlaceContext;
-+import net.minecraft.world.item.crafting.Ingredient;
-+import net.minecraft.world.item.crafting.StonecutterRecipe;
  import net.minecraft.world.item.enchantment.EnchantmentHelper;
- import net.minecraft.world.item.enchantment.Enchantments;
- import net.minecraft.world.level.BlockGetter;
-@@ -58,11 +68,19 @@ import net.minecraft.world.level.block.state.StateDefinition;
+@@ -58,11 +64,16 @@ import net.minecraft.world.level.block.state.StateDefinition;
  import net.minecraft.world.level.block.state.properties.Property;
  import net.minecraft.world.level.gameevent.GameEvent;
  import net.minecraft.world.level.storage.loot.LootContext;
@@ -4649,14 +4639,11 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
 +import nl.martijnmuijsers.paper.block.SuCraftBlockTags;
 +import nl.martijnmuijsers.paper.block.replacementrule.BlockReplacementRule;
 +import nl.martijnmuijsers.paper.item.SuCraftItems;
-+import org.bukkit.NamespacedKey;
-+import org.bukkit.Tag;
-+import org.bukkit.inventory.ShapelessRecipe;
 +import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  
  public class Block extends BlockBehaviour implements ItemLike {
-@@ -70,6 +88,25 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -70,6 +81,25 @@ public class Block extends BlockBehaviour implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      private final Holder.Reference<Block> builtInRegistryHolder;
      public static final IdMapper<BlockState> BLOCK_STATE_REGISTRY = new IdMapper<>();
@@ -4682,7 +4669,7 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +164,481 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +157,597 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -4763,6 +4750,18 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
 +
 +    public @NotNull Block stoneBricks() {
 +        return this.withTag(() -> BlockTags.STONE_BRICKS);
++    }
++
++    public @NotNull Block stoneBrickFullBlock() {
++        return this.withTag(() -> SuCraftBlockTags.STONE_BRICK_FULL_BLOCKS).stoneBricks();
++    }
++
++    public @NotNull Block stoneBrickSlab() {
++        return this.withTag(() -> SuCraftBlockTags.STONE_BRICK_SLABS).stoneBricks().slab();
++    }
++
++    public @NotNull Block stoneBrickStairs() {
++        return this.withTag(() -> SuCraftBlockTags.STONE_BRICK_STAIRS).stoneBricks().stairs();
 +    }
 +
 +    public @NotNull Block crystalSound() {
@@ -4849,6 +4848,14 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
 +        return this.withTag(() -> SuCraftBlockTags.PLANK_FULL_BLOCKS).planks();
 +    }
 +
++    public @NotNull Block plankSlab() {
++        return this.withTag(() -> SuCraftBlockTags.PLANK_SLABS).planks();
++    }
++
++    public @NotNull Block plankStairs() {
++        return this.withTag(() -> SuCraftBlockTags.PLANK_STAIRS).planks();
++    }
++
 +    public @NotNull Block dyedPlanks() {
 +        return this.withTag(() -> SuCraftBlockTags.DYED_PLANKS).planks();
 +    }
@@ -4858,11 +4865,11 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
 +    }
 +
 +    public @NotNull Block dyedPlankSlab() {
-+        return this.withTag(() -> SuCraftBlockTags.DYED_PLANK_SLABS).dyedPlanks().woodenSlab();
++        return this.withTag(() -> SuCraftBlockTags.DYED_PLANK_SLABS).dyedPlanks().woodenSlab().plankSlab();
 +    }
 +
 +    public @NotNull Block dyedPlankStairs() {
-+        return this.withTag(() -> SuCraftBlockTags.DYED_PLANK_STAIRS).dyedPlanks().woodenStairs();
++        return this.withTag(() -> SuCraftBlockTags.DYED_PLANK_STAIRS).dyedPlanks().woodenStairs().plankStairs();
 +    }
 +
 +    public @NotNull Block coloredFire() {
@@ -4883,6 +4890,22 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
 +
 +    public @NotNull Block peatStairs() {
 +        return this.withTag(() -> SuCraftBlockTags.PEAT_STAIRS).peat();
++    }
++
++    public @NotNull Block terracotta() {
++        return this.withTag(() -> BlockTags.TERRACOTTA);
++    }
++
++    public @NotNull Block terracottaFullBlock() {
++        return this.withTag(() -> SuCraftBlockTags.TERRACOTTA_FULL_BLOCKS).terracotta();
++    }
++
++    public @NotNull Block terracottaSlab() {
++        return this.withTag(() -> SuCraftBlockTags.TERRACOTTA_SLABS).terracotta().slab();
++    }
++
++    public @NotNull Block terracottaStairs() {
++        return this.withTag(() -> SuCraftBlockTags.TERRACOTTA_STAIRS).terracotta().stairs();
 +    }
 +
 +    public @NotNull Block withAddedTagsLike(@NotNull Block block) {
@@ -4998,6 +5021,86 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
 +                ingredientChoices[i] = plankIngredientChoice;
 +            }
 +            var recipeKey = ResourceLocation.sucraft(dyeItem.id.getPath() + "_and_planks_to_" + recipePrefix + "_planks");
++            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredientChoices, dyeItem, 8);
++        });
++    }
++
++    public @NotNull Block withCustomDyedPlankSlabsRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++        return this.withFutureCustomRecipe(() -> {
++            var dyeItem = dyeItemSupplier.get().asItem();
++            ItemLike[] plankSlabIngredientChoice = {
++                Items.OAK_SLAB,
++                Items.SPRUCE_SLAB,
++                Items.BIRCH_SLAB,
++                Items.JUNGLE_SLAB,
++                Items.ACACIA_SLAB,
++                Items.DARK_OAK_SLAB,
++                Items.WARPED_SLAB,
++                Items.CRIMSON_SLAB,
++                Items.MANGROVE_SLAB,
++                SuCraftItems.RED_PLANK_SLAB,
++                SuCraftItems.ORANGE_PLANK_SLAB,
++                SuCraftItems.YELLOW_PLANK_SLAB,
++                SuCraftItems.LIME_PLANK_SLAB,
++                SuCraftItems.GREEN_PLANK_SLAB,
++                SuCraftItems.CYAN_PLANK_SLAB,
++                SuCraftItems.LIGHT_BLUE_PLANK_SLAB,
++                SuCraftItems.BLUE_PLANK_SLAB,
++                SuCraftItems.BLACK_PLANK_SLAB,
++                SuCraftItems.GRAY_PLANK_SLAB,
++                SuCraftItems.LIGHT_GRAY_PLANK_SLAB,
++                SuCraftItems.WHITE_PLANK_SLAB,
++                SuCraftItems.BROWN_PLANK_SLAB,
++                SuCraftItems.PURPLE_PLANK_SLAB,
++                SuCraftItems.MAGENTA_PLANK_SLAB,
++                SuCraftItems.PINK_PLANK_SLAB
++            };
++            ItemLike[][] ingredientChoices = new ItemLike[9][];
++            ingredientChoices[0] = new ItemLike[] {dyeItem};
++            for (int i = 1; i < 9; i++) {
++                ingredientChoices[i] = plankSlabIngredientChoice;
++            }
++            var recipeKey = ResourceLocation.sucraft(dyeItem.id.getPath() + "_and_plank_slabs_to_" + recipePrefix + "_plank_slabs");
++            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredientChoices, dyeItem, 8);
++        });
++    }
++
++    public @NotNull Block withCustomDyedPlankStairsRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++        return this.withFutureCustomRecipe(() -> {
++            var dyeItem = dyeItemSupplier.get().asItem();
++            ItemLike[] plankStairsIngredientChoice = {
++                Items.OAK_STAIRS,
++                Items.SPRUCE_STAIRS,
++                Items.BIRCH_STAIRS,
++                Items.JUNGLE_STAIRS,
++                Items.ACACIA_STAIRS,
++                Items.DARK_OAK_STAIRS,
++                Items.WARPED_STAIRS,
++                Items.CRIMSON_STAIRS,
++                Items.MANGROVE_STAIRS,
++                SuCraftItems.RED_PLANK_STAIRS,
++                SuCraftItems.ORANGE_PLANK_STAIRS,
++                SuCraftItems.YELLOW_PLANK_STAIRS,
++                SuCraftItems.LIME_PLANK_STAIRS,
++                SuCraftItems.GREEN_PLANK_STAIRS,
++                SuCraftItems.CYAN_PLANK_STAIRS,
++                SuCraftItems.LIGHT_BLUE_PLANK_STAIRS,
++                SuCraftItems.BLUE_PLANK_STAIRS,
++                SuCraftItems.BLACK_PLANK_STAIRS,
++                SuCraftItems.GRAY_PLANK_STAIRS,
++                SuCraftItems.LIGHT_GRAY_PLANK_STAIRS,
++                SuCraftItems.WHITE_PLANK_STAIRS,
++                SuCraftItems.BROWN_PLANK_STAIRS,
++                SuCraftItems.PURPLE_PLANK_STAIRS,
++                SuCraftItems.MAGENTA_PLANK_STAIRS,
++                SuCraftItems.PINK_PLANK_STAIRS
++            };
++            ItemLike[][] ingredientChoices = new ItemLike[9][];
++            ingredientChoices[0] = new ItemLike[] {dyeItem};
++            for (int i = 1; i < 9; i++) {
++                ingredientChoices[i] = plankStairsIngredientChoice;
++            }
++            var recipeKey = ResourceLocation.sucraft(dyeItem.id.getPath() + "_and_plank_stairs_to_" + recipePrefix + "_plank_stairs");
 +            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredientChoices, dyeItem, 8);
 +        });
 +    }
@@ -5164,7 +5267,7 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..8a2c148603d25543fd84c68f19ea081e
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +1151,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +1260,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -7658,10 +7761,10 @@ index 0000000000000000000000000000000000000000..5a2e8c0c52ee2e6109d85445f1e4242f
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..974406bb0afe3eaf895099a8cb24cebf33a1b5f3
+index 0000000000000000000000000000000000000000..95db5f45c4e20ce53de4f76e834b02ed306ba5ec
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTags.java
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,58 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.block;
@@ -7690,6 +7793,8 @@ index 0000000000000000000000000000000000000000..974406bb0afe3eaf895099a8cb24cebf
 +    public static final TagKey<Block> LOG_SLABS = create("log_slabs");
 +    public static final TagKey<Block> LOG_STAIRS = create("log_stairs");
 +    public static final TagKey<Block> PLANK_FULL_BLOCKS = create("plank_full_blocks");
++    public static final TagKey<Block> PLANK_SLABS = create("plank_slabs");
++    public static final TagKey<Block> PLANK_STAIRS = create("plank_stairs");
 +    public static final TagKey<Block> DYED_PLANKS = create("dyed_planks");
 +    public static final TagKey<Block> DYED_PLANK_FULL_BLOCKS = create("dyed_plank_full_blocks");
 +    public static final TagKey<Block> DYED_PLANK_SLABS = create("dyed_plank_slabs");
@@ -7699,6 +7804,18 @@ index 0000000000000000000000000000000000000000..974406bb0afe3eaf895099a8cb24cebf
 +    public static final TagKey<Block> PEAT_FULL_BLOCKS = create("peat_full_blocks");
 +    public static final TagKey<Block> PEAT_SLABS = create("peat_slabs");
 +    public static final TagKey<Block> PEAT_STAIRS = create("peat_stairs");
++    public static final TagKey<Block> VANILLA_STONE_BRICKS = create("vanilla_stone_bricks");
++    public static final TagKey<Block> VANILLA_PLANKS = create("vanilla_planks");
++    public static final TagKey<Block> STONE_BRICK_FULL_BLOCKS = create("stone_brick_full_blocks");
++    public static final TagKey<Block> STONE_BRICK_SLABS = create("stone_brick_slabs");
++    public static final TagKey<Block> STONE_BRICK_STAIRS = create("stone_brick_stairs");
++    public static final TagKey<Block> VANILLA_WOODEN_SLABS = create("vanilla_wooden_slabs");
++    public static final TagKey<Block> VANILLA_WOODEN_STAIRS = create("vanilla_wooden_stairs");
++    public static final TagKey<Block> VANILLA_LEAVES = create("vanilla_leaves");
++    public static final TagKey<Block> VANILLA_DIRT = create("vanilla_dirt");
++    public static final TagKey<Block> TERRACOTTA_FULL_BLOCKS = create("terracotta_full_blocks");
++    public static final TagKey<Block> TERRACOTTA_SLABS = create("terracotta_slabs");
++    public static final TagKey<Block> TERRACOTTA_STAIRS = create("terracotta_stairs");
 +    // Martijn end - custom blocks and items
 +
 +    private static TagKey<Block> create(String id) {
@@ -7708,10 +7825,10 @@ index 0000000000000000000000000000000000000000..974406bb0afe3eaf895099a8cb24cebf
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..00f1a95a3ce5e144b73ee523f48ad878750de9df
+index 0000000000000000000000000000000000000000..8cf7b921442f63a9f5246ff22faf6be6b861fcd6
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlockTagsProvider.java
-@@ -0,0 +1,234 @@
+@@ -0,0 +1,261 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.block;
@@ -7747,16 +7864,25 @@ index 0000000000000000000000000000000000000000..00f1a95a3ce5e144b73ee523f48ad878
 +
 +        // Martijn start - custom blocks and items
 +
++        this.tag(BlockTags.STONE_BRICKS).add(Blocks.STONE_BRICK_SLAB, Blocks.MOSSY_STONE_BRICK_SLAB, Blocks.STONE_BRICK_STAIRS, Blocks.MOSSY_STONE_BRICK_STAIRS);
++
 +        this.tag(SuCraftBlockTags.BOOKSHELVES).add(Blocks.BOOKSHELF);
 +        this.tag(SuCraftBlockTags.BOOKSHELF_FULL_BLOCKS).add(Blocks.BOOKSHELF);
 +        this.tag(SuCraftBlockTags.LOG_FULL_BLOCKS).addTag(BlockTags.LOGS_THAT_BURN).addTag(BlockTags.CRIMSON_STEMS).addTag(BlockTags.WARPED_STEMS);
 +        this.tag(SuCraftBlockTags.WOOL_FULL_BLOCKS).add(Blocks.RED_WOOL, Blocks.ORANGE_WOOL, Blocks.YELLOW_WOOL, Blocks.LIME_WOOL, Blocks.GREEN_WOOL, Blocks.CYAN_WOOL, Blocks.LIGHT_BLUE_WOOL, Blocks.BLUE_WOOL, Blocks.BLACK_WOOL, Blocks.GRAY_WOOL, Blocks.LIGHT_GRAY_WOOL, Blocks.WHITE_WOOL, Blocks.BROWN_WOOL, Blocks.PURPLE_WOOL, Blocks.MAGENTA_WOOL, Blocks.PINK_WOOL);
 +        this.tag(SuCraftBlockTags.PLANK_FULL_BLOCKS).add(Blocks.OAK_PLANKS, Blocks.SPRUCE_PLANKS, Blocks.BIRCH_PLANKS, Blocks.JUNGLE_PLANKS, Blocks.ACACIA_PLANKS, Blocks.DARK_OAK_PLANKS, Blocks.WARPED_PLANKS, Blocks.CRIMSON_PLANKS, Blocks.MANGROVE_PLANKS);
-+
-+//        final List<TagKey<Block>> mineableTags = List.of(BlockTags.MINEABLE_WITH_AXE, BlockTags.MINEABLE_WITH_HOE, BlockTags.MINEABLE_WITH_PICKAXE, BlockTags.MINEABLE_WITH_SHOVEL);
-+//        for (TagKey<Block> tag : mineableTags) {
-+//            this.tag(tag).add();
-+//        }
++        this.tag(SuCraftBlockTags.PLANK_SLABS).addTag(BlockTags.WOODEN_SLABS);
++        this.tag(SuCraftBlockTags.PLANK_STAIRS).addTag(BlockTags.WOODEN_STAIRS);
++        this.tag(SuCraftBlockTags.VANILLA_STONE_BRICKS).add(Blocks.STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS, Blocks.CHISELED_STONE_BRICKS);
++        this.tag(SuCraftBlockTags.VANILLA_PLANKS).add(Blocks.OAK_PLANKS, Blocks.SPRUCE_PLANKS, Blocks.BIRCH_PLANKS, Blocks.JUNGLE_PLANKS, Blocks.ACACIA_PLANKS, Blocks.DARK_OAK_PLANKS, Blocks.CRIMSON_PLANKS, Blocks.WARPED_PLANKS, Blocks.MANGROVE_PLANKS);
++        this.tag(SuCraftBlockTags.STONE_BRICK_FULL_BLOCKS).add(Blocks.STONE_BRICKS, Blocks.MOSSY_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS, Blocks.CHISELED_STONE_BRICKS);
++        this.tag(SuCraftBlockTags.STONE_BRICK_SLABS).add(Blocks.STONE_BRICK_SLAB, Blocks.MOSSY_STONE_BRICK_SLAB);
++        this.tag(SuCraftBlockTags.STONE_BRICK_STAIRS).add(Blocks.STONE_BRICK_STAIRS, Blocks.MOSSY_STONE_BRICK_STAIRS);
++        this.tag(SuCraftBlockTags.VANILLA_WOODEN_SLABS).add(Blocks.OAK_SLAB, Blocks.SPRUCE_SLAB, Blocks.BIRCH_SLAB, Blocks.JUNGLE_SLAB, Blocks.ACACIA_SLAB, Blocks.DARK_OAK_SLAB, Blocks.CRIMSON_SLAB, Blocks.WARPED_SLAB, Blocks.MANGROVE_SLAB);
++        this.tag(SuCraftBlockTags.VANILLA_WOODEN_STAIRS).add(Blocks.OAK_STAIRS, Blocks.SPRUCE_STAIRS, Blocks.BIRCH_STAIRS, Blocks.JUNGLE_STAIRS, Blocks.ACACIA_STAIRS, Blocks.DARK_OAK_STAIRS, Blocks.CRIMSON_STAIRS, Blocks.WARPED_STAIRS, Blocks.MANGROVE_STAIRS);
++        this.tag(SuCraftBlockTags.VANILLA_LEAVES).add(Blocks.JUNGLE_LEAVES, Blocks.OAK_LEAVES, Blocks.SPRUCE_LEAVES, Blocks.DARK_OAK_LEAVES, Blocks.ACACIA_LEAVES, Blocks.BIRCH_LEAVES, Blocks.AZALEA_LEAVES, Blocks.FLOWERING_AZALEA_LEAVES, Blocks.MANGROVE_LEAVES);
++        this.tag(SuCraftBlockTags.VANILLA_DIRT).add(Blocks.DIRT, Blocks.GRASS_BLOCK, Blocks.PODZOL, Blocks.COARSE_DIRT, Blocks.MYCELIUM, Blocks.ROOTED_DIRT, Blocks.MOSS_BLOCK, Blocks.MUD, Blocks.MUDDY_MANGROVE_ROOTS);
++        this.tag(SuCraftBlockTags.TERRACOTTA_FULL_BLOCKS).add(Blocks.TERRACOTTA, Blocks.WHITE_TERRACOTTA, Blocks.ORANGE_TERRACOTTA, Blocks.MAGENTA_TERRACOTTA, Blocks.LIGHT_BLUE_TERRACOTTA, Blocks.YELLOW_TERRACOTTA, Blocks.LIME_TERRACOTTA, Blocks.PINK_TERRACOTTA, Blocks.GRAY_TERRACOTTA, Blocks.LIGHT_GRAY_TERRACOTTA, Blocks.CYAN_TERRACOTTA, Blocks.PURPLE_TERRACOTTA, Blocks.BLUE_TERRACOTTA, Blocks.BROWN_TERRACOTTA, Blocks.GREEN_TERRACOTTA, Blocks.RED_TERRACOTTA, Blocks.BLACK_TERRACOTTA);
 +
 +        for (@NotNull Block block : Registry.BLOCK) {
 +            block.tagsToAddSuppliers.stream().map(Supplier::get).distinct().forEach(tagToAdd -> {
@@ -7930,14 +8056,32 @@ index 0000000000000000000000000000000000000000..00f1a95a3ce5e144b73ee523f48ad878
 +    public static boolean isValidTagFor(@NotNull TagKey<Block> tag, @NotNull Block block) {
 +        
 +        // Don't spread tags meant for full blocks to stairs and slabs
-+        if (tag.equals(SuCraftBlockTags.BOOKSHELF_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.WOOL_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.LOG_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.PLANK_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.DYED_PLANK_FULL_BLOCKS) || tag.equals(SuCraftBlockTags.PEAT_FULL_BLOCKS)) {
-+            if (block.defaultBlockState().is(BlockTags.SLABS) || block.defaultBlockState().is(BlockTags.STAIRS) || block instanceof SlabBlock || block instanceof StairBlock) {
++        if (tag.equals(SuCraftBlockTags.BOOKSHELF_FULL_BLOCKS)
++            || tag.equals(SuCraftBlockTags.WOOL_FULL_BLOCKS)
++            || tag.equals(SuCraftBlockTags.LOG_FULL_BLOCKS)
++            || tag.equals(SuCraftBlockTags.PLANK_FULL_BLOCKS)
++            || tag.equals(SuCraftBlockTags.DYED_PLANK_FULL_BLOCKS)
++            || tag.equals(SuCraftBlockTags.PEAT_FULL_BLOCKS)
++            || tag.equals(SuCraftBlockTags.STONE_BRICK_FULL_BLOCKS)
++            || tag.equals(BlockTags.STONE_ORE_REPLACEABLES)
++            || tag.equals(BlockTags.DEEPSLATE_ORE_REPLACEABLES)
++            || tag.equals(BlockTags.BASE_STONE_OVERWORLD)
++            || tag.equals(BlockTags.BASE_STONE_NETHER)
++            || tag.equals(BlockTags.OVERWORLD_CARVER_REPLACEABLES)
++            || tag.equals(BlockTags.NETHER_CARVER_REPLACEABLES)) {
++            if (block.defaultBlockState().is(BlockTags.SLABS)
++                || block.defaultBlockState().is(BlockTags.STAIRS)
++                || block instanceof SlabBlock
++                || block instanceof StairBlock) {
 +                return false;
 +            }
 +        }
 +        // Don't spread some tags meant for full blocks to slabs (but they are okay on stairs)
-+        if (tag.equals(BlockTags.BEACON_BASE_BLOCKS)) {
-+            if (block.defaultBlockState().is(BlockTags.SLABS) || block instanceof SlabBlock) {
++        if (tag.equals(BlockTags.BEACON_BASE_BLOCKS)
++            || tag.equals(BlockTags.WITHER_SUMMON_BASE_BLOCKS)
++            || tag.equals(BlockTags.DEAD_BUSH_MAY_PLACE_ON)) {
++            if (block.defaultBlockState().is(BlockTags.SLABS)
++                || block instanceof SlabBlock) {
 +                return false;
 +            }
 +        }
@@ -7948,7 +8092,7 @@ index 0000000000000000000000000000000000000000..00f1a95a3ce5e144b73ee523f48ad878
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..ea894ace334473097eaa05c94f9e4f4c8cb3d5b5
+index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90ee38c7c90
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 @@ -0,0 +1,1530 @@
@@ -8131,25 +8275,25 @@ index 0000000000000000000000000000000000000000..ea894ace334473097eaa05c94f9e4f4c
 +    public static final Block YELLOW_MAPLE_LEAVES = registerLeaves("yellow_maple", Blocks.OAK_LEAVES, Blocks.OAK_SAPLING/*TODO make drop specific sapling*/, Blocks.OAK_LEAVES, MaterialColor.COLOR_YELLOW);
 +    public static final Block DIRT_SLAB = registerFakeSlab(Blocks.DIRT, "dirt", Blocks.MUD_BRICK_SLAB).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
 +//    public static final Block DIRT_SLAB = registerRealSlab(Blocks.DIRT, "dirt", null, Blocks.WAXED_CUT_COPPER_SLAB, Blocks.CUT_COPPER_SLAB, Blocks.MUD_BRICK_SLAB, BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F).sound(SoundType.GRAVEL)).breakBeforeClientKnowsToBreak().mineableWithShovel().dirt();
-+    public static final Block SNOWY_STONE_BRICK_SLAB = registerFakeSlab(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_SLAB);
-+    public static final Block DIRTY_STONE_BRICK_SLAB = registerFakeSlab(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_SLAB);
-+    public static final Block CRACKED_STONE_BRICK_SLAB = registerFakeSlab(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_SLAB);
-+    public static final Block BLACK_PLANK_SLAB = registerFakeDyedPlankSlab(BLACK_PLANKS, "black", Blocks.DARK_OAK_SLAB);
-+    public static final Block BLUE_PLANK_SLAB = registerFakeDyedPlankSlab(BLUE_PLANKS, "blue", Blocks.WARPED_SLAB);
-+    public static final Block BROWN_PLANK_SLAB = registerFakeDyedPlankSlab(BROWN_PLANKS, "brown", Blocks.SPRUCE_SLAB);
-+    public static final Block CYAN_PLANK_SLAB = registerFakeDyedPlankSlab(CYAN_PLANKS, "cyan", Blocks.WARPED_SLAB);
-+    public static final Block GRAY_PLANK_SLAB = registerFakeDyedPlankSlab(GRAY_PLANKS, "gray", Blocks.SPRUCE_SLAB);
-+    public static final Block GREEN_PLANK_SLAB = registerFakeDyedPlankSlab(GREEN_PLANKS, "green", Blocks.WARPED_SLAB);
-+    public static final Block LIGHT_BLUE_PLANK_SLAB = registerFakeDyedPlankSlab(LIGHT_BLUE_PLANKS, "light_blue", Blocks.WARPED_SLAB);
-+    public static final Block LIGHT_GRAY_PLANK_SLAB = registerFakeDyedPlankSlab(LIGHT_GRAY_PLANKS, "light_gray", Blocks.OAK_SLAB);
-+    public static final Block LIME_PLANK_SLAB = registerFakeDyedPlankSlab(LIME_PLANKS, "lime", Blocks.WARPED_SLAB);
-+    public static final Block MAGENTA_PLANK_SLAB = registerFakeDyedPlankSlab(MAGENTA_PLANKS, "magenta", Blocks.CRIMSON_SLAB);
-+    public static final Block ORANGE_PLANK_SLAB = registerFakeDyedPlankSlab(ORANGE_PLANKS, "orange", Blocks.ACACIA_SLAB);
-+    public static final Block PINK_PLANK_SLAB = registerFakeDyedPlankSlab(PINK_PLANKS, "pink", Blocks.JUNGLE_SLAB);
-+    public static final Block PURPLE_PLANK_SLAB = registerFakeDyedPlankSlab(PURPLE_PLANKS, "purple", Blocks.CRIMSON_SLAB);
-+    public static final Block RED_PLANK_SLAB = registerFakeDyedPlankSlab(RED_PLANKS, "red", Blocks.MANGROVE_SLAB);
-+    public static final Block WHITE_PLANK_SLAB = registerFakeDyedPlankSlab(WHITE_PLANKS, "white", Blocks.BIRCH_SLAB);
-+    public static final Block YELLOW_PLANK_SLAB = registerFakeDyedPlankSlab(YELLOW_PLANKS, "yellow", Blocks.BIRCH_SLAB);
++    public static final Block SNOWY_STONE_BRICK_SLAB = registerFakeSlab(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_SLAB).stoneBrickSlab();
++    public static final Block DIRTY_STONE_BRICK_SLAB = registerFakeSlab(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_SLAB).stoneBrickSlab();
++    public static final Block CRACKED_STONE_BRICK_SLAB = registerFakeSlab(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_SLAB).stoneBrickSlab();
++    public static final Block BLACK_PLANK_SLAB = registerFakeDyedPlankSlab(BLACK_PLANKS, "black", Blocks.DARK_OAK_SLAB, () -> Items.BLACK_DYE);
++    public static final Block BLUE_PLANK_SLAB = registerFakeDyedPlankSlab(BLUE_PLANKS, "blue", Blocks.WARPED_SLAB, () -> Items.BLUE_DYE);
++    public static final Block BROWN_PLANK_SLAB = registerFakeDyedPlankSlab(BROWN_PLANKS, "brown", Blocks.SPRUCE_SLAB, () -> Items.BROWN_DYE);
++    public static final Block CYAN_PLANK_SLAB = registerFakeDyedPlankSlab(CYAN_PLANKS, "cyan", Blocks.WARPED_SLAB, () -> Items.CYAN_DYE);
++    public static final Block GRAY_PLANK_SLAB = registerFakeDyedPlankSlab(GRAY_PLANKS, "gray", Blocks.SPRUCE_SLAB, () -> Items.GRAY_DYE);
++    public static final Block GREEN_PLANK_SLAB = registerFakeDyedPlankSlab(GREEN_PLANKS, "green", Blocks.WARPED_SLAB, () -> Items.GREEN_DYE);
++    public static final Block LIGHT_BLUE_PLANK_SLAB = registerFakeDyedPlankSlab(LIGHT_BLUE_PLANKS, "light_blue", Blocks.WARPED_SLAB, () -> Items.LIGHT_BLUE_DYE);
++    public static final Block LIGHT_GRAY_PLANK_SLAB = registerFakeDyedPlankSlab(LIGHT_GRAY_PLANKS, "light_gray", Blocks.OAK_SLAB, () -> Items.LIGHT_GRAY_DYE);
++    public static final Block LIME_PLANK_SLAB = registerFakeDyedPlankSlab(LIME_PLANKS, "lime", Blocks.WARPED_SLAB, () -> Items.LIME_DYE);
++    public static final Block MAGENTA_PLANK_SLAB = registerFakeDyedPlankSlab(MAGENTA_PLANKS, "magenta", Blocks.CRIMSON_SLAB, () -> Items.MAGENTA_DYE);
++    public static final Block ORANGE_PLANK_SLAB = registerFakeDyedPlankSlab(ORANGE_PLANKS, "orange", Blocks.ACACIA_SLAB, () -> Items.ORANGE_DYE);
++    public static final Block PINK_PLANK_SLAB = registerFakeDyedPlankSlab(PINK_PLANKS, "pink", Blocks.JUNGLE_SLAB, () -> Items.PINK_DYE);
++    public static final Block PURPLE_PLANK_SLAB = registerFakeDyedPlankSlab(PURPLE_PLANKS, "purple", Blocks.CRIMSON_SLAB, () -> Items.PURPLE_DYE);
++    public static final Block RED_PLANK_SLAB = registerFakeDyedPlankSlab(RED_PLANKS, "red", Blocks.MANGROVE_SLAB, () -> Items.RED_DYE);
++    public static final Block WHITE_PLANK_SLAB = registerFakeDyedPlankSlab(WHITE_PLANKS, "white", Blocks.BIRCH_SLAB, () -> Items.WHITE_DYE);
++    public static final Block YELLOW_PLANK_SLAB = registerFakeDyedPlankSlab(YELLOW_PLANKS, "yellow", Blocks.BIRCH_SLAB, () -> Items.YELLOW_DYE);
 +    public static final Block BLACK_WOOL_SLAB = registerFakeWoolSlab(Blocks.BLACK_WOOL, "black", Blocks.BLACKSTONE_SLAB);
 +    public static final Block BLUE_WOOL_SLAB = registerFakeWoolSlab(Blocks.BLUE_WOOL, "blue", Blocks.WARPED_SLAB);
 +    public static final Block BROWN_WOOL_SLAB = registerFakeWoolSlab(Blocks.BROWN_WOOL, "brown", Blocks.SPRUCE_SLAB);
@@ -8477,9 +8621,9 @@ index 0000000000000000000000000000000000000000..ea894ace334473097eaa05c94f9e4f4c
 +    public static final Block OBSIDIAN_SLAB = registerFakeSlab(Blocks.OBSIDIAN, "obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block CRYING_OBSIDIAN_SLAB = registerFakeSlab(Blocks.CRYING_OBSIDIAN, "crying_obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block GILDED_BLACKSTONE_SLAB = registerFakeSlab(Blocks.GILDED_BLACKSTONE, "gilded_blackstone", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
-+    public static final Block SNOWY_STONE_BRICK_STAIRS = registerFakeStairs(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_STAIRS);
-+    public static final Block DIRTY_STONE_BRICK_STAIRS = registerFakeStairs(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_STAIRS);
-+    public static final Block CRACKED_STONE_BRICK_STAIRS = registerFakeStairs(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_STAIRS);
++    public static final Block SNOWY_STONE_BRICK_STAIRS = registerFakeStairs(SNOWY_STONE_BRICKS, "snowy_stone_brick", null, Blocks.STONE_BRICK_STAIRS).stoneBrickStairs();
++    public static final Block DIRTY_STONE_BRICK_STAIRS = registerFakeStairs(DIRTY_STONE_BRICKS, "dirty_stone_brick", null, Blocks.STONE_BRICK_STAIRS).stoneBrickStairs();
++    public static final Block CRACKED_STONE_BRICK_STAIRS = registerFakeStairs(Blocks.CRACKED_STONE_BRICKS, "cracked_stone_brick", "cracked_stone_bricks", Blocks.STONE_BRICK_STAIRS).stoneBrickStairs();
 +    public static final Block AMETHYST_STAIRS = registerFakeStairs(Blocks.AMETHYST_BLOCK, "amethyst", "amethyst_block", Blocks.PURPUR_STAIRS).mineableWithPickaxe().crystalSound();
 +    public static final Block COAL_STAIRS = registerFakeStairs(Blocks.COAL_BLOCK, "coal", "coal_block", Blocks.BLACKSTONE_STAIRS).mineableWithPickaxe();
 +    public static final Block DRIPSTONE_STAIRS = registerFakeStairs(Blocks.DRIPSTONE_BLOCK, "dripstone", "dripstone_block", Blocks.GRANITE_STAIRS).mineableWithPickaxe();
@@ -8488,22 +8632,22 @@ index 0000000000000000000000000000000000000000..ea894ace334473097eaa05c94f9e4f4c
 +    public static final Block GUNPOWDER_STAIRS = registerFakeStairs(GUNPOWDER_BLOCK, "gunpowder", null, Blocks.ANDESITE_STAIRS);
 +    public static final Block PEAT_STAIRS = registerFakeStairs(PEAT, "peat", null, Blocks.MUD_BRICK_STAIRS).breakBeforeClientKnowsToBreak().mineableWithShovel().peatStairs();
 +    public static final Block FLINT_TILE_STAIRS = registerFakeStairs(FLINT_TILES, "flint_tile", null, Blocks.DEEPSLATE_TILE_STAIRS).mineableWithPickaxe();
-+    public static final Block BLACK_PLANK_STAIRS = registerFakeDyedPlankStairs(BLACK_PLANKS, "black", Blocks.DARK_OAK_STAIRS);
-+    public static final Block BLUE_PLANK_STAIRS = registerFakeDyedPlankStairs(BLUE_PLANKS, "blue", Blocks.WARPED_STAIRS);
-+    public static final Block BROWN_PLANK_STAIRS = registerFakeDyedPlankStairs(BROWN_PLANKS, "brown", Blocks.SPRUCE_STAIRS);
-+    public static final Block CYAN_PLANK_STAIRS = registerFakeDyedPlankStairs(CYAN_PLANKS, "cyan", Blocks.WARPED_STAIRS);
-+    public static final Block GRAY_PLANK_STAIRS = registerFakeDyedPlankStairs(GRAY_PLANKS, "gray", Blocks.SPRUCE_STAIRS);
-+    public static final Block GREEN_PLANK_STAIRS = registerFakeDyedPlankStairs(GREEN_PLANKS, "green", Blocks.WARPED_STAIRS);
-+    public static final Block LIGHT_BLUE_PLANK_STAIRS = registerFakeDyedPlankStairs(LIGHT_BLUE_PLANKS, "light_blue", Blocks.WARPED_STAIRS);
-+    public static final Block LIGHT_GRAY_PLANK_STAIRS = registerFakeDyedPlankStairs(LIGHT_GRAY_PLANKS, "light_gray", Blocks.OAK_STAIRS);
-+    public static final Block LIME_PLANK_STAIRS = registerFakeDyedPlankStairs(LIME_PLANKS, "lime", Blocks.WARPED_STAIRS);
-+    public static final Block MAGENTA_PLANK_STAIRS = registerFakeDyedPlankStairs(MAGENTA_PLANKS, "magenta", Blocks.CRIMSON_STAIRS);
-+    public static final Block ORANGE_PLANK_STAIRS = registerFakeDyedPlankStairs(ORANGE_PLANKS, "orange", Blocks.ACACIA_STAIRS);
-+    public static final Block PINK_PLANK_STAIRS = registerFakeDyedPlankStairs(PINK_PLANKS, "pink", Blocks.JUNGLE_STAIRS);
-+    public static final Block PURPLE_PLANK_STAIRS = registerFakeDyedPlankStairs(PURPLE_PLANKS, "purple", Blocks.CRIMSON_STAIRS);
-+    public static final Block RED_PLANK_STAIRS = registerFakeDyedPlankStairs(RED_PLANKS, "red", Blocks.MANGROVE_STAIRS);
-+    public static final Block WHITE_PLANK_STAIRS = registerFakeDyedPlankStairs(WHITE_PLANKS, "white", Blocks.BIRCH_STAIRS);
-+    public static final Block YELLOW_PLANK_STAIRS = registerFakeDyedPlankStairs(YELLOW_PLANKS, "yellow", Blocks.BIRCH_STAIRS);
++    public static final Block BLACK_PLANK_STAIRS = registerFakeDyedPlankStairs(BLACK_PLANKS, "black", Blocks.DARK_OAK_STAIRS, () -> Items.BLACK_DYE);
++    public static final Block BLUE_PLANK_STAIRS = registerFakeDyedPlankStairs(BLUE_PLANKS, "blue", Blocks.WARPED_STAIRS, () -> Items.BLUE_DYE);
++    public static final Block BROWN_PLANK_STAIRS = registerFakeDyedPlankStairs(BROWN_PLANKS, "brown", Blocks.SPRUCE_STAIRS, () -> Items.BROWN_DYE);
++    public static final Block CYAN_PLANK_STAIRS = registerFakeDyedPlankStairs(CYAN_PLANKS, "cyan", Blocks.WARPED_STAIRS, () -> Items.CYAN_DYE);
++    public static final Block GRAY_PLANK_STAIRS = registerFakeDyedPlankStairs(GRAY_PLANKS, "gray", Blocks.SPRUCE_STAIRS, () -> Items.GRAY_DYE);
++    public static final Block GREEN_PLANK_STAIRS = registerFakeDyedPlankStairs(GREEN_PLANKS, "green", Blocks.WARPED_STAIRS, () -> Items.GREEN_DYE);
++    public static final Block LIGHT_BLUE_PLANK_STAIRS = registerFakeDyedPlankStairs(LIGHT_BLUE_PLANKS, "light_blue", Blocks.WARPED_STAIRS, () -> Items.LIGHT_BLUE_DYE);
++    public static final Block LIGHT_GRAY_PLANK_STAIRS = registerFakeDyedPlankStairs(LIGHT_GRAY_PLANKS, "light_gray", Blocks.OAK_STAIRS, () -> Items.LIGHT_GRAY_DYE);
++    public static final Block LIME_PLANK_STAIRS = registerFakeDyedPlankStairs(LIME_PLANKS, "lime", Blocks.WARPED_STAIRS, () -> Items.LIME_DYE);
++    public static final Block MAGENTA_PLANK_STAIRS = registerFakeDyedPlankStairs(MAGENTA_PLANKS, "magenta", Blocks.CRIMSON_STAIRS, () -> Items.MAGENTA_DYE);
++    public static final Block ORANGE_PLANK_STAIRS = registerFakeDyedPlankStairs(ORANGE_PLANKS, "orange", Blocks.ACACIA_STAIRS, () -> Items.ORANGE_DYE);
++    public static final Block PINK_PLANK_STAIRS = registerFakeDyedPlankStairs(PINK_PLANKS, "pink", Blocks.JUNGLE_STAIRS, () -> Items.PINK_DYE);
++    public static final Block PURPLE_PLANK_STAIRS = registerFakeDyedPlankStairs(PURPLE_PLANKS, "purple", Blocks.CRIMSON_STAIRS, () -> Items.PURPLE_DYE);
++    public static final Block RED_PLANK_STAIRS = registerFakeDyedPlankStairs(RED_PLANKS, "red", Blocks.MANGROVE_STAIRS, () -> Items.RED_DYE);
++    public static final Block WHITE_PLANK_STAIRS = registerFakeDyedPlankStairs(WHITE_PLANKS, "white", Blocks.BIRCH_STAIRS, () -> Items.WHITE_DYE);
++    public static final Block YELLOW_PLANK_STAIRS = registerFakeDyedPlankStairs(YELLOW_PLANKS, "yellow", Blocks.BIRCH_STAIRS, () -> Items.YELLOW_DYE);
 +    public static final Block BLACK_WOOL_STAIRS = registerFakeWoolStairs(Blocks.BLACK_WOOL, "black", Blocks.BLACKSTONE_STAIRS);
 +    public static final Block BLUE_WOOL_STAIRS = registerFakeWoolStairs(Blocks.BLUE_WOOL, "blue", Blocks.WARPED_STAIRS);
 +    public static final Block BROWN_WOOL_STAIRS = registerFakeWoolStairs(Blocks.BROWN_WOOL, "brown", Blocks.SPRUCE_STAIRS);
@@ -8736,7 +8880,7 @@ index 0000000000000000000000000000000000000000..ea894ace334473097eaa05c94f9e4f4c
 +                .withModelCreation(Model.OneTextureCube.defaultCreation().withNoParameters())
 +                .withFullBlockBoundingBoxItem()
 +                .withHostItemRuleFromHostBlockAndHostReplacementBlock(),
-+            new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)).mineableWithPickaxe().stoneBricks(),
++            new Block(BlockBehaviour.Properties.of(Material.STONE).strength(1.5F, 6.0F)).mineableWithPickaxe().stoneBrickFullBlock(),
 +            SuCraftBlockLoot::dropSelf
 +        );
 +    }
@@ -9324,12 +9468,12 @@ index 0000000000000000000000000000000000000000..ea894ace334473097eaa05c94f9e4f4c
 +        return registerFakeStairs(fullBlock, type, type, host, null);
 +    }
 +
-+    private static @NotNull Block registerFakeDyedPlankSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeSlab(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankSlab();
++    private static @NotNull Block registerFakeDyedPlankSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++        return registerFakeSlab(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankSlab().withCustomDyedPlankSlabsRecipe(type, dyeItemSupplier);
 +    }
 +
-+    private static @NotNull Block registerFakeDyedPlankStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStairs(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankStairs();
++    private static @NotNull Block registerFakeDyedPlankStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++        return registerFakeStairs(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankStairs().withCustomDyedPlankStairsRecipe(type, dyeItemSupplier);
 +    }
 +
 +    private static @NotNull Block registerFakeWoolSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -9400,11 +9544,11 @@ index 0000000000000000000000000000000000000000..ea894ace334473097eaa05c94f9e4f4c
 +    }
 +
 +    private static @NotNull Block registerFakeTerracottaSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeSlab(fullBlock, type + "_terracotta", type + "_terracotta", host).mineableWithPickaxe();
++        return registerFakeSlab(fullBlock, type + "_terracotta", type + "_terracotta", host).mineableWithPickaxe().terracottaSlab();
 +    }
 +
 +    private static @NotNull Block registerFakeTerracottaStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
-+        return registerFakeStairs(fullBlock, type + "_terracotta", type + "_terracotta", host).mineableWithPickaxe();
++        return registerFakeStairs(fullBlock, type + "_terracotta", type + "_terracotta", host).mineableWithPickaxe().terracottaStairs();
 +    }
 +
 +    private static @NotNull Block registerFakePolishedSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -14415,7 +14559,7 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..24e4ba1707da23d55ca5552c5ea8d3355defb3c3
+index 0000000000000000000000000000000000000000..89fa93d336f64370df422cde8c4868e43fdd2166
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 @@ -0,0 +1,537 @@
@@ -14901,7 +15045,7 @@ index 0000000000000000000000000000000000000000..24e4ba1707da23d55ca5552c5ea8d335
 +        public void setStonecutterRecipeHost(Item item) {
 +            this.stonecutterRecipeHost = item;
 +            this.stonecutterRecipeHostCustomModelData = UsedHostCustomModelData.generateUnusedHostCustomModelData(this.stonecutterRecipeHost);
-+            MinecraftServer.LOGGER.info("TEMP DEBUG - Setting stonecutter host for " + this.getReal() + " to host " + item + " with custom model data " + this.stonecutterRecipeHostCustomModelData);
++//            MinecraftServer.LOGGER.info("TEMP DEBUG - Setting stonecutter host for " + this.getReal() + " to host " + item + " with custom model data " + this.stonecutterRecipeHostCustomModelData);
 +        }
 +
 +    }
@@ -15222,10 +15366,10 @@ index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b51195
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTags.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTags.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..cd1487d65ef7b3ff3e1467fff930fc7491ba6504
+index 0000000000000000000000000000000000000000..8a81317374860658eccc604a092a1b635516c6be
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTags.java
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,56 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.item;
@@ -15234,6 +15378,7 @@ index 0000000000000000000000000000000000000000..cd1487d65ef7b3ff3e1467fff930fc74
 +import net.minecraft.resources.ResourceLocation;
 +import net.minecraft.tags.TagKey;
 +import net.minecraft.world.item.Item;
++import net.minecraft.world.level.block.Block;
 +
 +/**
 + * Based on {@link net.minecraft.tags.ItemTags}
@@ -15252,6 +15397,8 @@ index 0000000000000000000000000000000000000000..cd1487d65ef7b3ff3e1467fff930fc74
 +    public static final TagKey<Item> LOG_SLABS = bind("log_slabs");
 +    public static final TagKey<Item> LOG_STAIRS = bind("log_stairs");
 +    public static final TagKey<Item> PLANK_FULL_BLOCKS = bind("plank_full_blocks");
++    public static final TagKey<Item> PLANK_SLABS = bind("plank_slabs");
++    public static final TagKey<Item> PLANK_STAIRS = bind("plank_stairs");
 +    public static final TagKey<Item> DYED_PLANKS = bind("dyed_planks");
 +    public static final TagKey<Item> DYED_PLANK_FULL_BLOCKS = bind("dyed_plank_full_blocks");
 +    public static final TagKey<Item> DYED_PLANK_SLABS = bind("dyed_plank_slabs");
@@ -15260,6 +15407,18 @@ index 0000000000000000000000000000000000000000..cd1487d65ef7b3ff3e1467fff930fc74
 +    public static final TagKey<Item> PEAT_FULL_BLOCKS = bind("peat_full_blocks");
 +    public static final TagKey<Item> PEAT_SLABS = bind("peat_slabs");
 +    public static final TagKey<Item> PEAT_STAIRS = bind("peat_stairs");
++    public static final TagKey<Item> VANILLA_STONE_BRICKS = bind("vanilla_stone_bricks");
++    public static final TagKey<Item> VANILLA_PLANKS = bind("vanilla_planks");
++    public static final TagKey<Item> STONE_BRICK_FULL_BLOCKS = bind("stone_brick_full_blocks");
++    public static final TagKey<Item> STONE_BRICK_SLABS = bind("stone_brick_slabs");
++    public static final TagKey<Item> STONE_BRICK_STAIRS = bind("stone_brick_stairs");
++    public static final TagKey<Item> VANILLA_WOODEN_SLABS = bind("vanilla_wooden_slabs");
++    public static final TagKey<Item> VANILLA_WOODEN_STAIRS = bind("vanilla_wooden_stairs");
++    public static final TagKey<Item> VANILLA_LEAVES = bind("vanilla_leaves");
++    public static final TagKey<Item> VANILLA_DIRT = bind("vanilla_dirt");
++    public static final TagKey<Item> TERRACOTTA_FULL_BLOCKS = bind("terracotta_full_blocks");
++    public static final TagKey<Item> TERRACOTTA_SLABS = bind("terracotta_slabs");
++    public static final TagKey<Item> TERRACOTTA_STAIRS = bind("terracotta_stairs");
 +    // Martijn end - custom blocks and items
 +
 +    private static TagKey<Item> bind(String id) {
@@ -15269,10 +15428,10 @@ index 0000000000000000000000000000000000000000..cd1487d65ef7b3ff3e1467fff930fc74
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTagsProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTagsProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e854626408
+index 0000000000000000000000000000000000000000..3b0b2392315675a25fb12210f529625a94895468
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftItemTagsProvider.java
-@@ -0,0 +1,65 @@
+@@ -0,0 +1,79 @@
 +// Martijn - custom resources
 +
 +package nl.martijnmuijsers.paper.item;
@@ -15321,6 +15480,8 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +        this.copy(SuCraftBlockTags.LOG_SLABS, SuCraftItemTags.LOG_SLABS);
 +        this.copy(SuCraftBlockTags.LOG_STAIRS, SuCraftItemTags.LOG_STAIRS);
 +        this.copy(SuCraftBlockTags.PLANK_FULL_BLOCKS, SuCraftItemTags.PLANK_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.PLANK_SLABS, SuCraftItemTags.PLANK_SLABS);
++        this.copy(SuCraftBlockTags.PLANK_STAIRS, SuCraftItemTags.PLANK_STAIRS);
 +        this.copy(SuCraftBlockTags.DYED_PLANKS, SuCraftItemTags.DYED_PLANKS);
 +        this.copy(SuCraftBlockTags.DYED_PLANK_FULL_BLOCKS, SuCraftItemTags.DYED_PLANK_FULL_BLOCKS);
 +        this.copy(SuCraftBlockTags.DYED_PLANK_SLABS, SuCraftItemTags.DYED_PLANK_SLABS);
@@ -15329,6 +15490,18 @@ index 0000000000000000000000000000000000000000..5d87f4197a5a959c8d9ea3c8af74a0e8
 +        this.copy(SuCraftBlockTags.PEAT_FULL_BLOCKS, SuCraftItemTags.PEAT_FULL_BLOCKS);
 +        this.copy(SuCraftBlockTags.PEAT_SLABS, SuCraftItemTags.PEAT_SLABS);
 +        this.copy(SuCraftBlockTags.PEAT_STAIRS, SuCraftItemTags.PEAT_STAIRS);
++        this.copy(SuCraftBlockTags.VANILLA_STONE_BRICKS, SuCraftItemTags.VANILLA_STONE_BRICKS);
++        this.copy(SuCraftBlockTags.VANILLA_PLANKS, SuCraftItemTags.VANILLA_PLANKS);
++        this.copy(SuCraftBlockTags.STONE_BRICK_FULL_BLOCKS, SuCraftItemTags.STONE_BRICK_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.STONE_BRICK_SLABS, SuCraftItemTags.STONE_BRICK_SLABS);
++        this.copy(SuCraftBlockTags.STONE_BRICK_STAIRS, SuCraftItemTags.STONE_BRICK_STAIRS);
++        this.copy(SuCraftBlockTags.VANILLA_WOODEN_SLABS, SuCraftItemTags.VANILLA_WOODEN_SLABS);
++        this.copy(SuCraftBlockTags.VANILLA_WOODEN_STAIRS, SuCraftItemTags.VANILLA_WOODEN_STAIRS);
++        this.copy(SuCraftBlockTags.VANILLA_LEAVES, SuCraftItemTags.VANILLA_LEAVES);
++        this.copy(SuCraftBlockTags.VANILLA_DIRT, SuCraftItemTags.VANILLA_DIRT);
++        this.copy(SuCraftBlockTags.TERRACOTTA_FULL_BLOCKS, SuCraftItemTags.TERRACOTTA_FULL_BLOCKS);
++        this.copy(SuCraftBlockTags.TERRACOTTA_SLABS, SuCraftItemTags.TERRACOTTA_SLABS);
++        this.copy(SuCraftBlockTags.TERRACOTTA_STAIRS, SuCraftItemTags.TERRACOTTA_STAIRS);
 +
 +        this.existingRegistryTagEntries = null;
 +    }
