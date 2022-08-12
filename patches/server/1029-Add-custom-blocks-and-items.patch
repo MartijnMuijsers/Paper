@@ -19715,10 +19715,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..05ab576a217ea67530865d8dd05a9610f042935a
+index 0000000000000000000000000000000000000000..f86a77efb74e98a922ac24fd72051ae67be5abcd
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,409 @@
+@@ -0,0 +1,415 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -19791,7 +19791,7 @@ index 0000000000000000000000000000000000000000..05ab576a217ea67530865d8dd05a9610
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 188;
++            currentResourcePackVersion = 189;
 +        }
 +    }
 +
@@ -19879,6 +19879,12 @@ index 0000000000000000000000000000000000000000..05ab576a217ea67530865d8dd05a9610
 +                // Add included resource packs
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/SuCraft resource pack logo.zip"));
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Fire further from block surfaces.zip"));
++                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Alcoholic beverages.zip"));
++                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Axolotl buckets using custom model data.zip"));
++                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Beta golden apple.zip"));
++                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Achievements.zip"));
++                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Axolotl buckets using Optifine.zip"));
++                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Tropical fish buckets using Optifine.zip"));
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Technoblade Pigs.zip"));
 +
 +                // Set the settings
