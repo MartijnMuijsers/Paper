@@ -14576,7 +14576,7 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..89fa93d336f64370df422cde8c4868e43fdd2166
+index 0000000000000000000000000000000000000000..a5f57d90c4b3f993a6a9dbeeb77954f02a4a0493
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 @@ -0,0 +1,537 @@
@@ -14989,10 +14989,10 @@ index 0000000000000000000000000000000000000000..89fa93d336f64370df422cde8c4868e4
 +            if (this.minifiedStonecutterRecipeHostCustomModelData == -1) {
 +                this.minifiedStonecutterRecipeHostCustomModelData = minifiedCustomModelData.get(this.getStonecutterRecipeHost()).get(this.getStonecutterRecipeHostCustomModelData());
 +            }
-+            if (this.getReal().equals(SuCraftItems.YELLOW_WOOL_STAIRS)) {
-+                System.out.println("TEMP DEBUG - Before was: " + this.getStonecutterRecipeHostCustomModelData());
-+                System.out.println("TEMP DEBUG - Now is: " + this.minifiedStonecutterRecipeHostCustomModelData);
-+            }
++//            if (this.getReal().equals(SuCraftItems.YELLOW_WOOL_STAIRS)) {
++//                System.out.println("TEMP DEBUG - Before was: " + this.getStonecutterRecipeHostCustomModelData());
++//                System.out.println("TEMP DEBUG - Now is: " + this.minifiedStonecutterRecipeHostCustomModelData);
++//            }
 +            return this.minifiedStonecutterRecipeHostCustomModelData;
 +        }
 +
