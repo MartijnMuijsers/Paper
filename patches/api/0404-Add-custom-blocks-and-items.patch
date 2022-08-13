@@ -5,7 +5,7 @@ Subject: [PATCH] Add custom blocks and items
 
 
 diff --git a/src/main/java/org/bukkit/Material.java b/src/main/java/org/bukkit/Material.java
-index 1d6baee05643607baa40a07022576906ea61a92f..6078abdd8e670c0cd646c92b751cb9f172109d2c 100644
+index 1d6baee05643607baa40a07022576906ea61a92f..d591db906afa7bdc951abf80b64e7338d50025d6 100644
 --- a/src/main/java/org/bukkit/Material.java
 +++ b/src/main/java/org/bukkit/Material.java
 @@ -3126,6 +3126,513 @@ public enum Material implements Keyed, net.kyori.adventure.translation.Translata
@@ -580,7 +580,7 @@ index 1d6baee05643607baa40a07022576906ea61a92f..6078abdd8e670c0cd646c92b751cb9f1
      // Paper end
 +        // Martijn start - custom blocks and items
 +        if (vanillaTarget != null) {
-+            return vanillaTarget.isBlock0();
++            return vanillaTarget.isBlock();
 +        }
 +        // Martijn end - custom blocks and items
          switch (this) {
