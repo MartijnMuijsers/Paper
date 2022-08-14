@@ -3245,7 +3245,7 @@ index 0e60a7705d67782cf13b0e995f702e65b94321c4..4653576e71844f2b0d2ebe8076ce6264
      private final VecDeltaCodec packetPositionCodec;
      public boolean noCulling;
 diff --git a/src/main/java/net/minecraft/world/entity/LivingEntity.java b/src/main/java/net/minecraft/world/entity/LivingEntity.java
-index a2fe2bc3482c2948c5848503ea8c791fcff006f0..d4c78bdc377b583967fee14792afef2209351ff2 100644
+index 2d49c8ef19173b4f1b0b6f479b41f1e40eb14001..71621c3e4478c056c5c1786abe61740ef296af5a 100644
 --- a/src/main/java/net/minecraft/world/entity/LivingEntity.java
 +++ b/src/main/java/net/minecraft/world/entity/LivingEntity.java
 @@ -512,7 +512,7 @@ public abstract class LivingEntity extends Entity {
@@ -19715,10 +19715,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f593669bc87c1902e6cb0afdec40fe9728f0a7b9
+index 0000000000000000000000000000000000000000..57172fcfce35252cac10f0327a80ace578d8e326
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,416 @@
+@@ -0,0 +1,417 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -19878,6 +19878,7 @@ index 0000000000000000000000000000000000000000..f593669bc87c1902e6cb0afdec40fe97
 +
 +                // Add included resource packs
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/SuCraft resource pack logo.zip"));
++                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/SuCraft splash screen using Optifine.zip"));
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Fire further from block surfaces.zip"));
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Alcoholic beverages.zip"));
 +                resourcePack.addIncludedResourcePack(new ReadFromArchiveResourcePack(INHERITED_RESOURCE_PACKS_FOLDER_PATH + "/Axolotl buckets using custom model data.zip"));
