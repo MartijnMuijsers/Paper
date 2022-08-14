@@ -18,7 +18,7 @@ index 46d1ed7e617abc7096f5d7a391b138238f42aaa4..7541e53c83be8609a90d0092777abb82
  
          record ConstantFunction(net.minecraft.network.chat.Component component) implements Function<Audience, net.minecraft.network.chat.Component> {
 diff --git a/src/main/java/net/minecraft/network/chat/OutgoingPlayerChatMessage.java b/src/main/java/net/minecraft/network/chat/OutgoingPlayerChatMessage.java
-index bd82f0316df85b621c1970ff30bbbec0d2712ccd..3ac8a886a71d9cad167af1610a80af477b54f5a3 100644
+index bd82f0316df85b621c1970ff30bbbec0d2712ccd..85d1a6b2cd21d9c456c37c6025c0fa0326409242 100644
 --- a/src/main/java/net/minecraft/network/chat/OutgoingPlayerChatMessage.java
 +++ b/src/main/java/net/minecraft/network/chat/OutgoingPlayerChatMessage.java
 @@ -52,7 +52,7 @@ public interface OutgoingPlayerChatMessage {
@@ -30,15 +30,17 @@ index bd82f0316df85b621c1970ff30bbbec0d2712ccd..3ac8a886a71d9cad167af1610a80af47
                  sender.connection.addPendingMessage(playerChatMessage);
              }
  
-@@ -91,7 +91,7 @@ public interface OutgoingPlayerChatMessage {
+@@ -91,9 +91,7 @@ public interface OutgoingPlayerChatMessage {
                  this.playersWithFullMessage.add(sender);
                  RegistryAccess registryAccess = sender.level.registryAccess();
                  ChatType.BoundNetwork boundNetwork = params.toNetwork(registryAccess);
 -                sender.connection.send(new ClientboundPlayerChatPacket(playerChatMessage, boundNetwork), PacketSendListener.exceptionallySend(() -> {
-+                sender.connection.send(ClientboundPlayerChatPacket.createUnsigned(sender, playerChatMessage, boundNetwork), PacketSendListener.exceptionallySend(() -> { // Martijn - no signed chat
-                     return new ClientboundPlayerChatHeaderPacket(this.message);
-                 }));
+-                    return new ClientboundPlayerChatHeaderPacket(this.message);
+-                }));
++                sender.connection.send(ClientboundPlayerChatPacket.createUnsigned(sender, playerChatMessage, boundNetwork)); // Martijn - no signed chat
                  sender.connection.addPendingMessage(playerChatMessage);
+             }
+ 
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundPlayerChatPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundPlayerChatPacket.java
 index 0b818969d74eae05e2d2adfdbc38e513972c61a1..80e1bbe1c8da3271aa1acfd51203f1f9956c6741 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundPlayerChatPacket.java
