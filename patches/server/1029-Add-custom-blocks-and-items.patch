@@ -19007,10 +19007,10 @@ index 0000000000000000000000000000000000000000..52b2cda69eb3dc8f4754e439ee644838
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..03d2ae79408650ae5be681ee06437edc4e74444c
+index 0000000000000000000000000000000000000000..cff37985a741e4a055ee4b5298216c4eaeba2a62
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/httpserver/ResourcePackHTTPServer.java
-@@ -0,0 +1,139 @@
+@@ -0,0 +1,142 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.httpserver;
@@ -19068,6 +19068,7 @@ index 0000000000000000000000000000000000000000..03d2ae79408650ae5be681ee06437edc
 +        }
 +        try {
 +
++            MinecraftServer.LOGGER.info("Attempting to start the resource pack HTTP server on port " + PORT + "...");
 +            // Start the HTTP server
 +            this.httpServer = HttpServer.create(new InetSocketAddress(PORT), 0);
 +            httpServer.createContext("/" + PATH, ResourcePackHTTPServer::handle);
@@ -19079,11 +19080,13 @@ index 0000000000000000000000000000000000000000..03d2ae79408650ae5be681ee06437edc
 +            httpServer.start();
 +            this.isStarted = true;
 +
++            MinecraftServer.LOGGER.info("It appears the resource HTTP server started successfully");
++
 +            // Update the server properties in memory to match the resource pack and HTTP server
 +            this.updateServerPropertiesInMemory(false);
 +
 +        } catch (Exception e) {
-+            throw new RuntimeException("Exception occurred while starting resource pack HTTP server", e);
++            throw new RuntimeException("Exception occurred while starting the resource pack HTTP server", e);
 +        } finally {
 +            this.httpServer = null;
 +        }
@@ -19715,10 +19718,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..57172fcfce35252cac10f0327a80ace578d8e326
+index 0000000000000000000000000000000000000000..541bd043340b7bb5e09ce20f78aed1b2b30729b5
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,417 @@
+@@ -0,0 +1,415 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -19791,7 +19794,7 @@ index 0000000000000000000000000000000000000000..57172fcfce35252cac10f0327a80ace5
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 190;
++            currentResourcePackVersion = 191;
 +        }
 +    }
 +
@@ -20104,8 +20107,6 @@ index 0000000000000000000000000000000000000000..57172fcfce35252cac10f0327a80ace5
 +                }
 +
 +            } finally {
-+
-+                MinecraftServer.LOGGER.info("Closing open inherited resource pack files...");
 +
 +                // Close all opened inherited resource packs
 +                MinecraftServer.LOGGER.info("Closing open inherited resource pack files...");
