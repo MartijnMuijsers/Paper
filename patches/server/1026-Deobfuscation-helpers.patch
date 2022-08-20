@@ -77,6 +77,105 @@ index dc96b30c70cd79d7b2a0322f32b9399a0f2faa41..e66865af2ee61821eb2c74456518e182
      @Override
      public boolean canBypassPlayerLimit(GameProfile profile) {
          return this.getOps().canBypassPlayerLimit(profile);
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index cf60416d90192f66ed6599b698a4070564a453a9..69ca6d2d0cfa8ff2517baf33a284f03885db0f10 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -165,6 +165,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Martijn start- per-player view distance
+     // This value is the intended world send view distance + 1
+     private int vanillaWorldViewDistancePlusOne;
++    // Martijn start - OBFHELPER
++    // This isn't actually obfuscated but we normally would want it to be private,
++    // but this opens the value up for plugins to use more readily when this is really the value that is needed
++    public int _vanillaWorldViewDistancePlusOne() {
++        return this.vanillaWorldViewDistancePlusOne;
++    }
++    // Martijn end - OBFHELPER
+     // Martijn end - per-player view distance
+     public final com.destroystokyo.paper.util.misc.PlayerAreaMap playerMobDistanceMap; // Paper
+     public final ReferenceOpenHashSet<ChunkHolder> needsChangeBroadcasting = new ReferenceOpenHashSet<>();
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index 7922ced4e86d49df02169ac820fc5cbde974a18b..67e0257b98d0075b51171376eb2716afd5367e20 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -70,6 +70,11 @@ public abstract class DistanceManager {
+     final Executor mainThreadExecutor;
+     private long ticketTickCounter;
+     private int simulationDistance = 10;
++    // Martijn start - OBFHELPER
++    public int _simulationDistance() {
++        return this.simulationDistance;
++    }
++    // Martijn end - OBFHELPER
+     private final ChunkMap chunkMap; // Paper
+ 
+     protected DistanceManager(Executor workerExecutor, Executor mainThreadExecutor, ChunkMap chunkMap) {
+diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+index 0eaa714ba9d6c7829d0f9ac3b6ccd59ed9a9baa2..20e2f4801d1c0f9faa7a5a37a450292b08e8f93b 100644
+--- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
++++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+@@ -54,11 +54,21 @@ public class ServerChunkCache extends ChunkSource {
+     public static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger(); // Paper
+     public static final List<ChunkStatus> CHUNK_STATUSES = ChunkStatus.getStatusList();
+     private final DistanceManager distanceManager;
++    // Martijn start - OBFHELPER
++    public DistanceManager _distanceManager() {
++        return this.distanceManager;
++    }
++    // Martijn end - OBFHELPER
+     final ServerLevel level;
+     public final Thread mainThread;
+     final ThreadedLevelLightEngine lightEngine;
+     public final ServerChunkCache.MainThreadExecutor mainThreadProcessor;
+     public final ChunkMap chunkMap;
++    // Martijn start - OBFHELPER
++    public ChunkMap _chunkMap() {
++        return this.chunkMap;
++    }
++    // Martijn end - OBFHELPER
+     private final DimensionDataStorage dataStorage;
+     private long lastInhabitedUpdate;
+     public boolean spawnEnemies = true;
+@@ -1221,6 +1231,14 @@ public class ServerChunkCache extends ChunkSource {
+         this.distanceManager.updateSimulationDistance(simulationDistance);
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    public void _setSimulationDistance(int simulationDistance) {
++        this.setSimulationDistance(simulationDistance);
++    }
++
++    // Martijn end - OBFHELPER
++
+     @Override
+     public void setSpawnSettings(boolean spawnMonsters, boolean spawnAnimals) {
+         this.spawnEnemies = spawnMonsters;
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index f58873ef4362bfcc618ead099be94ba2dd4d86ed..ed769c9dd71a5a2d13c9e9a48bc4ad6077c71b16 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -49,6 +49,7 @@ import net.minecraft.core.Registry;
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.core.SectionPos;
+ import net.minecraft.core.particles.ParticleOptions;
++import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.protocol.Packet;
+@@ -187,6 +188,11 @@ public class ServerLevel extends Level implements WorldGenLevel {
+     private static final int MAX_SCHEDULED_TICKS_PER_TICK = 65536;
+     public final List<ServerPlayer> players;
+     public final ServerChunkCache chunkSource;
++    // Martijn start - OBFHELPER
++    public ServerChunkCache _chunkSource() {
++        return this.chunkSource;
++    }
++    // Martijn end - OBFHELPER
+     private final MinecraftServer server;
+     public final PrimaryLevelData serverLevelData; // CraftBukkit - type
+     final EntityTickList entityTickList;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 index 0c7cbc0d6d3b319cae455b3bda5d839d59f86d7b..77c3be9c7a4719f1a45816195aabc0b1ea7074d1 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
@@ -112,3 +211,19 @@ index 204af15e00ed3669b19802382448f4e6d9fbbd20..e21bedc79c67459593d221847bf465ec
      @Override
      public void handleSetCarriedItem(ServerboundSetCarriedItemPacket packet) {
          PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
+diff --git a/src/main/java/net/minecraft/world/item/ItemStack.java b/src/main/java/net/minecraft/world/item/ItemStack.java
+index c18a0bc94d0210396046f4475e49a739088593f3..c397c2b46988d099a27a534ed102b7a847b5f715 100644
+--- a/src/main/java/net/minecraft/world/item/ItemStack.java
++++ b/src/main/java/net/minecraft/world/item/ItemStack.java
+@@ -139,6 +139,11 @@ public final class ItemStack {
+     private Item item;
+     @Nullable
+     public CompoundTag tag;
++    // Martijn start - OBFHELPER
++    public @Nullable CompoundTag _tag() {
++        return this.tag;
++    }
++    // Martijn end - OBFHELPER
+     private boolean emptyCacheFlag;
+     @Nullable
+     private Entity entityRepresentation;
