@@ -2752,10 +2752,10 @@ index ed769c9dd71a5a2d13c9e9a48bc4ad6077c71b16..67e156a263024f81d268670511153d41
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503eccc12e2bf 100644
+index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f7641197e 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -9,14 +9,18 @@ import com.mojang.logging.LogUtils;
+@@ -9,14 +9,19 @@ import com.mojang.logging.LogUtils;
  import com.mojang.serialization.DataResult;
  
  import java.util.ArrayDeque;
@@ -2770,11 +2770,12 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
  import java.util.OptionalInt;
 +import java.util.Set;
  import java.util.UUID;
++import java.util.function.Predicate;
 +import java.util.stream.Collectors;
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  
-@@ -24,6 +28,9 @@ import io.papermc.paper.chunk.PlayerChunkLoader;
+@@ -24,6 +29,9 @@ import io.papermc.paper.chunk.PlayerChunkLoader;
  import io.papermc.paper.configuration.GlobalConfiguration;
  import it.unimi.dsi.fastutil.Pair;
  import it.unimi.dsi.fastutil.ints.IntIntPair;
@@ -2784,7 +2785,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
  import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
  import net.minecraft.BlockUtil;
  import net.minecraft.ChatFormatting;
-@@ -87,6 +94,7 @@ import net.minecraft.network.protocol.game.ClientboundSetHealthPacket;
+@@ -87,6 +95,7 @@ import net.minecraft.network.protocol.game.ClientboundSetHealthPacket;
  import net.minecraft.network.protocol.game.ClientboundSoundPacket;
  import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
  import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
@@ -2792,7 +2793,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
  import net.minecraft.network.protocol.game.ServerboundClientInformationPacket;
  import net.minecraft.network.protocol.status.ServerStatus;
  import net.minecraft.resources.ResourceKey;
-@@ -130,6 +138,7 @@ import net.minecraft.world.inventory.ContainerSynchronizer;
+@@ -130,6 +139,7 @@ import net.minecraft.world.inventory.ContainerSynchronizer;
  import net.minecraft.world.inventory.HorseInventoryMenu;
  import net.minecraft.world.inventory.ResultSlot;
  import net.minecraft.world.inventory.Slot;
@@ -2800,7 +2801,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
  import net.minecraft.world.item.ComplexItem;
  import net.minecraft.world.item.ItemCooldowns;
  import net.minecraft.world.item.ItemStack;
-@@ -153,11 +162,13 @@ import net.minecraft.world.level.block.entity.CommandBlockEntity;
+@@ -153,11 +163,13 @@ import net.minecraft.world.level.block.entity.CommandBlockEntity;
  import net.minecraft.world.level.block.entity.SignBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.border.WorldBorder;
@@ -2814,7 +2815,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
  import org.slf4j.Logger;
  import net.minecraft.world.Container;
  import net.minecraft.world.InteractionHand;
-@@ -506,6 +517,7 @@ public class ServerPlayer extends Player {
+@@ -506,6 +518,7 @@ public class ServerPlayer extends Player {
      @Nullable
      private Vec3 enteredLavaOnVehiclePosition;
      private SectionPos lastSectionPos;
@@ -2822,7 +2823,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
      private ResourceKey<Level> respawnDimension;
      @Nullable
      private BlockPos respawnPosition;
-@@ -550,7 +562,7 @@ public class ServerPlayer extends Player {
+@@ -550,7 +563,7 @@ public class ServerPlayer extends Player {
  
      private int maxNumberOfChunkPacketsInTransitBasedOnConnection = GlobalConfiguration.get().networkConstrainedChunkSending.maxChunkPacketsInTransit.initial;
      // Keep track of chunk packets in transit
@@ -2831,7 +2832,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
  
      public int getMaxNumberOfChunkPacketsInTransitBasedOnConnection() {
          synchronized (this.networkConstrainedSendingLock) {
-@@ -606,6 +618,11 @@ public class ServerPlayer extends Player {
+@@ -606,6 +619,11 @@ public class ServerPlayer extends Player {
      }
  
      public boolean canSendChunkInitializationPacketNow(ChunkPos chunk) {
@@ -2843,7 +2844,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
          if (getChessboardDistanceToChunk(chunk) <= GlobalConfiguration.get().networkConstrainedChunkSending.ignoreNetworkConditionsForChunksWithinChessboardDistance) return true;
          synchronized (this.networkConstrainedSendingLock) {
              return this.chunkInitializationPacketsInTransitKeepaliveIds.size() < this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
-@@ -2910,4 +2927,134 @@ public class ServerPlayer extends Player {
+@@ -2910,4 +2928,144 @@ public class ServerPlayer extends Player {
      // CraftBukkit end
  
      public final int getViewDistance() { throw new UnsupportedOperationException("Use PlayerChunkLoader"); } // Paper - placeholder
@@ -2851,7 +2852,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
 +    // Martijn start - custom blocks and items
 +
 +    public boolean hasSuCraftResourcePack() {
-+        var bukkitPlayer = getBukkitEntity();
++        var bukkitPlayer = this.getBukkitEntity();
 +        if (bukkitPlayer == null) {
 +            return false;
 +        }
@@ -2859,11 +2860,20 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
 +    }
 +
 +    public boolean hasHighPingForCustomBlocks() {
-+        var bukkitPlayer = getBukkitEntity();
++        var bukkitPlayer = this.getBukkitEntity();
 +        if (bukkitPlayer == null) {
 +            return false;
 +        }
 +        return bukkitPlayer.hasHighPingForCustomBlocks();
++    }
++
++    public boolean canAcceptLargePackets() {
++        for (Predicate<org.bukkit.entity.Player> disjunct : this.getServer().getPlayerList().canAcceptLargePacketsDisjuncts) {
++            if (disjunct.test(this.getBukkitEntity())) {
++                return true;
++            }
++        }
++        return false;
 +    }
 +
 +    public void resendInventory() {
@@ -2887,12 +2897,13 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
 +    public void resendCraftingRecipes(@Nullable ItemStack stonecutterInput, int iteration) {
 +
 +        Collection<Recipe<?>> allRecipes = this.server.getRecipeManager().getRecipes();
++        boolean canPlayerAcceptLargePackets = this.canAcceptLargePackets();
 +
 +        if (!this.hasSuCraftResourcePack()) {
 +            if (this.lastSentSpecificRecipeIds != null && lastSentSpecificRecipeIds.isEmpty()) {
 +                return;
 +            }
-+            var recipesToSend = allRecipes.stream().filter(recipe -> recipe.shouldAlwaysSend()).toList();
++            var recipesToSend = allRecipes.stream().filter(recipe -> recipe.shouldAlwaysSend(canPlayerAcceptLargePackets)).toList();
 +            this.lastSentSpecificRecipeIds = Collections.emptySet();
 +            this.connection.send(new ClientboundUpdateRecipesPacket(recipesToSend));
 +            this.getRecipeBook().sendInitialRecipeBook(this);
@@ -2910,7 +2921,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..f258f348f5e8d58aa8068408485503ec
 +        List<Recipe<?>> specificRecipesToSend = new ArrayList<>(4);
 +        List<Recipe<?>> allRecipesToSend = new ArrayList<>(allRecipes.size());
 +        allRecipes.forEach(recipe -> {
-+            if (recipe.shouldAlwaysSend()) {
++            if (recipe.shouldAlwaysSend(canPlayerAcceptLargePackets)) {
 +                alwaysRecipesToSend.add(recipe);
 +                allRecipesToSend.add(recipe);
 +            } else if (recipe.shouldSpecificallySend(this, finalStonecutterInput)) {
@@ -3132,10 +3143,27 @@ index e21bedc79c67459593d221847bf465ec693e6fcc..2788cc5a029a8db02a696159a26282fc
                  SlotType type = SlotType.QUICKBAR;
                  if (flag) {
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index eeb39af4753b75f4055521b25fcd398e5fbab54b..f4d65e293d4dca1e30d75cdc88e797657e172974 100644
+index eeb39af4753b75f4055521b25fcd398e5fbab54b..bd98a2b48311d6c7c317e2e014da45d440573954 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -277,14 +277,21 @@ public abstract class PlayerList {
+@@ -15,6 +15,7 @@ import java.net.SocketAddress;
+ import java.nio.file.Path;
+ import java.text.SimpleDateFormat;
+ import java.time.Instant;
++import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.Iterator;
+ import java.util.List;
+@@ -158,6 +159,8 @@ public abstract class PlayerList {
+     private final Map<String,ServerPlayer> playersByName = new java.util.HashMap<>();
+     public @Nullable String collideRuleTeamName; // Paper - Team name used for collideRule
+ 
++    public final List<java.util.function.Predicate<org.bukkit.entity.Player>> canAcceptLargePacketsDisjuncts = new ArrayList<>(1); // Martijn - custom blocks and items
++
+     public PlayerList(MinecraftServer server, RegistryAccess.Frozen registryManager, PlayerDataStorage saveHandler, int maxPlayers) {
+         this.cserver = server.server = new CraftServer((DedicatedServer) server, this);
+         server.console = new com.destroystokyo.paper.console.TerminalConsoleCommandSender(); // Paper
+@@ -277,14 +280,21 @@ public abstract class PlayerList {
  
          player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
          playerconnection.send(new ClientboundCustomPayloadPacket(ClientboundCustomPayloadPacket.BRAND, (new FriendlyByteBuf(Unpooled.buffer())).writeUtf(this.getServer().getServerModName())));
@@ -3159,7 +3187,7 @@ index eeb39af4753b75f4055521b25fcd398e5fbab54b..f4d65e293d4dca1e30d75cdc88e79765
          this.updateEntireScoreboard(worldserver1.getScoreboard(), player);
          this.server.invalidateStatus();
          // Paper start - async load spawn in chunk
-@@ -409,9 +416,11 @@ public abstract class PlayerList {
+@@ -409,9 +419,11 @@ public abstract class PlayerList {
          worldserver1 = player.getLevel(); // CraftBukkit - Update in case join event changed it
          // CraftBukkit end
          this.sendLevelInfo(player, worldserver1);
@@ -3174,7 +3202,7 @@ index eeb39af4753b75f4055521b25fcd398e5fbab54b..f4d65e293d4dca1e30d75cdc88e79765
          player.sendServerStatus(this.server.getStatus());
          Iterator iterator = player.getActiveEffects().iterator();
  
-@@ -429,7 +438,7 @@ public abstract class PlayerList {
+@@ -429,7 +441,7 @@ public abstract class PlayerList {
                  .getHolderOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
              player.connection.send(new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
                  new net.minecraft.world.level.chunk.EmptyLevelChunk(worldserver1, player.chunkPosition(), plains),
@@ -3183,6 +3211,25 @@ index eeb39af4753b75f4055521b25fcd398e5fbab54b..f4d65e293d4dca1e30d75cdc88e79765
              );
          }
          // Paper end
+@@ -1581,13 +1593,16 @@ public abstract class PlayerList {
+         // CraftBukkit end
+ 
+         this.broadcastAll(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(this.registryHolder)));
+-        ClientboundUpdateRecipesPacket packetplayoutrecipeupdate = new ClientboundUpdateRecipesPacket(this.server.getRecipeManager().getRecipes());
++        //ClientboundUpdateRecipesPacket packetplayoutrecipeupdate = new ClientboundUpdateRecipesPacket(this.server.getRecipeManager().getRecipes()); // Martijn - custom blocks and items
+         Iterator iterator1 = this.players.iterator();
+ 
+         while (iterator1.hasNext()) {
+             ServerPlayer entityplayer = (ServerPlayer) iterator1.next();
+ 
+-            entityplayer.connection.send(packetplayoutrecipeupdate);
++            // Martijn start - custom blocks and items
++            //entityplayer.connection.send(packetplayoutrecipeupdate);
++            entityplayer.resendCraftingRecipes(null, -1);
++            // Martijn end - custom blocks and items
+             entityplayer.getRecipeBook().sendInitialRecipeBook(entityplayer);
+         }
+ 
 diff --git a/src/main/java/net/minecraft/stats/ServerRecipeBook.java b/src/main/java/net/minecraft/stats/ServerRecipeBook.java
 index b7ebaf8c17b5075989ae04224f837c7932ec6cdd..5637ab33538d61aef40c68f92ff6e6a818989ecd 100644
 --- a/src/main/java/net/minecraft/stats/ServerRecipeBook.java
@@ -3700,7 +3747,7 @@ index 81994943198b92a3975910e1c50b9579912ff008..087e6b186015d18e62f2379205b5515a
              if (entityhuman != null) {
                  context.getItemInHand().hurtAndBreak(1, entityhuman, (entityhuman1) -> {
 diff --git a/src/main/java/net/minecraft/world/item/Item.java b/src/main/java/net/minecraft/world/item/Item.java
-index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de11501815 100644
+index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..1ee3e32353f1df80209d3632eacd982a5f10ee97 100644
 --- a/src/main/java/net/minecraft/world/item/Item.java
 +++ b/src/main/java/net/minecraft/world/item/Item.java
 @@ -4,22 +4,46 @@ import com.google.common.collect.ImmutableMultimap;
@@ -3781,7 +3828,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
  public class Item implements ItemLike {
      private static final Logger LOGGER = LogUtils.getLogger();
      public static final Map<Block, Item> BY_BLOCK = Maps.newHashMap();
-@@ -68,6 +107,333 @@ public class Item implements ItemLike {
+@@ -68,6 +107,367 @@ public class Item implements ItemLike {
      @Nullable
      private final FoodProperties foodProperties;
  
@@ -3880,6 +3927,8 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
 +
 +        void registerUnlocks();
 +
++        boolean isSkippableForPlayersThatCannotAcceptLargePackets();
++
 +    }
 +
 +    public interface CustomRecipeWithSingleIngredient extends CustomRecipe {
@@ -3919,7 +3968,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
 +
 +    }
 +
-+    public record CustomStonecutterRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull Item ingredient, int resultAmount) implements CustomMinecraftRecipe, CustomRecipeWithSingleIngredient {
++    public record CustomStonecutterRecipe(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull Item ingredient, int resultAmount) implements CustomMinecraftRecipe, CustomRecipeWithSingleIngredient {
 +
 +        @Override
 +        public @NotNull StonecutterRecipe build(@NotNull Item result) {
@@ -3933,11 +3982,16 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
 +            return this.ingredient();
 +        }
 +
++        @Override
++        public boolean isSkippableForPlayersThatCannotAcceptLargePackets() {
++            return this.isSkippableForPlayersThatCannotAcceptLargePackets;
++        }
++
 +    }
 +
 +    public record CustomShapedRecipeIngredientDefinition(char character, @NotNull ItemLike ingredient) {}
 +
-+    public record CustomShapedRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull CustomShapedRecipeIngredientDefinition @NotNull [] ingredients, @NotNull String @NotNull [] patterns, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
++    public record CustomShapedRecipe(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull CustomShapedRecipeIngredientDefinition @NotNull [] ingredients, @NotNull String @NotNull [] patterns, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
 +
 +        public @NotNull ShapedRecipe build(@NotNull Item result) {
 +            var recipe = new ShapedRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
@@ -3955,47 +4009,54 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
 +            return this.unlocks();
 +        }
 +
-+        public static @NotNull CustomShapedRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, @NotNull CustomShapedRecipeIngredientDefinition @NotNull [] ingredients, @NotNull String @NotNull [] patterns, int resultAmount) {
-+            return new CustomShapedRecipe(key, group, ingredients, patterns, new CustomRecipeUnlock[0], resultAmount);
++        public static @NotNull CustomShapedRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull CustomShapedRecipeIngredientDefinition @NotNull [] ingredients, @NotNull String @NotNull [] patterns, int resultAmount) {
++            return new CustomShapedRecipe(key, group, isSkippableForPlayersThatCannotAcceptLargePackets, ingredients, patterns, new CustomRecipeUnlock[0], resultAmount);
 +        }
 +
-+        public static @NotNull CustomShapedRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, @NotNull CustomShapedRecipeIngredientDefinition @NotNull [] ingredients, @NotNull String @NotNull [] patterns, @NotNull Item unlockItem, int resultAmount) {
-+            return new CustomShapedRecipe(key, group, ingredients, patterns, new CustomRecipeUnlock[] {new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
++        public static @NotNull CustomShapedRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull CustomShapedRecipeIngredientDefinition @NotNull [] ingredients, @NotNull String @NotNull [] patterns, @NotNull Item unlockItem, int resultAmount) {
++            return new CustomShapedRecipe(key, group, isSkippableForPlayersThatCannotAcceptLargePackets, ingredients, patterns, new CustomRecipeUnlock[] {new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
 +        }
 +
-+        public static @NotNull CustomShapedRecipe craftSlab(@NotNull Block slabBlock, @NotNull Block fullBlock) {
-+            return craftSlab(slabBlock, fullBlock, null);
++        public static @NotNull CustomShapedRecipe craftSlab(@NotNull Block slabBlock, @NotNull Block fullBlock, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++            return craftSlab(slabBlock, fullBlock, null, isSkippableForPlayersThatCannotAcceptLargePackets);
 +        }
 +
-+        public static @NotNull CustomShapedRecipe craftSlab(@NotNull Block slabBlock, @NotNull Block fullBlock, @Nullable String group) {
++        public static @NotNull CustomShapedRecipe craftSlab(@NotNull Block slabBlock, @NotNull Block fullBlock, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +            return getUnlockedByItem(
 +                ResourceLocation.sucraft(slabBlock.id.getPath() + "_from_" + fullBlock.id.getPath() + "_crafting"),
 +                group,
++                isSkippableForPlayersThatCannotAcceptLargePackets,
 +                new CustomShapedRecipeIngredientDefinition[] {new CustomShapedRecipeIngredientDefinition('$', fullBlock.asItem())},
 +                new String[] {"$$$"}, slabBlock.asItem(),
 +                6
 +            );
 +        }
 +
-+        public static @NotNull CustomShapedRecipe craftStairs(@NotNull Block slabBlock, @NotNull Block fullBlock) {
-+            return craftStairs(slabBlock, fullBlock, null);
++        public static @NotNull CustomShapedRecipe craftStairs(@NotNull Block slabBlock, @NotNull Block fullBlock, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++            return craftStairs(slabBlock, fullBlock, null, isSkippableForPlayersThatCannotAcceptLargePackets);
 +        }
 +
-+        public static @NotNull CustomShapedRecipe craftStairs(@NotNull Block slabBlock, @NotNull Block fullBlock, @Nullable String group) {
++        public static @NotNull CustomShapedRecipe craftStairs(@NotNull Block slabBlock, @NotNull Block fullBlock, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +            return getUnlockedByItem(
 +                ResourceLocation.sucraft(slabBlock.id.getPath() + "_from_" + fullBlock.id.getPath() + "_crafting"),
 +                group,
++                isSkippableForPlayersThatCannotAcceptLargePackets,
 +                new CustomShapedRecipeIngredientDefinition[] {new CustomShapedRecipeIngredientDefinition('$', fullBlock.asItem())},
 +                new String[] {"$  ", "$$ ", "$$$"}, slabBlock.asItem(),
 +                4
 +            );
 +        }
 +
++        @Override
++        public boolean isSkippableForPlayersThatCannotAcceptLargePackets() {
++            return this.isSkippableForPlayersThatCannotAcceptLargePackets;
++        }
++
 +    }
 +
 +    public record CustomChoiceShapedRecipeIngredientDefinition(char character, @NotNull ItemLike @NotNull [] ingredientChoice) {}
 +
-+    public record CustomChoiceShapedRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull CustomChoiceShapedRecipeIngredientDefinition @NotNull [] ingredientChoices, @NotNull String @NotNull [] patterns, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
++    public record CustomChoiceShapedRecipe(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull CustomChoiceShapedRecipeIngredientDefinition @NotNull [] ingredientChoices, @NotNull String @NotNull [] patterns, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
 +
 +        public @NotNull ShapedRecipe build(@NotNull Item result) {
 +            var recipe = new ShapedRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
@@ -4013,13 +4074,18 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
 +            return this.unlocks();
 +        }
 +
-+        public static @NotNull CustomChoiceShapedRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, @NotNull CustomChoiceShapedRecipeIngredientDefinition @NotNull [] ingredientChoices, @NotNull String @NotNull [] patterns, int resultAmount) {
-+            return new CustomChoiceShapedRecipe(key, group, ingredientChoices, patterns, new CustomRecipeUnlock[0], resultAmount);
++        public static @NotNull CustomChoiceShapedRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull CustomChoiceShapedRecipeIngredientDefinition @NotNull [] ingredientChoices, @NotNull String @NotNull [] patterns, int resultAmount) {
++            return new CustomChoiceShapedRecipe(key, group, isSkippableForPlayersThatCannotAcceptLargePackets, ingredientChoices, patterns, new CustomRecipeUnlock[0], resultAmount);
++        }
++
++        @Override
++        public boolean isSkippableForPlayersThatCannotAcceptLargePackets() {
++            return this.isSkippableForPlayersThatCannotAcceptLargePackets;
 +        }
 +
 +    }
 +
-+    public record CustomShapelessRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] ingredients, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
++    public record CustomShapelessRecipe(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull ItemLike @NotNull [] ingredients, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
 +
 +        public @NotNull ShapelessRecipe build(@NotNull Item result) {
 +            var recipe = new ShapelessRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
@@ -4036,17 +4102,22 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
 +            return this.unlocks();
 +        }
 +
-+        public static @NotNull CustomShapelessRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] ingredients, int resultAmount) {
-+            return new CustomShapelessRecipe(key, group, ingredients, new CustomRecipeUnlock[0], resultAmount);
++        public static @NotNull CustomShapelessRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull ItemLike @NotNull [] ingredients, int resultAmount) {
++            return new CustomShapelessRecipe(key, group, isSkippableForPlayersThatCannotAcceptLargePackets, ingredients, new CustomRecipeUnlock[0], resultAmount);
 +        }
 +
-+        public static @NotNull CustomShapelessRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] ingredients, @NotNull Item unlockItem, int resultAmount) {
-+            return new CustomShapelessRecipe(key, group, ingredients, new CustomRecipeUnlock[]{new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
++        public static @NotNull CustomShapelessRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull ItemLike @NotNull [] ingredients, @NotNull Item unlockItem, int resultAmount) {
++            return new CustomShapelessRecipe(key, group, isSkippableForPlayersThatCannotAcceptLargePackets, ingredients, new CustomRecipeUnlock[]{new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
++        }
++
++        @Override
++        public boolean isSkippableForPlayersThatCannotAcceptLargePackets() {
++            return this.isSkippableForPlayersThatCannotAcceptLargePackets;
 +        }
 +
 +    }
 +
-+    public record CustomChoiceShapelessRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
++    public record CustomChoiceShapelessRecipe(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, @NotNull CustomRecipeUnlock @NotNull [] unlocks, int resultAmount) implements CustomBukkitRecipe, CustomRecipeWithConcreteUnlocks {
 +
 +        public @NotNull ShapelessRecipe build(@NotNull Item result) {
 +            var recipe = new ShapelessRecipe(this.key.asBukkit(), new ItemStack(result, this.resultAmount).getBukkitStack());
@@ -4063,17 +4134,22 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
 +            return this.unlocks();
 +        }
 +
-+        public static @NotNull CustomChoiceShapelessRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, int resultAmount) {
-+            return new CustomChoiceShapelessRecipe(key, group, ingredientChoices, new CustomRecipeUnlock[0], resultAmount);
++        public static @NotNull CustomChoiceShapelessRecipe getWithoutUnlocks(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, int resultAmount) {
++            return new CustomChoiceShapelessRecipe(key, group, isSkippableForPlayersThatCannotAcceptLargePackets, ingredientChoices, new CustomRecipeUnlock[0], resultAmount);
 +        }
 +
-+        public static @NotNull CustomChoiceShapelessRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, @NotNull Item unlockItem, int resultAmount) {
-+            return new CustomChoiceShapelessRecipe(key, group, ingredientChoices, new CustomRecipeUnlock[]{new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
++        public static @NotNull CustomChoiceShapelessRecipe getUnlockedByItem(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull ItemLike @NotNull [] @NotNull [] ingredientChoices, @NotNull Item unlockItem, int resultAmount) {
++            return new CustomChoiceShapelessRecipe(key, group, isSkippableForPlayersThatCannotAcceptLargePackets, ingredientChoices, new CustomRecipeUnlock[]{new CustomRecipeUnlockByItem(() -> unlockItem)}, resultAmount);
++        }
++
++        @Override
++        public boolean isSkippableForPlayersThatCannotAcceptLargePackets() {
++            return this.isSkippableForPlayersThatCannotAcceptLargePackets;
 +        }
 +
 +    }
 +
-+    public record CustomFurnaceRecipe(@NotNull ResourceLocation key, @Nullable String group, @NotNull ItemLike ingredient, float experience, int cookingTime) implements CustomBukkitRecipe, CustomRecipeWithSingleIngredient {
++    public record CustomFurnaceRecipe(@NotNull ResourceLocation key, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets, @NotNull ItemLike ingredient, float experience, int cookingTime) implements CustomBukkitRecipe, CustomRecipeWithSingleIngredient {
 +
 +        public @NotNull FurnaceRecipe build(@NotNull Item result) {
 +            return new FurnaceRecipe(
@@ -4088,6 +4164,11 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..0571d366598a53c9eb887da3d34cb5de
 +        @Override
 +        public @NotNull Item getSingleIngredient() {
 +            return this.ingredient.asItem();
++        }
++
++        @Override
++        public boolean isSkippableForPlayersThatCannotAcceptLargePackets() {
++            return this.isSkippableForPlayersThatCannotAcceptLargePackets;
 +        }
 +
 +    }
@@ -4253,13 +4334,14 @@ index 51016663829b1f36b8e752dcf9c9361282c3f06b..f7d9190cf8aad61d6f4b7688f84b0e2c
 +
  }
 diff --git a/src/main/java/net/minecraft/world/item/crafting/Recipe.java b/src/main/java/net/minecraft/world/item/crafting/Recipe.java
-index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..5bb19ba5cd5c78efb3e23ccb79bc1cd8a9dc8fd1 100644
+index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..7186cebd1a9afbcf7ee9d902af2f60de668e5677 100644
 --- a/src/main/java/net/minecraft/world/item/crafting/Recipe.java
 +++ b/src/main/java/net/minecraft/world/item/crafting/Recipe.java
-@@ -2,11 +2,15 @@ package net.minecraft.world.item.crafting;
+@@ -2,11 +2,16 @@ package net.minecraft.world.item.crafting;
  
  import net.minecraft.core.NonNullList;
  import net.minecraft.resources.ResourceLocation;
++import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerPlayer;
  import net.minecraft.world.Container;
  import net.minecraft.world.item.Item;
@@ -4272,7 +4354,7 @@ index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..5bb19ba5cd5c78efb3e23ccb79bc1cd8
  
  public interface Recipe<C extends Container> {
  
-@@ -18,6 +22,46 @@ public interface Recipe<C extends Container> {
+@@ -18,6 +23,46 @@ public interface Recipe<C extends Container> {
  
      ItemStack getResultItem();
  
@@ -4302,8 +4384,8 @@ index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..5bb19ba5cd5c78efb3e23ccb79bc1cd8
 +        return this.getReplacedResultItem(hasSuCraftResourcePack, hasHighPingForCustomBlocks).getDescriptionId();
 +    }
 +
-+    default boolean shouldAlwaysSend() {
-+        return true;
++    default boolean shouldAlwaysSend(boolean canPlayerAcceptLargePackets) {
++        return canPlayerAcceptLargePackets || !MinecraftServer.getServer().getRecipeManager().recipesSkippableForPlayersThatCannotAcceptLargePackets.contains(this);
 +    }
 +
 +    default boolean shouldSpecificallySend(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
@@ -4311,7 +4393,7 @@ index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..5bb19ba5cd5c78efb3e23ccb79bc1cd8
 +    }
 +
 +    default boolean shouldSendRightNow(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
-+        return this.shouldAlwaysSend() || this.shouldSpecificallySend(player, stonecutterInput);
++        return this.shouldAlwaysSend(player.canAcceptLargePackets()) || this.shouldSpecificallySend(player, stonecutterInput);
 +    }
 +
 +    // Martijn end - custom blocks and items
@@ -4320,10 +4402,24 @@ index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..5bb19ba5cd5c78efb3e23ccb79bc1cd8
          NonNullList<ItemStack> nonnulllist = NonNullList.withSize(inventory.getContainerSize(), ItemStack.EMPTY);
  
 diff --git a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
-index 4872f70977e73c889fe6e2339d00ebc64459613d..3a86d2b3b44e198ec84be4b535c545c8a9b1e45d 100644
+index 4872f70977e73c889fe6e2339d00ebc64459613d..410e3aaa52795a9a677c94a76d1b00390a87e845 100644
 --- a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
 +++ b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
-@@ -32,6 +32,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
+@@ -14,11 +14,13 @@ import com.mojang.logging.LogUtils;
+ import java.util.Collection;
+ import java.util.Collections;
+ import java.util.Comparator;
++import java.util.IdentityHashMap;
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Map.Entry;
+ import java.util.Optional;
++import java.util.Set;
+ import java.util.stream.Collectors;
+ import java.util.stream.Stream;
+ import javax.annotation.Nullable;
+@@ -32,6 +34,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
  import net.minecraft.world.Container;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.level.Level;
@@ -4331,22 +4427,45 @@ index 4872f70977e73c889fe6e2339d00ebc64459613d..3a86d2b3b44e198ec84be4b535c545c8
  import org.slf4j.Logger;
  
  import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap; // CraftBukkit
-@@ -92,7 +93,13 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+@@ -43,6 +46,7 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+     public Map<RecipeType<?>, Object2ObjectLinkedOpenHashMap<ResourceLocation, Recipe<?>>> recipes = ImmutableMap.of(); // CraftBukkit
+     public Map<ResourceLocation, Recipe<?>> byName = ImmutableMap.of();
+     private boolean hasErrors;
++    public Set<Recipe<?>> recipesSkippableForPlayersThatCannotAcceptLargePackets = Collections.newSetFromMap(new IdentityHashMap<>(0)); // Martijn - custom blocks and items
+ 
+     public RecipeManager() {
+         super(RecipeManager.GSON, "recipes");
+@@ -86,13 +90,28 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+ 
+     // CraftBukkit start
+     public void addRecipe(Recipe<?> irecipe) {
++        // Martijn start - custom blocks and items
++        this.addRecipe(irecipe, false);
++    }
++
++    public void addRecipe(Recipe<?> irecipe, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        // Martijn end - custom blocks and items
+         org.spigotmc.AsyncCatcher.catchOp("Recipe Add"); // Spigot
+         Object2ObjectLinkedOpenHashMap<ResourceLocation, Recipe<?>> map = this.recipes.get(irecipe.getType()); // CraftBukkit
+ 
          if (this.byName.containsKey(irecipe.getId()) || map.containsKey(irecipe.getId())) {
              throw new IllegalStateException("Duplicate recipe ignored with ID " + irecipe.getId());
          } else {
 -            map.putAndMoveToFirst(irecipe.getId(), irecipe); // CraftBukkit - SPIGOT-4638: last recipe gets priority
 +            // Martijn start - custom blocks and items
-+            if (irecipe.shouldAlwaysSend()) {
++            if (irecipe.shouldAlwaysSend(true)) {
 +                map.putAndMoveToFirst(irecipe.getId(), irecipe); // CraftBukkit - SPIGOT-4638: last recipe gets priority
 +            } else {
 +                map.putAndMoveToLast(irecipe.getId(), irecipe);
++            }
++            if (isSkippableForPlayersThatCannotAcceptLargePackets) {
++                this.recipesSkippableForPlayersThatCannotAcceptLargePackets.add(irecipe);
 +            }
 +            // Martijn end - custom blocks and items
              this.byName.put(irecipe.getId(), irecipe);
          }
      }
-@@ -135,11 +142,40 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+@@ -135,11 +154,40 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
      }
  
      public <C extends Container, T extends Recipe<C>> List<T> getRecipesFor(RecipeType<T> type, C inventory, Level world) {
@@ -4367,7 +4486,7 @@ index 4872f70977e73c889fe6e2339d00ebc64459613d..3a86d2b3b44e198ec84be4b535c545c8
 +            // Martijn start - custom blocks and items
 +//        }).filter()
 +        }).filter(
-+            recipe -> (finalPlayer != null && finalPlayer.hasSuCraftResourcePack()) || recipe.shouldAlwaysSend()
++            recipe -> (finalPlayer != null && finalPlayer.hasSuCraftResourcePack()) || recipe.shouldAlwaysSend(finalPlayer.canAcceptLargePackets())
 +        ).sorted((recipe1, recipe2) -> {
 +            ItemStack result1;
 +            ItemStack result2;
@@ -4404,7 +4523,7 @@ index 71d491172b73fa5f428e3cab39240349dd715b6d..5b9b8fdae3a078e154490905e37c7aa1
  
      T fromJson(ResourceLocation id, JsonObject json);
 diff --git a/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java b/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
-index 6d5803fcdd0a0b2d106745e9e6b859693b2aade2..a4da5c70f877c7da4577e1ddc07e4c6a708d1352 100644
+index 6d5803fcdd0a0b2d106745e9e6b859693b2aade2..b56b91640872f550643019b67f6c23f2cea6185d 100644
 --- a/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
 +++ b/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
 @@ -1,7 +1,14 @@
@@ -4454,7 +4573,7 @@ index 6d5803fcdd0a0b2d106745e9e6b859693b2aade2..a4da5c70f877c7da4577e1ddc07e4c6a
 +    // Martijn start - custom blocks and items
 +
 +    @Override
-+    public boolean shouldAlwaysSend() {
++    public boolean shouldAlwaysSend(boolean canPlayerAcceptLargePackets) {
 +        return !isCustom;
 +    }
 +
@@ -4610,7 +4729,7 @@ index a76c452dc5c2069a3071aec31bfb3e977867161e..0783cf8d12707ec7376d3f578a54b599
                      break;
                  }
 diff --git a/src/main/java/net/minecraft/world/level/block/Block.java b/src/main/java/net/minecraft/world/level/block/Block.java
-index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e525e4e145c 100644
+index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..2cd2f1b9ca91c869075081ac4da317e0bd3722c2 100644
 --- a/src/main/java/net/minecraft/world/level/block/Block.java
 +++ b/src/main/java/net/minecraft/world/level/block/Block.java
 @@ -6,6 +6,9 @@ import com.google.common.cache.LoadingCache;
@@ -4686,7 +4805,7 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
      private static final LoadingCache<VoxelShape, Boolean> SHAPE_FULL_BLOCK_CACHE = CacheBuilder.newBuilder().maximumSize(512L).weakKeys().build(new CacheLoader<VoxelShape, Boolean>() {
          public Boolean load(VoxelShape voxelshape) {
              return !Shapes.joinIsNotEmpty(Shapes.block(), voxelshape, BooleanOp.NOT_SAME);
-@@ -127,6 +157,597 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -127,6 +157,635 @@ public class Block extends BlockBehaviour implements ItemLike {
          return object2bytelinkedopenhashmap;
      });
  
@@ -4958,7 +5077,7 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +
 +        @Override
 +        public @NotNull Item.CustomStonecutterRecipe toItemRecipe() {
-+            return new Item.CustomStonecutterRecipe(key(), group(), ingredient().asItem(), resultAmount());
++            return new Item.CustomStonecutterRecipe(key(), group(), false, ingredient().asItem(), resultAmount());
 +        }
 +
 +    }
@@ -4985,7 +5104,7 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +        return this.withCustomRecipe(new FutureCustomRecipe(supplier));
 +    }
 +
-+    public @NotNull Block withCustomStoneBricksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> additionalItemSupplier, int stoneBrickAmount) {
++    public @NotNull Block withCustomStoneBricksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> additionalItemSupplier, int stoneBrickAmount, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var additionalItem = additionalItemSupplier.get().asItem();
 +            ItemLike[] ingredients = new ItemLike[stoneBrickAmount + 1];
@@ -4994,15 +5113,15 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +                ingredients[i] = Items.STONE_BRICKS;
 +            }
 +            var recipeKey = ResourceLocation.sucraft(additionalItem.id.getPath() + "_to_" + recipePrefix + "_stony_bricks");
-+            return Item.CustomShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredients, Items.STONE_BRICKS, stoneBrickAmount);
++            return Item.CustomShapelessRecipe.getUnlockedByItem(recipeKey, null, isSkippableForPlayersThatCannotAcceptLargePackets, ingredients, Items.STONE_BRICKS, stoneBrickAmount);
 +        });
 +    }
 +
-+    public @NotNull Block withCustom8StoneBricksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> additionalItemSupplier) {
-+        return this.withCustomStoneBricksRecipe(recipePrefix, additionalItemSupplier, 8);
++    public @NotNull Block withCustom8StoneBricksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> additionalItemSupplier, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withCustomStoneBricksRecipe(recipePrefix, additionalItemSupplier, 8, isSkippableForPlayersThatCannotAcceptLargePackets);
 +    }
 +
-+    public @NotNull Block withCustomDyedPlanksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++    public @NotNull Block withCustomDyedPlanksRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var dyeItem = dyeItemSupplier.get().asItem();
 +            ItemLike[] plankIngredientChoice = {
@@ -5038,11 +5157,11 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +                ingredientChoices[i] = plankIngredientChoice;
 +            }
 +            var recipeKey = ResourceLocation.sucraft(dyeItem.id.getPath() + "_and_planks_to_" + recipePrefix + "_planks");
-+            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredientChoices, dyeItem, 8);
++            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, isSkippableForPlayersThatCannotAcceptLargePackets, ingredientChoices, dyeItem, 8);
 +        });
 +    }
 +
-+    public @NotNull Block withCustomDyedPlankSlabsRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++    public @NotNull Block withCustomDyedPlankSlabsRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var dyeItem = dyeItemSupplier.get().asItem();
 +            ItemLike[] plankSlabIngredientChoice = {
@@ -5078,11 +5197,11 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +                ingredientChoices[i] = plankSlabIngredientChoice;
 +            }
 +            var recipeKey = ResourceLocation.sucraft(dyeItem.id.getPath() + "_and_plank_slabs_to_" + recipePrefix + "_plank_slabs");
-+            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredientChoices, dyeItem, 8);
++            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, isSkippableForPlayersThatCannotAcceptLargePackets, ingredientChoices, dyeItem, 8);
 +        });
 +    }
 +
-+    public @NotNull Block withCustomDyedPlankStairsRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
++    public @NotNull Block withCustomDyedPlankStairsRecipe(@NotNull String recipePrefix, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var dyeItem = dyeItemSupplier.get().asItem();
 +            ItemLike[] plankStairsIngredientChoice = {
@@ -5118,17 +5237,18 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +                ingredientChoices[i] = plankStairsIngredientChoice;
 +            }
 +            var recipeKey = ResourceLocation.sucraft(dyeItem.id.getPath() + "_and_plank_stairs_to_" + recipePrefix + "_plank_stairs");
-+            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, ingredientChoices, dyeItem, 8);
++            return Item.CustomChoiceShapelessRecipe.getUnlockedByItem(recipeKey, null, isSkippableForPlayersThatCannotAcceptLargePackets, ingredientChoices, dyeItem, 8);
 +        });
 +    }
 +
-+    public @NotNull Block withCustom2x2SquareChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount) {
++    public @NotNull Block withCustom2x2SquareChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var ingredientChoice = ingredientChoiceSupplier.get();
 +            var recipeKey = ResourceLocation.sucraft(recipeKeyPath);
 +            return new Item.CustomChoiceShapedRecipe(
 +                recipeKey,
 +                null,
++                isSkippableForPlayersThatCannotAcceptLargePackets,
 +                new Item.CustomChoiceShapedRecipeIngredientDefinition[]{
 +                    new Item.CustomChoiceShapedRecipeIngredientDefinition('$', ingredientChoice)
 +                },
@@ -5139,13 +5259,14 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +        });
 +    }
 +
-+    public @NotNull Block withCustom2x2SquareRecipe(@NotNull String resultKeyPart, @NotNull Supplier<@NotNull ItemLike> ingredientSupplier, int resultAmount) {
++    public @NotNull Block withCustom2x2SquareRecipe(@NotNull String resultKeyPart, @NotNull Supplier<@NotNull ItemLike> ingredientSupplier, int resultAmount, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var ingredient = ingredientSupplier.get().asItem();
 +            var recipeKey = ResourceLocation.sucraft(ingredient.id.getPath() + "_to_" + resultKeyPart);
 +            return Item.CustomShapedRecipe.getUnlockedByItem(
 +                recipeKey,
 +                null,
++                isSkippableForPlayersThatCannotAcceptLargePackets,
 +                new Item.CustomShapedRecipeIngredientDefinition[]{
 +                    new Item.CustomShapedRecipeIngredientDefinition('$', ingredient)
 +                },
@@ -5156,17 +5277,18 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +        });
 +    }
 +
-+    public @NotNull Block withCustom2x2SquareRecipe(@NotNull String resultKeyPart, @NotNull Block ingredient, int resultAmount) {
-+        return this.withCustom2x2SquareRecipe(resultKeyPart, () -> ingredient.asItem(), resultAmount);
++    public @NotNull Block withCustom2x2SquareRecipe(@NotNull String resultKeyPart, @NotNull Block ingredient, int resultAmount, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withCustom2x2SquareRecipe(resultKeyPart, () -> ingredient.asItem(), resultAmount, isSkippableForPlayersThatCannotAcceptLargePackets);
 +    }
 +
-+    public @NotNull Block withCustom3x3SquareChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount) {
++    public @NotNull Block withCustom3x3SquareChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var ingredientChoice = ingredientChoiceSupplier.get();
 +            var recipeKey = ResourceLocation.sucraft(recipeKeyPath);
 +            return new Item.CustomChoiceShapedRecipe(
 +                recipeKey,
 +                null,
++                isSkippableForPlayersThatCannotAcceptLargePackets,
 +                new Item.CustomChoiceShapedRecipeIngredientDefinition[]{
 +                    new Item.CustomChoiceShapedRecipeIngredientDefinition('$', ingredientChoice)
 +                },
@@ -5177,13 +5299,14 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +        });
 +    }
 +
-+    public @NotNull Block withCustom3x3SquareRecipe(@NotNull String resultKeyPart, @NotNull Supplier<@NotNull ItemLike> ingredientSupplier, int resultAmount) {
++    public @NotNull Block withCustom3x3SquareRecipe(@NotNull String resultKeyPart, @NotNull Supplier<@NotNull ItemLike> ingredientSupplier, int resultAmount, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var ingredient = ingredientSupplier.get().asItem();
 +            var recipeKey = ResourceLocation.sucraft(ingredient.id.getPath() + "_to_" + resultKeyPart);
 +            return Item.CustomShapedRecipe.getUnlockedByItem(
 +                recipeKey,
 +                null,
++                isSkippableForPlayersThatCannotAcceptLargePackets,
 +                new Item.CustomShapedRecipeIngredientDefinition[]{
 +                    new Item.CustomShapedRecipeIngredientDefinition('$', ingredient)
 +                },
@@ -5194,17 +5317,18 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +        });
 +    }
 +
-+    public @NotNull Block withCustom3x3SquareRecipe(@NotNull String resultKeyPart, @NotNull Block ingredient, int resultAmount) {
-+        return this.withCustom3x3SquareRecipe(resultKeyPart, () -> ingredient.asItem(), resultAmount);
++    public @NotNull Block withCustom3x3SquareRecipe(@NotNull String resultKeyPart, @NotNull Block ingredient, int resultAmount, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withCustom3x3SquareRecipe(resultKeyPart, () -> ingredient.asItem(), resultAmount, isSkippableForPlayersThatCannotAcceptLargePackets);
 +    }
 +
-+    public @NotNull Block withCustom2VerticalChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount) {
++    public @NotNull Block withCustom2VerticalChoiceRecipe(@NotNull String recipeKeyPath, @NotNull Supplier<@NotNull ItemLike @NotNull []> ingredientChoiceSupplier, int resultAmount, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var ingredientChoice = ingredientChoiceSupplier.get();
 +            var recipeKey = ResourceLocation.sucraft(recipeKeyPath);
 +            return new Item.CustomChoiceShapedRecipe(
 +                recipeKey,
 +                null,
++                isSkippableForPlayersThatCannotAcceptLargePackets,
 +                new Item.CustomChoiceShapedRecipeIngredientDefinition[]{
 +                    new Item.CustomChoiceShapedRecipeIngredientDefinition('$', ingredientChoice)
 +                },
@@ -5215,7 +5339,7 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +        });
 +    }
 +
-+    public @NotNull Block withCustomFurnaceRecipe(@NotNull Supplier<@NotNull Item> ingredientSupplier, float experience, int cookingTime) {
++    public @NotNull Block withCustomFurnaceRecipe(@NotNull Supplier<@NotNull Item> ingredientSupplier, float experience, int cookingTime, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        return this.withFutureCustomRecipe(() -> {
 +            var ingredient = ingredientSupplier.get();
 +            var recipeKeyPath = id.getPath() + "_from_" + ingredient.id.getPath() + "_furnace";
@@ -5223,6 +5347,7 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +            return new Item.CustomFurnaceRecipe(
 +                recipeKey,
 +                null,
++                isSkippableForPlayersThatCannotAcceptLargePackets,
 +                ingredient,
 +                experience,
 +                cookingTime
@@ -5230,53 +5355,85 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
 +        });
 +    }
 +
-+    public @NotNull Block withCustomFurnaceRecipe(@NotNull Block ingredient, float experience, int cookingTime) {
-+        return this.withCustomFurnaceRecipe(() -> ingredient.asItem(), experience, cookingTime);
++    public @NotNull Block withCustomFurnaceRecipe(@NotNull Block ingredient, float experience, int cookingTime, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withCustomFurnaceRecipe(() -> ingredient.asItem(), experience, cookingTime, isSkippableForPlayersThatCannotAcceptLargePackets);
 +    }
 +
-+    public @NotNull Block withCustomStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, int resultAmount, boolean transitive) {
++    public @NotNull Block withCustomStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, int resultAmount, boolean transitive, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
 +        @NotNull String uniqueRecipeDescription = id.getPath() + "_from_" + ingredient.id.getPath() + "_stonecutting";
 +        this.withCustomRecipe(new CustomStonecutterRecipe(ResourceLocation.sucraft(uniqueRecipeDescription), group, ingredient, resultAmount));
 +        if (transitive) {
 +            for (CustomRecipe transitiveRecipe : ingredient.customRecipes) {
 +                if (transitiveRecipe instanceof CustomStonecutterRecipe transitiveStonecutterRecipe) {
-+                    this.withCustomStonecutterRecipe(transitiveStonecutterRecipe.ingredient, null, resultAmount * transitiveStonecutterRecipe.resultAmount, true);
++                    this.withCustomStonecutterRecipe(transitiveStonecutterRecipe.ingredient, null, resultAmount * transitiveStonecutterRecipe.resultAmount, true, isSkippableForPlayersThatCannotAcceptLargePackets);
 +                }
 +            }
 +        }
 +        return this;
 +    }
 +
++    public @NotNull Block withCustomSlabStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, boolean transitive, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withCustomStonecutterRecipe(ingredient, group, 2, transitive, isSkippableForPlayersThatCannotAcceptLargePackets);
++    }
++
++    public @NotNull Block withCustomSlabStonecutterRecipe(@NotNull Block ingredient, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withCustomSlabStonecutterRecipe(ingredient, null, true, isSkippableForPlayersThatCannotAcceptLargePackets);
++    }
++
++    public @NotNull Block withCustomOneToOneStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, boolean transitive, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withCustomStonecutterRecipe(ingredient, group, 1, transitive, isSkippableForPlayersThatCannotAcceptLargePackets);
++    }
++
++    public @NotNull Block withCustomOneToOneStonecutterRecipe(@NotNull Block ingredient, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withCustomOneToOneStonecutterRecipe(ingredient, null, true, isSkippableForPlayersThatCannotAcceptLargePackets);
++    }
++
++    public @NotNull Block withCustomSlabCraftingRecipe(@NotNull Block fullBlock, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftSlab(this, fullBlock, group, isSkippableForPlayersThatCannotAcceptLargePackets));
++    }
++
++    public @NotNull Block withCustomSlabCraftingRecipe(@NotNull Block fullBlock, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftSlab(this, fullBlock, isSkippableForPlayersThatCannotAcceptLargePackets));
++    }
++
++    public @NotNull Block withCustomStairsCraftingRecipe(@NotNull Block fullBlock, @Nullable String group, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftStairs(this, fullBlock, group, isSkippableForPlayersThatCannotAcceptLargePackets));
++    }
++
++    public @NotNull Block withCustomStairsCraftingRecipe(@NotNull Block fullBlock, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftStairs(this, fullBlock, isSkippableForPlayersThatCannotAcceptLargePackets));
++    }
++
 +    public @NotNull Block withCustomSlabStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, boolean transitive) {
-+        return this.withCustomStonecutterRecipe(ingredient, group, 2, transitive);
++        return this.withCustomSlabStonecutterRecipe(ingredient, group, transitive, false);
 +    }
 +
 +    public @NotNull Block withCustomSlabStonecutterRecipe(@NotNull Block ingredient) {
-+        return this.withCustomSlabStonecutterRecipe(ingredient, null, true);
++        return this.withCustomSlabStonecutterRecipe(ingredient, false);
 +    }
 +
 +    public @NotNull Block withCustomOneToOneStonecutterRecipe(@NotNull Block ingredient, @Nullable String group, boolean transitive) {
-+        return this.withCustomStonecutterRecipe(ingredient, group, 1, transitive);
++        return this.withCustomOneToOneStonecutterRecipe(ingredient, group, transitive, false);
 +    }
 +
 +    public @NotNull Block withCustomOneToOneStonecutterRecipe(@NotNull Block ingredient) {
-+        return this.withCustomOneToOneStonecutterRecipe(ingredient, null, true);
++        return this.withCustomOneToOneStonecutterRecipe(ingredient, false);
 +    }
 +
 +    public @NotNull Block withCustomSlabCraftingRecipe(@NotNull Block fullBlock, @Nullable String group) {
-+        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftSlab(this, fullBlock, group));
++        return this.withCustomSlabCraftingRecipe(fullBlock, group, true);
 +    }
 +
 +    public @NotNull Block withCustomSlabCraftingRecipe(@NotNull Block fullBlock) {
-+        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftSlab(this, fullBlock));
++        return this.withCustomSlabCraftingRecipe(fullBlock, true);
 +    }
 +
 +    public @NotNull Block withCustomStairsCraftingRecipe(@NotNull Block fullBlock, @Nullable String group) {
-+        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftStairs(this, fullBlock, group));
++        return this.withCustomStairsCraftingRecipe(fullBlock, group, true);
 +    }
 +
 +    public @NotNull Block withCustomStairsCraftingRecipe(@NotNull Block fullBlock) {
-+        return this.withFutureCustomRecipe(() -> Item.CustomShapedRecipe.craftStairs(this, fullBlock));
++        return this.withCustomStairsCraftingRecipe(fullBlock, true);
 +    }
 +
 +    // Martijn end - custom blocks and items
@@ -5284,7 +5441,7 @@ index 2e65b44f10aeb44fd524a58e7eb815a566c1ad61..075f77bfa91c6b786255a98ab51a3e52
      public static int getId(@Nullable BlockState state) {
          if (state == null) {
              return 0;
-@@ -639,4 +1260,14 @@ public class Block extends BlockBehaviour implements ItemLike {
+@@ -639,4 +1298,14 @@ public class Block extends BlockBehaviour implements ItemLike {
              return i;
          }
      }
@@ -8109,10 +8266,10 @@ index 0000000000000000000000000000000000000000..8cf7b921442f63a9f5246ff22faf6be6
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90ee38c7c90
+index 0000000000000000000000000000000000000000..ece64c736572873056967040dac561af6777d0c4
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/SuCraftBlocks.java
-@@ -0,0 +1,1530 @@
+@@ -0,0 +1,1531 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block;
@@ -8166,8 +8323,8 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 + */
 +public class SuCraftBlocks {
 +
-+    public static final Block SNOWY_STONE_BRICKS = registerStoneBricks("snowy", Blocks.INFESTED_STONE_BRICKS, Blocks.STONE_BRICKS, Blocks.STONE_BRICKS).withCustom8StoneBricksRecipe("snowy", () -> Items.SNOW_BLOCK).withCustomStoneBricksRecipe("snowy", () -> Items.SNOWBALL, 2);
-+    public static final Block DIRTY_STONE_BRICKS = registerStoneBricks("dirty", Blocks.INFESTED_CRACKED_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS, Blocks.STONE_BRICKS).withCustom8StoneBricksRecipe("dirty", () -> Items.DIRT);
++    public static final Block SNOWY_STONE_BRICKS = registerStoneBricks("snowy", Blocks.INFESTED_STONE_BRICKS, Blocks.STONE_BRICKS, Blocks.STONE_BRICKS).withCustom8StoneBricksRecipe("snowy", () -> Items.SNOW_BLOCK, false).withCustomStoneBricksRecipe("snowy", () -> Items.SNOWBALL, 2, true);
++    public static final Block DIRTY_STONE_BRICKS = registerStoneBricks("dirty", Blocks.INFESTED_CRACKED_STONE_BRICKS, Blocks.CRACKED_STONE_BRICKS, Blocks.STONE_BRICKS).withCustom8StoneBricksRecipe("dirty", () -> Items.DIRT, false).withCustomStoneBricksRecipe("dirty", () -> SuCraftItems.DIRT_SLAB, 4, true);
 +    public static final Block INFESTED_SNOWY_STONE_BRICKS = registerInfested(SNOWY_STONE_BRICKS);
 +    public static final Block INFESTED_DIRTY_STONE_BRICKS = registerInfested(DIRTY_STONE_BRICKS);
 +    public static final Block SPRUCE_BOOKSHELF = registerBookshelf("spruce");
@@ -8207,7 +8364,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.DIRT).strength(0.5F, 1.0F).sound(SoundType.GRAVEL)).mineableWithShovel().dirt(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(Blocks.DIRT).withCustom2x2SquareRecipe("dirt_bricks", Blocks.DIRT, 4);
++    ).withCustomOneToOneStonecutterRecipe(Blocks.DIRT).withCustom2x2SquareRecipe("dirt_bricks", Blocks.DIRT, 4, false);
 +
 +    public static final Block POLISHED_CALCITE = registerPolished(Blocks.CALCITE, "calcite", Blocks.CALCITE, MaterialColor.TERRACOTTA_WHITE);
 +    public static final Block POLISHED_DRIPSTONE = registerPolished(Blocks.DRIPSTONE_BLOCK, "dripstone", Blocks.DRIPSTONE_BLOCK, MaterialColor.TERRACOTTA_BROWN);
@@ -8237,7 +8394,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F, 0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustom2x2SquareChoiceRecipe("soul_sand_or_soil_to_soul_sandstone", () -> new ItemLike[] {Items.SOUL_SAND, Items.SOUL_SOIL}, 4);
++    ).withCustom2x2SquareChoiceRecipe("soul_sand_or_soil_to_soul_sandstone", () -> new ItemLike[] {Items.SOUL_SAND, Items.SOUL_SOIL}, 4, false);
 +
 +    public static final Block SANDSTONE_BRICKS = registerBricks(Blocks.SANDSTONE, "sandstone", Blocks.SANDSTONE, MaterialColor.SAND, Blocks.CUT_SANDSTONE);
 +    public static final Block RED_SANDSTONE_BRICKS = registerBricks(Blocks.RED_SANDSTONE, "red_sandstone", Blocks.RED_SANDSTONE, MaterialColor.COLOR_ORANGE, Blocks.CUT_RED_SANDSTONE);
@@ -8254,7 +8411,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE).withCustom2VerticalChoiceRecipe("soul_sandstone_slabs_to_chiseled_soul_sandstone", () -> new ItemLike[] {SuCraftItems.SOUL_SANDSTONE_SLAB, SuCraftItems.SMOOTH_SOUL_SANDSTONE_SLAB, SuCraftItems.CUT_SOUL_SANDSTONE_SLAB}, 1);
++    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE).withCustom2VerticalChoiceRecipe("soul_sandstone_slabs_to_chiseled_soul_sandstone", () -> new ItemLike[] {SuCraftItems.SOUL_SANDSTONE_SLAB, SuCraftItems.SMOOTH_SOUL_SANDSTONE_SLAB, SuCraftItems.CUT_SOUL_SANDSTONE_SLAB}, 1, true);
 +
 +    /**
 +     * Based on {@link Blocks#CUT_SANDSTONE} and {@link Blocks#SOUL_SAND}
@@ -8268,7 +8425,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE).withCustom2x2SquareRecipe("cut_soul_sandstone", SOUL_SANDSTONE, 4);
++    ).withCustomOneToOneStonecutterRecipe(SOUL_SANDSTONE).withCustom2x2SquareRecipe("cut_soul_sandstone", SOUL_SANDSTONE, 4, true);
 +
 +    public static final Block SOUL_SANDSTONE_BRICKS = registerBricks(SOUL_SANDSTONE, "soul_sandstone", Blocks.SOUL_SOIL, MaterialColor.COLOR_BROWN, CUT_SOUL_SANDSTONE).soulSpeed().soulFireBase();
 +    // Not included in initial release
@@ -8422,7 +8579,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BROWN).strength(0.8F)).mineableWithPickaxe().soulSpeed().soulFireBase(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomFurnaceRecipe(SOUL_SANDSTONE, 0.1F, 200);
++    ).withCustomFurnaceRecipe(SOUL_SANDSTONE, 0.1F, 200, false);
 +
 +    public static final Block SMOOTH_SOUL_SANDSTONE_SLAB = registerFakeSlab(SMOOTH_SOUL_SANDSTONE, null, "smooth_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("smooth_soul_sandstone"), NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, null, Blocks.DARK_OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
 +    public static final Block CUT_SOUL_SANDSTONE_SLAB = registerFakeSlab(CUT_SOUL_SANDSTONE, null, "cut_soul_sandstone", NamespacedKeyWithoutIntention.sucraft("cut_soul_sandstone"), null, NamespacedKeyWithoutIntention.sucraft("soul_sandstone_top"), null, null, null, Blocks.DARK_OAK_SLAB, null).mineableWithPickaxe().soulSpeed().soulFireBase();
@@ -8487,7 +8644,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new RotatedPillarBlock(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BLACK).strength(2.0F).sound(SoundType.BONE_BLOCK)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomFurnaceRecipe(Blocks.BONE_BLOCK, 0.1F, 200);
++    ).withCustomFurnaceRecipe(Blocks.BONE_BLOCK, 0.1F, 200, false);
 +
 +    public static final Block WITHER_BONE_SLAB = registerFakeSlabFromYPillarCustomBlock(WITHER_BONE_BLOCK, null, "wither_bone", "wither_bone_block", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block BASALT_SLAB = registerFakeSlab(Blocks.BASALT, null, "basalt", NamespacedKeyWithoutIntention.minecraft("basalt"), NamespacedKeyWithoutIntention.minecraft("basalt_side"), NamespacedKeyWithoutIntention.minecraft("basalt_top"), null, null, null, Blocks.COBBLESTONE_SLAB, null).mineableWithPickaxe();
@@ -8506,7 +8663,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.STONE, MaterialColor.COLOR_BLACK).strength(5.0F, 6.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustom3x3SquareRecipe("charcoal_block", () -> Items.CHARCOAL, 1);
++    ).withCustom3x3SquareRecipe("charcoal_block", () -> Items.CHARCOAL, 1, false);
 +
 +    public static final Block CHARCOAL_SLAB = registerFakeSlab(CHARCOAL_BLOCK, "charcoal", null, Blocks.BLACKSTONE_SLAB);
 +
@@ -8522,7 +8679,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.SAND, DyeColor.LIGHT_GRAY).strength(0.5F).sound(SoundType.SAND))/*.breakBeforeClientKnowsToBreak()*/.mineableWithShovel(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustom2x2SquareRecipe("gunpowder_block", () -> Items.GUNPOWDER, 1);
++    ).withCustom2x2SquareRecipe("gunpowder_block", () -> Items.GUNPOWDER, 1, false);
 +
 +    public static final Block GUNPOWDER_SLAB = registerFakeSlab(GUNPOWDER_BLOCK, "gunpowder", null, Blocks.SMOOTH_STONE_SLAB);
 +    public static final Block PEAT = registerPeat(null, false, null).withFutureCustomRecipe(() -> {
@@ -8531,6 +8688,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +        return new Item.CustomChoiceShapedRecipe(
 +            recipeKey,
 +            null,
++            false,
 +            new Item.CustomChoiceShapedRecipeIngredientDefinition[]{
 +                new Item.CustomChoiceShapedRecipeIngredientDefinition('$', leafIngredientChoice),
 +                new Item.CustomChoiceShapedRecipeIngredientDefinition('%', new ItemLike[] {Items.DIRT})
@@ -8574,7 +8732,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.WOOL, DyeColor.WHITE).strength(0.5F).sound(SoundType.SNOW))/*.breakBeforeClientKnowsToBreak()*/.mineableWithAxe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustom3x3SquareRecipe("paper_block", () -> Items.PAPER, 1);
++    ).withCustom3x3SquareRecipe("paper_block", () -> Items.PAPER, 1, false);
 +    public static final Block PAPER_SLAB = registerFakeSlabFromYPillarCustomBlock(PAPER_BLOCK, null, "paper", "paper_block", Blocks.SMOOTH_QUARTZ_SLAB).breakBeforeClientKnowsToBreak().mineableWithAxe();
 +
 +    /**
@@ -8612,7 +8770,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_GRAY).strength(3.5F, 6.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustom2x2SquareRecipe("flint_block", () -> Items.FLINT, 1);
++    ).withCustom2x2SquareRecipe("flint_block", () -> Items.FLINT, 1, false);
 +    public static final Block FLINT_PILLAR = register(
 +        "flint_pillar",
 +        new SingleMultiStateRealBlockReplacementRuleBuilder()
@@ -8622,7 +8780,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new ConcreteDirectionalBlock(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_GRAY).strength(3.5F, 6.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK).withCustom2VerticalChoiceRecipe("flint_blocks_to_flint_pillar", () -> new ItemLike[] {SuCraftItems.FLINT_BLOCK}, 2);
++    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK).withCustom2VerticalChoiceRecipe("flint_blocks_to_flint_pillar", () -> new ItemLike[] {SuCraftItems.FLINT_BLOCK}, 2, true);
 +    public static final Block FLINT_PILLAR_SLAB = registerFakeSlabFromYPillarCustomBlock(FLINT_PILLAR, null, "flint_pillar", Blocks.DEEPSLATE_TILE_SLAB).mineableWithPickaxe();
 +    public static final Block FLINT_TILES = register(
 +        "flint_tiles",
@@ -8633,7 +8791,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new Block(BlockBehaviour.Properties.of(Material.METAL, MaterialColor.COLOR_GRAY).strength(3.5F, 6.0F)).mineableWithPickaxe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK).withCustom2x2SquareRecipe("flint_tiles", FLINT_BLOCK, 4);
++    ).withCustomOneToOneStonecutterRecipe(FLINT_BLOCK).withCustom2x2SquareRecipe("flint_tiles", FLINT_BLOCK, 4, true);
 +    public static final Block FLINT_TILE_SLAB = registerFakeSlab(FLINT_TILES, "flint_tile", null, Blocks.DEEPSLATE_TILE_SLAB).mineableWithPickaxe();
 +    public static final Block OBSIDIAN_SLAB = registerFakeSlab(Blocks.OBSIDIAN, "obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
 +    public static final Block CRYING_OBSIDIAN_SLAB = registerFakeSlab(Blocks.CRYING_OBSIDIAN, "crying_obsidian", Blocks.BLACKSTONE_SLAB).mineableWithPickaxe();
@@ -8862,7 +9020,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            .withFullBlockBoundingBoxItem(),
 +        new RotatedPillarBlock(BlockBehaviour.Properties.of(Material.GRASS, MaterialColor.COLOR_YELLOW).strength(0.5F).sound(SoundType.GRASS)).breakBeforeClientKnowsToBreak().mineableWithHoe(),
 +        SuCraftBlockLoot::dropSelf
-+    ).withCustom2x2SquareRecipe("thatch", () -> Items.WHEAT, 1);
++    ).withCustom2x2SquareRecipe("thatch", () -> Items.WHEAT, 1, false);
 +
 +    public static final Block THATCH_SLAB = registerFakeSlab(THATCH, null, "thatch", NamespacedKeyWithoutIntention.sucraft("thatch"), null, null, null, null, null, Blocks.OAK_SLAB, null).breakBeforeClientKnowsToBreak().mineableWithHoe();
 +    public static final Block THATCH_STAIRS = registerFakeStairs(THATCH, null, "thatch", NamespacedKeyWithoutIntention.sucraft("thatch"), null, null, Blocks.OAK_STAIRS, null).breakBeforeClientKnowsToBreak().mineableWithHoe();
@@ -8961,7 +9119,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +                .withFullBlockBoundingBoxItem(),
 +            new Block(BlockBehaviour.Properties.of(Material.WOOD, materialColor).strength(2.0F, 3.0F).sound(SoundType.WOOD)).mineableWithAxe().dyedPlankFullBlock(),
 +            SuCraftBlockLoot::dropSelf
-+        ).withCustomDyedPlanksRecipe(description, dyeItemSupplier);
++        ).withCustomDyedPlanksRecipe(description, dyeItemSupplier, false);
 +    }
 +
 +    /**
@@ -8978,7 +9136,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +                .withFullBlockBoundingBoxItem(),
 +            new Block(BlockBehaviour.Properties.of(Material.STONE, materialColor).strength(1.5F, 6.0F)).mineableWithPickaxe(),
 +            SuCraftBlockLoot::dropSelf
-+        ).withCustomOneToOneStonecutterRecipe(originalBlock).withCustom2x2SquareRecipe(id, originalBlock, 4);
++        ).withCustomOneToOneStonecutterRecipe(originalBlock).withCustom2x2SquareRecipe(id, originalBlock, 4, true);
 +    }
 +
 +    /**
@@ -9000,7 +9158,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            block = block.withCustomOneToOneStonecutterRecipe(additionalStonecuttingOriginalBlock);
 +        }
 +        if (craftIn2x2SquareBlock != null) {
-+            block = block.withCustom2x2SquareRecipe(id, craftIn2x2SquareBlock, 4);
++            block = block.withCustom2x2SquareRecipe(id, craftIn2x2SquareBlock, 4, additionalStonecuttingOriginalBlock != null);
 +        }
 +        return block;
 +    }
@@ -9025,7 +9183,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            SuCraftBlockLoot::dropSelf
 +        ).withCustomOneToOneStonecutterRecipe(bricksBlock);
 +        if (slabItemSupplier != null) {
-+            block = block.withCustom2VerticalChoiceRecipe(type + "slabs_to_" + id, slabItemSupplier, 1);
++            block = block.withCustom2VerticalChoiceRecipe(type + "slabs_to_" + id, slabItemSupplier, 1, true);
 +        }
 +        return block;
 +    }
@@ -9062,7 +9220,7 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +            SuCraftBlockLoot::dropSelf
 +        ).withCustomOneToOneStonecutterRecipe(originalBlock);
 +        if (craftableFullBlockItemSupplier != null) {
-+            block = block.withCustom2VerticalChoiceRecipe(stoneType + "_full_blocks_to_" + id, craftableFullBlockItemSupplier, 2);
++            block = block.withCustom2VerticalChoiceRecipe(stoneType + "_full_blocks_to_" + id, craftableFullBlockItemSupplier, 2, true);
 +        }
 +        return block;
 +    }
@@ -9486,11 +9644,11 @@ index 0000000000000000000000000000000000000000..fc3792601e682fd94498b972ffa1a90e
 +    }
 +
 +    private static @NotNull Block registerFakeDyedPlankSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
-+        return registerFakeSlab(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankSlab().withCustomDyedPlankSlabsRecipe(type, dyeItemSupplier);
++        return registerFakeSlab(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankSlab().withCustomDyedPlankSlabsRecipe(type, dyeItemSupplier, true);
 +    }
 +
 +    private static @NotNull Block registerFakeDyedPlankStairs(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host, @NotNull Supplier<@NotNull ItemLike> dyeItemSupplier) {
-+        return registerFakeStairs(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankStairs().withCustomDyedPlankStairsRecipe(type, dyeItemSupplier);
++        return registerFakeStairs(fullBlock, type + "_plank", null, host).breakBeforeClientKnowsToBreak().mineableWithAxe().dyedPlankStairs().withCustomDyedPlankStairsRecipe(type, dyeItemSupplier, true);
 +    }
 +
 +    private static @NotNull Block registerFakeWoolSlab(@NotNull Block fullBlock, @NotNull String type, @NotNull Block host) {
@@ -15119,7 +15277,7 @@ index 0000000000000000000000000000000000000000..a5f57d90c4b3f993a6a9dbeeb77954f0
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b5119516838974
+index 0000000000000000000000000000000000000000..23fef62628ddebeba86f853acbc3422f123e2253
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 @@ -0,0 +1,258 @@
@@ -15170,15 +15328,15 @@ index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b51195
 +    /**
 +     * Utility method (shorter)
 +     */
-+    private static void addRecipe(@NotNull org.bukkit.inventory.Recipe recipe) {
-+        Bukkit.addRecipe(recipe);
++    private static void addRecipe(@NotNull org.bukkit.inventory.Recipe recipe, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        Bukkit.addRecipe(recipe, isSkippableForPlayersThatCannotAcceptLargePackets);
 +    }
 +
 +    /**
 +     * Utility method (shorter)
 +     */
-+    private static void addRecipe(@NotNull Recipe<?> recipe) {
-+        MinecraftServer.getServer().getRecipeManager().addRecipe(recipe);
++    private static void addRecipe(@NotNull Recipe<?> recipe, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        MinecraftServer.getServer().getRecipeManager().addRecipe(recipe, isSkippableForPlayersThatCannotAcceptLargePackets);
 +    }
 +
 +    private static void addStonecutterRecipe(@Nullable String key, @Nullable String group, @NotNull Item ingredient, @NotNull Item result, int resultAmount) {
@@ -15188,7 +15346,7 @@ index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b51195
 +        var recipeIngredient = new Ingredient(Stream.of(new Ingredient.ItemValue(new ItemStack(ingredient))));
 +        var recipeKey = ResourceLocation.sucraft(key);
 +        var recipe = new StonecutterRecipe(recipeKey, group != null ? group : key, recipeIngredient, new ItemStack(result, resultAmount), true);
-+        addRecipe(recipe);
++        addRecipe(recipe, false);
 +        Item.CustomRecipeUnlockByItem.register(ingredient, recipeKey);
 +    }
 +
@@ -15210,10 +15368,10 @@ index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b51195
 +            for (var customRecipe : item.customRecipes) {
 +                if (customRecipe instanceof Item.CustomMinecraftRecipe customMinecraftRecipe) {
 +                    var recipe = customMinecraftRecipe.build(item);
-+                    addRecipe(recipe);
++                    addRecipe(recipe, customMinecraftRecipe.isSkippableForPlayersThatCannotAcceptLargePackets());
 +                } else if (customRecipe instanceof Item.CustomBukkitRecipe customBukkitRecipe) {
 +                    var recipe = customBukkitRecipe.build(item);
-+                    addRecipe(recipe);
++                    addRecipe(recipe, customBukkitRecipe.isSkippableForPlayersThatCannotAcceptLargePackets());
 +                } else {
 +                    throw new IllegalStateException("Custom recipe of unknown type: " + customRecipe);
 +                }
@@ -15263,8 +15421,8 @@ index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b51195
 +            }
 +            // crafting: log slab, wood slab -> planks
 +            ItemLike[] craftingPlanksFromLogOrWoodSlabIngredients = {logSlab.asItem(), woodSlab.asItem(), strippedLogSlab.asItem(), strippedWoodSlab.asItem()};
-+            var craftingPlanksFromLogOrWoodSlabRecipe = new Item.CustomChoiceShapelessRecipe(ResourceLocation.sucraft(planks.id.getPath() + "_from_log_or_wood_slab"), null, new ItemLike[][] {craftingPlanksFromLogOrWoodSlabIngredients}, Arrays.stream(craftingPlanksFromLogOrWoodSlabIngredients).map(ingredient -> new Item.CustomRecipeUnlockByItem(() -> ingredient)).toArray(Item.CustomRecipeUnlockByItem[]::new), 2);
-+            addRecipe(craftingPlanksFromLogOrWoodSlabRecipe.build(planks));
++            var craftingPlanksFromLogOrWoodSlabRecipe = new Item.CustomChoiceShapelessRecipe(ResourceLocation.sucraft(planks.id.getPath() + "_from_log_or_wood_slab"), null, true, new ItemLike[][] {craftingPlanksFromLogOrWoodSlabIngredients}, Arrays.stream(craftingPlanksFromLogOrWoodSlabIngredients).map(ingredient -> new Item.CustomRecipeUnlockByItem(() -> ingredient)).toArray(Item.CustomRecipeUnlockByItem[]::new), 2);
++            addRecipe(craftingPlanksFromLogOrWoodSlabRecipe.build(planks), craftingPlanksFromLogOrWoodSlabRecipe.isSkippableForPlayersThatCannotAcceptLargePackets());
 +            craftingPlanksFromLogOrWoodSlabRecipe.registerUnlocks();
 +        }
 +
@@ -15320,7 +15478,7 @@ index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b51195
 +            shapedRecipe.shape("$$$", "%%%", "$$$");
 +            shapedRecipe.setIngredient('$', CraftMagicNumbers.getMaterial(plankIngredient));
 +            shapedRecipe.setIngredient('%', Material.BOOK);
-+            addRecipe(shapedRecipe);
++            addRecipe(shapedRecipe, false);
 +            Item.CustomRecipeUnlockByItem.register(Items.BOOK, recipeMinecraftKey);
 +        }
 +
@@ -15349,7 +15507,7 @@ index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b51195
 +            shapedRecipe.setGroup(recipeKey.getKey());
 +            shapedRecipe.shape("$", "$");
 +            shapedRecipe.setIngredient('$', new RecipeChoice.MaterialChoice(Arrays.stream(ingredients).map(ingredient -> CraftMagicNumbers.getMaterial(ingredient)).toArray(Material[]::new)));
-+            addRecipe(shapedRecipe);
++            addRecipe(shapedRecipe, false);
 +            for (Item ingredient : ingredients) {
 +                Item.CustomRecipeUnlockByItem.register(ingredient, recipeMinecraftKey);
 +            }
@@ -15374,7 +15532,7 @@ index 0000000000000000000000000000000000000000..7ffeeec27ea6e283dba97b17b6b51195
 +            var shapelessRecipe = new ShapelessRecipe(recipeKey, new org.bukkit.inventory.ItemStack(CraftMagicNumbers.getMaterial(result), resultAmount));
 +            shapelessRecipe.setGroup(recipeKey.getKey());
 +            shapelessRecipe.addIngredient(new org.bukkit.inventory.ItemStack(CraftMagicNumbers.getMaterial(ingredient)));
-+            addRecipe(shapelessRecipe);
++            addRecipe(shapelessRecipe, false);
 +            Item.CustomRecipeUnlockByItem.register(ingredient, recipeMinecraftKey);
 +        }
 +
@@ -20337,6 +20495,64 @@ index 0000000000000000000000000000000000000000..465cb288e3fb241a17080fb801ebda3c
 +    }
 +
 +}
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index c140e7eb30fb54fbbd4d4943504da7e385ec208b..ebd81872052afc2b0792323f2694c3e505e1d9c9 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1,6 +1,5 @@
+ package org.bukkit.craftbukkit;
+ 
+-import com.destroystokyo.paper.PaperConfig;
+ import com.google.common.base.Charsets;
+ import com.google.common.base.Function;
+ import com.google.common.base.Preconditions;
+@@ -43,6 +42,7 @@ import java.util.Optional;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Consumer;
++import java.util.function.Predicate;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import java.util.stream.Collectors;
+@@ -1446,6 +1446,23 @@ public final class CraftServer implements Server {
+         return true;
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    @Override
++    public boolean addRecipe(Recipe recipe, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        if (this.addRecipe(recipe)) {
++            if (isSkippableForPlayersThatCannotAcceptLargePackets) {
++                var recipeManager = MinecraftServer.getServer().getRecipeManager();
++                var key = ((Keyed) recipe).getKey();
++                recipeManager.recipesSkippableForPlayersThatCannotAcceptLargePackets.add(recipeManager.byName.get(new ResourceLocation(key.getNamespace(), key.getKey())));
++            }
++            return true;
++        }
++        return false;
++    }
++
++    // Martijn end - custom blocks and items
++
+     @Override
+     public List<Recipe> getRecipesFor(ItemStack result) {
+         Validate.notNull(result, "Result cannot be null");
+@@ -2933,5 +2950,14 @@ public final class CraftServer implements Server {
+         return this.potionBrewer;
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    @Override
++    public void addCanAcceptLargePacketsDisjunct(Predicate<Player> disjunct) {
++        this.getHandle().canAcceptLargePacketsDisjuncts.add(disjunct);
++    }
++
++    // Martijn end - custom blocks and items
++
+     // Paper end
+ }
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
 index 4ca81510c12d4333709cdf942c5a99f44466e0f9..90ab87189d7177528e5f2c640940ac9a1a7943a0 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
@@ -20370,7 +20586,7 @@ index 4ca81510c12d4333709cdf942c5a99f44466e0f9..90ab87189d7177528e5f2c640940ac9a
                      // Paper end
                  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index e0c73195ce3706a2d830d0aec1f2ef9b03d8a0d6..4285919d6276e3aad5b5fde1fd5f3cc1a99126cf 100644
+index e0c73195ce3706a2d830d0aec1f2ef9b03d8a0d6..5df40d0b238ce06091610b909dbf42cad1d32ccc 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -27,6 +27,8 @@ import java.util.WeakHashMap;
@@ -20390,7 +20606,7 @@ index e0c73195ce3706a2d830d0aec1f2ef9b03d8a0d6..4285919d6276e3aad5b5fde1fd5f3cc1
  import org.bukkit.event.player.PlayerShowEntityEvent;
  import org.bukkit.event.player.PlayerTeleportEvent;
  import org.bukkit.event.player.PlayerUnregisterChannelEvent;
-@@ -2543,6 +2546,24 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -2543,6 +2546,29 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
      public void setResourcePackStatus(org.bukkit.event.player.PlayerResourcePackStatusEvent.Status status) {
          this.resourcePackStatus = status;
      }
@@ -20408,6 +20624,11 @@ index e0c73195ce3706a2d830d0aec1f2ef9b03d8a0d6..4285919d6276e3aad5b5fde1fd5f3cc1
 +    @Override
 +    public boolean hasHighPingForCustomBlocks() {
 +        return this.getPing() > GlobalConfiguration.get().customBlocksAndItems.maxPingThatCountsAsLowForCustomBlocks;
++    }
++
++    @Override
++    public boolean canAcceptLargePackets() {
++        return this.getHandle().canAcceptLargePackets();
 +    }
 +
 +    // Martijn end - custom blocks and items

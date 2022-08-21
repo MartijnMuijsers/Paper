@@ -4,6 +4,49 @@ Date: Mon, 27 Jun 2022 01:43:47 +0200
 Subject: [PATCH] Add custom blocks and items
 
 
+diff --git a/src/main/java/org/bukkit/Bukkit.java b/src/main/java/org/bukkit/Bukkit.java
+index 61172768d7031cf87c8c2284b530112c4513f956..00ff654d596617c67be247e38af7e08b0082aa43 100644
+--- a/src/main/java/org/bukkit/Bukkit.java
++++ b/src/main/java/org/bukkit/Bukkit.java
+@@ -12,6 +12,7 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Consumer;
++import java.util.function.Predicate;
+ import java.util.logging.Logger;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+@@ -978,6 +979,14 @@ public final class Bukkit {
+         return server.addRecipe(recipe);
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    public static boolean addRecipe(@Nullable Recipe recipe, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        return server.addRecipe(recipe, isSkippableForPlayersThatCannotAcceptLargePackets);
++    }
++
++    // Martijn end - custom blocks and items
++
+     /**
+      * Get a list of all recipes for a given item. The stack size is ignored
+      * in comparisons. If the durability is -1, it will match any data value.
+@@ -2430,6 +2439,15 @@ public final class Bukkit {
+     public static @NotNull org.bukkit.potion.PotionBrewer getPotionBrewer() {
+         return server.getPotionBrewer();
+     }
++
++    // Martijn start - custom blocks and items
++
++    public static void addCanAcceptLargePacketsDisjunct(@NotNull Predicate<@NotNull Player> disjunct) {
++        server.addCanAcceptLargePacketsDisjunct(disjunct);
++    }
++
++    // Martijn end - custom blocks and items
++
+     // Paper end
+ 
+     @NotNull
 diff --git a/src/main/java/org/bukkit/Material.java b/src/main/java/org/bukkit/Material.java
 index 1d6baee05643607baa40a07022576906ea61a92f..d591db906afa7bdc951abf80b64e7338d50025d6 100644
 --- a/src/main/java/org/bukkit/Material.java
@@ -833,6 +876,44 @@ index 236c9aea9ffc36269e5c32eacc9f1fd6bd039c88..1121a533b31489a66b76aeeacccaed46
      /**
       * Get a NamespacedKey from the supplied string with a default namespace if
       * a namespace is not defined. This is a utility method meant to fetch a
+diff --git a/src/main/java/org/bukkit/Server.java b/src/main/java/org/bukkit/Server.java
+index 1189c823b04ece310eca078666fbcf79c83d7541..ae479f1d2b07ea048ee77cfa6e11ec134ca581ae 100644
+--- a/src/main/java/org/bukkit/Server.java
++++ b/src/main/java/org/bukkit/Server.java
+@@ -12,6 +12,7 @@ import java.util.Map;
+ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Consumer;
++import java.util.function.Predicate;
+ import java.util.logging.Logger;
+ import org.bukkit.Warning.WarningState;
+ import org.bukkit.advancement.Advancement;
+@@ -824,6 +825,12 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+     @Contract("null -> false")
+     public boolean addRecipe(@Nullable Recipe recipe);
+ 
++    // Martijn start - custom blocks and items
++
++    public boolean addRecipe(@Nullable Recipe recipe, boolean isSkippableForPlayersThatCannotAcceptLargePackets);
++
++    // Martijn end - custom blocks and items
++
+     /**
+      * Get a list of all recipes for a given item. The stack size is ignored
+      * in comparisons. If the durability is -1, it will match any data value.
+@@ -2120,5 +2127,12 @@ public interface Server extends PluginMessageRecipient, net.kyori.adventure.audi
+      * @return the potion brewer
+      */
+     @NotNull org.bukkit.potion.PotionBrewer getPotionBrewer();
++
++    // Martijn start - custom blocks and items
++
++    void addCanAcceptLargePacketsDisjunct(@NotNull Predicate<@NotNull Player> disjunct);
++
++    // Martijn end - custom blocks and items
++
+     // Paper end
+ }
 diff --git a/src/main/java/org/bukkit/Tag.java b/src/main/java/org/bukkit/Tag.java
 index 0db922d56468f6ab9c76277c8a4c42e1808d7169..6c6cdaf2907667f54db239a43043987bcc98fa31 100644
 --- a/src/main/java/org/bukkit/Tag.java
@@ -1459,10 +1540,10 @@ index 0db922d56468f6ab9c76277c8a4c42e1808d7169..6c6cdaf2907667f54db239a43043987b
       * Key for the built in item registry.
       */
 diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
-index 2b94965893622e30db58ce7a872073eaf95bba2a..b96b7135538990201f77c59085603354696cbdc9 100644
+index 2b94965893622e30db58ce7a872073eaf95bba2a..cd931f17a9290cd1df5402856082558c682fbc35 100644
 --- a/src/main/java/org/bukkit/entity/Player.java
 +++ b/src/main/java/org/bukkit/entity/Player.java
-@@ -2509,6 +2509,14 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
+@@ -2509,6 +2509,16 @@ public interface Player extends HumanEntity, Conversable, OfflinePlayer, PluginM
       */
      boolean hasResourcePack();
  
@@ -1471,6 +1552,8 @@ index 2b94965893622e30db58ce7a872073eaf95bba2a..b96b7135538990201f77c59085603354
 +    public boolean hasSuCraftResourcePack();
 +
 +    public boolean hasHighPingForCustomBlocks();
++
++    public boolean canAcceptLargePackets();
 +
 +    // Martijn end - custom blocks and items
 +
