@@ -2752,10 +2752,17 @@ index ed769c9dd71a5a2d13c9e9a48bc4ad6077c71b16..67e156a263024f81d268670511153d41
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f7641197e 100644
+index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..de4ef4f2a81f7dff18ee14d6129ce9852ad8de7c 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -9,14 +9,19 @@ import com.mojang.logging.LogUtils;
+@@ -1,6 +1,5 @@
+ package net.minecraft.server.level;
+ 
+-import com.destroystokyo.paper.PaperConfig;
+ import com.destroystokyo.paper.event.entity.PlayerNaturallySpawnCreaturesEvent;
+ import com.google.common.collect.Lists;
+ import com.mojang.authlib.GameProfile;
+@@ -9,14 +8,19 @@ import com.mojang.logging.LogUtils;
  import com.mojang.serialization.DataResult;
  
  import java.util.ArrayDeque;
@@ -2775,7 +2782,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
  
-@@ -24,6 +29,9 @@ import io.papermc.paper.chunk.PlayerChunkLoader;
+@@ -24,6 +28,9 @@ import io.papermc.paper.chunk.PlayerChunkLoader;
  import io.papermc.paper.configuration.GlobalConfiguration;
  import it.unimi.dsi.fastutil.Pair;
  import it.unimi.dsi.fastutil.ints.IntIntPair;
@@ -2785,7 +2792,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
  import it.unimi.dsi.fastutil.objects.ObjectObjectImmutablePair;
  import net.minecraft.BlockUtil;
  import net.minecraft.ChatFormatting;
-@@ -87,6 +95,7 @@ import net.minecraft.network.protocol.game.ClientboundSetHealthPacket;
+@@ -87,6 +94,7 @@ import net.minecraft.network.protocol.game.ClientboundSetHealthPacket;
  import net.minecraft.network.protocol.game.ClientboundSoundPacket;
  import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
  import net.minecraft.network.protocol.game.ClientboundUpdateMobEffectPacket;
@@ -2793,7 +2800,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
  import net.minecraft.network.protocol.game.ServerboundClientInformationPacket;
  import net.minecraft.network.protocol.status.ServerStatus;
  import net.minecraft.resources.ResourceKey;
-@@ -130,6 +139,7 @@ import net.minecraft.world.inventory.ContainerSynchronizer;
+@@ -130,6 +138,7 @@ import net.minecraft.world.inventory.ContainerSynchronizer;
  import net.minecraft.world.inventory.HorseInventoryMenu;
  import net.minecraft.world.inventory.ResultSlot;
  import net.minecraft.world.inventory.Slot;
@@ -2801,7 +2808,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
  import net.minecraft.world.item.ComplexItem;
  import net.minecraft.world.item.ItemCooldowns;
  import net.minecraft.world.item.ItemStack;
-@@ -153,11 +163,13 @@ import net.minecraft.world.level.block.entity.CommandBlockEntity;
+@@ -153,11 +162,13 @@ import net.minecraft.world.level.block.entity.CommandBlockEntity;
  import net.minecraft.world.level.block.entity.SignBlockEntity;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.border.WorldBorder;
@@ -2815,7 +2822,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
  import org.slf4j.Logger;
  import net.minecraft.world.Container;
  import net.minecraft.world.InteractionHand;
-@@ -506,6 +518,7 @@ public class ServerPlayer extends Player {
+@@ -506,6 +517,7 @@ public class ServerPlayer extends Player {
      @Nullable
      private Vec3 enteredLavaOnVehiclePosition;
      private SectionPos lastSectionPos;
@@ -2823,7 +2830,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
      private ResourceKey<Level> respawnDimension;
      @Nullable
      private BlockPos respawnPosition;
-@@ -550,7 +563,7 @@ public class ServerPlayer extends Player {
+@@ -550,7 +562,7 @@ public class ServerPlayer extends Player {
  
      private int maxNumberOfChunkPacketsInTransitBasedOnConnection = GlobalConfiguration.get().networkConstrainedChunkSending.maxChunkPacketsInTransit.initial;
      // Keep track of chunk packets in transit
@@ -2832,7 +2839,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
  
      public int getMaxNumberOfChunkPacketsInTransitBasedOnConnection() {
          synchronized (this.networkConstrainedSendingLock) {
-@@ -606,6 +619,11 @@ public class ServerPlayer extends Player {
+@@ -606,6 +618,11 @@ public class ServerPlayer extends Player {
      }
  
      public boolean canSendChunkInitializationPacketNow(ChunkPos chunk) {
@@ -2844,7 +2851,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
          if (getChessboardDistanceToChunk(chunk) <= GlobalConfiguration.get().networkConstrainedChunkSending.ignoreNetworkConditionsForChunksWithinChessboardDistance) return true;
          synchronized (this.networkConstrainedSendingLock) {
              return this.chunkInitializationPacketsInTransitKeepaliveIds.size() < this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
-@@ -2910,4 +2928,144 @@ public class ServerPlayer extends Player {
+@@ -2910,4 +2927,153 @@ public class ServerPlayer extends Player {
      // CraftBukkit end
  
      public final int getViewDistance() { throw new UnsupportedOperationException("Use PlayerChunkLoader"); } // Paper - placeholder
@@ -2898,17 +2905,22 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
 +
 +        Collection<Recipe<?>> allRecipes = this.server.getRecipeManager().getRecipes();
 +        boolean canPlayerAcceptLargePackets = this.canAcceptLargePackets();
++//        MinecraftServer.LOGGER.info("TEMP DEBUG - Too large would include: " + MinecraftServer.getServer().getRecipeManager().recipesSkippableForPlayersThatCannotAcceptLargePackets.stream().map(Object::toString).sorted().toList());
++//        MinecraftServer.LOGGER.info("TEMP DEBUG - Can accept large packets: " + canPlayerAcceptLargePackets);
 +
 +        if (!this.hasSuCraftResourcePack()) {
++//            MinecraftServer.LOGGER.info("TEMP DEBUG - No resource pack");
 +            if (this.lastSentSpecificRecipeIds != null && lastSentSpecificRecipeIds.isEmpty()) {
 +                return;
 +            }
 +            var recipesToSend = allRecipes.stream().filter(recipe -> recipe.shouldAlwaysSend(canPlayerAcceptLargePackets)).toList();
++//            MinecraftServer.LOGGER.info("TEMP DEBUG - Number of recipes to send: " + recipesToSend.size());
 +            this.lastSentSpecificRecipeIds = Collections.emptySet();
 +            this.connection.send(new ClientboundUpdateRecipesPacket(recipesToSend));
 +            this.getRecipeBook().sendInitialRecipeBook(this);
 +            return;
 +        }
++//        MinecraftServer.LOGGER.info("TEMP DEBUG - Yes resource pack");
 +
 +        if (stonecutterInput == null) {
 +            if (this.containerMenu instanceof StonecutterMenu stonecutterMenu) {
@@ -2929,6 +2941,9 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
 +                allRecipesToSend.add(recipe);
 +            }
 +        });
++//        MinecraftServer.LOGGER.info("TEMP DEBUG - Number of always recipes to send: " + alwaysRecipesToSend.size());
++//        MinecraftServer.LOGGER.info("TEMP DEBUG - Number of specific recipes to send: " + specificRecipesToSend.size());
++//        MinecraftServer.LOGGER.info("TEMP DEBUG - Number of total recipes to send: " + allRecipesToSend.size());
 +        Set<ResourceLocation> willSendSpecificRecipeIds = specificRecipesToSend.stream().map(recipe -> recipe.getId()).collect(Collectors.toSet());
 +
 +        if (this.lastSentSpecificRecipeIds == null || !this.lastSentSpecificRecipeIds.equals(willSendSpecificRecipeIds)) {
@@ -2936,6 +2951,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..6a85e1de4a910c5705babbb23a48770f
 +//            MinecraftServer.LOGGER.info("TEMP DEBUG - all: " + allRecipesToSend.stream().map(recipe -> recipe.getResultItem().getItem()).toList());
 +//            Collections.shuffle(allRecipesToSend);
 +            this.lastSentSpecificRecipeIds = willSendSpecificRecipeIds;
++//            MinecraftServer.LOGGER.info("TEMP DEBUG - Sending the following: " + allRecipesToSend.stream().map(recipe -> recipe.getId().toString()).sorted().toList());
 +            this.connection.send(new ClientboundUpdateRecipesPacket(allRecipesToSend));
 +            this.getRecipeBook().sendInitialRecipeBook(this);
 +//            MinecraftServer.LOGGER.info("TEMP DEBUG - specific: " + specificRecipesToSend.stream().sorted(RECIPE_ORDER).map(recipe -> recipe.getResultItem().getItem()).toList());
@@ -4334,7 +4350,7 @@ index 51016663829b1f36b8e752dcf9c9361282c3f06b..f7d9190cf8aad61d6f4b7688f84b0e2c
 +
  }
 diff --git a/src/main/java/net/minecraft/world/item/crafting/Recipe.java b/src/main/java/net/minecraft/world/item/crafting/Recipe.java
-index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..7186cebd1a9afbcf7ee9d902af2f60de668e5677 100644
+index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..57fb7a92dc8ee6b66b6d5e6e4435bcf22f427c02 100644
 --- a/src/main/java/net/minecraft/world/item/crafting/Recipe.java
 +++ b/src/main/java/net/minecraft/world/item/crafting/Recipe.java
 @@ -2,11 +2,16 @@ package net.minecraft.world.item.crafting;
@@ -4385,7 +4401,7 @@ index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..7186cebd1a9afbcf7ee9d902af2f60de
 +    }
 +
 +    default boolean shouldAlwaysSend(boolean canPlayerAcceptLargePackets) {
-+        return canPlayerAcceptLargePackets || !MinecraftServer.getServer().getRecipeManager().recipesSkippableForPlayersThatCannotAcceptLargePackets.contains(this);
++        return canPlayerAcceptLargePackets || !MinecraftServer.getServer().getRecipeManager().recipesSkippableForPlayersThatCannotAcceptLargePackets.contains(this.getId());
 +    }
 +
 +    default boolean shouldSpecificallySend(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
@@ -4402,13 +4418,14 @@ index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..7186cebd1a9afbcf7ee9d902af2f60de
          NonNullList<ItemStack> nonnulllist = NonNullList.withSize(inventory.getContainerSize(), ItemStack.EMPTY);
  
 diff --git a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
-index 4872f70977e73c889fe6e2339d00ebc64459613d..410e3aaa52795a9a677c94a76d1b00390a87e845 100644
+index 4872f70977e73c889fe6e2339d00ebc64459613d..d7056aeb745cc7b3ca70ad60633174c95da4d992 100644
 --- a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
 +++ b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
-@@ -14,11 +14,13 @@ import com.mojang.logging.LogUtils;
+@@ -14,11 +14,14 @@ import com.mojang.logging.LogUtils;
  import java.util.Collection;
  import java.util.Collections;
  import java.util.Comparator;
++import java.util.HashSet;
 +import java.util.IdentityHashMap;
  import java.util.Iterator;
  import java.util.List;
@@ -4419,7 +4436,7 @@ index 4872f70977e73c889fe6e2339d00ebc64459613d..410e3aaa52795a9a677c94a76d1b0039
  import java.util.stream.Collectors;
  import java.util.stream.Stream;
  import javax.annotation.Nullable;
-@@ -32,6 +34,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
+@@ -32,6 +35,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
  import net.minecraft.world.Container;
  import net.minecraft.world.item.ItemStack;
  import net.minecraft.world.level.Level;
@@ -4427,15 +4444,15 @@ index 4872f70977e73c889fe6e2339d00ebc64459613d..410e3aaa52795a9a677c94a76d1b0039
  import org.slf4j.Logger;
  
  import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap; // CraftBukkit
-@@ -43,6 +46,7 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+@@ -43,6 +47,7 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
      public Map<RecipeType<?>, Object2ObjectLinkedOpenHashMap<ResourceLocation, Recipe<?>>> recipes = ImmutableMap.of(); // CraftBukkit
      public Map<ResourceLocation, Recipe<?>> byName = ImmutableMap.of();
      private boolean hasErrors;
-+    public Set<Recipe<?>> recipesSkippableForPlayersThatCannotAcceptLargePackets = Collections.newSetFromMap(new IdentityHashMap<>(0)); // Martijn - custom blocks and items
++    public Set<ResourceLocation> recipesSkippableForPlayersThatCannotAcceptLargePackets = new HashSet<>(2048); // Martijn - custom blocks and items
  
      public RecipeManager() {
          super(RecipeManager.GSON, "recipes");
-@@ -86,13 +90,28 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+@@ -86,13 +91,28 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
  
      // CraftBukkit start
      public void addRecipe(Recipe<?> irecipe) {
@@ -4459,13 +4476,13 @@ index 4872f70977e73c889fe6e2339d00ebc64459613d..410e3aaa52795a9a677c94a76d1b0039
 +                map.putAndMoveToLast(irecipe.getId(), irecipe);
 +            }
 +            if (isSkippableForPlayersThatCannotAcceptLargePackets) {
-+                this.recipesSkippableForPlayersThatCannotAcceptLargePackets.add(irecipe);
++                this.recipesSkippableForPlayersThatCannotAcceptLargePackets.add(irecipe.getId());
 +            }
 +            // Martijn end - custom blocks and items
              this.byName.put(irecipe.getId(), irecipe);
          }
      }
-@@ -135,11 +154,40 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+@@ -135,11 +155,40 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
      }
  
      public <C extends Container, T extends Recipe<C>> List<T> getRecipesFor(RecipeType<T> type, C inventory, Level world) {
@@ -19876,7 +19893,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..541bd043340b7bb5e09ce20f78aed1b2b30729b5
+index 0000000000000000000000000000000000000000..002e816d27da64a0f3452c56b8028e555f116fcd
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,415 @@
@@ -19952,7 +19969,7 @@ index 0000000000000000000000000000000000000000..541bd043340b7bb5e09ce20f78aed1b2
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 191;
++            currentResourcePackVersion = 193;
 +        }
 +    }
 +
@@ -20496,7 +20513,7 @@ index 0000000000000000000000000000000000000000..465cb288e3fb241a17080fb801ebda3c
 +
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index c140e7eb30fb54fbbd4d4943504da7e385ec208b..ebd81872052afc2b0792323f2694c3e505e1d9c9 100644
+index c140e7eb30fb54fbbd4d4943504da7e385ec208b..dde44be49276b17f89621c52e1a91530dffdc5c6 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -1,6 +1,5 @@
@@ -20526,7 +20543,7 @@ index c140e7eb30fb54fbbd4d4943504da7e385ec208b..ebd81872052afc2b0792323f2694c3e5
 +            if (isSkippableForPlayersThatCannotAcceptLargePackets) {
 +                var recipeManager = MinecraftServer.getServer().getRecipeManager();
 +                var key = ((Keyed) recipe).getKey();
-+                recipeManager.recipesSkippableForPlayersThatCannotAcceptLargePackets.add(recipeManager.byName.get(new ResourceLocation(key.getNamespace(), key.getKey())));
++                recipeManager.recipesSkippableForPlayersThatCannotAcceptLargePackets.add(new ResourceLocation(key.getNamespace(), key.getKey()));
 +            }
 +            return true;
 +        }
