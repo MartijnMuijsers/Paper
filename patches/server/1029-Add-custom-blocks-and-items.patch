@@ -2752,7 +2752,7 @@ index ed769c9dd71a5a2d13c9e9a48bc4ad6077c71b16..67e156a263024f81d268670511153d41
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..de4ef4f2a81f7dff18ee14d6129ce9852ad8de7c 100644
+index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..9868bc425dd119aaf9fdcee5c6b544df2d0ec5ba 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -1,6 +1,5 @@
@@ -2851,7 +2851,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..de4ef4f2a81f7dff18ee14d6129ce985
          if (getChessboardDistanceToChunk(chunk) <= GlobalConfiguration.get().networkConstrainedChunkSending.ignoreNetworkConditionsForChunksWithinChessboardDistance) return true;
          synchronized (this.networkConstrainedSendingLock) {
              return this.chunkInitializationPacketsInTransitKeepaliveIds.size() < this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
-@@ -2910,4 +2927,153 @@ public class ServerPlayer extends Player {
+@@ -2910,4 +2927,154 @@ public class ServerPlayer extends Player {
      // CraftBukkit end
  
      public final int getViewDistance() { throw new UnsupportedOperationException("Use PlayerChunkLoader"); } // Paper - placeholder
@@ -2905,6 +2905,7 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..de4ef4f2a81f7dff18ee14d6129ce985
 +
 +        Collection<Recipe<?>> allRecipes = this.server.getRecipeManager().getRecipes();
 +        boolean canPlayerAcceptLargePackets = this.canAcceptLargePackets();
++//        MinecraftServer.LOGGER.info("TEMP DEBUG - stonecutter custom is: " + MinecraftServer.getServer().getRecipeManager().stonecutterRecipesThatAreCustom.stream().map(Object::toString).sorted().toList());
 +//        MinecraftServer.LOGGER.info("TEMP DEBUG - Too large would include: " + MinecraftServer.getServer().getRecipeManager().recipesSkippableForPlayersThatCannotAcceptLargePackets.stream().map(Object::toString).sorted().toList());
 +//        MinecraftServer.LOGGER.info("TEMP DEBUG - Can accept large packets: " + canPlayerAcceptLargePackets);
 +
@@ -4418,7 +4419,7 @@ index 6d50c7ae912a36c8d3caaf26e2fc2dc20731b279..57fb7a92dc8ee6b66b6d5e6e4435bcf2
          NonNullList<ItemStack> nonnulllist = NonNullList.withSize(inventory.getContainerSize(), ItemStack.EMPTY);
  
 diff --git a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
-index 4872f70977e73c889fe6e2339d00ebc64459613d..d7056aeb745cc7b3ca70ad60633174c95da4d992 100644
+index 4872f70977e73c889fe6e2339d00ebc64459613d..f6cf391189715ef3c7eb2dca99443bfe180f0214 100644
 --- a/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
 +++ b/src/main/java/net/minecraft/world/item/crafting/RecipeManager.java
 @@ -14,11 +14,14 @@ import com.mojang.logging.LogUtils;
@@ -4444,15 +4445,18 @@ index 4872f70977e73c889fe6e2339d00ebc64459613d..d7056aeb745cc7b3ca70ad60633174c9
  import org.slf4j.Logger;
  
  import it.unimi.dsi.fastutil.objects.Object2ObjectLinkedOpenHashMap; // CraftBukkit
-@@ -43,6 +47,7 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+@@ -43,6 +47,10 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
      public Map<RecipeType<?>, Object2ObjectLinkedOpenHashMap<ResourceLocation, Recipe<?>>> recipes = ImmutableMap.of(); // CraftBukkit
      public Map<ResourceLocation, Recipe<?>> byName = ImmutableMap.of();
      private boolean hasErrors;
-+    public Set<ResourceLocation> recipesSkippableForPlayersThatCannotAcceptLargePackets = new HashSet<>(2048); // Martijn - custom blocks and items
++    // Martijn start - custom blocks and items
++    public Set<ResourceLocation> stonecutterRecipesThatAreCustom = new HashSet<>(512);
++    public Set<ResourceLocation> recipesSkippableForPlayersThatCannotAcceptLargePackets = new HashSet<>(2048);
++    // Martijn end - custom blocks and items
  
      public RecipeManager() {
          super(RecipeManager.GSON, "recipes");
-@@ -86,13 +91,28 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+@@ -86,13 +94,34 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
  
      // CraftBukkit start
      public void addRecipe(Recipe<?> irecipe) {
@@ -4465,6 +4469,12 @@ index 4872f70977e73c889fe6e2339d00ebc64459613d..d7056aeb745cc7b3ca70ad60633174c9
          org.spigotmc.AsyncCatcher.catchOp("Recipe Add"); // Spigot
          Object2ObjectLinkedOpenHashMap<ResourceLocation, Recipe<?>> map = this.recipes.get(irecipe.getType()); // CraftBukkit
  
++        // Martijn start - custom blocks nad items
++        if (irecipe instanceof StonecutterRecipe stonecutterRecipe && stonecutterRecipe.registerAsCustom) {
++            this.stonecutterRecipesThatAreCustom.add(irecipe.getId());
++        }
++        // Martijn end - custom blocks and items
++
          if (this.byName.containsKey(irecipe.getId()) || map.containsKey(irecipe.getId())) {
              throw new IllegalStateException("Duplicate recipe ignored with ID " + irecipe.getId());
          } else {
@@ -4482,7 +4492,7 @@ index 4872f70977e73c889fe6e2339d00ebc64459613d..d7056aeb745cc7b3ca70ad60633174c9
              this.byName.put(irecipe.getId(), irecipe);
          }
      }
-@@ -135,11 +155,40 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
+@@ -135,11 +164,40 @@ public class RecipeManager extends SimpleJsonResourceReloadListener {
      }
  
      public <C extends Container, T extends Recipe<C>> List<T> getRecipesFor(RecipeType<T> type, C inventory, Level world) {
@@ -4540,7 +4550,7 @@ index 71d491172b73fa5f428e3cab39240349dd715b6d..5b9b8fdae3a078e154490905e37c7aa1
  
      T fromJson(ResourceLocation id, JsonObject json);
 diff --git a/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java b/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
-index 6d5803fcdd0a0b2d106745e9e6b859693b2aade2..b56b91640872f550643019b67f6c23f2cea6185d 100644
+index 6d5803fcdd0a0b2d106745e9e6b859693b2aade2..32d8e3498c6d4ef610dcec59a9952ab00390fefb 100644
 --- a/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
 +++ b/src/main/java/net/minecraft/world/item/crafting/StonecutterRecipe.java
 @@ -1,7 +1,14 @@
@@ -4568,41 +4578,50 @@ index 6d5803fcdd0a0b2d106745e9e6b859693b2aade2..b56b91640872f550643019b67f6c23f2
  
  public class StonecutterRecipe extends SingleItemRecipe {
  
-+    private final boolean isCustom; // Martijn - custom blocks and items
++    public final boolean registerAsCustom; // Martijn - custom blocks and items
 +
      public StonecutterRecipe(ResourceLocation id, String group, Ingredient input, ItemStack output) {
 +        // Martijn start - custom blocks and items
 +        this(id, group, input, output, false);
 +    }
 +
-+    public StonecutterRecipe(ResourceLocation id, String group, Ingredient input, ItemStack output, boolean isCustom) {
++    public StonecutterRecipe(ResourceLocation id, String group, Ingredient input, ItemStack output, boolean registerAsCustom) {
          super(RecipeType.STONECUTTING, RecipeSerializer.STONECUTTER, id, group, input, output);
-+        this.isCustom = isCustom;
++        this.registerAsCustom = registerAsCustom;
 +        // Martijn end - custom blocks and items
      }
  
      @Override
-@@ -41,4 +59,50 @@ public class StonecutterRecipe extends SingleItemRecipe {
+@@ -41,4 +59,59 @@ public class StonecutterRecipe extends SingleItemRecipe {
          return recipe;
      }
      // CraftBukkit end
 +
 +    // Martijn start - custom blocks and items
 +
++    private Boolean isCustom = null;
++
++    public boolean isCustom() {
++        if (this.isCustom == null) {
++            this.isCustom = this.registerAsCustom || MinecraftServer.getServer().getRecipeManager().stonecutterRecipesThatAreCustom.contains(this.getId());
++        }
++        return this.isCustom;
++    }
++
 +    @Override
 +    public boolean shouldAlwaysSend(boolean canPlayerAcceptLargePackets) {
-+        return !isCustom;
++        return !this.isCustom() && super.shouldAlwaysSend(canPlayerAcceptLargePackets);
 +    }
 +
 +    @Override
 +    public boolean shouldSpecificallySend(@NotNull ServerPlayer player, @Nullable ItemStack stonecutterInput) {
-+        if (!isCustom) {
++        if (!this.isCustom()) {
 +            return super.shouldSpecificallySend(player, stonecutterInput);
 +        }
 +        if (stonecutterInput == null) {
 +            return false;
 +        }
-+        return player.containerMenu instanceof StonecutterMenu stonecutterMenu && this.ingredient.test(stonecutterInput);
++        return player.containerMenu instanceof StonecutterMenu && this.ingredient.test(stonecutterInput);
 +    }
 +
 +    public static class Serializer extends SingleItemRecipe.Serializer<StonecutterRecipe> {
@@ -10011,12 +10030,544 @@ index 0000000000000000000000000000000000000000..34357c237d9a45e91c9de0b5731fccca
 +    }
 +
 +}
+diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockEntityItemMappingsForVersionCompatability.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockEntityItemMappingsForVersionCompatability.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..d1e894ae02be2f94e365d40d4ba948dd1221ca13
+--- /dev/null
++++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockEntityItemMappingsForVersionCompatability.java
+@@ -0,0 +1,526 @@
++// Martijn - custom blocks and items
++
++package nl.martijnmuijsers.paper.block.replacementrule;
++
++import net.minecraft.world.item.Item;
++import net.minecraft.world.item.Items;
++
++import java.util.ArrayList;
++import java.util.IdentityHashMap;
++import java.util.List;
++import java.util.Map;
++
++public final class BlockEntityItemMappingsForVersionCompatability {
++
++    private BlockEntityItemMappingsForVersionCompatability() {}
++
++    // A faster version of the below array, in dictionary form
++    private static List<Map<Item, Item>> blockEntityItemMappingsForVersionCompatibilityList = null;
++    public static List<Map<Item, Item>> getBlockEntityItemMappingsForVersionCompatibilityList() {
++        if (blockEntityItemMappingsForVersionCompatibilityList == null) {
++            // Based on https://github.com/ViaVersion/ViaBackwards/tree/master/common/src/main/resources/assets/viabackwards/data
++            Item[][][] blockEntityItemMappingsForVersionCompatibility = {
++                {
++                    // 1.19 -> 1.18
++                    {Items.WARDEN_SPAWN_EGG, Items.GLOW_SQUID_SPAWN_EGG},
++                    {Items.SCULK_VEIN, Items.GLOW_LICHEN},
++                    {Items.SCULK_CATALYST, Items.END_STONE},
++                    {Items.SCULK, Items.BLACK_CONCRETE_POWDER},
++                    {Items.SCULK_SHRIEKER, Items.END_PORTAL_FRAME},
++                    {Items.MUD, Items.COARSE_DIRT},
++                    {Items.MANGROVE_PLANKS, Items.ACACIA_PLANKS},
++                    {Items.MANGROVE_PROPAGULE, Items.FERN},
++                    {Items.MANGROVE_LOG, Items.ACACIA_LOG},
++                    {Items.MANGROVE_ROOTS, Items.OAK_WOOD},
++                    {Items.MUDDY_MANGROVE_ROOTS, Items.COARSE_DIRT},
++                    {Items.STRIPPED_MANGROVE_LOG, Items.STRIPPED_ACACIA_LOG},
++                    {Items.STRIPPED_MANGROVE_WOOD, Items.STRIPPED_ACACIA_WOOD},
++                    {Items.MANGROVE_WOOD, Items.ACACIA_WOOD},
++                    {Items.MANGROVE_LEAVES, Items.ACACIA_LEAVES},
++                    {Items.MANGROVE_SLAB, Items.ACACIA_SLAB},
++                    {Items.MUD_BRICK_SLAB, Items.BRICK_SLAB},
++                    {Items.MANGROVE_FENCE, Items.ACACIA_FENCE},
++                    {Items.PACKED_MUD, Items.BRICKS},
++                    {Items.MUD_BRICKS, Items.BRICKS},
++                    {Items.MUD_BRICK_STAIRS, Items.BRICK_STAIRS},
++                    {Items.MUD_BRICK_WALL, Items.BRICK_WALL},
++                    {Items.MANGROVE_STAIRS, Items.ACACIA_STAIRS},
++                    {Items.MANGROVE_BUTTON, Items.ACACIA_BUTTON},
++                    {Items.MANGROVE_PRESSURE_PLATE, Items.ACACIA_PRESSURE_PLATE},
++                    {Items.MANGROVE_DOOR, Items.ACACIA_DOOR},
++                    {Items.MANGROVE_TRAPDOOR, Items.ACACIA_TRAPDOOR},
++                    {Items.MANGROVE_FENCE_GATE, Items.ACACIA_FENCE_GATE},
++                    {Items.MANGROVE_BOAT, Items.ACACIA_BOAT},
++                    {Items.MANGROVE_SIGN, Items.ACACIA_SIGN},
++                    {Items.TADPOLE_BUCKET, Items.PUFFERFISH_BUCKET},
++                    {Items.FROG_SPAWN_EGG, Items.TROPICAL_FISH_SPAWN_EGG},
++                    {Items.TADPOLE_SPAWN_EGG, Items.DONKEY_SPAWN_EGG},
++                    {Items.OCHRE_FROGLIGHT, Items.SEA_LANTERN},
++                    {Items.VERDANT_FROGLIGHT, Items.SEA_LANTERN},
++                    {Items.PEARLESCENT_FROGLIGHT, Items.SEA_LANTERN},
++                    {Items.FROGSPAWN, Items.GLOW_LICHEN},
++                    {Items.ACACIA_CHEST_BOAT, Items.ACACIA_BOAT},
++                    {Items.DARK_OAK_CHEST_BOAT, Items.DARK_OAK_BOAT},
++                    {Items.MANGROVE_CHEST_BOAT, Items.ACACIA_BOAT},
++                    {Items.JUNGLE_CHEST_BOAT, Items.JUNGLE_BOAT},
++                    {Items.SPRUCE_CHEST_BOAT, Items.SPRUCE_BOAT},
++                    {Items.OAK_CHEST_BOAT, Items.OAK_BOAT},
++                    {Items.BIRCH_CHEST_BOAT, Items.BIRCH_BOAT},
++                    {Items.ALLAY_SPAWN_EGG, Items.ZOMBIE_SPAWN_EGG},
++                    {Items.REINFORCED_DEEPSLATE, Items.OBSIDIAN},
++                    {Items.ECHO_SHARD, Items.PRISMARINE_SHARD},
++                    {Items.RECOVERY_COMPASS, Items.COMPASS},
++                    {Items.MUSIC_DISC_5, Items.MUSIC_DISC_13},
++                    {Items.DISC_FRAGMENT_5, Items.MUSIC_DISC_13},
++                    {Items.GOAT_HORN, Items.DEAD_HORN_CORAL}
++                },
++                // 1.18 -> 1.17
++                {
++                    {Items.MUSIC_DISC_OTHERSIDE, Items.MUSIC_DISC_WARD}
++                },
++                // 1.17 -> 1.16.2
++                {
++                    {Items.DIRT_PATH, Items.GRASS_BLOCK}, // Would be GRASS_PATH, which no longer exists
++                    {Items.CALCITE, Items.POLISHED_DIORITE},
++                    {Items.TUFF, Items.COBBLESTONE},
++                    {Items.COPPER_ORE, Items.IRON_ORE},
++                    {Items.TINTED_GLASS, Items.BLACK_STAINED_GLASS},
++                    {Items.COPPER_INGOT, Items.BRICK},
++                    {Items.BUNDLE, Items.RABBIT_HIDE},
++                    {Items.CANDLE, Items.SEA_PICKLE},
++                    {Items.WHITE_CANDLE, Items.SEA_PICKLE},
++                    {Items.ORANGE_CANDLE, Items.SEA_PICKLE},
++                    {Items.MAGENTA_CANDLE, Items.SEA_PICKLE},
++                    {Items.LIGHT_BLUE_CANDLE, Items.SEA_PICKLE},
++                    {Items.YELLOW_CANDLE, Items.SEA_PICKLE},
++                    {Items.LIME_CANDLE, Items.SEA_PICKLE},
++                    {Items.PINK_CANDLE, Items.SEA_PICKLE},
++                    {Items.GRAY_CANDLE, Items.SEA_PICKLE},
++                    {Items.LIGHT_GRAY_CANDLE, Items.SEA_PICKLE},
++                    {Items.CYAN_CANDLE, Items.SEA_PICKLE},
++                    {Items.PURPLE_CANDLE, Items.SEA_PICKLE},
++                    {Items.BLUE_CANDLE, Items.SEA_PICKLE},
++                    {Items.BROWN_CANDLE, Items.SEA_PICKLE},
++                    {Items.GREEN_CANDLE, Items.SEA_PICKLE},
++                    {Items.RED_CANDLE, Items.SEA_PICKLE},
++                    {Items.BLACK_CANDLE, Items.SEA_PICKLE},
++                    {Items.AMETHYST_SHARD, Items.PRISMARINE_SHARD},
++                    {Items.AMETHYST_BLOCK, Items.PURPUR_BLOCK},
++                    {Items.BUDDING_AMETHYST, Items.PURPUR_PILLAR},
++                    {Items.SMALL_AMETHYST_BUD, Items.BUBBLE_CORAL_FAN},
++                    {Items.MEDIUM_AMETHYST_BUD, Items.BUBBLE_CORAL_FAN},
++                    {Items.LARGE_AMETHYST_BUD, Items.BUBBLE_CORAL_FAN},
++                    {Items.AMETHYST_CLUSTER, Items.BUBBLE_CORAL_FAN},
++                    {Items.SPYGLASS, Items.STICK},
++                    {Items.COPPER_BLOCK, Items.IRON_BLOCK},
++                    {Items.LIGHTNING_ROD, Items.END_ROD},
++                    {Items.POWDER_SNOW_BUCKET, Items.SNOW_BLOCK},
++                    {Items.DRIPSTONE_BLOCK, Items.GRANITE},
++                    {Items.POINTED_DRIPSTONE, Items.DEAD_BUSH},
++                    {Items.SCULK_SENSOR, Items.DARK_PRISMARINE_SLAB},
++                    {Items.AXOLOTL_BUCKET, Items.TROPICAL_FISH_BUCKET},
++                    {Items.AXOLOTL_SPAWN_EGG, Items.SHULKER_SPAWN_EGG},
++                    {Items.GLOW_ITEM_FRAME, Items.ITEM_FRAME},
++                    {Items.GLOW_LICHEN, Items.VINE},
++                    {Items.GLOW_INK_SAC, Items.INK_SAC},
++                    {Items.GLOW_SQUID_SPAWN_EGG, Items.SQUID_SPAWN_EGG},
++                    {Items.AZALEA_LEAVES, Items.JUNGLE_LEAVES},
++                    {Items.FLOWERING_AZALEA_LEAVES, Items.JUNGLE_LEAVES},
++                    {Items.AZALEA, Items.JUNGLE_LEAVES},
++                    {Items.FLOWERING_AZALEA, Items.JUNGLE_LEAVES},
++                    {Items.SPORE_BLOSSOM, Items.BUBBLE_CORAL_FAN},
++                    {Items.MOSS_CARPET, Items.GREEN_CARPET},
++                    {Items.MOSS_BLOCK, Items.GRASS_BLOCK},
++                    {Items.ROOTED_DIRT, Items.COARSE_DIRT},
++                    {Items.HANGING_ROOTS, Items.VINE},
++                    {Items.BIG_DRIPLEAF, Items.TALL_GRASS},
++                    {Items.SMALL_DRIPLEAF, Items.LARGE_FERN},
++                    {Items.GLOW_BERRIES, Items.SWEET_BERRIES},
++                    {Items.EXPOSED_COPPER, Items.BRICKS},
++                    {Items.WEATHERED_COPPER, Items.BRICKS},
++                    {Items.OXIDIZED_COPPER, Items.BRICKS},
++                    {Items.CUT_COPPER, Items.BRICKS},
++                    {Items.EXPOSED_CUT_COPPER, Items.BRICKS},
++                    {Items.WEATHERED_CUT_COPPER, Items.BRICKS},
++                    {Items.OXIDIZED_CUT_COPPER, Items.BRICKS},
++                    {Items.CUT_COPPER_STAIRS, Items.BRICK_STAIRS},
++                    {Items.EXPOSED_CUT_COPPER_STAIRS, Items.BRICK_STAIRS},
++                    {Items.WEATHERED_CUT_COPPER_STAIRS, Items.BRICK_STAIRS},
++                    {Items.OXIDIZED_CUT_COPPER_STAIRS, Items.BRICK_STAIRS},
++                    {Items.WAXED_OXIDIZED_CUT_COPPER_STAIRS, Items.BRICK_STAIRS},
++                    {Items.WAXED_OXIDIZED_CUT_COPPER_SLAB, Items.BRICK_SLAB},
++                    {Items.CUT_COPPER_SLAB, Items.BRICK_SLAB},
++                    {Items.EXPOSED_CUT_COPPER_SLAB, Items.BRICK_SLAB},
++                    {Items.WEATHERED_CUT_COPPER_SLAB, Items.BRICK_SLAB},
++                    {Items.OXIDIZED_CUT_COPPER_SLAB, Items.BRICK_SLAB},
++                    {Items.WAXED_COPPER_BLOCK, Items.BRICKS},
++                    {Items.WAXED_EXPOSED_COPPER, Items.BRICKS},
++                    {Items.WAXED_OXIDIZED_CUT_COPPER, Items.BRICKS},
++                    {Items.WAXED_OXIDIZED_COPPER, Items.BRICKS},
++                    {Items.WAXED_WEATHERED_COPPER, Items.BRICKS},
++                    {Items.WAXED_CUT_COPPER, Items.BRICKS},
++                    {Items.WAXED_EXPOSED_CUT_COPPER, Items.BRICKS},
++                    {Items.WAXED_WEATHERED_CUT_COPPER, Items.BRICKS},
++                    {Items.WAXED_CUT_COPPER_STAIRS, Items.BRICK_STAIRS},
++                    {Items.WAXED_EXPOSED_CUT_COPPER_STAIRS, Items.BRICK_STAIRS},
++                    {Items.WAXED_WEATHERED_CUT_COPPER_STAIRS, Items.BRICK_STAIRS},
++                    {Items.WAXED_CUT_COPPER_SLAB, Items.BRICK_SLAB},
++                    {Items.WAXED_EXPOSED_CUT_COPPER_SLAB, Items.BRICK_SLAB},
++                    {Items.WAXED_WEATHERED_CUT_COPPER_SLAB, Items.BRICK_SLAB},
++                    {Items.DEEPSLATE, Items.BLACKSTONE},
++                    {Items.POLISHED_DEEPSLATE, Items.POLISHED_BLACKSTONE},
++                    {Items.DEEPSLATE_BRICKS, Items.POLISHED_BLACKSTONE_BRICKS},
++                    {Items.DEEPSLATE_TILES, Items.BLACKSTONE},
++                    {Items.CHISELED_DEEPSLATE, Items.CHISELED_POLISHED_BLACKSTONE},
++                    {Items.COBBLED_DEEPSLATE, Items.POLISHED_BLACKSTONE},
++                    {Items.POLISHED_DEEPSLATE_WALL, Items.POLISHED_BLACKSTONE_WALL},
++                    {Items.DEEPSLATE_TILE_WALL, Items.POLISHED_BLACKSTONE_WALL},
++                    {Items.DEEPSLATE_BRICK_WALL, Items.POLISHED_BLACKSTONE_BRICK_WALL},
++                    {Items.COBBLED_DEEPSLATE_WALL, Items.POLISHED_BLACKSTONE_WALL},
++                    {Items.POLISHED_DEEPSLATE_STAIRS, Items.POLISHED_BLACKSTONE_BRICK_STAIRS},
++                    {Items.DEEPSLATE_TILE_STAIRS, Items.POLISHED_BLACKSTONE_STAIRS},
++                    {Items.DEEPSLATE_BRICK_STAIRS, Items.POLISHED_BLACKSTONE_BRICK_STAIRS},
++                    {Items.COBBLED_DEEPSLATE_STAIRS, Items.POLISHED_BLACKSTONE_STAIRS},
++                    {Items.POLISHED_DEEPSLATE_SLAB, Items.POLISHED_BLACKSTONE_BRICK_SLAB},
++                    {Items.DEEPSLATE_TILE_SLAB, Items.POLISHED_BLACKSTONE_SLAB},
++                    {Items.DEEPSLATE_BRICK_SLAB, Items.POLISHED_BLACKSTONE_BRICK_SLAB},
++                    {Items.COBBLED_DEEPSLATE_SLAB, Items.POLISHED_BLACKSTONE_SLAB},
++                    {Items.SMOOTH_BASALT, Items.BASALT},
++                    {Items.DEEPSLATE_REDSTONE_ORE, Items.REDSTONE_ORE},
++                    {Items.DEEPSLATE_IRON_ORE, Items.IRON_ORE},
++                    {Items.DEEPSLATE_DIAMOND_ORE, Items.DIAMOND_ORE},
++                    {Items.DEEPSLATE_GOLD_ORE, Items.GOLD_ORE},
++                    {Items.DEEPSLATE_LAPIS_ORE, Items.LAPIS_ORE},
++                    {Items.DEEPSLATE_COPPER_ORE, Items.IRON_ORE},
++                    {Items.DEEPSLATE_COAL_ORE, Items.COAL_ORE},
++                    {Items.INFESTED_DEEPSLATE, Items.BLACKSTONE},
++                    {Items.CRACKED_DEEPSLATE_BRICKS, Items.BLACKSTONE},
++                    {Items.CRACKED_DEEPSLATE_TILES, Items.BLACKSTONE},
++                    {Items.DEEPSLATE_EMERALD_ORE, Items.EMERALD_ORE},
++                    {Items.LIGHT, Items.BARRIER},
++                    {Items.RAW_GOLD, Items.GOLD_ORE},
++                    {Items.RAW_IRON, Items.IRON_ORE},
++                    {Items.RAW_COPPER, Items.IRON_ORE},
++                    {Items.GOAT_SPAWN_EGG, Items.SILVERFISH_SPAWN_EGG},
++                    {Items.RAW_IRON_BLOCK, Items.IRON_BLOCK},
++                    {Items.RAW_COPPER_BLOCK, Items.IRON_BLOCK},
++                    {Items.RAW_GOLD_BLOCK, Items.GOLD_BLOCK}
++                },
++                // 1.16.2 -> 1.16
++                {
++                    {Items.PIGLIN_BRUTE_SPAWN_EGG, Items.PIGLIN_SPAWN_EGG}
++                },
++                // 1.16 -> 1.15
++                {
++                    {Items.CRIMSON_NYLIUM, Items.MYCELIUM},
++                    {Items.WARPED_NYLIUM, Items.MYCELIUM},
++                    {Items.CRIMSON_PLANKS, Items.ACACIA_PLANKS},
++                    {Items.WARPED_PLANKS, Items.DARK_OAK_PLANKS},
++                    {Items.CRIMSON_STEM, Items.ACACIA_LOG},
++                    {Items.WARPED_STEM, Items.DARK_OAK_LOG},
++                    {Items.STRIPPED_CRIMSON_STEM, Items.STRIPPED_ACACIA_LOG},
++                    {Items.STRIPPED_WARPED_STEM, Items.STRIPPED_DARK_OAK_LOG},
++                    {Items.CRIMSON_FUNGUS, Items.RED_MUSHROOM},
++                    {Items.WARPED_FUNGUS, Items.BROWN_MUSHROOM},
++                    {Items.CRIMSON_ROOTS, Items.GRASS},
++                    {Items.WARPED_ROOTS, Items.GRASS},
++                    {Items.NETHER_SPROUTS, Items.GRASS},
++                    {Items.WEEPING_VINES, Items.VINE},
++                    {Items.CRIMSON_SLAB, Items.ACACIA_SLAB},
++                    {Items.WARPED_SLAB, Items.DARK_OAK_SLAB},
++                    {Items.CRIMSON_PRESSURE_PLATE, Items.ACACIA_PRESSURE_PLATE},
++                    {Items.WARPED_PRESSURE_PLATE, Items.DARK_OAK_PRESSURE_PLATE},
++                    {Items.CRIMSON_FENCE, Items.ACACIA_FENCE},
++                    {Items.WARPED_FENCE, Items.DARK_OAK_FENCE},
++                    {Items.SOUL_SOIL, Items.SOUL_SAND},
++                    {Items.BASALT, Items.GRAY_GLAZED_TERRACOTTA},
++                    {Items.SOUL_TORCH, Items.TORCH},
++                    {Items.CRIMSON_TRAPDOOR, Items.ACACIA_TRAPDOOR},
++                    {Items.WARPED_TRAPDOOR, Items.DARK_OAK_TRAPDOOR},
++                    {Items.CRIMSON_FENCE_GATE, Items.ACACIA_FENCE_GATE},
++                    {Items.WARPED_FENCE_GATE, Items.DARK_OAK_FENCE_GATE},
++                    {Items.CRIMSON_STAIRS, Items.ACACIA_STAIRS},
++                    {Items.WARPED_STAIRS, Items.DARK_OAK_STAIRS},
++                    {Items.CRIMSON_BUTTON, Items.ACACIA_BUTTON},
++                    {Items.WARPED_BUTTON, Items.DARK_OAK_BUTTON},
++                    {Items.WARPED_WART_BLOCK, Items.CYAN_WOOL},
++                    {Items.CRIMSON_DOOR, Items.ACACIA_DOOR},
++                    {Items.WARPED_DOOR, Items.DARK_OAK_DOOR},
++                    {Items.CRIMSON_SIGN, Items.ACACIA_SIGN},
++                    {Items.WARPED_SIGN, Items.DARK_OAK_SIGN},
++                    {Items.HOGLIN_SPAWN_EGG, Items.ZOMBIE_SPAWN_EGG}, // Would be ZOMBIE_PIGMAN_SPAWN_EGG, which no longer exists
++                    {Items.ZOGLIN_SPAWN_EGG, Items.ZOMBIE_SPAWN_EGG}, // Would be ZOMBIE_PIGMAN_SPAWN_EGG, which no longer exists
++                    {Items.PIGLIN_SPAWN_EGG, Items.ZOMBIE_SPAWN_EGG}, // Would be ZOMBIE_PIGMAN_SPAWN_EGG, which no longer exists
++                    {Items.STRIDER_SPAWN_EGG, Items.SALMON_SPAWN_EGG},
++                    {Items.SOUL_LANTERN, Items.LANTERN},
++                    {Items.SHROOMLIGHT, Items.GLOWSTONE},
++                    {Items.NETHERITE_BLOCK, Items.IRON_BLOCK},
++                    {Items.ANCIENT_DEBRIS, Items.OBSIDIAN},
++                    {Items.NETHERITE_INGOT, Items.IRON_INGOT},
++                    {Items.NETHERITE_SCRAP, Items.BRICK},
++                    {Items.NETHERITE_SWORD, Items.DIAMOND_SWORD},
++                    {Items.NETHERITE_SHOVEL, Items.DIAMOND_SHOVEL},
++                    {Items.NETHERITE_PICKAXE, Items.DIAMOND_PICKAXE},
++                    {Items.NETHERITE_AXE, Items.DIAMOND_AXE},
++                    {Items.NETHERITE_HOE, Items.DIAMOND_HOE},
++                    {Items.NETHERITE_HELMET, Items.DIAMOND_HELMET},
++                    {Items.NETHERITE_CHESTPLATE, Items.DIAMOND_CHESTPLATE},
++                    {Items.NETHERITE_LEGGINGS, Items.DIAMOND_LEGGINGS},
++                    {Items.NETHERITE_BOOTS, Items.DIAMOND_BOOTS},
++                    {Items.CRYING_OBSIDIAN, Items.OBSIDIAN},
++                    {Items.TARGET, Items.HAY_BLOCK},
++                    {Items.STRIPPED_WARPED_HYPHAE, Items.STRIPPED_DARK_OAK_WOOD},
++                    {Items.STRIPPED_CRIMSON_HYPHAE, Items.STRIPPED_ACACIA_WOOD},
++                    {Items.WARPED_HYPHAE, Items.DARK_OAK_WOOD},
++                    {Items.CRIMSON_HYPHAE, Items.ACACIA_WOOD},
++                    {Items.ZOMBIFIED_PIGLIN_SPAWN_EGG, Items.ZOMBIE_SPAWN_EGG}, // Would be ZOMBIE_PIGMAN_SPAWN_EGG, which no longer exists
++                    {Items.NETHER_GOLD_ORE, Items.GOLD_ORE},
++                    {Items.TWISTING_VINES, Items.VINE},
++                    {Items.RESPAWN_ANCHOR, Items.OBSIDIAN},
++                    {Items.POLISHED_BASALT, Items.GRAY_GLAZED_TERRACOTTA},
++                    {Items.LODESTONE, Items.CHISELED_QUARTZ_BLOCK},
++                    {Items.WARPED_FUNGUS_ON_A_STICK, Items.CARROT_ON_A_STICK},
++                    {Items.CRACKED_NETHER_BRICKS, Items.NETHER_BRICKS},
++                    {Items.CHISELED_NETHER_BRICKS, Items.NETHER_BRICKS},
++                    {Items.QUARTZ_BRICKS, Items.QUARTZ_BLOCK},
++                    {Items.PIGLIN_BANNER_PATTERN, Items.FLOWER_BANNER_PATTERN},
++                    {Items.SOUL_CAMPFIRE, Items.CAMPFIRE},
++                    {Items.BLACKSTONE, Items.NETHER_BRICKS},
++                    {Items.BLACKSTONE_SLAB, Items.NETHER_BRICK_SLAB},
++                    {Items.BLACKSTONE_STAIRS, Items.NETHER_BRICK_STAIRS},
++                    {Items.BLACKSTONE_WALL, Items.NETHER_BRICK_WALL},
++                    {Items.GILDED_BLACKSTONE, Items.RED_NETHER_BRICKS},
++                    {Items.POLISHED_BLACKSTONE, Items.RED_NETHER_BRICKS},
++                    {Items.POLISHED_BLACKSTONE_SLAB, Items.RED_NETHER_BRICK_SLAB},
++                    {Items.POLISHED_BLACKSTONE_STAIRS, Items.RED_NETHER_BRICK_STAIRS},
++                    {Items.POLISHED_BLACKSTONE_WALL, Items.RED_NETHER_BRICK_WALL},
++                    {Items.POLISHED_BLACKSTONE_BUTTON, Items.STONE_BUTTON},
++                    {Items.POLISHED_BLACKSTONE_PRESSURE_PLATE, Items.STONE_PRESSURE_PLATE},
++                    {Items.CHISELED_POLISHED_BLACKSTONE, Items.RED_NETHER_BRICKS},
++                    {Items.POLISHED_BLACKSTONE_BRICKS, Items.RED_NETHER_BRICKS},
++                    {Items.POLISHED_BLACKSTONE_BRICK_SLAB, Items.RED_NETHER_BRICK_SLAB},
++                    {Items.POLISHED_BLACKSTONE_BRICK_STAIRS, Items.RED_NETHER_BRICK_STAIRS},
++                    {Items.POLISHED_BLACKSTONE_BRICK_WALL, Items.RED_NETHER_BRICK_WALL},
++                    {Items.CRACKED_POLISHED_BLACKSTONE_BRICKS, Items.RED_NETHER_BRICKS},
++                    {Items.CHAIN, Items.IRON_BARS},
++                    {Items.MUSIC_DISC_PIGSTEP, Items.MUSIC_DISC_13}
++                },
++                // 1.15 -> 1.14
++                {
++                    {Items.HONEY_BOTTLE, Items.DRAGON_BREATH},
++                    {Items.HONEYCOMB, Items.SUNFLOWER},
++                    {Items.HONEYCOMB_BLOCK, Items.HORN_CORAL_BLOCK},
++                    {Items.BEE_NEST, Items.YELLOW_SHULKER_BOX},
++                    {Items.BEEHIVE, Items.BARREL},
++                    {Items.HONEY_BLOCK, Items.SLIME_BLOCK},
++                    {Items.BEE_SPAWN_EGG, Items.OCELOT_SPAWN_EGG}
++                },
++                // 1.14 -> 1.13
++                {
++                    {Items.BRICK_WALL, Items.COBBLESTONE_WALL},
++                    {Items.PRISMARINE_WALL, Items.COBBLESTONE_WALL},
++                    {Items.RED_SANDSTONE_WALL, Items.COBBLESTONE_WALL},
++                    {Items.MOSSY_STONE_BRICK_WALL, Items.MOSSY_COBBLESTONE_WALL},
++                    {Items.GRANITE_WALL, Items.COBBLESTONE_WALL},
++                    {Items.STONE_BRICK_WALL, Items.COBBLESTONE_WALL},
++                    {Items.NETHER_BRICK_WALL, Items.COBBLESTONE_WALL},
++                    {Items.ANDESITE_WALL, Items.COBBLESTONE_WALL},
++                    {Items.RED_NETHER_BRICK_WALL, Items.COBBLESTONE_WALL},
++                    {Items.SANDSTONE_WALL, Items.COBBLESTONE_WALL},
++                    {Items.END_STONE_BRICK_WALL, Items.COBBLESTONE_WALL},
++                    {Items.DIORITE_WALL, Items.COBBLESTONE_WALL},
++                    {Items.STONE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.CUT_SANDSTONE_SLAB, Items.SANDSTONE_SLAB},
++                    {Items.CUT_RED_SANDSTONE_SLAB, Items.RED_SANDSTONE_SLAB},
++                    {Items.POLISHED_GRANITE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.SMOOTH_RED_SANDSTONE_SLAB, Items.RED_SANDSTONE_SLAB},
++                    {Items.MOSSY_STONE_BRICK_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.POLISHED_DIORITE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.MOSSY_COBBLESTONE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.END_STONE_BRICK_SLAB, Items.SANDSTONE_SLAB},
++                    {Items.SMOOTH_SANDSTONE_SLAB, Items.SANDSTONE_SLAB},
++                    {Items.SMOOTH_QUARTZ_SLAB, Items.QUARTZ_SLAB},
++                    {Items.GRANITE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.ANDESITE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.RED_NETHER_BRICK_SLAB, Items.NETHER_BRICK_SLAB},
++                    {Items.POLISHED_ANDESITE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.DIORITE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.POLISHED_GRANITE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.SMOOTH_RED_SANDSTONE_STAIRS, Items.RED_SANDSTONE_STAIRS},
++                    {Items.MOSSY_STONE_BRICK_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.POLISHED_DIORITE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.MOSSY_COBBLESTONE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.END_STONE_BRICK_STAIRS, Items.SANDSTONE_STAIRS},
++                    {Items.STONE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.SMOOTH_SANDSTONE_STAIRS, Items.SANDSTONE_STAIRS},
++                    {Items.SMOOTH_QUARTZ_STAIRS, Items.QUARTZ_STAIRS},
++                    {Items.GRANITE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.ANDESITE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.RED_NETHER_BRICK_STAIRS, Items.NETHER_BRICK_STAIRS},
++                    {Items.POLISHED_ANDESITE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.DIORITE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.CORNFLOWER, Items.BROWN_MUSHROOM},
++                    {Items.LILY_OF_THE_VALLEY, Items.WHITE_TULIP},
++                    {Items.WITHER_ROSE, Items.BLUE_ORCHID},
++                    {Items.BAMBOO, Items.SUGAR_CANE},
++                    {Items.SUSPICIOUS_STEW, Items.MUSHROOM_STEW},
++                    {Items.LEATHER_HORSE_ARMOR, Items.GOLDEN_HORSE_ARMOR},
++                    {Items.BLUE_DYE, Items.LAPIS_LAZULI},
++                    {Items.BROWN_DYE, Items.COCOA_BEANS},
++                    {Items.BLACK_DYE, Items.INK_SAC},
++                    {Items.WHITE_DYE, Items.BONE_MEAL},
++                    {Items.SCAFFOLDING, Items.HAY_BLOCK},
++                    {Items.JIGSAW, Items.STRUCTURE_BLOCK},
++                    {Items.COMPOSTER, Items.CAULDRON},
++                    {Items.BARREL, Items.CHEST},
++                    {Items.LOOM, Items.CRAFTING_TABLE},
++                    {Items.SMOKER, Items.FURNACE},
++                    {Items.BLAST_FURNACE, Items.FURNACE},
++                    {Items.CARTOGRAPHY_TABLE, Items.CRAFTING_TABLE},
++                    {Items.FLETCHING_TABLE, Items.CRAFTING_TABLE},
++                    {Items.GRINDSTONE, Items.ANVIL},
++                    {Items.LECTERN, Items.BOOKSHELF},
++                    {Items.SMITHING_TABLE, Items.CRAFTING_TABLE},
++                    {Items.STONECUTTER, Items.CRAFTING_TABLE},
++                    {Items.FLOWER_BANNER_PATTERN, Items.PAPER},
++                    {Items.CREEPER_BANNER_PATTERN, Items.PAPER},
++                    {Items.SKULL_BANNER_PATTERN, Items.PAPER},
++                    {Items.MOJANG_BANNER_PATTERN, Items.PAPER},
++                    {Items.GLOBE_BANNER_PATTERN, Items.PAPER},
++                    {Items.BELL, Items.GOLD_BLOCK},
++                    {Items.LANTERN, Items.REDSTONE_LAMP},
++                    {Items.SWEET_BERRIES, Items.BEETROOT},
++                    {Items.CAMPFIRE, Items.TORCH},
++                    {Items.SPRUCE_SIGN, Items.OAK_SIGN},
++                    {Items.BIRCH_SIGN, Items.OAK_SIGN},
++                    {Items.JUNGLE_SIGN, Items.OAK_SIGN},
++                    {Items.ACACIA_SIGN, Items.OAK_SIGN},
++                    {Items.DARK_OAK_SIGN, Items.OAK_SIGN},
++                    {Items.CROSSBOW, Items.BOW},
++                    {Items.CAT_SPAWN_EGG, Items.OCELOT_SPAWN_EGG},
++                    {Items.FOX_SPAWN_EGG, Items.PIG_SPAWN_EGG},
++                    {Items.PANDA_SPAWN_EGG, Items.SKELETON_SPAWN_EGG},
++                    {Items.PILLAGER_SPAWN_EGG, Items.ZOMBIE_VILLAGER_SPAWN_EGG},
++                    {Items.RAVAGER_SPAWN_EGG, Items.SILVERFISH_SPAWN_EGG},
++                    {Items.TRADER_LLAMA_SPAWN_EGG, Items.BLAZE_SPAWN_EGG},
++                    {Items.WANDERING_TRADER_SPAWN_EGG, Items.SQUID_SPAWN_EGG}
++                },
++                // 1.13 -> 1.12
++                {
++                    {Items.ACACIA_BUTTON, Items.OAK_BUTTON},
++                    {Items.BIRCH_BUTTON, Items.OAK_BUTTON},
++                    {Items.SPRUCE_BUTTON, Items.OAK_BUTTON},
++                    {Items.JUNGLE_BUTTON, Items.OAK_BUTTON},
++                    {Items.DARK_OAK_BUTTON, Items.OAK_BUTTON},
++                    {Items.ACACIA_TRAPDOOR, Items.OAK_TRAPDOOR},
++                    {Items.BIRCH_TRAPDOOR, Items.OAK_TRAPDOOR},
++                    {Items.SPRUCE_TRAPDOOR, Items.OAK_TRAPDOOR},
++                    {Items.JUNGLE_TRAPDOOR, Items.OAK_TRAPDOOR},
++                    {Items.DARK_OAK_TRAPDOOR, Items.OAK_TRAPDOOR},
++                    {Items.ACACIA_PRESSURE_PLATE, Items.OAK_TRAPDOOR},
++                    {Items.BIRCH_PRESSURE_PLATE, Items.OAK_TRAPDOOR},
++                    {Items.SPRUCE_PRESSURE_PLATE, Items.OAK_TRAPDOOR},
++                    {Items.JUNGLE_PRESSURE_PLATE, Items.OAK_TRAPDOOR},
++                    {Items.DARK_OAK_PRESSURE_PLATE, Items.OAK_TRAPDOOR},
++                    {Items.ACACIA_BOAT, Items.OAK_BOAT},
++                    {Items.BIRCH_BOAT, Items.OAK_BOAT},
++                    {Items.SPRUCE_BOAT, Items.OAK_BOAT},
++                    {Items.JUNGLE_BOAT, Items.OAK_BOAT},
++                    {Items.DARK_OAK_BOAT, Items.OAK_BOAT},
++                    {Items.BLUE_ICE, Items.PACKED_ICE},
++                    {Items.PUFFERFISH_BUCKET, Items.WATER_BUCKET},
++                    {Items.SALMON_BUCKET, Items.WATER_BUCKET},
++                    {Items.COD_BUCKET, Items.WATER_BUCKET},
++                    {Items.TROPICAL_FISH_BUCKET, Items.WATER_BUCKET},
++                    {Items.HEART_OF_THE_SEA, Items.SNOWBALL},
++                    {Items.NAUTILUS_SHELL, Items.BONE_MEAL},
++                    {Items.PHANTOM_MEMBRANE, Items.LEATHER},
++                    {Items.TURTLE_HELMET, Items.LEATHER_HELMET},
++                    {Items.TURTLE_EGG, Items.EGG},
++                    {Items.SCUTE, Items.LIME_DYE},
++                    {Items.TRIDENT, Items.DIAMOND_SWORD},
++                    {Items.SEA_PICKLE, Items.EGG},
++                    {Items.SEAGRASS, Items.GRASS},
++                    {Items.CONDUIT, Items.BEACON},
++                    {Items.KELP, Items.GRASS},
++                    {Items.DRIED_KELP, Items.WHEAT},
++                    {Items.DRIED_KELP_BLOCK, Items.HAY_BLOCK},
++                    {Items.STRIPPED_OAK_LOG, Items.OAK_LOG},
++                    {Items.STRIPPED_ACACIA_LOG, Items.ACACIA_LOG},
++                    {Items.STRIPPED_BIRCH_LOG, Items.BIRCH_LOG},
++                    {Items.STRIPPED_SPRUCE_LOG, Items.SPRUCE_LOG},
++                    {Items.STRIPPED_JUNGLE_LOG, Items.JUNGLE_LOG},
++                    {Items.STRIPPED_DARK_OAK_LOG, Items.DARK_OAK_LOG},
++                    {Items.STRIPPED_OAK_WOOD, Items.OAK_LOG},
++                    {Items.STRIPPED_ACACIA_WOOD, Items.ACACIA_LOG},
++                    {Items.STRIPPED_BIRCH_WOOD, Items.BIRCH_LOG},
++                    {Items.STRIPPED_SPRUCE_WOOD, Items.SPRUCE_LOG},
++                    {Items.STRIPPED_JUNGLE_WOOD, Items.JUNGLE_LOG},
++                    {Items.STRIPPED_DARK_OAK_WOOD, Items.DARK_OAK_LOG},
++                    {Items.OAK_WOOD, Items.OAK_LOG},
++                    {Items.SPRUCE_WOOD, Items.SPRUCE_LOG},
++                    {Items.BIRCH_WOOD, Items.BIRCH_LOG},
++                    {Items.JUNGLE_WOOD, Items.JUNGLE_LOG},
++                    {Items.ACACIA_WOOD, Items.ACACIA_LOG},
++                    {Items.DARK_OAK_WOOD, Items.DARK_OAK_LOG},
++                    {Items.PRISMARINE_SLAB, Items.COBBLESTONE_SLAB},
++                    {Items.PRISMARINE_BRICK_SLAB, Items.BRICK_SLAB},
++                    {Items.DARK_PRISMARINE_SLAB, Items.STONE_BRICK_SLAB},
++                    {Items.PRISMARINE_STAIRS, Items.COBBLESTONE_STAIRS},
++                    {Items.PRISMARINE_BRICK_STAIRS, Items.BRICK_STAIRS},
++                    {Items.DARK_PRISMARINE_STAIRS, Items.STONE_BRICK_STAIRS},
++                    {Items.DROWNED_SPAWN_EGG, Items.RABBIT_SPAWN_EGG},
++                    {Items.PHANTOM_SPAWN_EGG, Items.RABBIT_SPAWN_EGG},
++                    {Items.DOLPHIN_SPAWN_EGG, Items.RABBIT_SPAWN_EGG},
++                    {Items.TURTLE_SPAWN_EGG, Items.RABBIT_SPAWN_EGG},
++                    {Items.COD_SPAWN_EGG, Items.RABBIT_SPAWN_EGG},
++                    {Items.SALMON_SPAWN_EGG, Items.RABBIT_SPAWN_EGG},
++                    {Items.PUFFERFISH_SPAWN_EGG, Items.RABBIT_SPAWN_EGG},
++                    {Items.TROPICAL_FISH_SPAWN_EGG, Items.RABBIT_SPAWN_EGG},
++                    {Items.TUBE_CORAL, Items.BLUE_ORCHID},
++                    {Items.BRAIN_CORAL, Items.PINK_TULIP},
++                    {Items.BUBBLE_CORAL, Items.ALLIUM},
++                    {Items.FIRE_CORAL, Items.RED_TULIP},
++                    {Items.HORN_CORAL, Items.DANDELION},
++                    {Items.TUBE_CORAL_FAN, Items.BLUE_ORCHID},
++                    {Items.BRAIN_CORAL_FAN, Items.PINK_TULIP},
++                    {Items.BUBBLE_CORAL_FAN, Items.ALLIUM},
++                    {Items.FIRE_CORAL_FAN, Items.RED_TULIP},
++                    {Items.HORN_CORAL_FAN, Items.DANDELION},
++                    {Items.DEAD_TUBE_CORAL_FAN, Items.DEAD_BUSH},
++                    {Items.DEAD_BRAIN_CORAL_FAN, Items.DEAD_BUSH},
++                    {Items.DEAD_BUBBLE_CORAL_FAN, Items.DEAD_BUSH},
++                    {Items.DEAD_FIRE_CORAL_FAN, Items.DEAD_BUSH},
++                    {Items.DEAD_HORN_CORAL_FAN, Items.DEAD_BUSH},
++                    {Items.DEAD_TUBE_CORAL_BLOCK, Items.LIGHT_GRAY_WOOL},
++                    {Items.DEAD_BRAIN_CORAL_BLOCK, Items.LIGHT_GRAY_WOOL},
++                    {Items.DEAD_BUBBLE_CORAL_BLOCK, Items.LIGHT_GRAY_WOOL},
++                    {Items.DEAD_FIRE_CORAL_BLOCK, Items.LIGHT_GRAY_WOOL},
++                    {Items.DEAD_HORN_CORAL_BLOCK, Items.LIGHT_GRAY_WOOL},
++                    {Items.TUBE_CORAL_BLOCK, Items.BLUE_WOOL},
++                    {Items.BRAIN_CORAL_BLOCK, Items.PINK_WOOL},
++                    {Items.BUBBLE_CORAL_BLOCK, Items.PURPLE_WOOL},
++                    {Items.FIRE_CORAL_BLOCK, Items.RED_WOOL},
++                    {Items.HORN_CORAL_BLOCK, Items.YELLOW_WOOL},
++                    {Items.SMOOTH_QUARTZ, Items.QUARTZ},
++                    {Items.SMOOTH_RED_SANDSTONE, Items.RED_SANDSTONE},
++                    {Items.SMOOTH_SANDSTONE, Items.SANDSTONE},
++                    {Items.SMOOTH_STONE, Items.STONE_SLAB},
++                    {Items.PUMPKIN, Items.CARVED_PUMPKIN},
++                    {Items.MUSHROOM_STEM, Items.LIGHT_GRAY_WOOL},
++                    {Items.DEBUG_STICK, Items.STICK}
++                }
++            };
++            blockEntityItemMappingsForVersionCompatibilityList = new ArrayList<>(blockEntityItemMappingsForVersionCompatibility.length);
++            for (Item[][] mappingsFromVersionToVersion : blockEntityItemMappingsForVersionCompatibility) {
++                Map<Item, Item> mappingsFromVersionToVersionMap = new IdentityHashMap<>(mappingsFromVersionToVersion.length);
++                for (Item[] mapping : mappingsFromVersionToVersion) {
++                    mappingsFromVersionToVersionMap.put(mapping[0], mapping[1]);
++                }
++                blockEntityItemMappingsForVersionCompatibilityList.add(mappingsFromVersionToVersionMap);
++            }
++        }
++        return blockEntityItemMappingsForVersionCompatibilityList;
++    }
++
++}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f223df37e4e6f8718119b3694c6c82e8dc511a48
+index 0000000000000000000000000000000000000000..aaca165521e803163202189f063fec96564f99a9
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRule.java
-@@ -0,0 +1,462 @@
+@@ -0,0 +1,475 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
@@ -10338,6 +10889,19 @@ index 0000000000000000000000000000000000000000..f223df37e4e6f8718119b3694c6c82e8
 +        return itemStack.getForContext(properties, universe);
 +    }
 +
++    default @NotNull Item computeBlockEntityItem() {
++        // Get the host of the default real state as an item
++        @NotNull Item item = Validate.notNull(this.getHost(this.getReal().defaultBlockState()).getBlock().asItem());
++        // Replace the item by a similar item that exists in Minecraft 1.12 to allow it to be displayed on any version including and after that
++        for (Map<Item, Item> mappingsFromVersionToVersion : BlockEntityItemMappingsForVersionCompatability.getBlockEntityItemMappingsForVersionCompatibilityList()) {
++            Item mapped = mappingsFromVersionToVersion.get(item);
++            if (mapped != null) {
++                item = mapped;
++            }
++        }
++        return item;
++    }
++
 +    class BlockEntityItemStack {
 +
 +        private @Nullable Function<@NotNull BlockEntityModelVisualProperties, @NotNull ItemStack> forContextFunction;
@@ -10381,7 +10945,7 @@ index 0000000000000000000000000000000000000000..f223df37e4e6f8718119b3694c6c82e8
 +        if (!this.rendersSomeStatesAsEntity()) {
 +            return Collections.emptyList();
 +        }
-+        @NotNull Item itemHost = Validate.notNull(this.getHost(this.getReal().defaultBlockState()).getBlock().asItem());
++        @NotNull Item itemHost = this.computeBlockEntityItem();
 +        @NotNull NamespacedKeyWithoutIntention itemHostKey = NamespacedKeyWithoutIntention.forMinecraft(Registry.ITEM.getKey(itemHost));
 +        @NotNull MutableResourcePackModel itemHostKeyMinecraftItemModel = resourcePack.getModel(ResourcePackAssetIntention.ITEM, itemHostKey);
 +        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> assetLocations = new ArrayList<>();
@@ -10481,15 +11045,16 @@ index 0000000000000000000000000000000000000000..f223df37e4e6f8718119b3694c6c82e8
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..b4ac181d95b872c64d90c496070e01d9805955d7
+index 0000000000000000000000000000000000000000..1697ad1f1a14bc0a29d4ecf50df54a6321f38503
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/BlockReplacementRuleBase.java
-@@ -0,0 +1,146 @@
+@@ -0,0 +1,151 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.block.replacementrule;
 +
 +import net.minecraft.world.item.Item;
++import net.minecraft.world.item.Items;
 +import net.minecraft.world.level.block.BaseFireBlock;
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.FireBlock;
@@ -10499,7 +11064,9 @@ index 0000000000000000000000000000000000000000..b4ac181d95b872c64d90c496070e01d9
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
 +
++import java.util.ArrayList;
 +import java.util.Collections;
++import java.util.HashMap;
 +import java.util.IdentityHashMap;
 +import java.util.List;
 +import java.util.Map;
@@ -10626,7 +11193,9 @@ index 0000000000000000000000000000000000000000..b4ac181d95b872c64d90c496070e01d9
 +    }
 +
 +    protected @NotNull BlockEntityItemStack computeBlockEntityItemStack(@NotNull BlockState realState) {
-+        @NotNull Item item = Validate.notNull(this.getHost(this.real.defaultBlockState()).getBlock().asItem());
++        // Get the item
++        @NotNull Item item = this.computeBlockEntityItem();
++        // Return the BlockEntityItemStack
 +        return new BlockEntityItemStack(() -> item, properties -> this.getBlockEntityItemCustomModelData(realState, properties));
 +    }
 +
@@ -11291,7 +11860,7 @@ index 0000000000000000000000000000000000000000..a25b1d9970f82b6d7085b977e29f83e5
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..6eb69092687f7212bd948618db3a6d52527fc7b4
+index 0000000000000000000000000000000000000000..9c28ab1b068bf29d160638660da31d2c3ddb6b1d
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/MultiStateRealBlockReplacementRule.java
 @@ -0,0 +1,206 @@
@@ -11465,7 +12034,7 @@ index 0000000000000000000000000000000000000000..6eb69092687f7212bd948618db3a6d52
 +        if (this.blockEntityItemCustomModelDataPerRealState == null) {
 +            if (this.rendersSomeStatesAsEntity) {
 +                this.blockEntityItemCustomModelDataPerRealState = new IdentityHashMap<>(0);
-+                @NotNull Item item = Validate.notNull(hostPerRealState.get(this.real.defaultBlockState()).getBlock().asItem());
++                @NotNull Item item = this.computeBlockEntityItem();
 +                for (@NotNull BlockState possibleRealState : this.getReal().getStateDefinition().getPossibleStates()) {
 +                    if (this.rendersAsEntity(possibleRealState)) {
 +                        var universe = this.getEntityRenderModelVisualPropertiesUniverse(possibleRealState);
@@ -11931,7 +12500,7 @@ index 0000000000000000000000000000000000000000..8d6a19c4a32bdb74e0b34a0840e2f182
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..9cb927da01c085f17acc2e19c4c65eafce481eee
+index 0000000000000000000000000000000000000000..2deef3cc16dd174ab2e4e5c8d7a38c039f06fb26
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/block/replacementrule/SingleStateRealBlockReplacementRule.java
 @@ -0,0 +1,240 @@
@@ -12131,7 +12700,7 @@ index 0000000000000000000000000000000000000000..9cb927da01c085f17acc2e19c4c65eaf
 +    public int @Nullable [] getBlockEntityItemCustomModelData(@NotNull BlockState realState) {
 +        if (this.blockEntityItemCustomModelData == null) {
 +            if (this.rendersSomeStatesAsEntity) {
-+                @NotNull Item item = Validate.notNull(this.host.getBlock().asItem());
++                @NotNull Item item = this.computeBlockEntityItem();
 +                var universe = this.getEntityRenderModelVisualPropertiesUniverse(realState);
 +                this.blockEntityItemCustomModelData = new int[universe.getValues().length];
 +                for (int i = 0; i < blockEntityItemCustomModelData.length; i++) {
@@ -12629,10 +13198,10 @@ index 0000000000000000000000000000000000000000..b6853ca72943d1f620a2ac7faab6b177
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..0f1699b5a2a66d1bc59f60f8c41b08c383ff2912
+index 0000000000000000000000000000000000000000..3b7f68902c055e612321c435d5026ff0e3f60d2b
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/model/ModelContent.java
-@@ -0,0 +1,1364 @@
+@@ -0,0 +1,1371 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.blockanditemdata.model;
@@ -12662,6 +13231,7 @@ index 0000000000000000000000000000000000000000..0f1699b5a2a66d1bc59f60f8c41b08c3
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.texture.MutableResourcePackTexture;
++import nl.martijnmuijsers.paper.resourcepack.sucraft.CreateSuCraftResourcePack;
 +import org.apache.commons.lang3.tuple.Triple;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
@@ -13966,6 +14536,12 @@ index 0000000000000000000000000000000000000000..0f1699b5a2a66d1bc59f60f8c41b08c3
 +         */
 +        @Override
 +        @NotNull List<@NotNull Pair<@NotNull ResourcePackAssetType, @NotNull NamespacedKeyWithIntention>> writeToClearResourcePackModel(@NotNull MutableResourcePackModel resourcePackModel, @NotNull MutableResourcePack resourcePack, boolean actuallyAdd) {
++            // We make sure it is written to the resource pack as a cached asset later,
++            // if we want this model to be visible to older Minecraft versions
++            // Edit: this is not a correct implementation TODO fix
++//            if (CreateSuCraftResourcePack.modelsToIncludeForOlderVersionVisibility.contains(resourcePackModel.getKey().keyWithoutIntention())) {
++//                resourcePackModel.setDirty();
++//            }
 +            return Collections.emptyList();
 +        }
 +
@@ -14374,10 +14950,10 @@ index 0000000000000000000000000000000000000000..c9fa17a7c04692236e8276b24fd7892b
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContent.java b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContent.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..f03a6387667a06bedfb33b7a0512e599d9b85d27
+index 0000000000000000000000000000000000000000..b8927359c06186657637f010f333d692baaf326a
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/blockanditemdata/texture/TextureContent.java
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,95 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.blockanditemdata.texture;
@@ -14421,7 +14997,14 @@ index 0000000000000000000000000000000000000000..f03a6387667a06bedfb33b7a0512e599
 +         * Since this is content that already exists, it does not need to be written
 +         */
 +        @Override
-+        void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture) {}
++        void writeToResourcePackTexture(@NotNull MutableResourcePackTexture resourcePackTexture) {
++            // We make sure it is written to the resource pack as a cached asset later,
++            // if we want this texture to be visible to older Minecraft versions
++            // Edit: this is not a correct implementation TODO fix
++//            if (CreateSuCraftResourcePack.texturesToIncludeForOlderVersionVisibility.contains(resourcePackTexture.getKey().keyWithoutIntention())) {
++//                resourcePackTexture.setDirty();
++//            }
++        }
 +
 +        private static final @NotNull Existing INSTANCE = new Existing();
 +
@@ -19330,10 +19913,10 @@ index 0000000000000000000000000000000000000000..cff37985a741e4a055ee4b5298216c4e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d1ae36efb2283d2dbe4a6709066fd92cb44c7e52
+index 0000000000000000000000000000000000000000..cc6ff3dfe87819440e52693ab71b0f2f9d1dee54
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/memory/MemoryResourcePack.java
-@@ -0,0 +1,258 @@
+@@ -0,0 +1,265 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.memory;
@@ -19361,6 +19944,7 @@ index 0000000000000000000000000000000000000000..d1ae36efb2283d2dbe4a6709066fd92c
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.texture.ConcreteResourcePackTexture;
 +import nl.martijnmuijsers.paper.resourcepack.asset.texture.ResourcePackTexture;
++import nl.martijnmuijsers.paper.resourcepack.sucraft.CreateSuCraftResourcePack;
 +import nl.martijnmuijsers.paper.util.CollectionPercentageProgress;
 +import org.jetbrains.annotations.NotNull;
 +import org.jetbrains.annotations.Nullable;
@@ -19482,7 +20066,13 @@ index 0000000000000000000000000000000000000000..d1ae36efb2283d2dbe4a6709066fd92c
 +            for (@NotNull ResourcePack defaultResourcePack : this.getDefaultResourcePacks()) {
 +                @Nullable ResourcePackAsset defaultAsset = defaultResourcePack.getOptionalAsset(type, key);
 +                if (defaultAsset != null) {
-+                    return this.getMutable(type, defaultAsset);
++                    derivedAsset = this.getMutable(type, defaultAsset);
++                    // Edit: this is not a correct implementation TODO fix
++//                    if (type.equals(ResourcePackAssetType.TEXTURE) && CreateSuCraftResourcePack.texturesToIncludeForOlderVersionVisibility.contains(key.keyWithoutIntention())) {
++//                        // Include this texture in the resource pack so players with an older client can also see it on custom blocks, specifically including slabs and stairs
++//                        derivedAsset.setDirty();
++//                    }
++                    return derivedAsset;
 +                }
 +            }
 +            // We can't initially derive this asset from any inherited resource packs
@@ -19893,10 +20483,10 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..002e816d27da64a0f3452c56b8028e555f116fcd
+index 0000000000000000000000000000000000000000..3b32176c2c372de301e1b83968242b4d4bd14a75
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
-@@ -0,0 +1,415 @@
+@@ -0,0 +1,1446 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.resourcepack.sucraft;
@@ -19921,6 +20511,7 @@ index 0000000000000000000000000000000000000000..002e816d27da64a0f3452c56b8028e55
 +import nl.martijnmuijsers.paper.resourcepack.asset.ResourcePackAssetType;
 +import nl.martijnmuijsers.paper.resourcepack.asset.image.SimpleImageFileResourcePackAsset;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithIntention;
++import nl.martijnmuijsers.paper.resourcepack.asset.intention.NamespacedKeyWithoutIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.intention.ResourcePackAssetIntention;
 +import nl.martijnmuijsers.paper.resourcepack.asset.model.ConcreteResourcePackModel;
 +import nl.martijnmuijsers.paper.resourcepack.asset.texture.ResourcePackTexture;
@@ -19943,6 +20534,7 @@ index 0000000000000000000000000000000000000000..002e816d27da64a0f3452c56b8028e55
 +import java.io.OutputStreamWriter;
 +import java.nio.file.Path;
 +import java.util.ArrayList;
++import java.util.Arrays;
 +import java.util.Collections;
 +import java.util.Comparator;
 +import java.util.HashMap;
@@ -19969,7 +20561,7 @@ index 0000000000000000000000000000000000000000..002e816d27da64a0f3452c56b8028e55
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 193;
++            currentResourcePackVersion = 201;
 +        }
 +    }
 +
@@ -20309,6 +20901,1035 @@ index 0000000000000000000000000000000000000000..002e816d27da64a0f3452c56b8028e55
 +//            MinecraftServer.LOGGER.warn("Exception while calling command line command to force garbage collection after resource pack generation: " + e);
 +//        }
 +
++    }
++
++    public static Set<String> texturesToIncludeForOlderVersionVisibility = new HashSet<>(0);
++    public static Set<String> modelsToIncludeForOlderVersionVisibility = new HashSet<>(0);
++    static {
++        // Currently, we add all textures and models introduced after 1.16.5, so that users with that version can see all textures
++        String[] minecraftBlockTexturesToInclude = {
++            // 1.16 -> 1.17
++            "small_amethyst_bud",
++            "red_candle",
++            "yellow_candle_lit",
++            "cave_vines_lit",
++            "flowering_azalea_side",
++            "light_blue_candle",
++            "rooted_dirt",
++            "gray_candle",
++            "hanging_roots",
++            "pink_candle_lit",
++            "blue_candle_lit",
++            "amethyst_block",
++            "budding_amethyst",
++            "yellow_candle",
++            "deepslate_bricks",
++            "purple_candle",
++            "sculk_sensor_tendril_active",
++            "big_dripleaf_side",
++            "powder_snow",
++            "light_gray_candle_lit",
++            "spore_blossom_base",
++            "sculk_sensor_tendril_active",
++            "calcite",
++            "azalea_top",
++            "potted_flowering_azalea_bush_plant",
++            "magenta_candle",
++            "deepslate_top",
++            "pointed_dripstone_down_base",
++            "purple_candle_lit",
++            "pointed_dripstone_up_middle",
++            "dripstone_block",
++            "large_amethyst_bud",
++            "glow_item_frame",
++            "candle",
++            "raw_gold_block",
++            "big_dripleaf_tip",
++            "pointed_dripstone_down_middle",
++            "green_candle",
++            "tuff",
++            "chiseled_deepslate",
++            "big_dripleaf_top",
++            "lime_candle_lit",
++            "cave_vines",
++            "small_dripleaf_side",
++            "potted_flowering_azalea_bush_side",
++            "dirt_path_side",
++            "exposed_copper",
++            "white_candle_lit",
++            "brown_candle_lit",
++            "copper_ore",
++            "deepslate_tiles",
++            "raw_copper_block",
++            "green_candle_lit",
++            "flowering_azalea_leaves",
++            "potted_azalea_bush_side",
++            "polished_deepslate",
++            "cracked_deepslate_tiles",
++            "cave_vines_plant",
++            "cave_vines_plant_lit",
++            "deepslate_copper_ore",
++            "cyan_candle",
++            "small_dripleaf_top",
++            "pointed_dripstone_down_tip_merge",
++            "azalea_leaves",
++            "magenta_candle_lit",
++            "azalea_plant",
++            "copper_block",
++            "potted_azalea_bush_top",
++            "amethyst_cluster",
++            "brown_candle",
++            "moss_block",
++            "deepslate_diamond_ore",
++            "spore_blossom",
++            "pointed_dripstone_down_tip",
++            "lime_candle",
++            "potted_flowering_azalea_bush_top",
++            "cracked_deepslate_bricks",
++            "black_candle_lit",
++            "flowering_azalea_top",
++            "oxidized_cut_copper",
++            "deepslate_lapis_ore",
++            "potted_azalea_bush_plant",
++            "pointed_dripstone_down_frustum",
++            "oxidized_copper",
++            "exposed_cut_copper",
++            "pointed_dripstone_up_frustum",
++            "small_dripleaf_stem_bottom",
++            "glow_lichen",
++            "dirt_path_top",
++            "deepslate_redstone_ore",
++            "light_blue_candle_lit",
++            "pointed_dripstone_up_tip",
++            "cut_copper",
++            "orange_candle_lit",
++            "tinted_glass",
++            "big_dripleaf_stem",
++            "blue_candle",
++            "small_dripleaf_stem_top",
++            "sculk_sensor_top",
++            "medium_amethyst_bud",
++            "candle_lit",
++            "sculk_sensor_tendril_inactive",
++            "pink_candle",
++            "raw_iron_block",
++            "cobbled_deepslate",
++            "white_candle",
++            "lightning_rod_on",
++            "light_gray_candle",
++            "gray_candle_lit",
++            "sculk_sensor_bottom",
++            "red_candle_lit",
++            "weathered_copper",
++            "sculk_sensor_side",
++            "black_candle",
++            "lightning_rod",
++            "pointed_dripstone_up_base",
++            "deepslate",
++            "sculk_sensor_tendril_inactive",
++            "smooth_basalt",
++            "deepslate_emerald_ore",
++            "pointed_dripstone_up_tip_merge",
++            "cyan_candle_lit",
++            "deepslate_coal_ore",
++            "azalea_side",
++            "weathered_cut_copper",
++            "orange_candle",
++            "deepslate_iron_ore",
++            "deepslate_gold_ore",
++            // (1.18 added no new block textures)
++            // 1.18 -> 1.19
++            "ochre_froglight_side",
++            "reinforced_deepslate_side",
++            "sculk_catalyst_top_bloom",
++            "ochre_froglight_top",
++            "pearlescent_froglight_top",
++            "mangrove_planks",
++            "verdant_froglight_side",
++            "sculk_vein",
++            "sculk",
++            "packed_mud",
++            "mangrove_roots_top",
++            "sculk_catalyst_top",
++            "muddy_mangrove_roots_side",
++            "sculk_shrieker_can_summon_inner_top",
++            "sculk_catalyst_side",
++            "mud",
++            "mangrove_door_bottom",
++            "sculk_shrieker_side",
++            "sculk_shrieker_bottom",
++            "sculk_shrieker_top",
++            "muddy_mangrove_roots_top",
++            "sculk_catalyst_side_bloom",
++            "reinforced_deepslate_top",
++            "stripped_mangrove_log_top",
++            "verdant_froglight_top",
++            "mangrove_propagule",
++            "mangrove_roots_side",
++            "mangrove_log",
++            "sculk_shrieker_can_summon_inner_top",
++            "mangrove_door_top",
++            "pearlescent_froglight_side",
++            "sculk_catalyst_side_bloom",
++            "mangrove_leaves",
++            "mangrove_log_top",
++            "mud_bricks",
++            "mangrove_trapdoor",
++            "stripped_mangrove_log",
++            "frogspawn",
++            "sculk",
++            "sculk_shrieker_inner_top",
++            "reinforced_deepslate_bottom",
++            "sculk_catalyst_bottom",
++            "sculk_shrieker_inner_top",
++            "sculk_vein",
++            "mangrove_propagule_hanging",
++            "sculk_catalyst_top_bloom"
++        };
++        String[] minecraftItemTexturesToInclude = {
++            // 1.16 -> 1.19
++            "copper_ingot",
++            "recovery_compass_16",
++            "recovery_compass_12",
++            "glow_item_frame",
++            "light_03",
++            "recovery_compass_24",
++            "light_14",
++            "oak_chest_boat",
++            "acacia_chest_boat",
++            "brown_candle",
++            "yellow_candle",
++            "recovery_compass_21",
++            "recovery_compass_26",
++            "recovery_compass_00",
++            "tadpole_bucket",
++            "spyglass_model",
++            "purple_candle",
++            "recovery_compass_06",
++            "mangrove_door",
++            "light_02",
++            "orange_candle",
++            "glow_berries",
++            "recovery_compass_05",
++            "amethyst_shard",
++            "recovery_compass_09",
++            "green_candle",
++            "spruce_chest_boat",
++            "music_disc_otherside",
++            "goat_horn",
++            "blue_candle",
++            "powder_snow_bucket",
++            "glow_ink_sac",
++            "light_00",
++            "mangrove_boat",
++            "candle",
++            "recovery_compass_25",
++            "recovery_compass_20",
++            "recovery_compass_07",
++            "pointed_dripstone",
++            "gray_candle",
++            "recovery_compass_17",
++            "jungle_chest_boat",
++            "raw_gold",
++            "recovery_compass_27",
++            "light",
++            "light_10",
++            "dark_oak_chest_boat",
++            "light_gray_candle",
++            "light_04",
++            "recovery_compass_10",
++            "light_06",
++            "recovery_compass_28",
++            "light_05",
++            "axolotl_bucket",
++            "bundle",
++            "bundle_filled",
++            "echo_shard",
++            "mangrove_chest_boat",
++            "disc_fragment_5",
++            "cyan_candle",
++            "red_candle",
++            "recovery_compass_18",
++            "recovery_compass_19",
++            "recovery_compass_15",
++            "light_11",
++            "light_12",
++            "light_13",
++            "recovery_compass_22",
++            "recovery_compass_01",
++            "recovery_compass_11",
++            "recovery_compass_02",
++            "mangrove_propagule",
++            "recovery_compass_23",
++            "recovery_compass_31",
++            "recovery_compass_14",
++            "recovery_compass_03",
++            "raw_copper",
++            "light_08",
++            "mangrove_sign",
++            "light_09",
++            "light_blue_candle",
++            "music_disc_5",
++            "recovery_compass_08",
++            "birch_chest_boat",
++            "pink_candle",
++            "recovery_compass_29",
++            "recovery_compass_30",
++            "magenta_candle",
++            "spyglass",
++            "black_candle",
++            "recovery_compass_04",
++            "lime_candle",
++            "recovery_compass_13",
++            "light_15",
++            "raw_iron",
++            "light_07",
++            "light_01",
++            "white_candle"
++        };
++        String[] minecraftBlockModelsToInclude = {
++            // 1.16 -> 1.19
++            "raw_gold_block",
++            "cut_copper",
++            "deepslate_tile_wall_side",
++            "small_amethyst_bud",
++            "dirt_path",
++            "candle_cake_lit",
++            "mangrove_leaves",
++            "light_gray_candle_four_candles_lit",
++            "deepslate_brick_slab",
++            "magenta_candle_three_candles",
++            "light_gray_candle_three_candles",
++            "template_item_frame_map",
++            "sculk_mirrored",
++            "packed_mud",
++            "green_candle_cake_lit",
++            "candle_two_candles_lit",
++            "iron_door_bottom_right_open",
++            "deepslate_brick_stairs",
++            "blue_candle_two_candles_lit",
++            "green_candle_cake",
++            "deepslate_tile_slab",
++            "iron_door_top_left",
++            "gray_candle_one_candle",
++            "weathered_cut_copper_slab_top",
++            "potted_mangrove_propagule",
++            "orange_candle_two_candles",
++            "gray_candle_three_candles_lit",
++            "cube_north_west_mirrored_all",
++            "dark_oak_door_bottom_right",
++            "mud_bricks_north_west_mirrored",
++            "exposed_cut_copper",
++            "azalea",
++            "deepslate_redstone_ore",
++            "template_cauldron_full",
++            "lightning_rod",
++            "light_01",
++            "crimson_door_bottom_right_open",
++            "cobbled_deepslate_slab_top",
++            "yellow_candle_four_candles_lit",
++            "mangrove_slab_top",
++            "pointed_dripstone_down_tip",
++            "purple_candle_two_candles_lit",
++            "red_candle_cake_lit",
++            "white_candle_two_candles",
++            "mangrove_propagule",
++            "cracked_deepslate_bricks",
++            "black_candle_four_candles",
++            "template_cauldron_level2",
++            "mangrove_trapdoor_bottom",
++            "stripped_mangrove_log_horizontal",
++            "calcite",
++            "acacia_door_bottom_left_open",
++            "deepslate_gold_ore",
++            "iron_door_bottom_right",
++            "spruce_door_bottom_left_open",
++            "mangrove_door_top_left",
++            "cave_vines_plant_lit",
++            "orange_candle_cake_lit",
++            "orange_candle_four_candles_lit",
++            "lightning_rod_on",
++            "weathered_copper",
++            "cobbled_deepslate",
++            "brown_candle_two_candles_lit",
++            "lime_candle_four_candles",
++            "blue_candle_four_candles_lit",
++            "green_candle_three_candles_lit",
++            "mangrove_button_inventory",
++            "warped_door_top_left_open",
++            "exposed_cut_copper_stairs_inner",
++            "big_dripleaf_stem",
++            "light_00",
++            "cut_copper_stairs_outer",
++            "stripped_mangrove_wood",
++            "orange_candle_three_candles_lit",
++            "water_cauldron_full",
++            "cobbled_deepslate_wall_side_tall",
++            "lime_candle_three_candles",
++            "magenta_candle_two_candles",
++            "dark_oak_door_bottom_right_open",
++            "oak_door_top_right",
++            "spruce_door_top_left_open",
++            "deepslate_brick_stairs_inner",
++            "mangrove_log",
++            "moss_carpet",
++            "budding_amethyst",
++            "deepslate_tile_wall_side_tall",
++            "iron_door_top_left_open",
++            "pearlescent_froglight",
++            "warped_door_top_right_open",
++            "pointed_dripstone_down_middle",
++            "sculk",
++            "polished_deepslate_wall_post",
++            "candle_one_candle",
++            "black_candle_one_candle_lit",
++            "door_bottom_right",
++            "green_candle_two_candles_lit",
++            "gray_candle_two_candles_lit",
++            "lime_candle_two_candles_lit",
++            "weathered_cut_copper_stairs_outer",
++            "magenta_candle_one_candle",
++            "cube_north_west_mirrored",
++            "warped_door_bottom_left",
++            "polished_deepslate_wall_side_tall",
++            "white_candle_four_candles_lit",
++            "amethyst_cluster",
++            "light_blue_candle_cake_lit",
++            "blue_candle_one_candle",
++            "light_10",
++            "light_gray_candle_two_candles",
++            "water_cauldron_level1",
++            "polished_deepslate_slab",
++            "white_candle_two_candles_lit",
++            "brown_candle_three_candles",
++            "white_candle_one_candle_lit",
++            "light_08",
++            "cobbled_deepslate_stairs",
++            "cave_vines",
++            "mud_bricks",
++            "orange_candle_two_candles_lit",
++            "cut_copper_slab_top",
++            "big_dripleaf_full_tilt",
++            "light_06",
++            "magenta_candle_three_candles_lit",
++            "spruce_door_top_left",
++            "green_candle_one_candle",
++            "yellow_candle_two_candles_lit",
++            "small_dripleaf_bottom",
++            "sculk_catalyst_bloom",
++            "cut_copper_stairs",
++            "jungle_door_bottom_right_open",
++            "light_09",
++            "brown_candle_four_candles",
++            "deepslate_tile_wall_post",
++            "cobbled_deepslate_wall_side",
++            "mangrove_fence_gate",
++            "oak_door_bottom_left",
++            "pointed_dripstone_down_tip_merge",
++            "door_top_left",
++            "mangrove_button_pressed",
++            "deepslate_diamond_ore",
++            "light_13",
++            "light_blue_candle_four_candles_lit",
++            "template_potted_azalea_bush",
++            "mud_brick_wall_post",
++            "light_02",
++            "oxidized_cut_copper_slab",
++            "acacia_door_top_right",
++            "cyan_candle_three_candles",
++            "light_07",
++            "candle_four_candles_lit",
++            "oxidized_cut_copper_stairs_outer",
++            "acacia_door_top_left_open",
++            "mangrove_door_top_right_open",
++            "birch_door_top_left",
++            "exposed_cut_copper_slab_top",
++            "orange_candle_cake",
++            "oxidized_cut_copper_slab_top",
++            "spruce_door_top_right_open",
++            "lime_candle_two_candles",
++            "mangrove_door_top_left_open",
++            "weathered_cut_copper_slab",
++            "oak_door_top_left",
++            "sculk_catalyst",
++            "cobbled_deepslate_wall_post",
++            "green_candle_four_candles",
++            "brown_candle_one_candle",
++            "mangrove_wood",
++            "powder_snow",
++            "brown_candle_cake",
++            "black_candle_two_candles",
++            "pointed_dripstone",
++            "black_candle_two_candles_lit",
++            "template_cake_with_candle",
++            "template_two_candles",
++            "red_candle_one_candle_lit",
++            "magenta_candle_cake",
++            "template_item_frame",
++            "white_candle_three_candles",
++            "pointed_dripstone_up_middle",
++            "blue_candle_two_candles",
++            "pink_candle_cake_lit",
++            "mud_brick_slab_top",
++            "deepslate_brick_slab_top",
++            "light_14",
++            "dark_oak_door_top_left",
++            "gray_candle_four_candles_lit",
++            "iron_door_top_right",
++            "pointed_dripstone_up_tip",
++            "magenta_candle_one_candle_lit",
++            "deepslate_brick_wall_side",
++            "mangrove_door_bottom_right_open",
++            "potted_flowering_azalea_bush",
++            "mangrove_fence_gate_open",
++            "white_candle_four_candles",
++            "red_candle_two_candles_lit",
++            "birch_door_bottom_left",
++            "mangrove_fence_gate_wall_open",
++            "spruce_door_bottom_left",
++            "light_11",
++            "deepslate_tiles",
++            "lime_candle_cake_lit",
++            "purple_candle_one_candle",
++            "cyan_candle_four_candles_lit",
++            "pointed_dripstone_down_frustum",
++            "mangrove_door_top_right",
++            "lime_candle_cake",
++            "birch_door_bottom_right",
++            "blue_candle_cake_lit",
++            "weathered_cut_copper",
++            "mangrove_propagule_hanging_3",
++            "tinted_glass",
++            "gray_candle_one_candle_lit",
++            "polished_deepslate_slab_top",
++            "hanging_roots",
++            "exposed_cut_copper_stairs",
++            "spruce_door_bottom_right",
++            "brown_candle_three_candles_lit",
++            "chiseled_deepslate",
++            "purple_candle_three_candles",
++            "flowering_azalea_leaves",
++            "template_three_candles",
++            "mud_brick_stairs_inner",
++            "cyan_candle_one_candle_lit",
++            "powder_snow_cauldron_full",
++            "door_bottom_right_open",
++            "yellow_candle_one_candle",
++            "mangrove_trapdoor_open",
++            "polished_deepslate",
++            "cyan_candle_two_candles_lit",
++            "red_candle_cake",
++            "brown_candle_one_candle_lit",
++            "rooted_dirt",
++            "candle_cake",
++            "light_05",
++            "crimson_door_bottom_left",
++            "oak_door_top_right_open",
++            "pointed_dripstone_up_frustum",
++            "cave_vines_lit",
++            "jungle_door_bottom_left",
++            "dark_oak_door_bottom_left",
++            "crimson_door_bottom_right",
++            "deepslate_iron_ore",
++            "deepslate_brick_wall_side_tall",
++            "spruce_door_top_right",
++            "mangrove_fence_post",
++            "sculk_sensor_active",
++            "lime_candle_three_candles_lit",
++            "black_candle_four_candles_lit",
++            "gray_candle_cake",
++            "deepslate_coal_ore",
++            "lime_candle_one_candle",
++            "magenta_candle_four_candles",
++            "pink_candle_two_candles",
++            "orange_candle_three_candles",
++            "pink_candle_one_candle",
++            "mangrove_stairs",
++            "green_candle_three_candles",
++            "orange_candle_one_candle",
++            "orange_candle_four_candles",
++            "copper_block",
++            "light_blue_candle_three_candles_lit",
++            "deepslate_tile_wall_inventory",
++            "birch_door_top_right_open",
++            "polished_deepslate_wall_side",
++            "yellow_candle_two_candles",
++            "deepslate",
++            "door_bottom_left",
++            "purple_candle_four_candles",
++            "yellow_candle_four_candles",
++            "verdant_froglight_horizontal",
++            "purple_candle_one_candle_lit",
++            "mud_brick_wall_side",
++            "black_candle_cake",
++            "large_amethyst_bud",
++            "amethyst_block",
++            "lime_candle_four_candles_lit",
++            "light_15",
++            "deepslate_mirrored",
++            "light_gray_candle_four_candles",
++            "mangrove_pressure_plate",
++            "white_candle_three_candles_lit",
++            "deepslate_bricks",
++            "cyan_candle_cake",
++            "ochre_froglight_horizontal",
++            "mangrove_door_bottom_left",
++            "lava_cauldron",
++            "iron_door_bottom_left_open",
++            "muddy_mangrove_roots",
++            "yellow_candle_three_candles_lit",
++            "red_candle_four_candles",
++            "light_04",
++            "door_top_left_open",
++            "magenta_candle_four_candles_lit",
++            "white_candle_one_candle",
++            "light_gray_candle_cake_lit",
++            "gray_candle_cake_lit",
++            "mud_brick_wall_side_tall",
++            "yellow_candle_cake_lit",
++            "mangrove_fence_inventory",
++            "light_gray_candle_cake",
++            "polished_deepslate_stairs_inner",
++            "deepslate_emerald_ore",
++            "mangrove_propagule_hanging_2",
++            "blue_candle_cake",
++            "spruce_door_bottom_right_open",
++            "candle_two_candles",
++            "iron_door_top_right_open",
++            "mangrove_door_bottom_left_open",
++            "red_candle_two_candles",
++            "cracked_deepslate_tiles",
++            "pink_candle_four_candles_lit",
++            "cobbled_deepslate_stairs_inner",
++            "magenta_candle_two_candles_lit",
++            "light_blue_candle_cake",
++            "jungle_door_top_left_open",
++            "deepslate_brick_wall_post",
++            "gray_candle_four_candles",
++            "mangrove_button",
++            "black_candle_cake_lit",
++            "mangrove_stairs_inner",
++            "iron_door_bottom_left",
++            "weathered_cut_copper_stairs_inner",
++            "powder_snow_cauldron_level1",
++            "candle_four_candles",
++            "oxidized_cut_copper_stairs_inner",
++            "sculk_shrieker_can_summon",
++            "warped_door_bottom_right_open",
++            "door_bottom_left_open",
++            "door_top_right",
++            "green_candle_one_candle_lit",
++            "mangrove_trapdoor_top",
++            "pointed_dripstone_up_tip_merge",
++            "mangrove_pressure_plate_down",
++            "jungle_door_bottom_right",
++            "pink_candle_one_candle_lit",
++            "ochre_froglight",
++            "exposed_copper",
++            "flowering_azalea",
++            "jungle_door_top_left",
++            "lime_candle_one_candle_lit",
++            "acacia_door_bottom_right_open",
++            "polished_deepslate_stairs",
++            "sculk_shrieker",
++            "blue_candle_one_candle_lit",
++            "brown_candle_cake_lit",
++            "mangrove_fence_side",
++            "template_four_candles",
++            "candle_three_candles_lit",
++            "crimson_door_top_left_open",
++            "mangrove_stairs_outer",
++            "sculk_vein",
++            "exposed_cut_copper_slab",
++            "orange_candle_one_candle_lit",
++            "birch_door_top_left_open",
++            "warped_door_bottom_left_open",
++            "dripstone_block",
++            "cobbled_deepslate_slab",
++            "dark_oak_door_bottom_left_open",
++            "blue_candle_three_candles",
++            "light_12",
++            "tuff",
++            "dark_oak_door_top_right",
++            "door_top_right_open",
++            "mangrove_door_bottom_right",
++            "crimson_door_top_right",
++            "jungle_door_top_right_open",
++            "oak_door_bottom_right",
++            "purple_candle_three_candles_lit",
++            "acacia_door_top_right_open",
++            "spore_blossom",
++            "black_candle_one_candle",
++            "acacia_door_top_left",
++            "mud_brick_stairs_outer",
++            "pink_candle_cake",
++            "light_gray_candle_three_candles_lit",
++            "pearlescent_froglight_horizontal",
++            "birch_door_bottom_right_open",
++            "water_cauldron_level2",
++            "warped_door_top_left",
++            "cyan_candle_four_candles",
++            "mangrove_fence_gate_wall",
++            "oxidized_copper",
++            "birch_door_bottom_left_open",
++            "crimson_door_top_left",
++            "jungle_door_bottom_left_open",
++            "reinforced_deepslate",
++            "candle_one_candle_lit",
++            "black_candle_three_candles",
++            "vine",
++            "red_candle_three_candles",
++            "crimson_door_top_right_open",
++            "blue_candle_four_candles",
++            "oak_door_top_left_open",
++            "moss_block",
++            "deepslate_lapis_ore",
++            "verdant_froglight",
++            "purple_candle_cake",
++            "cut_copper_stairs_inner",
++            "oxidized_cut_copper",
++            "cobbled_deepslate_stairs_outer",
++            "light_gray_candle_one_candle_lit",
++            "white_candle_cake",
++            "white_candle_cake_lit",
++            "blue_candle_three_candles_lit",
++            "polished_deepslate_stairs_outer",
++            "polished_deepslate_wall_inventory",
++            "azalea_leaves",
++            "mangrove_roots",
++            "red_candle_four_candles_lit",
++            "green_candle_two_candles",
++            "mud_brick_slab",
++            "cyan_candle_cake_lit",
++            "mangrove_slab",
++            "pink_candle_four_candles",
++            "magenta_candle_cake_lit",
++            "deepslate_tile_slab_top",
++            "mangrove_log_horizontal",
++            "mangrove_propagule_hanging_4",
++            "deepslate_brick_stairs_outer",
++            "mud",
++            "cyan_candle_two_candles",
++            "oak_door_bottom_right_open",
++            "pink_candle_three_candles_lit",
++            "potted_azalea_bush",
++            "medium_amethyst_bud",
++            "mangrove_propagule_hanging_1",
++            "purple_candle_two_candles",
++            "template_azalea",
++            "green_candle_four_candles_lit",
++            "acacia_door_bottom_right",
++            "exposed_cut_copper_stairs_outer",
++            "pointed_dripstone_down_base",
++            "raw_iron_block",
++            "cube_column_mirrored",
++            "light_blue_candle_two_candles",
++            "purple_candle_four_candles_lit",
++            "big_dripleaf",
++            "brown_candle_four_candles_lit",
++            "dark_oak_door_top_left_open",
++            "yellow_candle_cake",
++            "pink_candle_two_candles_lit",
++            "gray_candle_two_candles",
++            "glow_item_frame_map",
++            "light_blue_candle_three_candles",
++            "deepslate_copper_ore",
++            "cut_copper_slab",
++            "template_cauldron_level1",
++            "birch_door_top_right",
++            "candle_three_candles",
++            "light_blue_candle_one_candle_lit",
++            "glow_lichen",
++            "oak_door_bottom_left_open",
++            "gray_candle_three_candles",
++            "light_gray_candle_one_candle",
++            "small_dripleaf_top",
++            "sculk_sensor_inactive",
++            "light_blue_candle_four_candles",
++            "crimson_door_bottom_left_open",
++            "dark_oak_door_top_right_open",
++            "copper_ore",
++            "purple_candle_cake_lit",
++            "light_gray_candle_two_candles_lit",
++            "stripped_mangrove_log",
++            "red_candle_three_candles_lit",
++            "mud_brick_stairs",
++            "mud_brick_wall_inventory",
++            "deepslate_tile_stairs",
++            "glow_item_frame",
++            "template_sculk_shrieker",
++            "yellow_candle_one_candle_lit",
++            "light_blue_candle_two_candles_lit",
++            "light_blue_candle_one_candle",
++            "light_03",
++            "deepslate_brick_wall_inventory",
++            "cyan_candle_three_candles_lit",
++            "acacia_door_bottom_left",
++            "black_candle_three_candles_lit",
++            "template_candle",
++            "warped_door_top_right",
++            "pink_candle_three_candles",
++            "raw_copper_block",
++            "cave_vines_plant",
++            "sculk_sensor",
++            "cyan_candle_one_candle",
++            "powder_snow_cauldron_level2",
++            "red_candle_one_candle",
++            "brown_candle_two_candles",
++            "mangrove_planks",
++            "deepslate_tile_stairs_outer",
++            "mangrove_sign",
++            "warped_door_bottom_right",
++            "cobbled_deepslate_wall_inventory",
++            "pointed_dripstone_up_base",
++            "deepslate_tile_stairs_inner",
++            "smooth_basalt",
++            "weathered_cut_copper_stairs",
++            "frogspawn",
++            "mangrove_propagule_hanging_0",
++            "jungle_door_top_right",
++            "yellow_candle_three_candles",
++            "big_dripleaf_partial_tilt",
++            "oxidized_cut_copper_stairs"
++        };
++        String[] minecraftItemModelsToInclude = {
++            // 1.16 -> 1.19
++            "recovery_compass_26",
++            "recovery_compass_27",
++            "cut_copper_stairs",
++            "goat_spawn_egg",
++            "allay_spawn_egg",
++            "mangrove_planks",
++            "tadpole_bucket",
++            "deepslate_bricks",
++            "recovery_compass_30",
++            "waxed_oxidized_copper",
++            "recovery_compass_15",
++            "recovery_compass_28",
++            "tadpole_spawn_egg",
++            "mangrove_fence",
++            "copper_ingot",
++            "glow_ink_sac",
++            "oxidized_copper",
++            "stripped_mangrove_wood",
++            "light_14",
++            "raw_iron",
++            "deepslate_brick_slab",
++            "sculk_shrieker",
++            "raw_copper",
++            "waxed_exposed_cut_copper_stairs",
++            "mangrove_propagule",
++            "spruce_chest_boat",
++            "raw_gold_block",
++            "azalea_leaves",
++            "deepslate_brick_wall",
++            "mud_bricks",
++            "glow_lichen",
++            "deepslate_coal_ore",
++            "sculk_sensor",
++            "mangrove_boat",
++            "rooted_dirt",
++            "reinforced_deepslate",
++            "spyglass_in_hand",
++            "polished_deepslate_slab",
++            "recovery_compass_19",
++            "recovery_compass_10",
++            "deepslate_iron_ore",
++            "calcite",
++            "deepslate_tile_stairs",
++            "spyglass",
++            "stripped_mangrove_log",
++            "amethyst_bud",
++            "light_07",
++            "mangrove_pressure_plate",
++            "lime_candle",
++            "sculk_catalyst",
++            "cobbled_deepslate",
++            "recovery_compass",
++            "weathered_cut_copper_stairs",
++            "deepslate_gold_ore",
++            "deepslate_redstone_ore",
++            "music_disc_5",
++            "light_10",
++            "tinted_glass",
++            "recovery_compass_17",
++            "lightning_rod",
++            "copper_ore",
++            "cracked_deepslate_bricks",
++            "light",
++            "recovery_compass_08",
++            "light_gray_candle",
++            "disc_fragment_5",
++            "recovery_compass_18",
++            "exposed_cut_copper_stairs",
++            "light_12",
++            "pink_candle",
++            "infested_deepslate",
++            "azalea",
++            "orange_candle",
++            "brown_candle",
++            "light_01",
++            "polished_deepslate",
++            "mangrove_wood",
++            "gray_candle",
++            "light_15",
++            "warden_spawn_egg",
++            "deepslate_tiles",
++            "recovery_compass_23",
++            "magenta_candle",
++            "sculk",
++            "mangrove_button",
++            "budding_amethyst",
++            "dripstone_block",
++            "echo_shard",
++            "hanging_roots",
++            "waxed_copper_block",
++            "verdant_froglight",
++            "weathered_copper",
++            "waxed_oxidized_cut_copper_stairs",
++            "recovery_compass_01",
++            "recovery_compass_25",
++            "mangrove_leaves",
++            "waxed_weathered_cut_copper_slab",
++            "light_03",
++            "acacia_chest_boat",
++            "polished_deepslate_stairs",
++            "axolotl_bucket",
++            "recovery_compass_14",
++            "blue_candle",
++            "light_06",
++            "dark_oak_chest_boat",
++            "light_09",
++            "bundle_filled",
++            "small_amethyst_bud",
++            "recovery_compass_13",
++            "jungle_chest_boat",
++            "waxed_weathered_cut_copper_stairs",
++            "cobbled_deepslate_stairs",
++            "recovery_compass_12",
++            "oxidized_cut_copper_slab",
++            "recovery_compass_31",
++            "light_11",
++            "exposed_cut_copper",
++            "green_candle",
++            "polished_deepslate_wall",
++            "mangrove_fence_gate",
++            "cracked_deepslate_tiles",
++            "packed_mud",
++            "waxed_weathered_cut_copper",
++            "yellow_candle",
++            "oxidized_cut_copper",
++            "cut_copper",
++            "mangrove_chest_boat",
++            "exposed_copper",
++            "cobbled_deepslate_slab",
++            "waxed_cut_copper_slab",
++            "deepslate_diamond_ore",
++            "recovery_compass_05",
++            "amethyst_shard",
++            "light_08",
++            "deepslate_emerald_ore",
++            "mud_brick_stairs",
++            "cyan_candle",
++            "cut_copper_slab",
++            "purple_candle",
++            "mud_brick_slab",
++            "recovery_compass_24",
++            "mud_brick_wall",
++            "axolotl_spawn_egg",
++            "exposed_cut_copper_slab",
++            "copper_block",
++            "light_00",
++            "glow_berries",
++            "big_dripleaf",
++            "recovery_compass_22",
++            "flowering_azalea_leaves",
++            "powder_snow_bucket",
++            "recovery_compass_07",
++            "light_13",
++            "light_05",
++            "frogspawn",
++            "cobbled_deepslate_wall",
++            "recovery_compass_11",
++            "red_candle",
++            "flowering_azalea",
++            "small_dripleaf",
++            "medium_amethyst_bud",
++            "tooting_goat_horn",
++            "oak_chest_boat",
++            "raw_iron_block",
++            "dirt_path",
++            "recovery_compass_21",
++            "deepslate_brick_stairs",
++            "recovery_compass_06",
++            "mangrove_slab",
++            "deepslate_copper_ore",
++            "candle",
++            "deepslate_lapis_ore",
++            "white_candle",
++            "light_02",
++            "glow_item_frame",
++            "moss_carpet",
++            "waxed_cut_copper_stairs",
++            "pointed_dripstone",
++            "oxidized_cut_copper_stairs",
++            "recovery_compass_03",
++            "weathered_cut_copper_slab",
++            "mangrove_stairs",
++            "raw_gold",
++            "recovery_compass_20",
++            "smooth_basalt",
++            "birch_chest_boat",
++            "ochre_froglight",
++            "mangrove_log",
++            "recovery_compass_29",
++            "waxed_weathered_copper",
++            "mangrove_trapdoor",
++            "recovery_compass_02",
++            "waxed_exposed_cut_copper_slab",
++            "amethyst_block",
++            "waxed_oxidized_cut_copper",
++            "spore_blossom",
++            "mangrove_sign",
++            "waxed_exposed_cut_copper",
++            "light_blue_candle",
++            "waxed_oxidized_cut_copper_slab",
++            "goat_horn",
++            "bundle",
++            "waxed_exposed_copper",
++            "chiseled_deepslate",
++            "mangrove_door",
++            "glow_squid_spawn_egg",
++            "frog_spawn_egg",
++            "tuff",
++            "recovery_compass_00",
++            "moss_block",
++            "recovery_compass_09",
++            "light_04",
++            "deepslate",
++            "pearlescent_froglight",
++            "large_amethyst_bud",
++            "mangrove_roots",
++            "deepslate_tile_wall",
++            "amethyst_cluster",
++            "raw_copper_block",
++            "music_disc_otherside",
++            "sculk_vein",
++            "deepslate_tile_slab",
++            "black_candle",
++            "mud",
++            "muddy_mangrove_roots",
++            "waxed_cut_copper",
++            "recovery_compass_04",
++            "weathered_cut_copper"
++        };
++//        Arrays.stream(minecraftBlockTexturesToInclude).forEach(texture -> texturesToIncludeForOlderVersionVisibility.add(
++//            NamespacedKeyWithoutIntention.minecraft(texture).withIntention(ResourcePackAssetIntention.BLOCK)
++//        ));
++        texturesToIncludeForOlderVersionVisibility.addAll(Arrays.asList(minecraftBlockTexturesToInclude));
++        texturesToIncludeForOlderVersionVisibility.addAll(Arrays.asList(minecraftItemTexturesToInclude));
++        modelsToIncludeForOlderVersionVisibility.addAll(Arrays.asList(minecraftBlockModelsToInclude));
++        modelsToIncludeForOlderVersionVisibility.addAll(Arrays.asList(minecraftItemModelsToInclude));
 +    }
 +
 +}
