@@ -15877,10 +15877,10 @@ index 0000000000000000000000000000000000000000..a5f57d90c4b3f993a6a9dbeeb77954f0
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..23fef62628ddebeba86f853acbc3422f123e2253
+index 0000000000000000000000000000000000000000..21d4d08d01e7378ee682462203b47f4c0af7140e
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
-@@ -0,0 +1,258 @@
+@@ -0,0 +1,276 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.item;
@@ -15921,7 +15921,16 @@ index 0000000000000000000000000000000000000000..23fef62628ddebeba86f853acbc3422f
 +
 +    private SuCraftCraftingRecipeProvider() {}
 +
++    /**
++     * Used to disable crafting recipes when potential problems are expected: such as after the first release
++     * of a major change.
++     */
++    private static final boolean disableAddingCraftingRecipes = true;
++
 +    private static void removeRecipe(@NotNull ResourceLocation resourceLocation) {
++        if (disableAddingCraftingRecipes) { // To make sure we don't remove crafting recipes that would otherwise be replaced by custom crafting recipes
++            return;
++        }
 +        MinecraftServer.getServer().getRecipeManager().removeRecipe(resourceLocation);
 +    }
 +
@@ -15929,6 +15938,9 @@ index 0000000000000000000000000000000000000000..23fef62628ddebeba86f853acbc3422f
 +     * Utility method (shorter)
 +     */
 +    private static void addRecipe(@NotNull org.bukkit.inventory.Recipe recipe, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        if (disableAddingCraftingRecipes) {
++            return;
++        }
 +        Bukkit.addRecipe(recipe, isSkippableForPlayersThatCannotAcceptLargePackets);
 +    }
 +
@@ -15936,10 +15948,16 @@ index 0000000000000000000000000000000000000000..23fef62628ddebeba86f853acbc3422f
 +     * Utility method (shorter)
 +     */
 +    private static void addRecipe(@NotNull Recipe<?> recipe, boolean isSkippableForPlayersThatCannotAcceptLargePackets) {
++        if (disableAddingCraftingRecipes) {
++            return;
++        }
 +        MinecraftServer.getServer().getRecipeManager().addRecipe(recipe, isSkippableForPlayersThatCannotAcceptLargePackets);
 +    }
 +
 +    private static void addStonecutterRecipe(@Nullable String key, @Nullable String group, @NotNull Item ingredient, @NotNull Item result, int resultAmount) {
++        if (disableAddingCraftingRecipes) {
++            return;
++        }
 +        if (key == null) {
 +            key = result.id.getPath() + "_from_" +  ingredient.id.getPath() + "_stonecutting";
 +        }
