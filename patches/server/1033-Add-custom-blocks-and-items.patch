@@ -3045,7 +3045,7 @@ index 280d28257ff2c28775f8a236a324d8c63b53093a..5c2733ece95df1d63ac8c4d69faaf530
  
                      this.level.destroyBlockProgress(this.player.getId(), pos, k);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 5e8707eaf4ca0851ec45dd5c7dadb1f09645592e..da915cdaa1a4945e01b71547a84f5a303a61f8ce 100644
+index 0b55941932d4fa433f5d7d8773cfa12bf5268d24..17a7a82e8a785d6d4266bc2e5bb1fc90446fb5df 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -29,6 +29,7 @@ import java.util.function.BiFunction;
@@ -3103,7 +3103,7 @@ index 5e8707eaf4ca0851ec45dd5c7dadb1f09645592e..da915cdaa1a4945e01b71547a84f5a30
          this.cserver.getPluginManager().callEvent(new PlayerResourcePackStatusEvent(this.getCraftPlayer(), packStatus)); // CraftBukkit
          // Paper end
      }
-@@ -3332,6 +3358,17 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3336,6 +3362,17 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
                              return;
                          }
  
@@ -3121,7 +3121,7 @@ index 5e8707eaf4ca0851ec45dd5c7dadb1f09645592e..da915cdaa1a4945e01b71547a84f5a30
                          switch (event.getResult()) {
                              case ALLOW:
                              case DEFAULT:
-@@ -3399,10 +3436,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3403,10 +3440,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
                      while (objectiterator.hasNext()) {
                          Entry<ItemStack> entry = (Entry) objectiterator.next();
  
@@ -3134,7 +3134,7 @@ index 5e8707eaf4ca0851ec45dd5c7dadb1f09645592e..da915cdaa1a4945e01b71547a84f5a30
                      this.player.containerMenu.resumeRemoteUpdates();
                      if (flag) {
                          this.player.containerMenu.broadcastFullState();
-@@ -3468,7 +3505,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3472,7 +3509,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
          PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
          if (this.player.gameMode.isCreative()) {
              boolean flag = packet.getSlotNum() < 0;
@@ -3146,7 +3146,7 @@ index 5e8707eaf4ca0851ec45dd5c7dadb1f09645592e..da915cdaa1a4945e01b71547a84f5a30
              CompoundTag nbttagcompound = BlockItem.getBlockEntityData(itemstack);
  
              if (!itemstack.isEmpty() && nbttagcompound != null && nbttagcompound.contains("x") && nbttagcompound.contains("y") && nbttagcompound.contains("z") && this.player.getBukkitEntity().hasPermission("minecraft.nbt.copy")) { // Spigot
-@@ -3490,10 +3530,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3494,10 +3534,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
  
              boolean flag1 = packet.getSlotNum() >= 1 && packet.getSlotNum() <= 45;
              boolean flag2 = itemstack.isEmpty() || itemstack.getDamageValue() >= 0 && itemstack.getCount() <= 64 && !itemstack.isEmpty();
