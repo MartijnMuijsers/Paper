@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Fri, 5 Aug 2022 10:49:52 +0200
+Subject: [PATCH] Pufferfish map rendering optimization fix (Martijn)
+
+
+diff --git a/src/main/java/org/bukkit/map/MapPalette.java b/src/main/java/org/bukkit/map/MapPalette.java
+index 9584e245144b561b4f6745b2f26a4f69a6f92891..739098475870ea135e0e34fa91093d2f25175603 100644
+--- a/src/main/java/org/bukkit/map/MapPalette.java
++++ b/src/main/java/org/bukkit/map/MapPalette.java
+@@ -41,7 +41,7 @@ public final class MapPalette {
+     }
+ 
+     @NotNull
+-    public static final Color[] colors = { // Pufferfish - public access
++    public static final Color[] colors = { // Martijn - Pufferfish map rendering optimization fix
+         c(0, 0, 0, 0), c(0, 0, 0, 0), c(0, 0, 0, 0), c(0, 0, 0, 0),
+         c(89, 125, 39), c(109, 153, 48), c(127, 178, 56), c(67, 94, 29),
+         c(174, 164, 115), c(213, 201, 140), c(247, 233, 163), c(130, 123, 86),

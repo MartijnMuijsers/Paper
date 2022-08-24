@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Mon, 17 Jan 2022 12:24:17 +0100
+Subject: [PATCH] More packets that can be sent immediately
+
+
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 2a26d03fba2f3b37f176be9e47954ef9a6cd7b3e..edbefe4aa93727a6c1c07d2e908a16db8a181b33 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -41,6 +41,7 @@ import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
+ import net.minecraft.server.RunningOnDifferentThreadException;
+ import net.minecraft.util.LazyLoadedValue;
+ import net.minecraft.util.Mth;
++import net.minecraft.world.level.chunk.LevelChunk;
+ import org.apache.commons.lang3.Validate;
+ import org.slf4j.Logger;
+ import org.slf4j.Marker;
+@@ -344,6 +345,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         }
+         // Paper start
+         private static boolean canSendImmediate(Connection networkManager, Packet<?> packet) {
++            // Martijn start - more packets that can also be sent immediately
+             return networkManager.isPending || networkManager.protocol != ConnectionProtocol.PLAY ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerChatPacket ||
+@@ -355,7 +357,10 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket ||
+                 packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
+-                packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket;
++                packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
++                packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket;
++            // Martijn end - more packets that can be sent immediately
+         }
+         // Paper end
+     }
