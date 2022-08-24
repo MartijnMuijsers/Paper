@@ -534,7 +534,7 @@ index 46681f3fa63516aa750de11cf1dee17cb3734fcd..30129e9307b5d289782a6a9a5c3f2bd5
  
  public final class NbtUtils {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc2f2a19d9 100644
+index 89e98f5b5a2bb81c3436592a9a1692388dca657d..801617dc36f9d103f1a36a73bd82ce45663ca236 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -620,7 +620,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
  import org.slf4j.Logger;
  import org.slf4j.Marker;
  import org.slf4j.MarkerFactory;
-@@ -92,6 +136,484 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -92,6 +136,499 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private float averageSentPackets;
      private int tickCount;
      private boolean handlingFault;
@@ -850,9 +850,20 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
 +    private boolean executedUpdatePotentialBlockEntitiesInSectionSpawnNewThisTick = false;
 +
 +    private @NotNull Long2BooleanMap sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewAndWhetherToUpdateOutsideSectionBounds = new Long2BooleanOpenHashMap(1);
-+    private @NotNull LongArrayFIFOQueue sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewList= new LongArrayFIFOQueue(1);
++    private @NotNull LongArrayFIFOQueue sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewList= new LongArrayFIFOQueue(64);
++    private @Nullable Long lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection = null;
 +
 +    private void tickUpdatePotentialBlockEntitiesInSectionSpawnNew() {
++
++        var player = getPlayer();
++
++        // Skip this tick if we are still waiting for chunks in transit
++        if (lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection != null) {
++            if (player.isChunkInitializationPacketWithKeepaliveIdInTransit(lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection)) {
++                return;
++            }
++        }
++
 +        long sectionKey;
 +        boolean updateOutsideSectionBounds;
 +        boolean needToUnlock = true;
@@ -874,6 +885,10 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
 +        }
 +//        MinecraftServer.LOGGER.info("TEMP DEBUG - Section update new during tick: " + SectionPos.of(sectionKey).x() + ", " + SectionPos.of(sectionKey).y() + ", " + SectionPos.of(sectionKey).z());
 +        this.updatePotentialBlockEntitiesInSectionSpawnNew(SectionPos.of(sectionKey), updateOutsideSectionBounds, null);
++
++        // Update when we performed this tick update, to prevent doing this too often before chunks are sent
++        lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection = player.getLastChunkInitializationPacketInTransitKeepaliveId();
++
 +    }
 +
 +    private void scheduleUpdatePotentialBlockEntitiesInSectionSpawnNew(@NotNull SectionPos sectionPos, boolean updateOutsideSectionBounds, @Nullable LevelChunk precomputedChunk) {
@@ -1105,7 +1120,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
      // Paper start - NetworkClient implementation
      public int protocolVersion;
      public java.net.InetSocketAddress virtualHost;
-@@ -323,6 +845,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -323,6 +860,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              return null;
          }
      }
@@ -1127,7 +1142,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
      private static class InnerUtil { // Attempt to hide these methods from ProtocolLib so it doesn't accidently pick them up.
          private static java.util.List<Packet> buildExtraPackets(Packet packet) {
              java.util.List<Packet> extra = packet.getExtraPackets();
-@@ -359,7 +896,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -359,7 +911,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
                  packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
@@ -1144,7 +1159,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
              // Martijn end - more packets that can be sent immediately
          }
          // Paper end
-@@ -376,6 +921,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -376,6 +936,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          if (!connected && !preparing) {
              return; // Do nothing
          }
@@ -1156,7 +1171,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
          packet.onPacketDispatch(getPlayer());
          if (connected && (InnerUtil.canSendImmediate(this, packet) || (
              net.minecraft.server.MCUtil.isMainThread() && packet.isReady() && this.queue.isEmpty() &&
-@@ -410,6 +960,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -410,6 +975,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
      private void sendPacket(Packet<?> packet, @Nullable PacketSendListener callbacks, Boolean flushConditional) {
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
@@ -1222,7 +1237,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
          // Martijn start - more packets without delay
          final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket
-@@ -417,6 +1026,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -417,6 +1041,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
@@ -1237,7 +1252,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
              ; // no delay for certain packets
          // Martijn end - more packets without delay
          // Paper end - add flush parameter
-@@ -429,20 +1046,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -429,20 +1061,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              this.channel.config().setAutoRead(false);
          }
  
@@ -1263,7 +1278,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..88d0c836501ba31e62406546264c9fcc
              });
              } // Paper
          }
-@@ -567,6 +1186,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -567,6 +1201,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
@@ -2752,7 +2767,7 @@ index 711ddc459167532e43cb136a69375cfb5f0bd197..01201b9e69953e239bcf3c18b2879bc7
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..9868bc425dd119aaf9fdcee5c6b544df2d0ec5ba 100644
+index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..b8b6ce5a975e14bd8e1d8397dcc5d6f4474facf0 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -1,6 +1,5 @@
@@ -2851,7 +2866,38 @@ index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..9868bc425dd119aaf9fdcee5c6b544df
          if (getChessboardDistanceToChunk(chunk) <= GlobalConfiguration.get().networkConstrainedChunkSending.ignoreNetworkConditionsForChunksWithinChessboardDistance) return true;
          synchronized (this.networkConstrainedSendingLock) {
              return this.chunkInitializationPacketsInTransitKeepaliveIds.size() < this.maxNumberOfChunkPacketsInTransitBasedOnConnection;
-@@ -2910,4 +2927,154 @@ public class ServerPlayer extends Player {
+@@ -624,6 +641,30 @@ public class ServerPlayer extends Player {
+ 
+     }
+ 
++    // Martijn start - custom blocks and items
++
++    public @Nullable Long getLastChunkInitializationPacketInTransitKeepaliveId() {
++        synchronized (this.networkConstrainedSendingLock) {
++            if (this.chunkInitializationPacketsInTransitKeepaliveIds.isEmpty()) {
++                return null;
++            }
++            return this.chunkInitializationPacketsInTransitKeepaliveIds.getLast().keepaliveId;
++        }
++    }
++
++    public boolean isChunkInitializationPacketWithKeepaliveIdInTransit(long keepaliveId) {
++        synchronized (this.networkConstrainedSendingLock) {
++            for (ChunkPacketInTransit packet : this.chunkInitializationPacketsInTransitKeepaliveIds) {
++                if (packet.keepaliveId == keepaliveId) {
++                    return true;
++                }
++            }
++            return false;
++        }
++    }
++
++    // Martijn end - custom blocks and items
++
+     // Martijn end - network-constrained chunk sending
+ 
+     // CraftBukkit start
+@@ -2910,4 +2951,154 @@ public class ServerPlayer extends Player {
      // CraftBukkit end
  
      public final int getViewDistance() { throw new UnsupportedOperationException("Use PlayerChunkLoader"); } // Paper - placeholder
