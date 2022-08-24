@@ -15877,7 +15877,7 @@ index 0000000000000000000000000000000000000000..a5f57d90c4b3f993a6a9dbeeb77954f0
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..21d4d08d01e7378ee682462203b47f4c0af7140e
+index 0000000000000000000000000000000000000000..2f9c56c03101d953dbfff479f9a1062ca7c39c5b
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/SuCraftCraftingRecipeProvider.java
 @@ -0,0 +1,276 @@
@@ -15925,7 +15925,7 @@ index 0000000000000000000000000000000000000000..21d4d08d01e7378ee682462203b47f4c
 +     * Used to disable crafting recipes when potential problems are expected: such as after the first release
 +     * of a major change.
 +     */
-+    private static final boolean disableAddingCraftingRecipes = true;
++    private static final boolean disableAddingCraftingRecipes = false;
 +
 +    private static void removeRecipe(@NotNull ResourceLocation resourceLocation) {
 +        if (disableAddingCraftingRecipes) { // To make sure we don't remove crafting recipes that would otherwise be replaced by custom crafting recipes
