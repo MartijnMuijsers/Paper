@@ -3045,7 +3045,7 @@ index 280d28257ff2c28775f8a236a324d8c63b53093a..5c2733ece95df1d63ac8c4d69faaf530
  
                      this.level.destroyBlockProgress(this.player.getId(), pos, k);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 0b55941932d4fa433f5d7d8773cfa12bf5268d24..17a7a82e8a785d6d4266bc2e5bb1fc90446fb5df 100644
+index 0d11f7c558c14bad64cec9bc7f969d2c74f77c1a..1e2cccc89fbceb96322ff88955357cbb444f1712 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -29,6 +29,7 @@ import java.util.function.BiFunction;

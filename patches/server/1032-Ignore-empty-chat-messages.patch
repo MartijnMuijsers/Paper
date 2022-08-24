@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 24 Aug 2022 17:36:50 +0200
+Subject: [PATCH] Ignore empty chat messages
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 0b55941932d4fa433f5d7d8773cfa12bf5268d24..0d11f7c558c14bad64cec9bc7f969d2c74f77c1a 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2591,7 +2591,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+         // CraftBukkit start
+         String s = message.signedContent().plain();
+         if (s.isEmpty()) {
+-            ServerGamePacketListenerImpl.LOGGER.warn(this.player.getScoreboardName() + " tried to send an empty message");
++//            ServerGamePacketListenerImpl.LOGGER.warn(this.player.getScoreboardName() + " tried to send an empty message"); // Martijn - ignore empty chat messages
+         } else if (this.getCraftPlayer().isConversing()) {
+             final String conversationInput = s;
+             this.server.processQueue.add(new Runnable() {
