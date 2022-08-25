@@ -1,0 +1,433 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Thu, 25 Aug 2022 21:21:08 +0200
+Subject: [PATCH] Limit some packet sending per tick
+
+
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 801617dc36f9d103f1a36a73bd82ce45663ca236..6ee448b50b89e876c97870686d42cf93ef29b9e1 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -57,15 +57,20 @@ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.network.protocol.PacketFlow;
+ import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
++import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
++import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
+ import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
++import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+ import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
+ import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
+ import net.minecraft.network.syncher.SynchedEntityData;
+ import net.minecraft.server.MinecraftServer;
+ import net.minecraft.server.RunningOnDifferentThreadException;
++import net.minecraft.tags.BlockTags;
+ import net.minecraft.util.LazyLoadedValue;
+ import net.minecraft.util.Mth;
+ import net.minecraft.world.entity.Entity;
+@@ -73,7 +78,9 @@ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.EquipmentSlot;
+ import net.minecraft.world.entity.decoration.ArmorStand;
+ import net.minecraft.world.entity.item.FallingBlockEntity;
++import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.chunk.LevelChunk;
+ import net.minecraft.world.phys.Vec3;
+@@ -365,8 +372,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private @NotNull LongArrayFIFOQueue sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewList= new LongArrayFIFOQueue(64);
+     private @Nullable Long lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection = null;
+ 
++    /**
++     * If we cross this limit, we will wait some time to attempt this again.
++     */
++    public static final long maxNanosUpdatingPotentialBlockEntitiesInSectionPerTick = 5_000_000L; // 5 milliseconds
++
++    private @Nullable Long nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection = null;
++
+     private void tickUpdatePotentialBlockEntitiesInSectionSpawnNew() {
+ 
++        if (nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection != null) {
++            if (System.nanoTime() < nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection) {
++                return;
++            }
++            nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection = null;
++        }
++
+         var player = getPlayer();
+ 
+         // Skip this tick if we are still waiting for chunks in transit
+@@ -396,7 +417,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             }
+         }
+ //        MinecraftServer.LOGGER.info("TEMP DEBUG - Section update new during tick: " + SectionPos.of(sectionKey).x() + ", " + SectionPos.of(sectionKey).y() + ", " + SectionPos.of(sectionKey).z());
++        // Measure the absolute time this takes to decide how many next ticks we should skip this action
++        long startTime = System.nanoTime();
+         this.updatePotentialBlockEntitiesInSectionSpawnNew(SectionPos.of(sectionKey), updateOutsideSectionBounds, null);
++        long endTime = System.nanoTime();
++        long extraTicksWorthOfUpdatesDone = (endTime - startTime) / maxNanosUpdatingPotentialBlockEntitiesInSectionPerTick;
++        if (extraTicksWorthOfUpdatesDone > 0) {
++            nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection = System.nanoTime() + extraTicksWorthOfUpdatesDone * 50_000_000; // 50 milliseconds = 1 tick
++        }
+ 
+         // Update when we performed this tick update, to prevent doing this too often before chunks are sent
+         lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection = player.getLastChunkInitializationPacketInTransitKeepaliveId();
+@@ -490,15 +518,31 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     }
+ 
+     public void updatePotentialBlockEntitiesInSection(@NotNull SectionPos sectionPos, boolean updateOutsideSectionBounds, @Nullable LevelChunk precomputedChunk) {
++
++        var sectionKey = sectionPos.asLong();
++
++        @Nullable Boolean existingUpdateOutsideSectionBounds;
++        try {
++            scheduleUpdatePotentialBlockEntitiesInSectionSpawnNewLock.lock();
++            existingUpdateOutsideSectionBounds = sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewAndWhetherToUpdateOutsideSectionBounds.get(sectionKey);
++        } finally {
++            scheduleUpdatePotentialBlockEntitiesInSectionSpawnNewLock.unlock();
++        }
++        if (existingUpdateOutsideSectionBounds != null) {
++            if (existingUpdateOutsideSectionBounds || !updateOutsideSectionBounds) {
++                // We are already planning to update the potential block entities in this section, do not process the chunk again here
++                return;
++            }
++        }
++
+         var player = this.getPlayer();
+         var level = player.getLevel();
+         @Nullable LevelChunk chunk = precomputedChunk != null ? precomputedChunk : level.getChunkIfLoaded(sectionPos.x(), sectionPos.z());
+         if (chunk != null) {
+ //            MinecraftServer.LOGGER.info("TEMP DEBUG - Section update start: " + sectionPos.x() + ", " + sectionPos.y() + ", " + sectionPos.z());
+-            var sectionKey = sectionPos.asLong();
+             // Attempt to despawn any sent block entities where one no longer exists
+             @Nullable LongSet sectionSentBlockKeys = this.getBlockEntityBlockPosKeysForChunkSectionKey(sectionKey);
+-            if (sectionSentBlockKeys != null) {
++            if (sectionSentBlockKeys != null && !sectionSentBlockKeys.isEmpty()) {
+ //                MinecraftServer.LOGGER.info("TEMP DEBUG - Section update old: " + sectionPos.x() + ", " + sectionPos.y() + ", " + sectionPos.z());
+                 @Nullable LongList toRemoveBlockKeys = null;
+                 for (long sentBlockKey : sectionSentBlockKeys) {
+@@ -530,6 +574,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+ //                MinecraftServer.LOGGER.info("TEMP DEBUG - Section update done: " + sectionPos.x() + ", " + sectionPos.y() + ", " + sectionPos.z());
+             }
+         }
++
+     }
+ 
+     /**
+@@ -926,6 +971,187 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     }
+     // Paper end
+ 
++    // Martijn start - limit packets per tick
++
++    private static class QueuedPacket<P extends Packet<?>> {
++
++        public final P packet;
++        public final @Nullable PacketSendListener callbacks;
++
++        QueuedPacket(P packet, @Nullable PacketSendListener callbacks) {
++            this.packet = packet;
++            this.callbacks = callbacks;
++        }
++
++    }
++
++    private abstract class PacketsPerTickLimiter<P extends Packet<?>> {
++
++        public final int maxPerTick;
++
++        public @Nullable P immunePacketBeingSent = null;
++
++        PacketsPerTickLimiter(int maxPerTick) {
++            this.maxPerTick = maxPerTick;
++        }
++
++        /**
++         * Returns true if the packet is allowed to pass because we are sending it after it had been scheduled
++         */
++        abstract boolean isImmuneOtherwiseAdd(P packet, @Nullable PacketSendListener callbacks);
++
++        abstract void tick();
++
++    }
++
++    private abstract class LongKeyedPacketsPerTickLimiter<P extends Packet<?>> extends PacketsPerTickLimiter<P> {
++
++        private Long2ObjectMap<QueuedPacket<P>> queuedPacketsBySubjectKey = new Long2ObjectOpenHashMap<>(64);
++        private LongArrayFIFOQueue packetSubjectKeyQueue = new LongArrayFIFOQueue(64);
++
++        LongKeyedPacketsPerTickLimiter(int maxPerTick) {
++            super(maxPerTick);
++        }
++
++        /**
++         * Of multiple queued packets with the same subject, only the last will be sent
++         */
++        protected abstract long getSubjectKey(P packet);
++
++        /**
++         * Returns true if the packet is allowed to pass because we are sending it after it had been scheduled
++         */
++        boolean isImmuneOtherwiseAdd(P packet, @Nullable PacketSendListener callbacks) {
++            if (packet == immunePacketBeingSent) {
++                return true;
++            }
++            long subjectKey = getSubjectKey(packet);
++            boolean[] wasNewlyAdded = {false};
++            queuedPacketsBySubjectKey.compute(subjectKey, ($, existingQueuedPacket) -> {
++                if (existingQueuedPacket == null) {
++                    wasNewlyAdded[0] = true;
++                }
++                @Nullable PacketSendListener callbacksToUse;
++                if (existingQueuedPacket == null || existingQueuedPacket.callbacks == null) {
++                    callbacksToUse = callbacks;
++                } else if (callbacks == null) {
++                    callbacksToUse = existingQueuedPacket.callbacks;
++                } else {
++                    callbacksToUse = new PacketSendListener() {
++
++                        @Override
++                        public void onSuccess() {
++                            existingQueuedPacket.callbacks.onSuccess();
++                            callbacks.onSuccess();
++                        }
++
++                        @org.jetbrains.annotations.Nullable
++                        @Override
++                        public Packet<?> onFailure() {
++                            Packet<?> returnValue1 = existingQueuedPacket.callbacks.onFailure();
++                            Packet<?> returnValue2 = callbacks.onFailure();
++                            if (returnValue2 != null) {
++                                return returnValue2;
++                            }
++                            return returnValue1;
++                        }
++
++                    };
++                }
++                return new QueuedPacket<>(packet, callbacksToUse);
++            });
++            if (wasNewlyAdded[0]) {
++                packetSubjectKeyQueue.enqueue(subjectKey);
++            }
++            return false;
++        }
++
++        void tick() {
++            for (int i = 0; i < maxPerTick; i++) {
++                if (packetSubjectKeyQueue.isEmpty()) {
++                    break;
++                }
++                long subjectKey = packetSubjectKeyQueue.dequeueLong();
++                QueuedPacket<P> queuedPacket = queuedPacketsBySubjectKey.remove(subjectKey);
++                immunePacketBeingSent = queuedPacket.packet;
++                sendPacket(queuedPacket.packet, queuedPacket.callbacks);
++                immunePacketBeingSent = null;
++            }
++        }
++
++    }
++
++    private final PacketsPerTickLimiter<ClientboundBlockEventPacket> blockEventPacketsPerTickLimiter =
++        new LongKeyedPacketsPerTickLimiter<>(4) {
++
++            @Override
++            protected long getSubjectKey(ClientboundBlockEventPacket packet) {
++                // Implementation based on https://wiki.vg/Block_Actions
++
++//                var block = packet.getBlock();
++                var pos = packet.getPos();
++                long customTightlyPacketPos = pos.getX() + 31_000_000L /* world xz size < 31M */ * pos.getZ() + 961_000_000_000_000L /* 31M * 31M */ * pos.getY();
++//                int b0 = packet.getB0();
++//                int b1 = packet.getB1();
++//
++//                if (block.equals(Blocks.PISTON) || block.equals(Blocks.STICKY_PISTON)) {
++//                    return b0 + b1 * 2L + 12L * customTightlyPacketPos;
++//                } else if (block.equals(Blocks.CHEST) || block.equals(Blocks.ENDER_CHEST) || block.defaultBlockState().is(BlockTags.SHULKER_BOXES)) {
++//                    return (b1 == 0 ? 0L : 1L) + 2L * customTightlyPacketPos;
++//                }
++                return customTightlyPacketPos;
++
++            }
++
++        };
++
++    private final PacketsPerTickLimiter<ClientboundBlockUpdatePacket> blockUpdatePacketsPerTickLimiter =
++        new LongKeyedPacketsPerTickLimiter<>(256) {
++
++            @Override
++            protected long getSubjectKey(ClientboundBlockUpdatePacket packet) {
++                return packet.getPos().asLong();
++            }
++
++            @Override // TEMP DEBUG
++            boolean isImmuneOtherwiseAdd(ClientboundBlockUpdatePacket packet, @Nullable PacketSendListener callbacks) {
++                return true;
++            }
++
++        };
++
++    private final PacketsPerTickLimiter<ClientboundLightUpdatePacket> lightUpdatePacketsPerTickLimiter =
++        new LongKeyedPacketsPerTickLimiter<>(1) {
++
++            @Override
++            protected long getSubjectKey(ClientboundLightUpdatePacket packet) {
++                return ChunkPos.asLong(packet.getX(), packet.getZ());
++            }
++
++            @Override // TEMP DEBUG
++            boolean isImmuneOtherwiseAdd(ClientboundLightUpdatePacket packet, @Nullable PacketSendListener callbacks) {
++                return true;
++            }
++
++        };
++
++    private final PacketsPerTickLimiter<ClientboundSectionBlocksUpdatePacket> sectionBlocksUpdatePacketsPerTickLimiter =
++        new LongKeyedPacketsPerTickLimiter<>(1) {
++
++            @Override
++            protected long getSubjectKey(ClientboundSectionBlocksUpdatePacket packet) {
++                return packet.sectionPos.asLong();
++            }
++
++            @Override // TEMP DEBUG
++            boolean isImmuneOtherwiseAdd(ClientboundSectionBlocksUpdatePacket packet, @Nullable PacketSendListener callbacks) {
++                return true;
++            }
++
++        };
++
++    // Martijn end - limit packets per tick
++
+     public void send(Packet<?> packet) {
+         this.send(packet, (PacketSendListener) null);
+     }
+@@ -974,6 +1200,25 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         this.sendPacket(packet, callbacks, Boolean.TRUE);
+     }
+     private void sendPacket(Packet<?> packet, @Nullable PacketSendListener callbacks, Boolean flushConditional) {
++        // Martijn start - limit packets per tick
++        if (packet instanceof ClientboundBlockEventPacket blockEventPacket) {
++            if (!blockEventPacketsPerTickLimiter.isImmuneOtherwiseAdd(blockEventPacket, callbacks)) {
++                return;
++            }
++        } else if (packet instanceof ClientboundBlockUpdatePacket blockUpdatePacket) {
++            if (!blockUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(blockUpdatePacket, callbacks)) {
++                return;
++            }
++        } else if (packet instanceof ClientboundLightUpdatePacket lightUpdatePacket) {
++            if (!lightUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(lightUpdatePacket, callbacks)) {
++                return;
++            }
++        } else if (packet instanceof ClientboundSectionBlocksUpdatePacket sectionBlocksUpdatePacket) {
++            if (!sectionBlocksUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(sectionBlocksUpdatePacket, callbacks)) {
++                return;
++            }
++        }
++        // Martijn end - limit packets per tick
+         this.packetWrites.getAndIncrement(); // must be befeore using canFlush
+         // Martijn start - custom blocks and items
+         // Replace the packet in case of custom falling blocks
+@@ -1202,6 +1447,12 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private static int currTick; // Paper
+     public void tick() {
+         this.tickUpdatePotentialBlockEntitiesInSectionSpawnNew(); // Martijn - custom blocks and items
++        // Martijn start - limit packets per tick
++        blockEventPacketsPerTickLimiter.tick();
++        blockUpdatePacketsPerTickLimiter.tick();
++        lightUpdatePacketsPerTickLimiter.tick();
++        sectionBlocksUpdatePacketsPerTickLimiter.tick();
++        // Martijn end - limit packets per tick
+         this.flushQueue();
+         // Paper start
+         if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+index 835954827bd9f57685ccb06e29c9d5b7fad50d52..ca45e965ebcdd53802f3113c3e35295fab86f695 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
+@@ -30,7 +30,7 @@ import javax.annotation.Nullable;
+ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePacketListener>, CachableCustomContentReplaceable<ClientboundSectionBlocksUpdatePacket> { // Martijn - custom blocks and items
+ 
+     private static final int POS_IN_SECTION_BITS = 12;
+-    private final SectionPos sectionPos;
++    public final SectionPos sectionPos; // Martijn - limit packets per tick
+     private final short[] positions;
+     private final BlockState[] states;
+     private final boolean suppressLightUpdates;
+diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
+index bd98a2b48311d6c7c317e2e014da45d440573954..7ef2844b42745a186bf251881b4d3e84d9314fab 100644
+--- a/src/main/java/net/minecraft/server/players/PlayerList.java
++++ b/src/main/java/net/minecraft/server/players/PlayerList.java
+@@ -26,6 +26,8 @@ import java.util.Set;
+ import java.util.UUID;
+ import java.util.function.Function;
+ import javax.annotation.Nullable;
++
++import io.papermc.paper.chunk.PlayerChunkLoader;
+ import net.minecraft.ChatFormatting;
+ import net.minecraft.FileUtil;
+ import net.minecraft.commands.CommandSourceStack;
+@@ -43,6 +45,7 @@ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.chat.OutgoingPlayerChatMessage;
+ import net.minecraft.network.chat.PlayerChatMessage;
+ import net.minecraft.network.protocol.Packet;
++import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
+ import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
+ import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
+ import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
+@@ -80,6 +83,7 @@ import net.minecraft.world.effect.MobEffectInstance;
+ import net.minecraft.world.entity.Entity;
+ import net.minecraft.world.entity.EntityType;
+ import net.minecraft.world.entity.player.ProfilePublicKey;
++import net.minecraft.world.level.ChunkPos;
+ import net.minecraft.world.level.GameRules;
+ import net.minecraft.world.level.Level;
+ import net.minecraft.world.level.biome.BiomeManager;
+@@ -1223,7 +1227,7 @@ public abstract class PlayerList {
+     }
+ 
+     public void broadcast(@Nullable net.minecraft.world.entity.player.Player player, double x, double y, double z, double distance, ResourceKey<Level> worldKey, Packet<?> packet) {
+-        for (int i = 0; i < this.players.size(); ++i) {
++        forEachPlayer: for (int i = 0; i < this.players.size(); ++i) { // Martijn - limit packets per tick
+             ServerPlayer entityplayer = (ServerPlayer) this.players.get(i);
+ 
+             // CraftBukkit start - Test if player receiving packet can see the source of the packet
+@@ -1233,6 +1237,21 @@ public abstract class PlayerList {
+             // CraftBukkit end
+ 
+             if (entityplayer != player && entityplayer.level.dimension() == worldKey) {
++                // Martijn start - limit packets per tick
++                if (packet instanceof ClientboundBlockEventPacket blockEventPacket) {
++                    var block = blockEventPacket;
++                    if (block.equals(Blocks.PISTON) || block.equals(Blocks.STICKY_PISTON)) {
++                        if (entityplayer.level instanceof ServerLevel serverLevel) {
++                            var chunkPos = new ChunkPos(blockEventPacket.getPos());
++                            PlayerChunkLoader playerChunkLoader = serverLevel.getChunkSource().chunkMap.playerChunkManager;
++                            PlayerChunkLoader.PlayerLoaderData data = playerChunkLoader.getData(entityplayer);
++                            if (!data.hasSentChunk(chunkPos.x, chunkPos.z, true)) {
++                                continue forEachPlayer;
++                            }
++                        }
++                    }
++                }
++                // Martijn end - limit packets per tick
+                 double d4 = x - entityplayer.getX();
+                 double d5 = y - entityplayer.getY();
+                 double d6 = z - entityplayer.getZ();
+diff --git a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+index c4b1a7f8743e81a9baddfa1b18140ff75b2f1dae..096b920c61e95723b3a93e8557e47870d5ffe7ff 100644
+--- a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
++++ b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
+@@ -288,6 +288,7 @@ public class PistonBaseBlock extends DirectionalBlock {
+                     world.removeBlock(headPos, false);
+                 } else {
+                     ((ServerLevel)world).getChunkSource().blockChanged(headPos); // ... fix client desync
++                    ((ServerLevel)world).getChunkSource().blockChanged(headPos.relative(enumdirection)); // Martijn - limit packets per tick
+                 }
+                 // Paper end - fix headless pistons breaking blocks
+             }
