@@ -5,10 +5,30 @@ Subject: [PATCH] Limit some packet sending per tick
 
 
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 801617dc36f9d103f1a36a73bd82ce45663ca236..6ee448b50b89e876c97870686d42cf93ef29b9e1 100644
+index 801617dc36f9d103f1a36a73bd82ce45663ca236..d2e3d162210f7a2e78464241e529dc125a4a6f75 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
-@@ -57,15 +57,20 @@ import net.minecraft.network.chat.MutableComponent;
+@@ -27,12 +27,19 @@ import io.netty.handler.timeout.TimeoutException;
+ import io.netty.util.AttributeKey;
+ import java.net.InetSocketAddress;
+ import java.net.SocketAddress;
++import java.util.ArrayList;
+ import java.util.BitSet;
+ import java.util.Collections;
++import java.util.HashSet;
++import java.util.List;
+ import java.util.Queue;
++import java.util.Set;
++import java.util.TreeMap;
++import java.util.TreeSet;
+ import java.util.UUID;
+ import java.util.concurrent.RejectedExecutionException;
+ import java.util.concurrent.locks.ReentrantLock;
++import java.util.stream.Collectors;
+ import javax.annotation.Nullable;
+ 
+ import io.papermc.paper.util.CoordinateUtils;
+@@ -57,15 +64,20 @@ import net.minecraft.network.chat.MutableComponent;
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.network.protocol.PacketFlow;
  import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
@@ -29,7 +49,7 @@ index 801617dc36f9d103f1a36a73bd82ce45663ca236..6ee448b50b89e876c97870686d42cf93
  import net.minecraft.util.LazyLoadedValue;
  import net.minecraft.util.Mth;
  import net.minecraft.world.entity.Entity;
-@@ -73,7 +78,9 @@ import net.minecraft.world.entity.EntityType;
+@@ -73,7 +85,9 @@ import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.EquipmentSlot;
  import net.minecraft.world.entity.decoration.ArmorStand;
  import net.minecraft.world.entity.item.FallingBlockEntity;
@@ -39,7 +59,7 @@ index 801617dc36f9d103f1a36a73bd82ce45663ca236..6ee448b50b89e876c97870686d42cf93
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.LevelChunk;
  import net.minecraft.world.phys.Vec3;
-@@ -365,8 +372,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -365,8 +379,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private @NotNull LongArrayFIFOQueue sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewList= new LongArrayFIFOQueue(64);
      private @Nullable Long lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection = null;
  
@@ -62,7 +82,7 @@ index 801617dc36f9d103f1a36a73bd82ce45663ca236..6ee448b50b89e876c97870686d42cf93
          var player = getPlayer();
  
          // Skip this tick if we are still waiting for chunks in transit
-@@ -396,7 +417,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -396,7 +424,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              }
          }
  //        MinecraftServer.LOGGER.info("TEMP DEBUG - Section update new during tick: " + SectionPos.of(sectionKey).x() + ", " + SectionPos.of(sectionKey).y() + ", " + SectionPos.of(sectionKey).z());
@@ -77,7 +97,7 @@ index 801617dc36f9d103f1a36a73bd82ce45663ca236..6ee448b50b89e876c97870686d42cf93
  
          // Update when we performed this tick update, to prevent doing this too often before chunks are sent
          lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection = player.getLastChunkInitializationPacketInTransitKeepaliveId();
-@@ -490,15 +518,31 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -490,15 +525,31 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
  
      public void updatePotentialBlockEntitiesInSection(@NotNull SectionPos sectionPos, boolean updateOutsideSectionBounds, @Nullable LevelChunk precomputedChunk) {
@@ -111,7 +131,7 @@ index 801617dc36f9d103f1a36a73bd82ce45663ca236..6ee448b50b89e876c97870686d42cf93
  //                MinecraftServer.LOGGER.info("TEMP DEBUG - Section update old: " + sectionPos.x() + ", " + sectionPos.y() + ", " + sectionPos.z());
                  @Nullable LongList toRemoveBlockKeys = null;
                  for (long sentBlockKey : sectionSentBlockKeys) {
-@@ -530,6 +574,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -530,6 +581,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  //                MinecraftServer.LOGGER.info("TEMP DEBUG - Section update done: " + sectionPos.x() + ", " + sectionPos.y() + ", " + sectionPos.z());
              }
          }
@@ -119,230 +139,618 @@ index 801617dc36f9d103f1a36a73bd82ce45663ca236..6ee448b50b89e876c97870686d42cf93
      }
  
      /**
-@@ -926,6 +971,187 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -926,6 +978,577 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
      // Paper end
  
 +    // Martijn start - limit packets per tick
 +
-+    private static class QueuedPacket<P extends Packet<?>> {
++    private final ReentrantLock queuedPacketsLock = new ReentrantLock();
++    private long nextQueuedPacketIndex = 0;
++    private final TreeMap<Long, QueuedPacket> queuedPackets = new TreeMap<>();
++    private static final int creditsPerTick = 400;
++    private static final int maxTotalCredits = creditsPerTick * 10;
++    private static final int[] creditCostPerType = {4, 1, 100, 256};
++    private int creditsForThisTick = maxTotalCredits;
++    private @org.jetbrains.annotations.Nullable Packet<?> immuneQueuedPacketBeingSent = null;
++    private Long2ObjectMap<QueuedPistonBlockEventPacket> lastPistonBlockEventPacketPerBlockPosKey = new Long2ObjectOpenHashMap<>(64);
++    private Long2ObjectMap<QueuedBlockUpdatePacket> lastBlockUpdatePacketPerBlockPosKey = new Long2ObjectOpenHashMap<>(256);
++    private Long2ObjectMap<LongSet> blockPosKeysWithLastBlockUpdatePacketPerSectionPosKey = new Long2ObjectOpenHashMap<>(16);
++    private Long2ObjectMap<QueuedPacket> lastSectionBlockUpdatesPacketPerSectionPosKey = new Long2ObjectOpenHashMap<>(16);
++//    private Long2ObjectMap<QueuedPacket> lastLightUpdatePacketPerChunkPosKey = new Long2ObjectOpenHashMap<>(8);
 +
-+        public final P packet;
-+        public final @Nullable PacketSendListener callbacks;
++    private class QueuedPacket {
 +
-+        QueuedPacket(P packet, @Nullable PacketSendListener callbacks) {
++        /**
++         * How many'th packet this is that has been queued
++         */
++        public final long index;
++        /**
++         * Is null only when this queued packet has been cancelled but the callbacks are non-null
++         */
++        public @org.jetbrains.annotations.Nullable Packet<?> packet;
++        public final @org.jetbrains.annotations.Nullable PacketSendListener callbacks;
++        /**
++         * 0 = ClientboundBlockEventPacket
++         * 1 = ClientboundBlockUpdatePacket
++         * 2 = ClientboundSectionBlockUpdatesPacket
++         * 3 = ClientboundLightUpdatePacket
++         */
++        public final int type;
++
++//        QueuedPacket(long index, Packet<?> packet, @Nullable PacketSendListener callbacks) {
++//            this(index, packet, callbacks, packet instanceof ClientboundBlockEventPacket ? 0 : packet instanceof ClientboundBlockUpdatePacket ? 1 : packet instanceof ClientboundSectionBlocksUpdatePacket ? 2 : 3);
++//        }
++
++//        /**
++//         * This constructor is only to make removing elements from queuedPackets by their index easier
++//         */
++//        QueuedPacket(long index) {
++//            this(index, null, null, 0);
++//        }
++
++        QueuedPacket(long index, @NotNull Packet<?> packet, @org.jetbrains.annotations.Nullable PacketSendListener callbacks, int type) {
++            this.index = index;
 +            this.packet = packet;
 +            this.callbacks = callbacks;
++            this.type = type;
++        }
++
++//        @Override
++//        public int compareTo(@NotNull Connection.QueuedPacket other) {
++//            return Long.compare(index, other.index);
++//        }
++//
++//        @Override
++//        public boolean equals(Object obj) {
++//            if (obj instanceof QueuedPacket other) {
++//                return index == other.index; // This simplification makes removing elements from queuedPackets by their index easier
++//            }
++//            return false;
++//        }
++//
++//        @Override
++//        public int hashCode() {
++//            return (int) index;
++//        }
++
++        /**
++         * Calling this will never remove the packet from any 'last packet for position' map because
++         * this must never be called while the packet is the last packet of a type for a position,
++         * because then the packet must not be cancelled
++         */
++        void cancel() {
++            packet = null;
++            if (callbacks == null) {
++//                MinecraftServer.LOGGER.info("Removed " + index);
++                queuedPackets.remove(index);
++            }
 +        }
 +
 +    }
 +
-+    private abstract class PacketsPerTickLimiter<P extends Packet<?>> {
++    private class QueuedPistonBlockEventPacket extends QueuedPacket {
 +
-+        public final int maxPerTick;
++        private @org.jetbrains.annotations.Nullable ClientboundBlockEventPacket blockEventPacket;
++        private @org.jetbrains.annotations.Nullable QueuedBlockUpdatePacket @org.jetbrains.annotations.Nullable [] protectedBlockUpdatePackets;
 +
-+        public @Nullable P immunePacketBeingSent = null;
-+
-+        PacketsPerTickLimiter(int maxPerTick) {
-+            this.maxPerTick = maxPerTick;
++        QueuedPistonBlockEventPacket(long index, @NotNull ClientboundBlockEventPacket packet, @org.jetbrains.annotations.Nullable PacketSendListener callbacks, @org.jetbrains.annotations.Nullable QueuedBlockUpdatePacket @org.jetbrains.annotations.Nullable [] protectedBlockUpdatePackets) {
++            super(index, packet, callbacks, 0);
++            this.blockEventPacket = packet;
++            this.protectedBlockUpdatePackets = protectedBlockUpdatePackets;
 +        }
 +
-+        /**
-+         * Returns true if the packet is allowed to pass because we are sending it after it had been scheduled
-+         */
-+        abstract boolean isImmuneOtherwiseAdd(P packet, @Nullable PacketSendListener callbacks);
-+
-+        abstract void tick();
++        @Override
++        void cancel() {
++            long blockKey = blockEventPacket.getPos().asLong();
++//            MinecraftServer.LOGGER.info("Cancel " + blockKey + " (" + index + ")");
++            pistonPacketsInQueue--;
++            pistonPacketsInQueuePerPos.put(blockKey, pistonPacketsInQueuePerPos.get(blockKey) - 1);
++            if (pistonPacketsInQueue % 100 == 0) {
++                MinecraftServer.LOGGER.info("Piston packets in queue: " + pistonPacketsInQueue);
++            } else if (pistonPacketsInQueue < 5) {
++                MinecraftServer.LOGGER.info("Piston packets (" + pistonPacketsInQueue + ") in queue is: " + queuedPackets.values().stream().filter(it ->  it instanceof QueuedPistonBlockEventPacket).map(it -> (QueuedPistonBlockEventPacket) it).filter(it -> it.packet != null).map(it -> it.index).toList());
++                MinecraftServer.LOGGER.info("Potentially stuck: " + pistonPacketsInQueuePerPos.long2IntEntrySet().stream().filter(it -> it.getIntValue() != 0).map(it -> it.getKey()).toList());
++            }
++            if (queuedPackets.size() % 1000 == 0) {
++                MinecraftServer.LOGGER.info("Total in queue: " + queuedPackets.size());
++            }
++            blockEventPacket = null;
++            super.cancel();
++            // Remove the protection this was giving to any block update packets
++            if (protectedBlockUpdatePackets != null) {
++                for (QueuedBlockUpdatePacket protectedPacket : protectedBlockUpdatePackets) {
++                    if (protectedPacket != null) {
++                        protectedPacket.protectingPistonBlockEventPackets.remove(this);
++                        // Remove the previously protected packet if it is no longer protected
++                        if (protectedPacket.canBeSafelyCancelledFromQueue(true)) {
++                            protectedPacket.cancel();
++                        }
++                    }
++                }
++            }
++        }
 +
 +    }
 +
-+    private abstract class LongKeyedPacketsPerTickLimiter<P extends Packet<?>> extends PacketsPerTickLimiter<P> {
++    private class QueuedBlockUpdatePacket extends QueuedPacket {
 +
-+        private Long2ObjectMap<QueuedPacket<P>> queuedPacketsBySubjectKey = new Long2ObjectOpenHashMap<>(64);
-+        private LongArrayFIFOQueue packetSubjectKeyQueue = new LongArrayFIFOQueue(64);
++        private @org.jetbrains.annotations.Nullable ClientboundBlockUpdatePacket blockUpdatePacket;
++        private @org.jetbrains.annotations.Nullable List<QueuedPistonBlockEventPacket> protectingPistonBlockEventPackets = null;
 +
-+        LongKeyedPacketsPerTickLimiter(int maxPerTick) {
-+            super(maxPerTick);
++        QueuedBlockUpdatePacket(long index, @NotNull ClientboundBlockUpdatePacket packet, @org.jetbrains.annotations.Nullable PacketSendListener callbacks) {
++            super(index, packet, callbacks, 1);
++            this.blockUpdatePacket = packet;
 +        }
 +
-+        /**
-+         * Of multiple queued packets with the same subject, only the last will be sent
-+         */
-+        protected abstract long getSubjectKey(P packet);
++        boolean canBeSafelyCancelledFromQueue(boolean checkForLastPerBlockPosKey) {
++            if (protectingPistonBlockEventPackets != null && !protectingPistonBlockEventPackets.isEmpty()) {
++                return false;
++            }
++            if (checkForLastPerBlockPosKey && lastBlockUpdatePacketPerBlockPosKey.get(blockUpdatePacket.getPos().asLong()) == this) {
++                return false;
++            }
++            return true;
++        }
 +
-+        /**
-+         * Returns true if the packet is allowed to pass because we are sending it after it had been scheduled
-+         */
-+        boolean isImmuneOtherwiseAdd(P packet, @Nullable PacketSendListener callbacks) {
-+            if (packet == immunePacketBeingSent) {
++        void cancel() {
++            this.blockUpdatePacket = null;
++            super.cancel();
++        }
++
++    }
++
++    private int pistonPacketsInQueue = 0; // TEMP DEBUG
++    private Long2IntMap pistonPacketsInQueuePerPos = new Long2IntOpenHashMap(); // TEMP DEBUG
++    {
++        pistonPacketsInQueuePerPos.defaultReturnValue(0);
++    }
++
++    /**
++     * Returns true if the packet is allowed to pass because we are sending it after it had been scheduled
++     */
++    private boolean isImmuneOtherwiseQueue(Packet<?> packet, @org.jetbrains.annotations.Nullable PacketSendListener callbacks) {
++
++        if (packet == immuneQueuedPacketBeingSent) {
++            return true;
++        }
++        int type;
++        if (packet instanceof ClientboundBlockEventPacket) {
++            type = 0;
++        } else if (packet instanceof ClientboundBlockUpdatePacket) {
++            type = 1;
++        } else if (packet instanceof ClientboundSectionBlocksUpdatePacket) {
++            type = 2;
++        } else if (packet instanceof ClientboundLightUpdatePacket) {
++            type = 3;
++        } else {
++            return true;
++        }
++
++        queuedPacketsLock.lock();
++        try {
++
++            // Check if we have enough credit left, and if so, and no packets are queued, send it right away
++            if (creditsForThisTick >= creditCostPerType[type] && queuedPackets.isEmpty()) {
++                // Subtract the credit cost
++                creditsForThisTick -= creditCostPerType[type];
++                // Send the packet
 +                return true;
 +            }
-+            long subjectKey = getSubjectKey(packet);
-+            boolean[] wasNewlyAdded = {false};
-+            queuedPacketsBySubjectKey.compute(subjectKey, ($, existingQueuedPacket) -> {
-+                if (existingQueuedPacket == null) {
-+                    wasNewlyAdded[0] = true;
-+                }
-+                @Nullable PacketSendListener callbacksToUse;
-+                if (existingQueuedPacket == null || existingQueuedPacket.callbacks == null) {
-+                    callbacksToUse = callbacks;
-+                } else if (callbacks == null) {
-+                    callbacksToUse = existingQueuedPacket.callbacks;
-+                } else {
-+                    callbacksToUse = new PacketSendListener() {
 +
-+                        @Override
-+                        public void onSuccess() {
-+                            existingQueuedPacket.callbacks.onSuccess();
-+                            callbacks.onSuccess();
-+                        }
++            long queuedPacketIndex = nextQueuedPacketIndex;
++            nextQueuedPacketIndex++;
++            QueuedPacket queuedPacket;
 +
-+                        @org.jetbrains.annotations.Nullable
-+                        @Override
-+                        public Packet<?> onFailure() {
-+                            Packet<?> returnValue1 = existingQueuedPacket.callbacks.onFailure();
-+                            Packet<?> returnValue2 = callbacks.onFailure();
-+                            if (returnValue2 != null) {
-+                                return returnValue2;
-+                            }
-+                            return returnValue1;
-+                        }
-+
++            if (type == 0) {
++                ClientboundBlockEventPacket blockEventPacket = (ClientboundBlockEventPacket) packet;
++                Block block = blockEventPacket.getBlock();
++                boolean isPiston = block.equals(Blocks.PISTON) || block.equals(Blocks.STICKY_PISTON);
++                if (isPiston) {
++                    BlockPos blockPos = blockEventPacket.getPos();
++                    long blockKey = blockPos.asLong();
++                    //                    MinecraftServer.LOGGER.info("Accept " + blockKey + " (" + queuedPacketIndex + ")");
++                    pistonPacketsInQueue++;
++                    pistonPacketsInQueuePerPos.put(blockKey, pistonPacketsInQueuePerPos.get(blockKey) + 1);
++                    if (pistonPacketsInQueue % 100 == 0) {
++                        MinecraftServer.LOGGER.info("Piston packets in queue: " + pistonPacketsInQueue);
++                    } else if (pistonPacketsInQueue < 5) {
++                        MinecraftServer.LOGGER.info("Piston packets (" + pistonPacketsInQueue + ") in queue is: " + queuedPackets.values().stream().filter(it -> it instanceof QueuedPistonBlockEventPacket).map(it -> (QueuedPistonBlockEventPacket) it).filter(it -> it.packet != null).map(it -> it.index).toList());
++                        MinecraftServer.LOGGER.info("Potentially stuck: " + pistonPacketsInQueuePerPos.long2IntEntrySet().stream().filter(it -> it.getIntValue() != 0).map(it -> it.getKey()).toList());
++                    }
++                    if (queuedPackets.size() % 1000 == 0) {
++                        MinecraftServer.LOGGER.info("Total in queue: " + queuedPackets.size());
++                    }
++                    // Get the direction of the piston
++                    Direction pistonDirection = switch (blockEventPacket.getB1()) {
++                        case 0 -> Direction.DOWN;
++                        case 1 -> Direction.UP;
++                        case 2 -> Direction.SOUTH;
++                        case 3 -> Direction.WEST;
++                        case 4 -> Direction.NORTH;
++                        case 5 -> Direction.EAST;
++                        default -> Direction.DOWN; // Should not happen
 +                    };
++                    // Potentially protect 3 block update packets: the block itself, relative in direction of piston (where head would be if extended) and twice relative in direction of piston (where block would be moved to due to extending)
++                    @org.jetbrains.annotations.Nullable QueuedBlockUpdatePacket @org.jetbrains.annotations.Nullable [] protectedBlockUpdatePackets = null;
++                    for (int blockI = 0; blockI < 3; blockI++) {
++                        // Get the position of the block to protect
++                        BlockPos relativeBlockPos = blockPos;
++                        if (blockI > 0) {
++                            relativeBlockPos = blockPos.relative(pistonDirection, blockI);
++                        }
++                        // Check if there is a scheduled block update, and if so, protect it
++                        QueuedBlockUpdatePacket blockUpdatePacket = lastBlockUpdatePacketPerBlockPosKey.get(relativeBlockPos.asLong());
++                        if (blockUpdatePacket != null) {
++                            // Protect it
++                            if (protectedBlockUpdatePackets == null) {
++                                protectedBlockUpdatePackets = new QueuedBlockUpdatePacket[3];
++                            }
++                            protectedBlockUpdatePackets[blockI] = blockUpdatePacket;
++                        }
++                    }
++                    // Create the queued packet
++                    var queuedPistonBlockEventPacket = new QueuedPistonBlockEventPacket(queuedPacketIndex, blockEventPacket, callbacks, protectedBlockUpdatePackets);
++                    queuedPacket = queuedPistonBlockEventPacket;
++                    // Also mark the protected packets as protected by the newly created queued piston packet
++                    if (queuedPistonBlockEventPacket.protectedBlockUpdatePackets != null) {
++                        for (QueuedBlockUpdatePacket protectedPacket : queuedPistonBlockEventPacket.protectedBlockUpdatePackets) {
++                            if (protectedPacket != null) {
++                                if (protectedPacket.protectingPistonBlockEventPackets == null) {
++                                    protectedPacket.protectingPistonBlockEventPackets = new ArrayList<>(1);
++                                }
++                                protectedPacket.protectingPistonBlockEventPackets.add(queuedPistonBlockEventPacket);
++                            }
++                        }
++                    }
++                    // Replace the last piston packet for the position
++                    lastPistonBlockEventPacketPerBlockPosKey.compute(blockKey, ($, existingQueuedPacket) -> {
++                        if (existingQueuedPacket != null) {
++                            // Cancel the existing queued packet
++                            existingQueuedPacket.cancel();
++                        }
++                        // Return this new packet so it is now the last piston packet for the position
++                        return queuedPistonBlockEventPacket;
++                    });
++                } else {
++                    queuedPacket = new QueuedPacket(queuedPacketIndex, packet, callbacks, type);
 +                }
-+                return new QueuedPacket<>(packet, callbacksToUse);
-+            });
-+            if (wasNewlyAdded[0]) {
-+                packetSubjectKeyQueue.enqueue(subjectKey);
++            } else if (type == 1) {
++                ClientboundBlockUpdatePacket blockUpdatePacket = (ClientboundBlockUpdatePacket) packet;
++                BlockPos blockPos = blockUpdatePacket.getPos();
++                long blockKey = blockPos.asLong();
++                // Create the queued packet
++                var queuedBlockUpdatePacket = new QueuedBlockUpdatePacket(queuedPacketIndex, blockUpdatePacket, callbacks);
++                queuedPacket = queuedBlockUpdatePacket;
++                // Replace the last update packet for the position
++                final var finalQueuedPacket = queuedPacket;
++                lastBlockUpdatePacketPerBlockPosKey.compute(blockKey, ($, existingQueuedPacket) -> {
++                    if (existingQueuedPacket != null) {
++                        // Cancel the existing queued packet if not protected
++                        if (existingQueuedPacket.canBeSafelyCancelledFromQueue(false)) {
++                            existingQueuedPacket.cancel();
++                        }
++                    }
++                    // Return this new packet so it is now the last update packet for the position
++                    return queuedBlockUpdatePacket;
++                });
++            } else {
++                queuedPacket = new QueuedPacket(queuedPacketIndex, packet, callbacks, type);
 +            }
++
++            // Enqueue the new packet
++            //            MinecraftServer.LOGGER.info("Enqueued " + queuedPacketIndex + " : " + queuedPacket.index + " : " + queuedPacket.packet);
++            queuedPackets.put(queuedPacketIndex, queuedPacket);
++
 +            return false;
++
++        } finally {
++            queuedPacketsLock.unlock();
 +        }
 +
-+        void tick() {
-+            for (int i = 0; i < maxPerTick; i++) {
-+                if (packetSubjectKeyQueue.isEmpty()) {
++    }
++
++    private void tickQueuedPackets() {
++
++        // Update the available credits
++        queuedPacketsLock.lock();
++        try {
++            creditsForThisTick += creditsPerTick;
++            if (creditsForThisTick > maxTotalCredits) {
++                creditsForThisTick = maxTotalCredits;
++            }
++        } finally {
++            queuedPacketsLock.unlock();
++        }
++
++        // Send packets while possible
++        while (true) {
++            queuedPacketsLock.lock();
++            try {
++
++                if (creditsForThisTick <= 0 || queuedPackets.isEmpty()) {
 +                    break;
 +                }
-+                long subjectKey = packetSubjectKeyQueue.dequeueLong();
-+                QueuedPacket<P> queuedPacket = queuedPacketsBySubjectKey.remove(subjectKey);
-+                immunePacketBeingSent = queuedPacket.packet;
-+                sendPacket(queuedPacket.packet, queuedPacket.callbacks);
-+                immunePacketBeingSent = null;
++
++                QueuedPacket queuedPacket = queuedPackets.firstEntry().getValue();
++                //                MinecraftServer.LOGGER.info("Polled " + queuedPacket.index + " : " + queuedPacket.packet);
++
++                // If this packet was cancelled, execute its callbacks at no credit cost
++                if (queuedPacket.packet == null) {
++                    if (queuedPacket.callbacks != null) {
++                        try {
++                            queuedPacket.callbacks.onSuccess();
++                        } catch (Exception e) {
++                            LOGGER.warn("An exception occurred while executing the callbacks of a cancelled queued packet:");
++                            e.printStackTrace();
++                        }
++                    }
++                    queuedPackets.pollFirstEntry();
++                    continue;
++                }
++
++                // Check if we have enough credit left, otherwise stop sending queued packets
++                if (creditsForThisTick < creditCostPerType[queuedPacket.type]) {
++                    break;
++                }
++                queuedPackets.pollFirstEntry();
++                // Subtract the credit cost
++                creditsForThisTick -= creditCostPerType[queuedPacket.type];
++                if (queuedPacket instanceof QueuedPistonBlockEventPacket pistonBlockEventPacket) {
++                    // Remove the last packet for the position if this is it
++                    long blockKey = pistonBlockEventPacket.blockEventPacket.getPos().asLong();
++                    lastPistonBlockEventPacketPerBlockPosKey.compute(blockKey, ($, existingLastPacket) -> {
++                        if (existingLastPacket == queuedPacket) {
++                            return null;
++                        }
++                        return existingLastPacket;
++                    });
++                    //                    MinecraftServer.LOGGER.info("Send " + blockKey + " (" + queuedPacket.index + ")");
++                    pistonPacketsInQueue--;
++                    pistonPacketsInQueuePerPos.put(blockKey, pistonPacketsInQueuePerPos.get(blockKey) - 1);
++                    if (pistonPacketsInQueuePerPos.get(blockKey) < 0) {
++                        MinecraftServer.LOGGER.info("Went below 0 for a coord: " + blockKey);
++                    }
++                    if (pistonPacketsInQueue % 100 == 0) {
++                        MinecraftServer.LOGGER.info("Piston packets in queue: " + pistonPacketsInQueue);
++                    } else if (pistonPacketsInQueue < 5) {
++                        MinecraftServer.LOGGER.info("Piston packets (" + pistonPacketsInQueue + ") in queue is: " + queuedPackets.values().stream().filter(it -> it instanceof QueuedPistonBlockEventPacket).map(it -> (QueuedPistonBlockEventPacket) it).filter(it -> it.packet != null).map(it -> it.index).toList());
++                        MinecraftServer.LOGGER.info("Potentially stuck: " + pistonPacketsInQueuePerPos.long2IntEntrySet().stream().filter(it -> it.getIntValue() != 0).map(it -> it.getKey()).toList());
++                    }
++                    if (queuedPackets.size() % 1000 == 0) {
++                        MinecraftServer.LOGGER.info("Total in queue: " + queuedPackets.size());
++                    }
++                } else if (queuedPacket instanceof QueuedBlockUpdatePacket blockUpdatePacket) {
++                    // Remove the last packet for the position if this is it
++                    long blockKey = blockUpdatePacket.blockUpdatePacket.getPos().asLong();
++                    if (blockUpdatePacket.protectingPistonBlockEventPackets != null) {
++                        for (QueuedPistonBlockEventPacket protectingPacket : blockUpdatePacket.protectingPistonBlockEventPackets) {
++                            if (protectingPacket.protectedBlockUpdatePackets != null) {
++                                for (int i = 0; i < protectingPacket.protectedBlockUpdatePackets.length; i++) {
++                                    if (protectingPacket.protectedBlockUpdatePackets[i] == blockUpdatePacket) {
++                                        protectingPacket.protectedBlockUpdatePackets[i] = null;
++                                    }
++                                }
++                            }
++                        }
++                    }
++                    // Remove any known protections
++                    lastBlockUpdatePacketPerBlockPosKey.compute(blockKey, ($, existingLastPacket) -> {
++                        if (existingLastPacket == queuedPacket) {
++                            return null;
++                        }
++                        return existingLastPacket;
++                    });
++                }
++                // Send the packet
++                immuneQueuedPacketBeingSent = queuedPacket.packet;
++                this.sendPacket(queuedPacket.packet, queuedPacket.callbacks);
++                immuneQueuedPacketBeingSent = null;
++
++            } finally {
++                queuedPacketsLock.unlock();
 +            }
 +        }
 +
 +    }
 +
-+    private final PacketsPerTickLimiter<ClientboundBlockEventPacket> blockEventPacketsPerTickLimiter =
-+        new LongKeyedPacketsPerTickLimiter<>(4) {
-+
-+            @Override
-+            protected long getSubjectKey(ClientboundBlockEventPacket packet) {
-+                // Implementation based on https://wiki.vg/Block_Actions
-+
-+//                var block = packet.getBlock();
-+                var pos = packet.getPos();
-+                long customTightlyPacketPos = pos.getX() + 31_000_000L /* world xz size < 31M */ * pos.getZ() + 961_000_000_000_000L /* 31M * 31M */ * pos.getY();
-+//                int b0 = packet.getB0();
-+//                int b1 = packet.getB1();
++//    private abstract class PacketsPerTickLimiter<P extends Packet<?>> {
 +//
-+//                if (block.equals(Blocks.PISTON) || block.equals(Blocks.STICKY_PISTON)) {
-+//                    return b0 + b1 * 2L + 12L * customTightlyPacketPos;
-+//                } else if (block.equals(Blocks.CHEST) || block.equals(Blocks.ENDER_CHEST) || block.defaultBlockState().is(BlockTags.SHULKER_BOXES)) {
-+//                    return (b1 == 0 ? 0L : 1L) + 2L * customTightlyPacketPos;
++//        public final int maxPerTick;
++//
++//        PacketsPerTickLimiter(int maxPerTick) {
++//            this.maxPerTick = maxPerTick;
++//        }
++//
++//        abstract void tick();
++//
++//    }
++//
++//    private abstract class LongKeyedPacketsPerTickLimiter<P extends Packet<?>> extends PacketsPerTickLimiter<P> {
++//
++//        private Long2ObjectMap<QueuedPacket<P>> queuedPacketsBySubjectKey = new Long2ObjectOpenHashMap<>(64);
++//        private LongArrayFIFOQueue packetSubjectKeyQueue = new LongArrayFIFOQueue(64);
++//
++//        LongKeyedPacketsPerTickLimiter(int maxPerTick) {
++//            super(maxPerTick);
++//        }
++//
++//        /**
++//         * Of multiple queued packets with the same subject, only the last will be sent
++//         */
++//        protected abstract long getSubjectKey(P packet);
++//
++//        /**
++//         * Returns true if the packet is allowed to pass because we are sending it after it had been scheduled
++//         */
++//        boolean isImmuneOtherwiseAdd(P packet, @Nullable PacketSendListener callbacks) {
++//            if (packet == immunePacketBeingSent) {
++//                return true;
++//            }
++//            long subjectKey = getSubjectKey(packet);
++//            boolean[] wasNewlyAdded = {false};
++//            queuedPacketsBySubjectKey.compute(subjectKey, ($, existingQueuedPacket) -> {
++//                if (existingQueuedPacket == null) {
++//                    wasNewlyAdded[0] = true;
 +//                }
-+                return customTightlyPacketPos;
-+
-+            }
-+
-+        };
-+
-+    private final PacketsPerTickLimiter<ClientboundBlockUpdatePacket> blockUpdatePacketsPerTickLimiter =
-+        new LongKeyedPacketsPerTickLimiter<>(256) {
-+
-+            @Override
-+            protected long getSubjectKey(ClientboundBlockUpdatePacket packet) {
-+                return packet.getPos().asLong();
-+            }
-+
-+            @Override // TEMP DEBUG
-+            boolean isImmuneOtherwiseAdd(ClientboundBlockUpdatePacket packet, @Nullable PacketSendListener callbacks) {
-+                return true;
-+            }
-+
-+        };
-+
-+    private final PacketsPerTickLimiter<ClientboundLightUpdatePacket> lightUpdatePacketsPerTickLimiter =
-+        new LongKeyedPacketsPerTickLimiter<>(1) {
-+
-+            @Override
-+            protected long getSubjectKey(ClientboundLightUpdatePacket packet) {
-+                return ChunkPos.asLong(packet.getX(), packet.getZ());
-+            }
-+
-+            @Override // TEMP DEBUG
-+            boolean isImmuneOtherwiseAdd(ClientboundLightUpdatePacket packet, @Nullable PacketSendListener callbacks) {
-+                return true;
-+            }
-+
-+        };
-+
-+    private final PacketsPerTickLimiter<ClientboundSectionBlocksUpdatePacket> sectionBlocksUpdatePacketsPerTickLimiter =
-+        new LongKeyedPacketsPerTickLimiter<>(1) {
-+
-+            @Override
-+            protected long getSubjectKey(ClientboundSectionBlocksUpdatePacket packet) {
-+                return packet.sectionPos.asLong();
-+            }
-+
-+            @Override // TEMP DEBUG
-+            boolean isImmuneOtherwiseAdd(ClientboundSectionBlocksUpdatePacket packet, @Nullable PacketSendListener callbacks) {
-+                return true;
-+            }
-+
-+        };
++//                @Nullable PacketSendListener callbacksToUse;
++//                if (existingQueuedPacket == null || existingQueuedPacket.callbacks == null) {
++//                    callbacksToUse = callbacks;
++//                } else if (callbacks == null) {
++//                    callbacksToUse = existingQueuedPacket.callbacks;
++//                } else {
++//                    callbacksToUse = new PacketSendListener() {
++//
++//                        @Override
++//                        public void onSuccess() {
++//                            existingQueuedPacket.callbacks.onSuccess();
++//                            callbacks.onSuccess();
++//                        }
++//
++//                        @org.jetbrains.annotations.Nullable
++//                        @Override
++//                        public Packet<?> onFailure() {
++//                            Packet<?> returnValue1 = existingQueuedPacket.callbacks.onFailure();
++//                            Packet<?> returnValue2 = callbacks.onFailure();
++//                            if (returnValue2 != null) {
++//                                return returnValue2;
++//                            }
++//                            return returnValue1;
++//                        }
++//
++//                    };
++//                }
++//                return new QueuedPacket<>(packet, callbacksToUse);
++//            });
++//            if (wasNewlyAdded[0]) {
++//                packetSubjectKeyQueue.enqueue(subjectKey);
++//            }
++//            return false;
++//        }
++//
++//        void tick() {
++//            for (int i = 0; i < maxPerTick; i++) {
++//                if (packetSubjectKeyQueue.isEmpty()) {
++//                    break;
++//                }
++//                long subjectKey = packetSubjectKeyQueue.dequeueLong();
++//                QueuedPacket<P> queuedPacket = queuedPacketsBySubjectKey.remove(subjectKey);
++//                immunePacketBeingSent = queuedPacket.packet;
++//                sendPacket(queuedPacket.packet, queuedPacket.callbacks);
++//                immunePacketBeingSent = null;
++//            }
++//        }
++//
++//    }
++//
++//    private final PacketsPerTickLimiter<ClientboundBlockEventPacket> blockEventPacketsPerTickLimiter =
++//        new LongKeyedPacketsPerTickLimiter<>(4) {
++//
++//            @Override
++//            protected long getSubjectKey(ClientboundBlockEventPacket packet) {
++//                // Implementation based on https://wiki.vg/Block_Actions
++//
++////                var block = packet.getBlock();
++//                var pos = packet.getPos();
++//                long customTightlyPacketPos = pos.getX() + 31_000_000L /* world xz size < 31M */ * pos.getZ() + 961_000_000_000_000L /* 31M * 31M */ * pos.getY();
++////                int b0 = packet.getB0();
++////                int b1 = packet.getB1();
++////
++////                if (block.equals(Blocks.PISTON) || block.equals(Blocks.STICKY_PISTON)) {
++////                    return b0 + b1 * 2L + 12L * customTightlyPacketPos;
++////                } else if (block.equals(Blocks.CHEST) || block.equals(Blocks.ENDER_CHEST) || block.defaultBlockState().is(BlockTags.SHULKER_BOXES)) {
++////                    return (b1 == 0 ? 0L : 1L) + 2L * customTightlyPacketPos;
++////                }
++//                return customTightlyPacketPos;
++//
++//            }
++//
++//        };
++//
++//    private final PacketsPerTickLimiter<ClientboundBlockUpdatePacket> blockUpdatePacketsPerTickLimiter =
++//        new LongKeyedPacketsPerTickLimiter<>(256) {
++//
++//            @Override
++//            protected long getSubjectKey(ClientboundBlockUpdatePacket packet) {
++//                return packet.getPos().asLong();
++//            }
++//
++//            @Override // TEMP DEBUG
++//            boolean isImmuneOtherwiseAdd(ClientboundBlockUpdatePacket packet, @Nullable PacketSendListener callbacks) {
++//                return true;
++//            }
++//
++//        };
++//
++//    private final PacketsPerTickLimiter<ClientboundLightUpdatePacket> lightUpdatePacketsPerTickLimiter =
++//        new LongKeyedPacketsPerTickLimiter<>(1) {
++//
++//            @Override
++//            protected long getSubjectKey(ClientboundLightUpdatePacket packet) {
++//                return ChunkPos.asLong(packet.getX(), packet.getZ());
++//            }
++//
++//            @Override // TEMP DEBUG
++//            boolean isImmuneOtherwiseAdd(ClientboundLightUpdatePacket packet, @Nullable PacketSendListener callbacks) {
++//                return true;
++//            }
++//
++//        };
++//
++//    private final PacketsPerTickLimiter<ClientboundSectionBlocksUpdatePacket> sectionBlocksUpdatePacketsPerTickLimiter =
++//        new LongKeyedPacketsPerTickLimiter<>(1) {
++//
++//            @Override
++//            protected long getSubjectKey(ClientboundSectionBlocksUpdatePacket packet) {
++//                return packet.sectionPos.asLong();
++//            }
++//
++//            @Override // TEMP DEBUG
++//            boolean isImmuneOtherwiseAdd(ClientboundSectionBlocksUpdatePacket packet, @Nullable PacketSendListener callbacks) {
++//                return true;
++//            }
++//
++//        };
 +
 +    // Martijn end - limit packets per tick
 +
      public void send(Packet<?> packet) {
          this.send(packet, (PacketSendListener) null);
      }
-@@ -974,6 +1200,25 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -974,6 +1597,28 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          this.sendPacket(packet, callbacks, Boolean.TRUE);
      }
      private void sendPacket(Packet<?> packet, @Nullable PacketSendListener callbacks, Boolean flushConditional) {
 +        // Martijn start - limit packets per tick
-+        if (packet instanceof ClientboundBlockEventPacket blockEventPacket) {
-+            if (!blockEventPacketsPerTickLimiter.isImmuneOtherwiseAdd(blockEventPacket, callbacks)) {
-+                return;
-+            }
-+        } else if (packet instanceof ClientboundBlockUpdatePacket blockUpdatePacket) {
-+            if (!blockUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(blockUpdatePacket, callbacks)) {
-+                return;
-+            }
-+        } else if (packet instanceof ClientboundLightUpdatePacket lightUpdatePacket) {
-+            if (!lightUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(lightUpdatePacket, callbacks)) {
-+                return;
-+            }
-+        } else if (packet instanceof ClientboundSectionBlocksUpdatePacket sectionBlocksUpdatePacket) {
-+            if (!sectionBlocksUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(sectionBlocksUpdatePacket, callbacks)) {
-+                return;
-+            }
++        if (!isImmuneOtherwiseQueue(packet, callbacks)) {
++            return;
 +        }
++//        if (packet instanceof ClientboundBlockEventPacket blockEventPacket) {
++//            if (!blockEventPacketsPerTickLimiter.isImmuneOtherwiseAdd(blockEventPacket, callbacks)) {
++//                return;
++//            }
++//        } else if (packet instanceof ClientboundBlockUpdatePacket blockUpdatePacket) {
++//            if (!blockUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(blockUpdatePacket, callbacks)) {
++//                return;
++//            }
++//        } else if (packet instanceof ClientboundLightUpdatePacket lightUpdatePacket) {
++//            if (!lightUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(lightUpdatePacket, callbacks)) {
++//                return;
++//            }
++//        } else if (packet instanceof ClientboundSectionBlocksUpdatePacket sectionBlocksUpdatePacket) {
++//            if (!sectionBlocksUpdatePacketsPerTickLimiter.isImmuneOtherwiseAdd(sectionBlocksUpdatePacket, callbacks)) {
++//                return;
++//            }
++//        }
 +        // Martijn end - limit packets per tick
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
          // Martijn start - custom blocks and items
          // Replace the packet in case of custom falling blocks
-@@ -1202,6 +1447,12 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1202,6 +1847,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int currTick; // Paper
      public void tick() {
          this.tickUpdatePotentialBlockEntitiesInSectionSpawnNew(); // Martijn - custom blocks and items
-+        // Martijn start - limit packets per tick
-+        blockEventPacketsPerTickLimiter.tick();
-+        blockUpdatePacketsPerTickLimiter.tick();
-+        lightUpdatePacketsPerTickLimiter.tick();
-+        sectionBlocksUpdatePacketsPerTickLimiter.tick();
-+        // Martijn end - limit packets per tick
++        this.tickQueuedPackets(); // Martijn - limit packets per tick
          this.flushQueue();
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
