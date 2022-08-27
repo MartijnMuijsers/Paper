@@ -5,7 +5,7 @@ Subject: [PATCH] Limit some packet sending per tick
 
 
 diff --git a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
-index 80e4cf626351901b96132627483749aefa117f9f..b7a86fa66b2de684847834743bc5c8542028f35b 100644
+index 89f86e52ff8b85a48e28ff60ca23853105df2f31..18ba0a4f996b52bda84b98053791d642b1cd9871 100644
 --- a/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
 +++ b/src/main/java/io/papermc/paper/chunk/PlayerChunkLoader.java
 @@ -936,6 +936,20 @@ public final class PlayerChunkLoader {
@@ -29,223 +29,145 @@ index 80e4cf626351901b96132627483749aefa117f9f..b7a86fa66b2de684847834743bc5c854
  //        protected int sendViewDistance = -1;
  //        protected int loadViewDistance = -1;
          public int tickViewDistance = -1;
+diff --git a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
+index efc90aacf624c906b0888c7696e7503aac35902b..6427e193d9b15efc2b4e2a332e4e369866d3fe96 100644
+--- a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
+@@ -267,7 +267,7 @@ public class WorldConfiguration extends ConfigurationPart {
+ 
+     // Martijn end - bone meal regrows bark
+ 
+-    public AntiCheat anticheat;
++    public Anticheat anticheat;
+ 
+     public class Anticheat extends ConfigurationPart {
+ 
+diff --git a/src/main/java/net/minecraft/commands/synchronization/ArgumentTypeInfos.java b/src/main/java/net/minecraft/commands/synchronization/ArgumentTypeInfos.java
+index 4a6b624df834217d7305ba42cab78fdf320ec64c..442b42e80ee9001f9610003c3eaeb7f75f782f73 100644
+--- a/src/main/java/net/minecraft/commands/synchronization/ArgumentTypeInfos.java
++++ b/src/main/java/net/minecraft/commands/synchronization/ArgumentTypeInfos.java
+@@ -113,8 +113,8 @@ public class ArgumentTypeInfos {
+         register(registry, "entity_summon", EntitySummonArgument.class, SingletonArgumentInfo.contextFree(EntitySummonArgument::id));
+         register(registry, "dimension", DimensionArgument.class, SingletonArgumentInfo.contextFree(DimensionArgument::dimension));
+         register(registry, "time", TimeArgument.class, SingletonArgumentInfo.contextFree(TimeArgument::time));
+-        register(registry, "resource_or_tag", fixClassType(ResourceOrTagLocationArgument.class), new ResourceOrTagLocationArgument.Info());
+-        register(registry, "resource", fixClassType(ResourceKeyArgument.class), new ResourceKeyArgument.Info());
++        register(registry, "resource_or_tag", fixClassType(ResourceOrTagLocationArgument.class), new ResourceOrTagLocationArgument.Info<>());
++        register(registry, "resource", fixClassType(ResourceKeyArgument.class), new ResourceKeyArgument.Info<>());
+         register(registry, "template_mirror", TemplateMirrorArgument.class, SingletonArgumentInfo.contextFree(TemplateMirrorArgument::templateMirror));
+         register(registry, "template_rotation", TemplateRotationArgument.class, SingletonArgumentInfo.contextFree(TemplateRotationArgument::templateRotation));
+         if (SharedConstants.IS_RUNNING_IN_IDE) {
+@@ -126,7 +126,7 @@ public class ArgumentTypeInfos {
+     }
+ 
+     private static <T extends ArgumentType<?>> Class<T> fixClassType(Class<? super T> clazz) {
+-        return clazz;
++        return (Class<T>) clazz;
+     }
+ 
+     public static boolean isClassRecognized(Class<?> clazz) {
+@@ -138,7 +138,7 @@ public class ArgumentTypeInfos {
+         if (argumentTypeInfo == null) {
+             throw new IllegalArgumentException(String.format(Locale.ROOT, "Unrecognized argument type %s (%s)", argumentType, argumentType.getClass()));
+         } else {
+-            return argumentTypeInfo;
++            return (ArgumentTypeInfo<A, ?>) argumentTypeInfo;
+         }
+     }
+ 
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 801617dc36f9d103f1a36a73bd82ce45663ca236..6532ee2cc508acf2f4cf1eeba0fb47f50b524c20 100644
+index 89e98f5b5a2bb81c3436592a9a1692388dca657d..8ce3bc22f8e12e89d5df8a24201e2d40ed0c24fd 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
-@@ -27,15 +27,29 @@ import io.netty.handler.timeout.TimeoutException;
- import io.netty.util.AttributeKey;
- import java.net.InetSocketAddress;
- import java.net.SocketAddress;
+@@ -31,24 +31,87 @@ import java.util.Queue;
+ import java.util.concurrent.RejectedExecutionException;
+ import javax.annotation.Nullable;
+ import javax.crypto.Cipher;
 +import java.util.ArrayList;
 +import java.util.Arrays;
- import java.util.BitSet;
- import java.util.Collections;
++import java.util.BitSet;
++import java.util.Collections;
 +import java.util.HashMap;
 +import java.util.HashSet;
 +import java.util.List;
 +import java.util.Map;
- import java.util.Queue;
++import java.util.Queue;
 +import java.util.Set;
 +import java.util.TreeMap;
 +import java.util.TreeSet;
- import java.util.UUID;
++import java.util.UUID;
 +import java.util.concurrent.ExecutorService;
 +import java.util.concurrent.Executors;
- import java.util.concurrent.RejectedExecutionException;
- import java.util.concurrent.locks.ReentrantLock;
++import java.util.concurrent.RejectedExecutionException;
++import java.util.concurrent.locks.ReentrantLock;
 +import java.util.stream.Collectors;
- import javax.annotation.Nullable;
- 
- import io.papermc.paper.util.CoordinateUtils;
++import javax.annotation.Nullable;
++
++import io.papermc.paper.util.CoordinateUtils;
 +import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 +import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
- import it.unimi.dsi.fastutil.longs.Long2BooleanMap;
- import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
- import it.unimi.dsi.fastutil.longs.Long2IntMap;
-@@ -44,6 +58,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
- import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
- import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
- import it.unimi.dsi.fastutil.longs.LongArrayList;
++import it.unimi.dsi.fastutil.longs.Long2BooleanMap;
++import it.unimi.dsi.fastutil.longs.Long2BooleanOpenHashMap;
++import it.unimi.dsi.fastutil.longs.Long2IntMap;
++import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
++import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
++import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
++import it.unimi.dsi.fastutil.longs.LongArrayList;
 +import it.unimi.dsi.fastutil.longs.LongIterator;
- import it.unimi.dsi.fastutil.longs.LongList;
- import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
- import it.unimi.dsi.fastutil.longs.LongSet;
-@@ -57,15 +72,21 @@ import net.minecraft.network.chat.MutableComponent;
++import it.unimi.dsi.fastutil.longs.LongList;
++import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
++import it.unimi.dsi.fastutil.longs.LongSet;
+ import net.minecraft.Util;
++import net.minecraft.core.BlockPos;
++import net.minecraft.core.Direction;
++import net.minecraft.core.SectionPos;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.MutableComponent;
  import net.minecraft.network.protocol.Packet;
  import net.minecraft.network.protocol.PacketFlow;
- import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+ import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 +import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
 +import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
- import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
++import net.minecraft.network.protocol.game.ClientboundDisconnectPacket;
 +import net.minecraft.network.protocol.game.ClientboundLightUpdatePacket;
- import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
- import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
++import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
++import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 +import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
- import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
- import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
++import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
++import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
  import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket;
- import net.minecraft.network.syncher.SynchedEntityData;
- import net.minecraft.server.MinecraftServer;
  import net.minecraft.server.RunningOnDifferentThreadException;
 +import net.minecraft.server.level.ServerLevel;
 +import net.minecraft.tags.BlockTags;
  import net.minecraft.util.LazyLoadedValue;
  import net.minecraft.util.Mth;
- import net.minecraft.world.entity.Entity;
-@@ -73,7 +94,9 @@ import net.minecraft.world.entity.EntityType;
- import net.minecraft.world.entity.EquipmentSlot;
- import net.minecraft.world.entity.decoration.ArmorStand;
- import net.minecraft.world.entity.item.FallingBlockEntity;
++import net.minecraft.world.entity.Entity;
++import net.minecraft.world.entity.EntityType;
++import net.minecraft.world.entity.EquipmentSlot;
++import net.minecraft.world.entity.decoration.ArmorStand;
++import net.minecraft.world.entity.item.FallingBlockEntity;
 +import net.minecraft.world.level.ChunkPos;
- import net.minecraft.world.level.block.Block;
++import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.Blocks;
- import net.minecraft.world.level.block.state.BlockState;
++import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.chunk.LevelChunk;
- import net.minecraft.world.phys.Vec3;
-@@ -361,12 +384,26 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
-     private ReentrantLock scheduleUpdatePotentialBlockEntitiesInSectionSpawnNewLock = new ReentrantLock();
-     private boolean executedUpdatePotentialBlockEntitiesInSectionSpawnNewThisTick = false;
+ import org.apache.commons.lang3.Validate;
++import org.jetbrains.annotations.NotNull;
+ import org.slf4j.Logger;
+ import org.slf4j.Marker;
+ import org.slf4j.MarkerFactory;
  
--    private @NotNull Long2BooleanMap sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewAndWhetherToUpdateOutsideSectionBounds = new Long2BooleanOpenHashMap(1);
--    private @NotNull LongArrayFIFOQueue sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewList= new LongArrayFIFOQueue(64);
-+    private final @NotNull Long2ObjectMap<Boolean> sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewAndWhetherToUpdateOutsideSectionBounds = new Long2ObjectOpenHashMap<>(1);
-+    private final @NotNull LongArrayFIFOQueue sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewList= new LongArrayFIFOQueue(64);
-     private @Nullable Long lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection = null;
  
-+    /**
-+     * If we cross this limit, we will wait some time to attempt this again.
-+     */
-+    public static final long maxNanosUpdatingPotentialBlockEntitiesInSectionPerTick = 5_000_000L; // 5 milliseconds
+ import io.netty.util.concurrent.AbstractEventExecutor; // Paper
 +
-+    private @Nullable Long nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection = null;
++import javax.annotation.Nullable;
 +
-     private void tickUpdatePotentialBlockEntitiesInSectionSpawnNew() {
+ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
-+        if (nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection != null) {
-+            if (System.nanoTime() < nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection) {
-+                return;
-+            }
-+            nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection = null;
-+        }
-+
-         var player = getPlayer();
- 
-         // Skip this tick if we are still waiting for chunks in transit
-@@ -396,7 +433,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
-             }
-         }
- //        MinecraftServer.LOGGER.info("TEMP DEBUG - Section update new during tick: " + SectionPos.of(sectionKey).x() + ", " + SectionPos.of(sectionKey).y() + ", " + SectionPos.of(sectionKey).z());
-+        // Measure the absolute time this takes to decide how many next ticks we should skip this action
-+        long startTime = System.nanoTime();
-         this.updatePotentialBlockEntitiesInSectionSpawnNew(SectionPos.of(sectionKey), updateOutsideSectionBounds, null);
-+        long endTime = System.nanoTime();
-+        long extraTicksWorthOfUpdatesDone = (endTime - startTime) / maxNanosUpdatingPotentialBlockEntitiesInSectionPerTick;
-+        if (extraTicksWorthOfUpdatesDone > 0) {
-+            nextMinNanoTimeToUpdatePotentialBlockEntitiesInSection = System.nanoTime() + extraTicksWorthOfUpdatesDone * 50_000_000; // 50 milliseconds = 1 tick
-+        }
- 
-         // Update when we performed this tick update, to prevent doing this too often before chunks are sent
-         lastChunkInitializationPacketInTransitKeepaliveIdWhenLastUpdatingPotentialBlockEntitiesInSection = player.getLastChunkInitializationPacketInTransitKeepaliveId();
-@@ -490,29 +534,71 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
-     }
- 
-     public void updatePotentialBlockEntitiesInSection(@NotNull SectionPos sectionPos, boolean updateOutsideSectionBounds, @Nullable LevelChunk precomputedChunk) {
-+        updatePotentialBlockEntitiesInSection(sectionPos, updateOutsideSectionBounds, precomputedChunk, null, null);
-+    }
-+
-+    public void updatePotentialBlockEntitiesInSection(@NotNull SectionPos sectionPos, boolean updateOutsideSectionBounds, @Nullable LevelChunk precomputedChunk, short @org.jetbrains.annotations.Nullable [] positions, @NotNull BlockState @org.jetbrains.annotations.Nullable [] states) {
-+
-+        var sectionKey = sectionPos.asLong();
-+
-+        @Nullable Boolean existingUpdateOutsideSectionBounds;
-+        try {
-+            scheduleUpdatePotentialBlockEntitiesInSectionSpawnNewLock.lock();
-+            existingUpdateOutsideSectionBounds = sectionsToUpdatePotentialBlockEntitiesInSectionSpawnNewAndWhetherToUpdateOutsideSectionBounds.get(sectionKey);
-+        } finally {
-+            scheduleUpdatePotentialBlockEntitiesInSectionSpawnNewLock.unlock();
-+        }
-+        if (existingUpdateOutsideSectionBounds != null) {
-+            if (existingUpdateOutsideSectionBounds || !updateOutsideSectionBounds) {
-+                // We are already planning to update the potential block entities in this section, do not process the chunk again here
-+                return;
-+            }
-+        }
-+
-+        @org.jetbrains.annotations.Nullable Long2ObjectMap<BlockState> sentStates = null;
-+        if (positions != null) {
-+            sentStates = new Long2ObjectOpenHashMap<>(positions.length * 2);
-+            for (int i = 0; i < positions.length; i++) {
-+                short shortRelativePosition = positions[i];
-+                int x = sectionPos.relativeToBlockX(shortRelativePosition);
-+                int y = sectionPos.relativeToBlockY(shortRelativePosition);
-+                int z = sectionPos.relativeToBlockZ(shortRelativePosition);
-+                long blockKey = BlockPos.asLong(x, y, z);
-+                sentStates.put(blockKey, states[i]);
-+            }
-+        }
-+
-         var player = this.getPlayer();
-         var level = player.getLevel();
-         @Nullable LevelChunk chunk = precomputedChunk != null ? precomputedChunk : level.getChunkIfLoaded(sectionPos.x(), sectionPos.z());
-         if (chunk != null) {
- //            MinecraftServer.LOGGER.info("TEMP DEBUG - Section update start: " + sectionPos.x() + ", " + sectionPos.y() + ", " + sectionPos.z());
--            var sectionKey = sectionPos.asLong();
-             // Attempt to despawn any sent block entities where one no longer exists
-             @Nullable LongSet sectionSentBlockKeys = this.getBlockEntityBlockPosKeysForChunkSectionKey(sectionKey);
--            if (sectionSentBlockKeys != null) {
-+            if (sectionSentBlockKeys != null && !sectionSentBlockKeys.isEmpty()) {
- //                MinecraftServer.LOGGER.info("TEMP DEBUG - Section update old: " + sectionPos.x() + ", " + sectionPos.y() + ", " + sectionPos.z());
-                 @Nullable LongList toRemoveBlockKeys = null;
--                for (long sentBlockKey : sectionSentBlockKeys) {
--                    @NotNull BlockPos blockPos = BlockPos.of(sentBlockKey);
--                    @NotNull BlockState state = level.getBlockState(blockPos);
--                    @Nullable var replacementRule = state.getBlock().replacementRule;
--                    if (replacementRule == null || !replacementRule.hasAsReal(state.getBlock()) || !replacementRule.rendersAsEntity(state)) {
--                        if (toRemoveBlockKeys == null) {
--                            toRemoveBlockKeys = new LongArrayList(1);
-+                try {
-+                    LongIterator sectionSentBlockKeyIterator = sectionSentBlockKeys.longIterator();
-+                    while (sectionSentBlockKeyIterator.hasNext()) {
-+                        long sentBlockKey = sectionSentBlockKeyIterator.nextLong();
-+    //                    BlockState sentState = sentStates == null ? null : sentStates.get(sentBlockKey);
-+    //                    if (sentStates == null || sentState != null) {
-+                        if (sentStates == null || sentStates.containsKey(sentBlockKey)) {
-+                            @NotNull BlockPos blockPos = BlockPos.of(sentBlockKey);
-+    //                        @NotNull BlockState state = sentState != null ? sentState : level.getBlockState(blockPos);
-+                            @NotNull BlockState state = level.getBlockState(blockPos);
-+                            @Nullable var replacementRule = state.getBlock().replacementRule;
-+                            if (replacementRule == null || !replacementRule.hasAsReal(state.getBlock()) || !replacementRule.rendersAsEntity(state)) {
-+                                if (toRemoveBlockKeys == null) {
-+                                    toRemoveBlockKeys = new LongArrayList(1);
-+                                }
-+                                toRemoveBlockKeys.add(sentBlockKey);
-+                                despawnBlockEntity(blockPos, false);
-+                            }
-                         }
--                        toRemoveBlockKeys.add(sentBlockKey);
--                        despawnBlockEntity(blockPos, false);
-                     }
--                }
-+                } catch (Exception ignored) {}
- //                MinecraftServer.LOGGER.info("TEMP DEBUG - Section update old to remove size is " + (toRemoveBlockKeys == null ? 0 : toRemoveBlockKeys.size()));
-                 if (toRemoveBlockKeys != null) {
-                     for (long sentBlockKey : toRemoveBlockKeys) {
-@@ -525,11 +611,12 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
-             }
-             // Attempt to update any block entities derived from the actual world block states
-             var section = chunk.getSection(chunk.getSectionIndexFromSectionY(sectionPos.y()));
--            if (section.potentiallyContainsBlockEntity()) {
-+            if (section.potentiallyContainsBlockEntity(positions, states)) {
-                 this.scheduleUpdatePotentialBlockEntitiesInSectionSpawnNew(sectionPos, updateOutsideSectionBounds, chunk);
- //                MinecraftServer.LOGGER.info("TEMP DEBUG - Section update done: " + sectionPos.x() + ", " + sectionPos.y() + ", " + sectionPos.z());
-             }
-         }
-+
-     }
- 
-     /**
-@@ -926,6 +1013,756 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private static final float AVERAGE_PACKETS_SMOOTHING = 0.75F;
+@@ -366,6 +429,756 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
      // Paper end
  
@@ -1002,7 +924,7 @@ index 801617dc36f9d103f1a36a73bd82ce45663ca236..6532ee2cc508acf2f4cf1eeba0fb47f5
      public void send(Packet<?> packet) {
          this.send(packet, (PacketSendListener) null);
      }
-@@ -970,10 +1807,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -405,10 +1218,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
  
      private void sendPacket(Packet<?> packet, @Nullable PacketSendListener callbacks) {
@@ -1040,22 +962,22 @@ index 801617dc36f9d103f1a36a73bd82ce45663ca236..6532ee2cc508acf2f4cf1eeba0fb47f5
 +//        }
 +        // Martijn end - limit packets per tick
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
-         // Martijn start - custom blocks and items
-         // Replace the packet in case of custom falling blocks
-@@ -1202,6 +2067,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+         boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
+         // Martijn start - more packets without delay
+@@ -567,6 +1408,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
-         this.tickUpdatePotentialBlockEntitiesInSectionSpawnNew(); // Martijn - custom blocks and items
 +        this.tickQueuedPackets(); // Martijn - limit packets per tick
          this.flushQueue();
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
-index 835954827bd9f57685ccb06e29c9d5b7fad50d52..d47c0b78573bc756e3f0ef46011a2f7462e0e3f4 100644
+index 652bea6868a03a5315965f79c76172fb9dbb93fb..62ced75ae96b0b97b87ea9960282f1b33ffef2cf 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
 +++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
-@@ -30,9 +30,11 @@ import javax.annotation.Nullable;
- public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePacketListener>, CachableCustomContentReplaceable<ClientboundSectionBlocksUpdatePacket> { // Martijn - custom blocks and items
+@@ -14,9 +14,11 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
+ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePacketListener> {
  
      private static final int POS_IN_SECTION_BITS = 12;
 -    private final SectionPos sectionPos;
@@ -1068,25 +990,62 @@ index 835954827bd9f57685ccb06e29c9d5b7fad50d52..d47c0b78573bc756e3f0ef46011a2f74
 +    // Martijn end - limit packets per tick
      private final boolean suppressLightUpdates;
  
-     // Martijn start - custom blocks and items
-@@ -164,7 +166,7 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
-                     callback.onSuccess();
-                 }
-                 if (connection.isConnected()) {
--                    connection.updatePotentialBlockEntitiesInSection(ClientboundSectionBlocksUpdatePacket.this.sectionPos, true, null);
-+                    connection.updatePotentialBlockEntitiesInSection(ClientboundSectionBlocksUpdatePacket.this.sectionPos, true, null, positions, states);
-                 }
+     public ClientboundSectionBlocksUpdatePacket(SectionPos sectionPos, ShortSet positions, LevelChunkSection section, boolean noLightingUpdates) {
+@@ -94,4 +96,5 @@ public class ClientboundSectionBlocksUpdatePacket implements Packet<ClientGamePa
+     public boolean shouldSuppressLightUpdates() {
+         return this.suppressLightUpdates;
+     }
++
+ }
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java
+index 07d96cca04c9658291eea91e7b0a7f5a3fc9882e..e562a768ad400a6dca0f1546fb0dddbe72324eea 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundUpdateRecipesPacket.java
+@@ -8,6 +8,7 @@ import net.minecraft.network.FriendlyByteBuf;
+ import net.minecraft.network.protocol.Packet;
+ import net.minecraft.resources.ResourceLocation;
+ import net.minecraft.world.item.crafting.Recipe;
++import net.minecraft.world.item.crafting.RecipeSerializer;
  
-             }
+ public class ClientboundUpdateRecipesPacket implements Packet<ClientGamePacketListener> {
+     private final List<Recipe<?>> recipes;
+@@ -45,6 +46,6 @@ public class ClientboundUpdateRecipesPacket implements Packet<ClientGamePacketLi
+     public static <T extends Recipe<?>> void toNetwork(FriendlyByteBuf buf, T recipe) {
+         buf.writeResourceLocation(Registry.RECIPE_SERIALIZER.getKey(recipe.getSerializer()));
+         buf.writeResourceLocation(recipe.getId());
+-        recipe.getSerializer().toNetwork(buf, recipe);
++        ((RecipeSerializer<T>) recipe.getSerializer()).toNetwork(buf, recipe);
+     }
+ }
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index b8b6ce5a975e14bd8e1d8397dcc5d6f4474facf0..6131d71836c32d1770c2356d2a41618eb7731ce3 100644
+index 7a1d6cefe885151e5849eaef740bb6ca7412ff37..a496870e91481da555b20b78a978a78c47e90f39 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-@@ -665,6 +665,10 @@ public class ServerPlayer extends Player {
+@@ -624,6 +624,30 @@ public class ServerPlayer extends Player {
  
-     // Martijn end - custom blocks and items
+     }
  
 +    // Martijn start - limit packets per tick
++
++    public @Nullable Long getLastChunkInitializationPacketInTransitKeepaliveId() {
++        synchronized (this.networkConstrainedSendingLock) {
++            if (this.chunkInitializationPacketsInTransitKeepaliveIds.isEmpty()) {
++                return null;
++            }
++            return this.chunkInitializationPacketsInTransitKeepaliveIds.getLast().keepaliveId;
++        }
++    }
++
++    public boolean isChunkInitializationPacketWithKeepaliveIdInTransit(long keepaliveId) {
++        synchronized (this.networkConstrainedSendingLock) {
++            for (ChunkPacketInTransit packet : this.chunkInitializationPacketsInTransitKeepaliveIds) {
++                if (packet.keepaliveId == keepaliveId) {
++                    return true;
++                }
++            }
++            return false;
++        }
++    }
 +
 +    // Martijn end - limit packets per tick
 +
@@ -1094,10 +1053,10 @@ index b8b6ce5a975e14bd8e1d8397dcc5d6f4474facf0..6131d71836c32d1770c2356d2a41618e
  
      // CraftBukkit start
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index bd98a2b48311d6c7c317e2e014da45d440573954..7ef2844b42745a186bf251881b4d3e84d9314fab 100644
+index eeb39af4753b75f4055521b25fcd398e5fbab54b..a1421686de522f7b01898ef6db74aae401563159 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
-@@ -26,6 +26,8 @@ import java.util.Set;
+@@ -25,6 +25,8 @@ import java.util.Set;
  import java.util.UUID;
  import java.util.function.Function;
  import javax.annotation.Nullable;
@@ -1106,7 +1065,7 @@ index bd98a2b48311d6c7c317e2e014da45d440573954..7ef2844b42745a186bf251881b4d3e84
  import net.minecraft.ChatFormatting;
  import net.minecraft.FileUtil;
  import net.minecraft.commands.CommandSourceStack;
-@@ -43,6 +45,7 @@ import net.minecraft.network.chat.MutableComponent;
+@@ -42,6 +44,7 @@ import net.minecraft.network.chat.MutableComponent;
  import net.minecraft.network.chat.OutgoingPlayerChatMessage;
  import net.minecraft.network.chat.PlayerChatMessage;
  import net.minecraft.network.protocol.Packet;
@@ -1114,7 +1073,7 @@ index bd98a2b48311d6c7c317e2e014da45d440573954..7ef2844b42745a186bf251881b4d3e84
  import net.minecraft.network.protocol.game.ClientboundChangeDifficultyPacket;
  import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
  import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
-@@ -80,6 +83,7 @@ import net.minecraft.world.effect.MobEffectInstance;
+@@ -79,6 +82,7 @@ import net.minecraft.world.effect.MobEffectInstance;
  import net.minecraft.world.entity.Entity;
  import net.minecraft.world.entity.EntityType;
  import net.minecraft.world.entity.player.ProfilePublicKey;
@@ -1122,7 +1081,7 @@ index bd98a2b48311d6c7c317e2e014da45d440573954..7ef2844b42745a186bf251881b4d3e84
  import net.minecraft.world.level.GameRules;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.biome.BiomeManager;
-@@ -1223,7 +1227,7 @@ public abstract class PlayerList {
+@@ -1211,7 +1215,7 @@ public abstract class PlayerList {
      }
  
      public void broadcast(@Nullable net.minecraft.world.entity.player.Player player, double x, double y, double z, double distance, ResourceKey<Level> worldKey, Packet<?> packet) {
@@ -1131,7 +1090,7 @@ index bd98a2b48311d6c7c317e2e014da45d440573954..7ef2844b42745a186bf251881b4d3e84
              ServerPlayer entityplayer = (ServerPlayer) this.players.get(i);
  
              // CraftBukkit start - Test if player receiving packet can see the source of the packet
-@@ -1233,6 +1237,21 @@ public abstract class PlayerList {
+@@ -1221,6 +1225,21 @@ public abstract class PlayerList {
              // CraftBukkit end
  
              if (entityplayer != player && entityplayer.level.dimension() == worldKey) {
@@ -1154,10 +1113,10 @@ index bd98a2b48311d6c7c317e2e014da45d440573954..7ef2844b42745a186bf251881b4d3e84
                  double d5 = y - entityplayer.getY();
                  double d6 = z - entityplayer.getZ();
 diff --git a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
-index c4b1a7f8743e81a9baddfa1b18140ff75b2f1dae..096b920c61e95723b3a93e8557e47870d5ffe7ff 100644
+index f456ad8a74464414f69b616a48ee9a2c1cee4d90..1be8276594db09231f97767878ed475138e79946 100644
 --- a/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
 +++ b/src/main/java/net/minecraft/world/level/block/piston/PistonBaseBlock.java
-@@ -288,6 +288,7 @@ public class PistonBaseBlock extends DirectionalBlock {
+@@ -286,6 +286,7 @@ public class PistonBaseBlock extends DirectionalBlock {
                      world.removeBlock(headPos, false);
                  } else {
                      ((ServerLevel)world).getChunkSource().blockChanged(headPos); // ... fix client desync
@@ -1166,7 +1125,7 @@ index c4b1a7f8743e81a9baddfa1b18140ff75b2f1dae..096b920c61e95723b3a93e8557e47870
                  // Paper end - fix headless pistons breaking blocks
              }
 diff --git a/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java b/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
-index e85133501e10a588627b6af0c35aad6f481f1133..8509c425e43cf65e4a54c89e09d43cec3d9abefa 100644
+index f25467ad1c5bac7eaef4b63b2845ad04d7c76e4e..3ea5715b065ac0aeea68feadaaf871564d6572ec 100644
 --- a/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
 +++ b/src/main/java/net/minecraft/world/level/chunk/LevelChunkSection.java
 @@ -13,6 +13,8 @@ import net.minecraft.world.level.block.Block;
@@ -1178,52 +1137,9 @@ index e85133501e10a588627b6af0c35aad6f481f1133..8509c425e43cf65e4a54c89e09d43cec
  
  public class LevelChunkSection {
  
-@@ -334,19 +336,38 @@ public class LevelChunkSection {
-     // Martijn start - custom blocks and entities
+@@ -330,4 +332,5 @@ public class LevelChunkSection {
  
-     public boolean potentiallyContainsBlockEntity() {
--        boolean[] potentiallyContainsBlockEntity = { false };
--        this.getStates().getAllEarlyStop(stateInSection -> {
--            Block block = stateInSection.getBlock();
--            var replacementRule = block.replacementRule;
--            if (replacementRule != null) {
--                if (replacementRule.hasAsReal(block)) {
--                    if (replacementRule.rendersAsEntity(stateInSection)) {
--                        potentiallyContainsBlockEntity[0] = true;
--                        return true;
--                    }
-+        return potentiallyContainsBlockEntity(null, null);
-+    }
-+
-+    private static boolean potentiallyContainsBlockEntity(@NotNull BlockState state) {
-+        Block block = state.getBlock();
-+        var replacementRule = block.replacementRule;
-+        if (replacementRule != null) {
-+            if (replacementRule.hasAsReal(block)) {
-+                if (replacementRule.rendersAsEntity(state)) {
-+                    return true;
-+                }
-+            }
-+        }
-+        return false;
-+    }
-+
-+    public boolean potentiallyContainsBlockEntity(short @Nullable [] positions, @NotNull BlockState @Nullable [] states) {
-+        if (states != null) {
-+            for (BlockState state : states) {
-+                if (potentiallyContainsBlockEntity(state)) {
-+                    return true;
-                 }
-             }
-             return false;
-+        }
-+        boolean[] potentiallyContainsBlockEntity = { false };
-+        this.getStates().getAllEarlyStop(state -> {
-+            if (potentiallyContainsBlockEntity(state)) {
-+                potentiallyContainsBlockEntity[0] = true;
-+                return true;
-+            }
-+            return false;
-         });
-         return potentiallyContainsBlockEntity[0];
+         this.biomes = datapaletteblock;
      }
++
+ }
