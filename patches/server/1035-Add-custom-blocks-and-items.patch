@@ -6781,10 +6781,10 @@ index 0000000000000000000000000000000000000000..8437ad716fc469e43579c7197aad7b54
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/antixray/ChunkPacketBlockControllerCustom.java b/src/main/java/nl/martijnmuijsers/paper/antixray/ChunkPacketBlockControllerCustom.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..d2ffa53275aee4a582e88f3560244b5a2e7da901
+index 0000000000000000000000000000000000000000..7e67ba40e51972c54167ff4e9f41401bfeb35435
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/antixray/ChunkPacketBlockControllerCustom.java
-@@ -0,0 +1,205 @@
+@@ -0,0 +1,212 @@
 +// Martijn - custom blocks and items
 +
 +package nl.martijnmuijsers.paper.antixray;
@@ -6801,7 +6801,9 @@ index 0000000000000000000000000000000000000000..d2ffa53275aee4a582e88f3560244b5a
 +import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 +import it.unimi.dsi.fastutil.ints.IntSet;
 +import net.minecraft.network.FriendlyByteBuf;
++import net.minecraft.server.MinecraftServer;
 +import net.minecraft.server.level.ServerPlayer;
++import net.minecraft.util.Mth;
 +import net.minecraft.world.level.Level;
 +import net.minecraft.world.level.block.Block;
 +import net.minecraft.world.level.block.state.BlockState;
@@ -6840,8 +6842,6 @@ index 0000000000000000000000000000000000000000..d2ffa53275aee4a582e88f3560244b5a
 +        BitStorageWriter bitStorageWriter = new BitStorageWriter();
 +        LevelChunk chunk = chunkPacketInfoAntiXray.getChunk();
 +        int sectionsCount = chunk.getSectionsCount();
-+        Level level = chunk.getLevel();
-+        boolean[] obfuscateTemp = null;
 +        bitStorageReader.setBuffer(chunkPacketInfoAntiXray.getBuffer());
 +        bitStorageWriter.setBuffer(chunkPacketInfoAntiXray.getBuffer());
 +
@@ -6878,7 +6878,7 @@ index 0000000000000000000000000000000000000000..d2ffa53275aee4a582e88f3560244b5a
 +
 +                // Special case for the global palette, where we don't have to find a new list of which global ids are needed in the new palette: we can just use the palette containing all vanilla blocks
 +                // But the palette isn't written at all to the packet in this case (the client simply expects the vanilla global palette), so we simply need to compute the needed block replacements
-+                if (oldPalette instanceof GlobalPalette<BlockState>) {
++                if (oldPalette instanceof GlobalPalette<?>) {
 +
 +                    // We can just straight up use the appropriate precomputed array over all block states
 +                    blockStateReplacements = globalBlockStateReplacementsForResourcePackStatus;
@@ -6972,9 +6972,16 @@ index 0000000000000000000000000000000000000000..d2ffa53275aee4a582e88f3560244b5a
 +                }
 +
 +                if (blockStateReplacements != null) {
-+                    bitStorageReader.setBits(chunkPacketInfoAntiXray.getBits(chunkSectionIndex));
++                    int readBits = chunkPacketInfoAntiXray.getBits(chunkSectionIndex);
++                    bitStorageReader.setBits(readBits);
 +                    bitStorageReader.setIndex(chunkPacketInfoAntiXray.getIndex(chunkSectionIndex));
-+                    bitStorageWriter.setBits(chunkPacketInfoAntiXray.getBits(chunkSectionIndex));
++                    int writeBits;
++                    if (oldPalette instanceof GlobalPalette<?>) {
++                        writeBits = Mth.ceillog2(Block.BLOCK_STATE_REGISTRY_VANILLA.size()); // Make sure we do not write 16 or more bits (because we have more block states than vanilla), but 15 bits (which corresponds to the number of block states in vanilla - as would normally be computed the same way in net.minecraft.world.level.chunk.PalettedContainer.Strategy.SECTION_STATES.getConfiguration in the default case
++                    } else {
++                        writeBits = readBits;
++                    }
++                    bitStorageWriter.setBits(writeBits);
 +                    bitStorageWriter.setIndex(chunkPacketInfoAntiXray.getIndex(chunkSectionIndex));
 +
 +                    // Modify all layers of the current chunk section
