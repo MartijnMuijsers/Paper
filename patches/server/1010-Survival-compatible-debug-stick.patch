@@ -116,7 +116,7 @@ index 9b131f0a827413e9f5d6d0f7491c5481576cb8b1..489c871ba53d15567d18b1a11908e002
  import org.bukkit.craftbukkit.event.CraftEventFactory;
  import org.bukkit.craftbukkit.util.CraftVector;
 diff --git a/src/main/java/net/minecraft/world/item/DebugStickItem.java b/src/main/java/net/minecraft/world/item/DebugStickItem.java
-index 09124f20d00d5631fa52e84cc0e8645caaa80e35..df16551bf1ef987bf773ee49618bbe1a0aa50b9c 100644
+index 09124f20d00d5631fa52e84cc0e8645caaa80e35..146cf10455214e62773bc1b8670674c9a3eb0afd 100644
 --- a/src/main/java/net/minecraft/world/item/DebugStickItem.java
 +++ b/src/main/java/net/minecraft/world/item/DebugStickItem.java
 @@ -1,10 +1,25 @@
@@ -145,7 +145,7 @@ index 09124f20d00d5631fa52e84cc0e8645caaa80e35..df16551bf1ef987bf773ee49618bbe1a
  import net.minecraft.core.Registry;
  import net.minecraft.nbt.CompoundTag;
  import net.minecraft.network.chat.Component;
-@@ -15,10 +30,63 @@ import net.minecraft.world.entity.player.Player;
+@@ -15,10 +30,64 @@ import net.minecraft.world.entity.player.Player;
  import net.minecraft.world.item.context.UseOnContext;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelAccessor;
@@ -197,6 +197,7 @@ index 09124f20d00d5631fa52e84cc0e8645caaa80e35..df16551bf1ef987bf773ee49618bbe1a
 +import net.minecraft.world.level.block.VineBlock;
 +import net.minecraft.world.level.block.WallBlock;
 +import net.minecraft.world.level.block.WallSkullBlock;
++import net.minecraft.world.level.block.piston.PistonBaseBlock;
  import net.minecraft.world.level.block.state.BlockState;
  import net.minecraft.world.level.block.state.StateDefinition;
 +import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -209,7 +210,7 @@ index 09124f20d00d5631fa52e84cc0e8645caaa80e35..df16551bf1ef987bf773ee49618bbe1a
  
  public class DebugStickItem extends Item {
  
-@@ -56,36 +124,69 @@ public class DebugStickItem extends Item {
+@@ -56,36 +125,69 @@ public class DebugStickItem extends Item {
          return InteractionResult.sidedSuccess(world.isClientSide);
      }
  
@@ -285,7 +286,7 @@ index 09124f20d00d5631fa52e84cc0e8645caaa80e35..df16551bf1ef987bf773ee49618bbe1a
                      nbttagcompound.putString(s, s2);
                      DebugStickItem.message(player, Component.translatable(this.getDescriptionId() + ".select", s2, DebugStickItem.getNameHelper(state, iblockstate)));
                  }
-@@ -95,9 +196,13 @@ public class DebugStickItem extends Item {
+@@ -95,9 +197,13 @@ public class DebugStickItem extends Item {
          }
      }
  
@@ -301,7 +302,7 @@ index 09124f20d00d5631fa52e84cc0e8645caaa80e35..df16551bf1ef987bf773ee49618bbe1a
  
      private static <T> T getRelative(Iterable<T> elements, @Nullable T current, boolean inverse) {
          return inverse ? Util.findPreviousInIterable(elements, current) : Util.findNextInIterable(elements, current);
-@@ -110,4 +215,122 @@ public class DebugStickItem extends Item {
+@@ -110,4 +216,123 @@ public class DebugStickItem extends Item {
      private static <T extends Comparable<T>> String getNameHelper(BlockState state, Property<T> property) {
          return property.getName(state.getValue(property));
      }
@@ -382,6 +383,7 @@ index 09124f20d00d5631fa52e84cc0e8645caaa80e35..df16551bf1ef987bf773ee49618bbe1a
 +        registerChangeablePropertiesWithAllValues(LecternBlock.class, LecternBlock.FACING);
 +        registerChangeablePropertiesWithAllValues(LoomBlock.class, LoomBlock.FACING);
 +        registerChangeablePropertiesWithAllValues(DiodeBlock.class, DiodeBlock.FACING);
++        registerChangeablePropertiesWithAllValues(PistonBaseBlock.class, PistonBaseBlock.FACING, PistonBaseBlock.EXTENDED);
 +        registerChangeablePropertiesWithAllValues(StonecutterBlock.class, StonecutterBlock.FACING);
 +        registerChangeablePropertiesWithAllValues(TrappedChestBlock.class, TrappedChestBlock.FACING);
 +        registerChangeablePropertiesWithAllValues(HopperBlock.class, HopperBlock.FACING);

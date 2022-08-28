@@ -20576,7 +20576,7 @@ index 0000000000000000000000000000000000000000..3d9a586c9ca60ea8797d586a54d5233e
 +}
 diff --git a/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..3b32176c2c372de301e1b83968242b4d4bd14a75
+index 0000000000000000000000000000000000000000..c637bb9c823c18840be679962b9ebb6c5a9cf653
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/resourcepack/sucraft/CreateSuCraftResourcePack.java
 @@ -0,0 +1,1446 @@
@@ -20654,7 +20654,7 @@ index 0000000000000000000000000000000000000000..3b32176c2c372de301e1b83968242b4d
 +        if (useRandomResourcePackVersion) {
 +            currentResourcePackVersion = (int) (Math.random() * -2000000000) - 1;
 +        } else {
-+            currentResourcePackVersion = 201;
++            currentResourcePackVersion = 202;
 +        }
 +    }
 +
