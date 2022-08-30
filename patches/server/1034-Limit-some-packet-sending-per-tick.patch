@@ -76,7 +76,7 @@ index 4a6b624df834217d7305ba42cab78fdf320ec64c..442b42e80ee9001f9610003c3eaeb7f7
      }
  
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 89e98f5b5a2bb81c3436592a9a1692388dca657d..8ce3bc22f8e12e89d5df8a24201e2d40ed0c24fd 100644
+index 89e98f5b5a2bb81c3436592a9a1692388dca657d..c07ba8e4b5b42572b884ed38cde63aad6a2e94b2 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -31,24 +31,87 @@ import java.util.Queue;
@@ -167,19 +167,25 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..8ce3bc22f8e12e89d5df8a24201e2d40
  public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      private static final float AVERAGE_PACKETS_SMOOTHING = 0.75F;
-@@ -366,6 +429,756 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -366,6 +429,762 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
      // Paper end
  
 +    // Martijn start - limit packets per tick
 +
 +    private final ReentrantLock queuedPacketsLock = new ReentrantLock();
-+    private Thread extraThreadExecutorThread;
-+    private final ExecutorService extraThreadExecutor = Executors.newFixedThreadPool(1, runnable -> {
-+        extraThreadExecutorThread = new Thread(runnable);
-+        extraThreadExecutorThread.setPriority(Thread.NORM_PRIORITY - 1);
-+        return extraThreadExecutorThread;
-+    });
++    private Thread extraThreadExecutorThread = null;
++    private ExecutorService extraThreadExecutor = null;
++    private ExecutorService getExtraThreadExecutor() {
++        if (extraThreadExecutor == null) {
++            extraThreadExecutor = Executors.newFixedThreadPool(1, runnable -> {
++                extraThreadExecutorThread = new Thread(runnable);
++                extraThreadExecutorThread.setPriority(Thread.NORM_PRIORITY - 1);
++                return extraThreadExecutorThread;
++            });
++        }
++        return extraThreadExecutor;
++    }
 +    private long nextQueuedPacketIndex = 0;
 +    private final TreeMap<Long, QueuedPacket> queuedPackets = new TreeMap<>();
 +    private static final int creditsPerTick = 180;
@@ -661,7 +667,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..8ce3bc22f8e12e89d5df8a24201e2d40
 +            if (Thread.currentThread() == extraThreadExecutorThread) {
 +                run.run();
 +            } else {
-+                extraThreadExecutor.submit(run);
++                getExtraThreadExecutor().submit(run);
 +            }
 +
 +            return false;
@@ -876,7 +882,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..8ce3bc22f8e12e89d5df8a24201e2d40
 +        if (Thread.currentThread() == extraThreadExecutorThread) {
 +            run.run();
 +        } else {
-+            extraThreadExecutor.submit(run);
++            getExtraThreadExecutor().submit(run);
 +        }
 +
 +        @org.jetbrains.annotations.Nullable List<@NotNull Object> packetsToSendAndCallbacksToExecuteNow = null;
@@ -924,7 +930,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..8ce3bc22f8e12e89d5df8a24201e2d40
      public void send(Packet<?> packet) {
          this.send(packet, (PacketSendListener) null);
      }
-@@ -405,10 +1218,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -405,10 +1224,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
  
      private void sendPacket(Packet<?> packet, @Nullable PacketSendListener callbacks) {
@@ -964,7 +970,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..8ce3bc22f8e12e89d5df8a24201e2d40
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
          // Martijn start - more packets without delay
-@@ -567,6 +1408,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -567,6 +1414,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
@@ -972,6 +978,20 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..8ce3bc22f8e12e89d5df8a24201e2d40
          this.flushQueue();
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
+@@ -629,6 +1477,13 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+             }
+         });
+         queue.clear();
++        // Martijn start - limit packets per tick
++        if (extraThreadExecutor != null) {
++            extraThreadExecutor.shutdownNow();
++            extraThreadExecutor = null;
++            extraThreadExecutorThread = null;
++        }
++        // Martijn end - limit packets per tick
+     }
+     // Paper end
+     public void disconnect(Component disconnectReason) {
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java
 index 652bea6868a03a5315965f79c76172fb9dbb93fb..62ced75ae96b0b97b87ea9960282f1b33ffef2cf 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSectionBlocksUpdatePacket.java

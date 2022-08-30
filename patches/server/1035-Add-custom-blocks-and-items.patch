@@ -492,7 +492,7 @@ index 46681f3fa63516aa750de11cf1dee17cb3734fcd..30129e9307b5d289782a6a9a5c3f2bd5
  
  public final class NbtUtils {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 8ce3bc22f8e12e89d5df8a24201e2d40ed0c24fd..3d3a66eceea08ecd5fc909d29b46c143acf11ece 100644
+index c07ba8e4b5b42572b884ed38cde63aad6a2e94b2..2273007f99a529a356cc91201c182332eea5a010 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -1182,7 +1182,7 @@ index 8ce3bc22f8e12e89d5df8a24201e2d40ed0c24fd..3d3a66eceea08ecd5fc909d29b46c143
              // Martijn end - more packets that can be sent immediately
          }
          // Paper end
-@@ -1189,6 +1788,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1195,6 +1794,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          if (!connected && !preparing) {
              return; // Do nothing
          }
@@ -1194,7 +1194,7 @@ index 8ce3bc22f8e12e89d5df8a24201e2d40ed0c24fd..3d3a66eceea08ecd5fc909d29b46c143
          packet.onPacketDispatch(getPlayer());
          if (connected && (InnerUtil.canSendImmediate(this, packet) || (
              net.minecraft.server.MCUtil.isMainThread() && packet.isReady() && this.queue.isEmpty() &&
-@@ -1251,6 +1855,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1257,6 +1861,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  //        }
          // Martijn end - limit packets per tick
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
@@ -1260,7 +1260,7 @@ index 8ce3bc22f8e12e89d5df8a24201e2d40ed0c24fd..3d3a66eceea08ecd5fc909d29b46c143
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
          // Martijn start - more packets without delay
          final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket
-@@ -1258,6 +1921,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1264,6 +1927,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
@@ -1275,7 +1275,7 @@ index 8ce3bc22f8e12e89d5df8a24201e2d40ed0c24fd..3d3a66eceea08ecd5fc909d29b46c143
              ; // no delay for certain packets
          // Martijn end - more packets without delay
          // Paper end - add flush parameter
-@@ -1270,20 +1941,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1276,20 +1947,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              this.channel.config().setAutoRead(false);
          }
  
@@ -1301,7 +1301,7 @@ index 8ce3bc22f8e12e89d5df8a24201e2d40ed0c24fd..3d3a66eceea08ecd5fc909d29b46c143
              });
              } // Paper
          }
-@@ -1409,6 +2082,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1415,6 +2088,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int currTick; // Paper
      public void tick() {
          this.tickQueuedPackets(); // Martijn - limit packets per tick
