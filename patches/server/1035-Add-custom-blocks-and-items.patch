@@ -492,7 +492,7 @@ index 46681f3fa63516aa750de11cf1dee17cb3734fcd..30129e9307b5d289782a6a9a5c3f2bd5
  
  public final class NbtUtils {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 91e3b09405add7706bc4bab4ccbad934953972b4..bdd4a62b1cd83bb852427b8f7f3d8503d1c3861c 100644
+index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f6e2059a4 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -1309,7 +1309,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..bdd4a62b1cd83bb852427b8f7f3d8503
      private static int currTick; // Paper
 +    // Martijn start - custom blocks and items
 +    private static final int repeatResourcePackEveryTicks = 80;
-+    private static final int forceResourcePackFailureAfterTicks = 200;
++    private static final int forceResourcePackFailureAfterTicks = 600;
 +    private int firstResourcePackSendTick = tickCount;
 +    private int lastResourcePackSendTick = tickCount;
 +    // Martijn end - custom blocks and items
