@@ -76,7 +76,7 @@ index 4a6b624df834217d7305ba42cab78fdf320ec64c..442b42e80ee9001f9610003c3eaeb7f7
      }
  
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 89e98f5b5a2bb81c3436592a9a1692388dca657d..c07ba8e4b5b42572b884ed38cde63aad6a2e94b2 100644
+index 89e98f5b5a2bb81c3436592a9a1692388dca657d..91e3b09405add7706bc4bab4ccbad934953972b4 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -31,24 +31,87 @@ import java.util.Queue;
@@ -167,15 +167,15 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..c07ba8e4b5b42572b884ed38cde63aad
  public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      private static final float AVERAGE_PACKETS_SMOOTHING = 0.75F;
-@@ -366,6 +429,762 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -366,6 +429,770 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
      // Paper end
  
 +    // Martijn start - limit packets per tick
 +
 +    private final ReentrantLock queuedPacketsLock = new ReentrantLock();
-+    private Thread extraThreadExecutorThread = null;
-+    private ExecutorService extraThreadExecutor = null;
++    private @org.jetbrains.annotations.Nullable Thread extraThreadExecutorThread = null;
++    private @org.jetbrains.annotations.Nullable ExecutorService extraThreadExecutor = null;
 +    private ExecutorService getExtraThreadExecutor() {
 +        if (extraThreadExecutor == null) {
 +            extraThreadExecutor = Executors.newFixedThreadPool(1, runnable -> {
@@ -438,6 +438,10 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..c07ba8e4b5b42572b884ed38cde63aad
 +     */
 +    private boolean isImmuneOtherwiseQueue(Packet<?> packet, @org.jetbrains.annotations.Nullable PacketSendListener callbacks) {
 +
++        if (!this.isConnected()) {
++            return true;
++        }
++
 +//        if (packet == immuneQueuedPacketBeingSent) {
 +//            return true;
 +//        }
@@ -683,6 +687,10 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..c07ba8e4b5b42572b884ed38cde63aad
 +    private @Nullable Long lastChunkInitializationPacketInTransitKeepaliveIdWhenLastTickingQueuedPackets = null;
 +
 +    private void tickQueuedPackets() {
++
++        if (!this.isConnected()) {
++            return;
++        }
 +
 +        // Skip this tick if we are still waiting for chunks in transit
 +        var player = getPlayer();
@@ -930,7 +938,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..c07ba8e4b5b42572b884ed38cde63aad
      public void send(Packet<?> packet) {
          this.send(packet, (PacketSendListener) null);
      }
-@@ -405,10 +1224,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -405,10 +1232,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
  
      private void sendPacket(Packet<?> packet, @Nullable PacketSendListener callbacks) {
@@ -970,7 +978,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..c07ba8e4b5b42572b884ed38cde63aad
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
          // Martijn start - more packets without delay
-@@ -567,6 +1414,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -567,6 +1422,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
@@ -978,7 +986,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..c07ba8e4b5b42572b884ed38cde63aad
          this.flushQueue();
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
-@@ -629,6 +1477,13 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -629,6 +1485,13 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              }
          });
          queue.clear();
