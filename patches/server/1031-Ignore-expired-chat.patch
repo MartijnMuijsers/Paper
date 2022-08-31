@@ -5,10 +5,10 @@ Subject: [PATCH] Ignore expired chat
 
 
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 5e8707eaf4ca0851ec45dd5c7dadb1f09645592e..0b55941932d4fa433f5d7d8773cfa12bf5268d24 100644
+index 073a5027ae16697f43fde7012cb423bbcdce6d4e..d106003d7286937ea08f4d467f64e49066860d34 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2626,9 +2626,13 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -2631,9 +2631,13 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
              }
          }
  

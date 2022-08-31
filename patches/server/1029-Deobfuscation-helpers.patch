@@ -42,6 +42,22 @@ index 2452fb49ebe5ec791cc7151e3b73b5c572ff2eda..c83e69a4a50dd69c16a7c08923170afb
      void accept(TagVisitor visitor);
  
      StreamTagVisitor.ValueResult accept(StreamTagVisitor visitor);
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 89e98f5b5a2bb81c3436592a9a1692388dca657d..18c531ddfec998f73d4731550705318a202b2c10 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -76,6 +76,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private final PacketFlow receiving;
+     private final Queue<Connection.PacketHolder> queue = Queues.newConcurrentLinkedQueue();
+     public Channel channel;
++    // Martijn start - OBFHELPER
++    public Channel _channel() {
++        return this.channel;
++    }
++    // Martijn end - OBFHELPER
+     public SocketAddress address;
+     // Spigot Start
+     public java.util.UUID spoofedUUID;
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java
 index 7a225421d54f9b30f0c62036888e09379ee28bd2..fe5d0bdf4c2e7efe3d4974ae106e091a42e157aa 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java
@@ -193,10 +209,22 @@ index 0c7cbc0d6d3b319cae455b3bda5d839d59f86d7b..77c3be9c7a4719f1a45816195aabc0b1
      public final MinecraftServer server;
      public final ServerPlayerGameMode gameMode;
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 714c6dc503a1f73ce98afd87b9d069902f36060f..5e8707eaf4ca0851ec45dd5c7dadb1f09645592e 100644
+index 714c6dc503a1f73ce98afd87b9d069902f36060f..073a5027ae16697f43fde7012cb423bbcdce6d4e 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2186,6 +2186,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -256,6 +256,11 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+     private static final int NO_BLOCK_UPDATES_TO_ACK = -1;
+     private static final int PENDING_MESSAGE_DISCONNECT_THRESHOLD = 4096;
+     public final Connection connection;
++    // Martijn start - OBFHELPER
++    public Connection _connection() {
++        return this.connection;
++    }
++    // Martijn end - OBFHELPER
+     private final MinecraftServer server;
+     public Runnable playerJoinReady; // Paper
+     public ServerPlayer player;
+@@ -2186,6 +2191,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
          }
      }
  

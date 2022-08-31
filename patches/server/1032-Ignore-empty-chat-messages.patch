@@ -5,10 +5,10 @@ Subject: [PATCH] Ignore empty chat messages
 
 
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 0b55941932d4fa433f5d7d8773cfa12bf5268d24..0d11f7c558c14bad64cec9bc7f969d2c74f77c1a 100644
+index d106003d7286937ea08f4d467f64e49066860d34..cb6729c9c4f083e083996dc9d420ef72168973a0 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-@@ -2591,7 +2591,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -2596,7 +2596,7 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
          // CraftBukkit start
          String s = message.signedContent().plain();
          if (s.isEmpty()) {

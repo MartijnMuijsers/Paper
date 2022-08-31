@@ -492,7 +492,7 @@ index 46681f3fa63516aa750de11cf1dee17cb3734fcd..30129e9307b5d289782a6a9a5c3f2bd5
  
  public final class NbtUtils {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f6e2059a4 100644
+index 99f2781b600890b094a3d58ff83820ce93f9525f..215f522f64fd5f496ded11b1aac259f9d6fadda9 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -581,7 +581,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
  import org.jetbrains.annotations.NotNull;
  import org.slf4j.Logger;
  import org.slf4j.Marker;
-@@ -155,6 +176,563 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -160,6 +181,563 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private float averageSentPackets;
      private int tickCount;
      private boolean handlingFault;
@@ -1145,7 +1145,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
      // Paper start - NetworkClient implementation
      public int protocolVersion;
      public java.net.InetSocketAddress virtualHost;
-@@ -386,6 +964,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -391,6 +969,21 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              return null;
          }
      }
@@ -1167,7 +1167,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
      private static class InnerUtil { // Attempt to hide these methods from ProtocolLib so it doesn't accidently pick them up.
          private static java.util.List<Packet> buildExtraPackets(Packet packet) {
              java.util.List<Packet> extra = packet.getExtraPackets();
-@@ -422,7 +1015,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -427,7 +1020,15 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
                  packet instanceof net.minecraft.network.protocol.game.ClientboundClearTitlesPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundBossEventPacket ||
                  packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket ||
@@ -1184,7 +1184,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
              // Martijn end - more packets that can be sent immediately
          }
          // Paper end
-@@ -1203,6 +1804,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1208,6 +1809,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
          if (!connected && !preparing) {
              return; // Do nothing
          }
@@ -1196,7 +1196,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
          packet.onPacketDispatch(getPlayer());
          if (connected && (InnerUtil.canSendImmediate(this, packet) || (
              net.minecraft.server.MCUtil.isMainThread() && packet.isReady() && this.queue.isEmpty() &&
-@@ -1265,6 +1871,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1270,6 +1876,65 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  //        }
          // Martijn end - limit packets per tick
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
@@ -1262,7 +1262,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
          // Martijn start - more packets without delay
          final boolean flush = effectiveFlush || packet instanceof net.minecraft.network.protocol.game.ClientboundKeepAlivePacket || packet instanceof ClientboundDisconnectPacket
-@@ -1272,6 +1937,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1277,6 +1942,14 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              || packet instanceof net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundPlayerInfoPacket
              || packet instanceof net.minecraft.network.protocol.game.ClientboundMapItemDataPacket
@@ -1277,7 +1277,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
              ; // no delay for certain packets
          // Martijn end - more packets without delay
          // Paper end - add flush parameter
-@@ -1284,20 +1957,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1289,20 +1962,22 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              this.channel.config().setAutoRead(false);
          }
  
@@ -1303,7 +1303,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
              });
              } // Paper
          }
-@@ -1421,8 +2096,33 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1426,8 +2101,33 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static final int MAX_PER_TICK = io.papermc.paper.configuration.GlobalConfiguration.get().misc.maxJoinsPerTick; // Paper
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
@@ -1337,7 +1337,7 @@ index 91e3b09405add7706bc4bab4ccbad934953972b4..59e24fa6c20b58efcce10f4470dc112f
          this.flushQueue();
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
-@@ -1464,6 +2164,18 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1469,6 +2169,18 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      }
  
@@ -3150,7 +3150,7 @@ index 280d28257ff2c28775f8a236a324d8c63b53093a..5c2733ece95df1d63ac8c4d69faaf530
  
                      this.level.destroyBlockProgress(this.player.getId(), pos, k);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index 0d11f7c558c14bad64cec9bc7f969d2c74f77c1a..1e2cccc89fbceb96322ff88955357cbb444f1712 100644
+index cb6729c9c4f083e083996dc9d420ef72168973a0..2524198eea02bc39b0eb46f815d880d6749815e2 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -29,6 +29,7 @@ import java.util.function.BiFunction;
@@ -3177,7 +3177,7 @@ index 0d11f7c558c14bad64cec9bc7f969d2c74f77c1a..1e2cccc89fbceb96322ff88955357cbb
  import org.apache.commons.lang3.StringUtils;
  import org.slf4j.Logger;
  
-@@ -2094,7 +2097,30 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -2099,7 +2102,30 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
          }
          // Paper start
          PlayerResourcePackStatusEvent.Status packStatus = PlayerResourcePackStatusEvent.Status.values()[packet.action.ordinal()];
@@ -3208,7 +3208,7 @@ index 0d11f7c558c14bad64cec9bc7f969d2c74f77c1a..1e2cccc89fbceb96322ff88955357cbb
          this.cserver.getPluginManager().callEvent(new PlayerResourcePackStatusEvent(this.getCraftPlayer(), packStatus)); // CraftBukkit
          // Paper end
      }
-@@ -3336,6 +3362,17 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3341,6 +3367,17 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
                              return;
                          }
  
@@ -3226,7 +3226,7 @@ index 0d11f7c558c14bad64cec9bc7f969d2c74f77c1a..1e2cccc89fbceb96322ff88955357cbb
                          switch (event.getResult()) {
                              case ALLOW:
                              case DEFAULT:
-@@ -3403,10 +3440,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3408,10 +3445,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
                      while (objectiterator.hasNext()) {
                          Entry<ItemStack> entry = (Entry) objectiterator.next();
  
@@ -3239,7 +3239,7 @@ index 0d11f7c558c14bad64cec9bc7f969d2c74f77c1a..1e2cccc89fbceb96322ff88955357cbb
                      this.player.containerMenu.resumeRemoteUpdates();
                      if (flag) {
                          this.player.containerMenu.broadcastFullState();
-@@ -3472,7 +3509,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3477,7 +3514,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
          PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
          if (this.player.gameMode.isCreative()) {
              boolean flag = packet.getSlotNum() < 0;
@@ -3251,7 +3251,7 @@ index 0d11f7c558c14bad64cec9bc7f969d2c74f77c1a..1e2cccc89fbceb96322ff88955357cbb
              CompoundTag nbttagcompound = BlockItem.getBlockEntityData(itemstack);
  
              if (!itemstack.isEmpty() && nbttagcompound != null && nbttagcompound.contains("x") && nbttagcompound.contains("y") && nbttagcompound.contains("z") && this.player.getBukkitEntity().hasPermission("minecraft.nbt.copy")) { // Spigot
-@@ -3494,10 +3534,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+@@ -3499,10 +3539,10 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
  
              boolean flag1 = packet.getSlotNum() >= 1 && packet.getSlotNum() <= 45;
              boolean flag2 = itemstack.isEmpty() || itemstack.getDamageValue() >= 0 && itemstack.getCount() <= 64 && !itemstack.isEmpty();

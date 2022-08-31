@@ -76,7 +76,7 @@ index 4a6b624df834217d7305ba42cab78fdf320ec64c..442b42e80ee9001f9610003c3eaeb7f7
      }
  
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 89e98f5b5a2bb81c3436592a9a1692388dca657d..91e3b09405add7706bc4bab4ccbad934953972b4 100644
+index 18c531ddfec998f73d4731550705318a202b2c10..99f2781b600890b094a3d58ff83820ce93f9525f 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -31,24 +31,87 @@ import java.util.Queue;
@@ -167,7 +167,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..91e3b09405add7706bc4bab4ccbad934
  public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      private static final float AVERAGE_PACKETS_SMOOTHING = 0.75F;
-@@ -366,6 +429,770 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -371,6 +434,770 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
      // Paper end
  
@@ -938,7 +938,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..91e3b09405add7706bc4bab4ccbad934
      public void send(Packet<?> packet) {
          this.send(packet, (PacketSendListener) null);
      }
-@@ -405,10 +1232,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -410,10 +1237,38 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      }
  
      private void sendPacket(Packet<?> packet, @Nullable PacketSendListener callbacks) {
@@ -978,7 +978,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..91e3b09405add7706bc4bab4ccbad934
          this.packetWrites.getAndIncrement(); // must be befeore using canFlush
          boolean effectiveFlush = flushConditional == null ? this.canFlush : flushConditional.booleanValue();
          // Martijn start - more packets without delay
-@@ -567,6 +1422,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -572,6 +1427,7 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
      public void tick() {
@@ -986,7 +986,7 @@ index 89e98f5b5a2bb81c3436592a9a1692388dca657d..91e3b09405add7706bc4bab4ccbad934
          this.flushQueue();
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
-@@ -629,6 +1485,13 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -634,6 +1490,13 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
              }
          });
          queue.clear();
