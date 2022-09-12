@@ -492,7 +492,7 @@ index 46681f3fa63516aa750de11cf1dee17cb3734fcd..30129e9307b5d289782a6a9a5c3f2bd5
  
  public final class NbtUtils {
 diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
-index 99f2781b600890b094a3d58ff83820ce93f9525f..215f522f64fd5f496ded11b1aac259f9d6fadda9 100644
+index 99f2781b600890b094a3d58ff83820ce93f9525f..1e1134605d2156c68348706c5e1d0963650b586f 100644
 --- a/src/main/java/net/minecraft/network/Connection.java
 +++ b/src/main/java/net/minecraft/network/Connection.java
 @@ -2,6 +2,7 @@ package net.minecraft.network;
@@ -1303,7 +1303,7 @@ index 99f2781b600890b094a3d58ff83820ce93f9525f..215f522f64fd5f496ded11b1aac259f9
              });
              } // Paper
          }
-@@ -1426,8 +2101,33 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1426,8 +2101,35 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
      private static final int MAX_PER_TICK = io.papermc.paper.configuration.GlobalConfiguration.get().misc.maxJoinsPerTick; // Paper
      private static int joinAttemptsThisTick; // Paper
      private static int currTick; // Paper
@@ -1321,8 +1321,10 @@ index 99f2781b600890b094a3d58ff83820ce93f9525f..215f522f64fd5f496ded11b1aac259f9
 +        {
 +            var player = this.getPlayer();
 +            if (player != null) {
-+                if (this.getPlayer().getBukkitEntity().getResourcePackStatus() == null) {
-+                    if (this.tickCount >= this.lastResourcePackSendTick + repeatResourcePackEveryTicks) {
++                if (player.getBukkitEntity().getResourcePackStatus() == null) {
++                    if (!player.canAcceptServerResourcePack()) {
++                        player.connection.handleResourcePackResponse(new ServerboundResourcePackPacket(ServerboundResourcePackPacket.Action.FAILED_DOWNLOAD));
++                    } else if (this.tickCount >= this.lastResourcePackSendTick + repeatResourcePackEveryTicks) {
 +                        player.server.getServerResourcePack().ifPresent((minecraftserver_serverresourcepackinfo) -> {
 +                            player.sendTexturePack(minecraftserver_serverresourcepackinfo.url(), minecraftserver_serverresourcepackinfo.hash(), minecraftserver_serverresourcepackinfo.isRequired(), minecraftserver_serverresourcepackinfo.prompt());
 +                        });
@@ -1337,7 +1339,7 @@ index 99f2781b600890b094a3d58ff83820ce93f9525f..215f522f64fd5f496ded11b1aac259f9
          this.flushQueue();
          // Paper start
          if (currTick != net.minecraft.server.MinecraftServer.currentTick) {
-@@ -1469,6 +2169,18 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+@@ -1469,6 +2171,18 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
  
      }
  
@@ -2831,7 +2833,7 @@ index 711ddc459167532e43cb136a69375cfb5f0bd197..01201b9e69953e239bcf3c18b2879bc7
  import org.bukkit.Bukkit;
  import org.bukkit.Location;
 diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
-index a496870e91481da555b20b78a978a78c47e90f39..31bc41bc30c6678050dbd3f509856d0edf3084ba 100644
+index a496870e91481da555b20b78a978a78c47e90f39..f220ae6b682ffb1179f6525866270ddf17226ce5 100644
 --- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
 +++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
 @@ -1,6 +1,5 @@
@@ -2948,15 +2950,21 @@ index a496870e91481da555b20b78a978a78c47e90f39..31bc41bc30c6678050dbd3f509856d0e
  
      // Martijn end - network-constrained chunk sending
  
-@@ -2397,6 +2414,7 @@ public class ServerPlayer extends Player {
+@@ -2396,7 +2413,12 @@ public class ServerPlayer extends Player {
+     }
  
      public void sendTexturePack(String url, String hash, boolean required, @Nullable Component resourcePackPrompt) {
-         this.connection.send(new ClientboundResourcePackPacket(url, hash, required, resourcePackPrompt));
+-        this.connection.send(new ClientboundResourcePackPacket(url, hash, required, resourcePackPrompt));
++        // Martijn start - custom blocks and items
++        if (this.canAcceptServerResourcePack()) {
++            this.connection.send(new ClientboundResourcePackPacket(url, hash, required, resourcePackPrompt));
++        }
 +        this.connection.connection.updateLastResourcePackSendTick();
++        // Martijn end - custom blocks and items
      }
  
      public void sendServerStatus(ServerStatus metadata) {
-@@ -2934,4 +2952,154 @@ public class ServerPlayer extends Player {
+@@ -2934,4 +2956,163 @@ public class ServerPlayer extends Player {
      // CraftBukkit end
  
      public final int getViewDistance() { throw new UnsupportedOperationException("Use PlayerChunkLoader"); } // Paper - placeholder
@@ -2981,6 +2989,15 @@ index a496870e91481da555b20b78a978a78c47e90f39..31bc41bc30c6678050dbd3f509856d0e
 +
 +    public boolean canAcceptLargePackets() {
 +        for (Predicate<org.bukkit.entity.Player> disjunct : this.getServer().getPlayerList().canAcceptLargePacketsDisjuncts) {
++            if (disjunct.test(this.getBukkitEntity())) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++    public boolean canAcceptServerResourcePack() {
++        for (Predicate<org.bukkit.entity.Player> disjunct : this.getServer().getPlayerList().canAcceptServerResourcePackDisjuncts) {
 +            if (disjunct.test(this.getBukkitEntity())) {
 +                return true;
 +            }
@@ -3265,7 +3282,7 @@ index cb6729c9c4f083e083996dc9d420ef72168973a0..2524198eea02bc39b0eb46f815d880d6
                  SlotType type = SlotType.QUICKBAR;
                  if (flag) {
 diff --git a/src/main/java/net/minecraft/server/players/PlayerList.java b/src/main/java/net/minecraft/server/players/PlayerList.java
-index a1421686de522f7b01898ef6db74aae401563159..831f7db6cccddcb155b8bd25a841a120872b38ef 100644
+index a1421686de522f7b01898ef6db74aae401563159..893636189a18ef473f39b889fef2209e12ec33ca 100644
 --- a/src/main/java/net/minecraft/server/players/PlayerList.java
 +++ b/src/main/java/net/minecraft/server/players/PlayerList.java
 @@ -15,6 +15,7 @@ import java.net.SocketAddress;
@@ -3276,16 +3293,19 @@ index a1421686de522f7b01898ef6db74aae401563159..831f7db6cccddcb155b8bd25a841a120
  import java.util.Collection;
  import java.util.Iterator;
  import java.util.List;
-@@ -162,6 +163,8 @@ public abstract class PlayerList {
+@@ -162,6 +163,11 @@ public abstract class PlayerList {
      private final Map<String,ServerPlayer> playersByName = new java.util.HashMap<>();
      public @Nullable String collideRuleTeamName; // Paper - Team name used for collideRule
  
-+    public final List<java.util.function.Predicate<org.bukkit.entity.Player>> canAcceptLargePacketsDisjuncts = new ArrayList<>(1); // Martijn - custom blocks and items
++    // Martijn start - custom blocks and items
++    public final List<java.util.function.Predicate<org.bukkit.entity.Player>> canAcceptLargePacketsDisjuncts = new ArrayList<>(1);
++    public final List<java.util.function.Predicate<org.bukkit.entity.Player>> canAcceptServerResourcePackDisjuncts = new ArrayList<>(1);
++    // Martijn end - custom blocks and items
 +
      public PlayerList(MinecraftServer server, RegistryAccess.Frozen registryManager, PlayerDataStorage saveHandler, int maxPlayers) {
          this.cserver = server.server = new CraftServer((DedicatedServer) server, this);
          server.console = new com.destroystokyo.paper.console.TerminalConsoleCommandSender(); // Paper
-@@ -281,14 +284,22 @@ public abstract class PlayerList {
+@@ -281,14 +287,22 @@ public abstract class PlayerList {
  
          player.getBukkitEntity().sendSupportedChannels(); // CraftBukkit
          playerconnection.send(new ClientboundCustomPayloadPacket(ClientboundCustomPayloadPacket.BRAND, (new FriendlyByteBuf(Unpooled.buffer())).writeUtf(this.getServer().getServerModName())));
@@ -3310,7 +3330,7 @@ index a1421686de522f7b01898ef6db74aae401563159..831f7db6cccddcb155b8bd25a841a120
          this.updateEntireScoreboard(worldserver1.getScoreboard(), player);
          this.server.invalidateStatus();
          // Paper start - async load spawn in chunk
-@@ -413,9 +424,11 @@ public abstract class PlayerList {
+@@ -413,9 +427,11 @@ public abstract class PlayerList {
          worldserver1 = player.getLevel(); // CraftBukkit - Update in case join event changed it
          // CraftBukkit end
          this.sendLevelInfo(player, worldserver1);
@@ -3325,7 +3345,7 @@ index a1421686de522f7b01898ef6db74aae401563159..831f7db6cccddcb155b8bd25a841a120
          player.sendServerStatus(this.server.getStatus());
          Iterator iterator = player.getActiveEffects().iterator();
  
-@@ -433,7 +446,7 @@ public abstract class PlayerList {
+@@ -433,7 +449,7 @@ public abstract class PlayerList {
                  .getHolderOrThrow(net.minecraft.world.level.biome.Biomes.PLAINS);
              player.connection.send(new net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket(
                  new net.minecraft.world.level.chunk.EmptyLevelChunk(worldserver1, player.chunkPosition(), plains),
@@ -3334,7 +3354,7 @@ index a1421686de522f7b01898ef6db74aae401563159..831f7db6cccddcb155b8bd25a841a120
              );
          }
          // Paper end
-@@ -1600,13 +1613,16 @@ public abstract class PlayerList {
+@@ -1600,13 +1616,16 @@ public abstract class PlayerList {
          // CraftBukkit end
  
          this.broadcastAll(new ClientboundUpdateTagsPacket(TagNetworkSerialization.serializeTagsToNetwork(this.registryHolder)));
@@ -22284,7 +22304,7 @@ index 0000000000000000000000000000000000000000..465cb288e3fb241a17080fb801ebda3c
 +
 +}
 diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
-index 9cf5b4c3301562a28bc054332a10e3eb47bef161..eaacedd6be60edad99e10ba8f176f3046b7ca862 100644
+index 9cf5b4c3301562a28bc054332a10e3eb47bef161..01906e7500eabb2773a09684f7d923df4757531f 100644
 --- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
 @@ -1,6 +1,5 @@
@@ -22326,7 +22346,7 @@ index 9cf5b4c3301562a28bc054332a10e3eb47bef161..eaacedd6be60edad99e10ba8f176f304
      @Override
      public List<Recipe> getRecipesFor(ItemStack result) {
          Validate.notNull(result, "Result cannot be null");
-@@ -2940,5 +2957,14 @@ public final class CraftServer implements Server {
+@@ -2940,5 +2957,19 @@ public final class CraftServer implements Server {
          return this.potionBrewer;
      }
  
@@ -22335,6 +22355,11 @@ index 9cf5b4c3301562a28bc054332a10e3eb47bef161..eaacedd6be60edad99e10ba8f176f304
 +    @Override
 +    public void addCanAcceptLargePacketsDisjunct(Predicate<Player> disjunct) {
 +        this.getHandle().canAcceptLargePacketsDisjuncts.add(disjunct);
++    }
++
++    @Override
++    public void addCanAcceptServerResourcePackDisjunct(Predicate<Player> disjunct) {
++        this.getHandle().canAcceptServerResourcePackDisjuncts.add(disjunct);
 +    }
 +
 +    // Martijn end - custom blocks and items
@@ -22374,7 +22399,7 @@ index 4ca81510c12d4333709cdf942c5a99f44466e0f9..90ab87189d7177528e5f2c640940ac9a
                      // Paper end
                  }
 diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
-index 2017273acb6664ec611b9e4ea89d49b6c2bd576c..563273b5eaa0aa9fb590d65bb737f386d4841ca4 100644
+index 2017273acb6664ec611b9e4ea89d49b6c2bd576c..af41f129e17c4e3c983b97d5f020ae606d40df8b 100644
 --- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 +++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
 @@ -27,6 +27,8 @@ import java.util.WeakHashMap;
@@ -22394,7 +22419,7 @@ index 2017273acb6664ec611b9e4ea89d49b6c2bd576c..563273b5eaa0aa9fb590d65bb737f386
  import org.bukkit.event.player.PlayerShowEntityEvent;
  import org.bukkit.event.player.PlayerTeleportEvent;
  import org.bukkit.event.player.PlayerUnregisterChannelEvent;
-@@ -2543,6 +2546,29 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+@@ -2543,6 +2546,34 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
      public void setResourcePackStatus(org.bukkit.event.player.PlayerResourcePackStatusEvent.Status status) {
          this.resourcePackStatus = status;
      }
@@ -22417,6 +22442,11 @@ index 2017273acb6664ec611b9e4ea89d49b6c2bd576c..563273b5eaa0aa9fb590d65bb737f386
 +    @Override
 +    public boolean canAcceptLargePackets() {
 +        return this.getHandle().canAcceptLargePackets();
++    }
++
++    @Override
++    public boolean canAcceptServerResourcePack() {
++        return this.getHandle().canAcceptServerResourcePack();
 +    }
 +
 +    // Martijn end - custom blocks and items
