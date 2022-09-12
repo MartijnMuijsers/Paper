@@ -367,7 +367,7 @@ index 8b8b17e73f7301207e2bdb7f4dc90c345a58df80..0c7cbc0d6d3b319cae455b3bda5d839d
  
      public void untrackChunk(ChunkPos chunkPos, boolean concernsTracking) {
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index cc22037bde710a58e917012dee4aab999fbe5824..714c6dc503a1f73ce98afd87b9d069902f36060f 100644
+index cc22037bde710a58e917012dee4aab999fbe5824..697bc5018b191420e16a984ce5385bfa66060b8e 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -3611,11 +3611,46 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
@@ -385,7 +385,7 @@ index cc22037bde710a58e917012dee4aab999fbe5824..714c6dc503a1f73ce98afd87b9d06990
 +            // Player ping was updated: if it is too high we update the max number of chunk packets in transit
 +            // TODO turn into configuration options
 +            if (this.player.latency > 500) {
-+                // This ping is unnaceptable
++                // This ping is unacceptable
 +                this.player.setMaxNumberOfChunkPacketsInTransitBasedOnConnection(player.level.paperConfig().networkConstrainedChunkSending.maxChunkPacketsInTransit.min);
 +            } else {
 +                int maxNumberOfChunkPacketsInTransitChange = 0;
