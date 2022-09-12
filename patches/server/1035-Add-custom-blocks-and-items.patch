@@ -4340,7 +4340,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..1ee3e32353f1df80209d3632eacd982a
          return item == null ? 0 : Registry.ITEM.getId(item);
      }
 diff --git a/src/main/java/net/minecraft/world/item/ItemStack.java b/src/main/java/net/minecraft/world/item/ItemStack.java
-index c397c2b46988d099a27a534ed102b7a847b5f715..7d0b3ba5185f0af2656c9c0ab6a5332b195dc4c8 100644
+index c397c2b46988d099a27a534ed102b7a847b5f715..93513257574d551c9302305bf02cb2a426cea603 100644
 --- a/src/main/java/net/minecraft/world/item/ItemStack.java
 +++ b/src/main/java/net/minecraft/world/item/ItemStack.java
 @@ -674,6 +674,25 @@ public final class ItemStack {
@@ -4369,6 +4369,33 @@ index c397c2b46988d099a27a534ed102b7a847b5f715..7d0b3ba5185f0af2656c9c0ab6a5332b
      public InteractionResult interactLivingEntity(net.minecraft.world.entity.player.Player user, LivingEntity entity, InteractionHand hand) {
          return this.getItem().interactLivingEntity(this, user, entity, hand);
      }
+@@ -1328,4 +1347,26 @@ public final class ItemStack {
+             return this.mask;
+         }
+     }
++
++    // Martijn start - custom blocks and items
++
++    public static final String ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY = "AddTechnicalPropertiesLore";
++
++    public boolean getAddTechnicalPropertiesLore() {
++        CompoundTag tag = this.getTag();
++        if (tag == null) {
++            return true;
++        }
++        if (!tag.contains(ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY, Tag.TAG_BYTE)) {
++            return true;
++        }
++        return tag.getBoolean(ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY);
++    }
++
++    public void setAddTechnicalPropertiesLore(boolean add) {
++        this.getOrCreateTag().putBoolean(ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY, add);
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
 diff --git a/src/main/java/net/minecraft/world/item/Items.java b/src/main/java/net/minecraft/world/item/Items.java
 index 51016663829b1f36b8e752dcf9c9361282c3f06b..f7d9190cf8aad61d6f4b7688f84b0e2cd3762e3c 100644
 --- a/src/main/java/net/minecraft/world/item/Items.java
@@ -15485,7 +15512,7 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..a5f57d90c4b3f993a6a9dbeeb77954f02a4a0493
+index 0000000000000000000000000000000000000000..8f8ad53c7df9ebb6c40a3d2a55fcd3dbed443a41
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 @@ -0,0 +1,537 @@
@@ -15777,7 +15804,7 @@ index 0000000000000000000000000000000000000000..a5f57d90c4b3f993a6a9dbeeb77954f0
 +                } else {
 +                    clone.setItem(this.getFallback());
 +                }
-+                replaceItemStackDisplayName(clone, tag, item.getRarity(), this.real.customDisplayNameJSON, this.real.customDisplayNameInLoreJSON, rendersAsEntity);
++                replaceItemStackDisplayName(clone, tag, item.getRarity(), this.real.customDisplayNameJSON, this.real.customDisplayNameInLoreJSON, rendersAsEntity && item.getAddTechnicalPropertiesLore());
 +//                System.out.println("TEMP DEBUG - replaced item display name for " + item.getItem() + " with: " + this.real.customDisplayNameJSON);
 +                storeOriginalItemInfoInItemStackNBT(clone, tag, item);
 +                return clone;
@@ -22455,10 +22482,18 @@ index 2017273acb6664ec611b9e4ea89d49b6c2bd576c..af41f129e17c4e3c983b97d5f020ae60
  
      @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
-index 3c4dadd0012c11191c873fe25a7625193563915d..b3bc3e8ef51dfdcb264962ecf9a6267adc72ea42 100644
+index 3c4dadd0012c11191c873fe25a7625193563915d..d81bbfc39c32d0fc23cc194cb7cfa6c0b3298508 100644
 --- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
 +++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
-@@ -112,9 +112,9 @@ import java.util.Collections;
+@@ -47,6 +47,7 @@ import net.minecraft.nbt.StringTag;
+ import net.minecraft.nbt.Tag;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.world.item.BlockItem;
++import net.minecraft.world.item.ItemStack;
+ import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang3.EnumUtils;
+ import org.bukkit.Material;
+@@ -112,9 +113,9 @@ import java.util.Collections;
   * <li> SerializableMeta.Deserializers deserializer()
   */
  @DelegateDeserialization(CraftMetaItem.SerializableMeta.class)
@@ -22470,7 +22505,7 @@ index 3c4dadd0012c11191c873fe25a7625193563915d..b3bc3e8ef51dfdcb264962ecf9a6267a
  
          @Retention(RetentionPolicy.SOURCE)
          @Target(ElementType.FIELD)
-@@ -128,7 +128,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+@@ -128,7 +129,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
          }
  
          final String BUKKIT;
@@ -22479,7 +22514,7 @@ index 3c4dadd0012c11191c873fe25a7625193563915d..b3bc3e8ef51dfdcb264962ecf9a6267a
  
          ItemMetaKey(final String both) {
              this(both, both);
-@@ -238,12 +238,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+@@ -238,12 +239,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
          }
      }
  
@@ -22496,6 +22531,68 @@ index 3c4dadd0012c11191c873fe25a7625193563915d..b3bc3e8ef51dfdcb264962ecf9a6267a
      static final ItemMetaKey ENCHANTMENTS = new ItemMetaKey("Enchantments", "enchants");
      @Specific(Specific.To.NBT)
      static final ItemMetaKey ENCHANTMENTS_ID = new ItemMetaKey("id");
+@@ -278,6 +279,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+     static final ItemMetaKey CAN_DESTROY = new ItemMetaKey("CanDestroy");
+     static final ItemMetaKey CAN_PLACE_ON = new ItemMetaKey("CanPlaceOn");
+     // Paper end
++    static final ItemMetaKey ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY = new ItemMetaKey(ItemStack.ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY); // Martijn - custom blocks and items
+ 
+     // We store the raw original JSON representation of all text data. See SPIGOT-5063, SPIGOT-5656, SPIGOT-5304
+     private String displayName;
+@@ -295,6 +297,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+     private Set<Namespaced> placeableKeys = Sets.newHashSet();
+     private Set<Namespaced> destroyableKeys = Sets.newHashSet();
+     // Paper end
++    private Boolean addTechnicalPropertiesLore; // Martijn - custom blocks and items
+ 
+     private static final Set<String> HANDLED_TAGS = Sets.newHashSet();
+     private static final CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new CraftPersistentDataTypeRegistry();
+@@ -430,6 +433,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+         }
+         // Paper end
+ 
++        // Martijn start - custom blocks and items
++        if (tag.contains(ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY.NBT, Tag.TAG_BYTE)) {
++            this.addTechnicalPropertiesLore = tag.getBoolean(ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY.NBT);
++        }
++        // Martijn end - custom blocks and items
++
+         Set<String> keys = tag.getAllKeys();
+         for (String key : keys) {
+             if (!CraftMetaItem.getHandledTags().contains(key)) {
+@@ -741,6 +750,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+         }
+         // Paper end
+ 
++        // Martijn start - custom blocks and items
++        if (this.addTechnicalPropertiesLore != null) {
++            itemTag.putBoolean(ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY.NBT, this.addTechnicalPropertiesLore);
++        }
++        // Martijn end - custom blocks and items
++
+         for (Map.Entry<String, Tag> e : this.unhandledTags.entrySet()) {
+             itemTag.put(e.getKey(), e.getValue());
+         }
+@@ -1815,4 +1830,19 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+         return true;
+     }
+     // Paper end
++
++    // Martijn start - custom blocks and items
++
++    @Override
++    public boolean getAddTechnicalPropertiesLore() {
++        return this.addTechnicalPropertiesLore == null || this.addTechnicalPropertiesLore;
++    }
++
++    @Override
++    public void setAddTechnicalPropertiesLore(boolean add) {
++        this.addTechnicalPropertiesLore = add ? null : false;
++    }
++
++    // Martijn end - custom blocks and items
++
+ }
 diff --git a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java b/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
 index 3183cb5da2e7327fd7bcdef7f6c3aa620d896c11..81dc8192b2faf95c8dc8348a56bfaf65120b5ead 100644
 --- a/src/main/java/org/bukkit/craftbukkit/util/CraftMagicNumbers.java
