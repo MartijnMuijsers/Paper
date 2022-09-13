@@ -215,7 +215,7 @@ index 18ba0a4f996b52bda84b98053791d642b1cd9871..b7a86fa66b2de684847834743bc5c854
          }
          protected LongOpenHashSet getChunksToBeSent(final boolean concernsTracking) {
 diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
-index 3b7a62bc6ad20b07e3741ed5265118fd8265ce4a..7bb72d8331ec7560a3ce20ab1ba5718aa5bf5871 100644
+index 5def7222e045a3ba14b0c5dbcea73610e155b753..70b1f8cfc15138d63863b15300b7c1a305559b57 100644
 --- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
 @@ -35,6 +35,18 @@ public class GlobalConfiguration extends ConfigurationPart {
@@ -2435,10 +2435,10 @@ index 5aaeb05cf3f3a86530e929499dfb98a659c714b7..9b01d7633b07ef0f4636abcafb889957
              Thread thread = new Thread("Server Shutdown Thread") {
                  public void run() {
 diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
-index 69c633bd424073771c8cd601738351c480c0e720..1668df009632369ed4f33865ce6fa282bbfd22e0 100644
+index 698a2928bca6d72d1c890c0544b84b3ea6935231..9300506b002cec08a6adbfe1c01567785c3403fc 100644
 --- a/src/main/java/net/minecraft/server/MinecraftServer.java
 +++ b/src/main/java/net/minecraft/server/MinecraftServer.java
-@@ -95,6 +95,7 @@ import net.minecraft.server.players.GameProfileCache;
+@@ -96,6 +96,7 @@ import net.minecraft.server.players.GameProfileCache;
  import net.minecraft.server.players.PlayerList;
  import net.minecraft.server.players.ServerOpListEntry;
  import net.minecraft.server.players.UserWhiteList;
@@ -2446,7 +2446,7 @@ index 69c633bd424073771c8cd601738351c480c0e720..1668df009632369ed4f33865ce6fa282
  import net.minecraft.util.Crypt;
  import net.minecraft.util.CryptException;
  import net.minecraft.util.FrameTimer;
-@@ -135,6 +136,7 @@ import net.minecraft.world.level.GameType;
+@@ -136,6 +137,7 @@ import net.minecraft.world.level.GameType;
  import net.minecraft.world.level.Level;
  import net.minecraft.world.level.LevelSettings;
  import net.minecraft.world.level.biome.BiomeManager;
@@ -2454,7 +2454,7 @@ index 69c633bd424073771c8cd601738351c480c0e720..1668df009632369ed4f33865ce6fa282
  import net.minecraft.world.level.border.WorldBorder;
  import net.minecraft.world.level.dimension.LevelStem;
  import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
-@@ -152,7 +154,11 @@ import net.minecraft.world.level.storage.loot.LootTables;
+@@ -153,7 +155,11 @@ import net.minecraft.world.level.storage.loot.LootTables;
  import net.minecraft.world.level.storage.loot.PredicateManager;
  import net.minecraft.world.phys.Vec2;
  import net.minecraft.world.phys.Vec3;
@@ -2466,7 +2466,7 @@ index 69c633bd424073771c8cd601738351c480c0e720..1668df009632369ed4f33865ce6fa282
  import org.slf4j.Logger;
  
  // CraftBukkit start
-@@ -1136,6 +1142,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+@@ -1137,6 +1143,13 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
              this.status.setEnforcesSecureChat(this.enforceSecureProfile());
              this.updateStatusIcon(this.status);
  
