@@ -30,10 +30,10 @@ index 89f86e52ff8b85a48e28ff60ca23853105df2f31..18ba0a4f996b52bda84b98053791d642
  //        protected int loadViewDistance = -1;
          public int tickViewDistance = -1;
 diff --git a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
-index efc90aacf624c906b0888c7696e7503aac35902b..6427e193d9b15efc2b4e2a332e4e369866d3fe96 100644
+index 9292935f95bda28c2bba1bab14a49df6fceb85ac..e66f488c79bc241b638af89f64357a238f4e7538 100644
 --- a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
-@@ -267,7 +267,7 @@ public class WorldConfiguration extends ConfigurationPart {
+@@ -272,7 +272,7 @@ public class WorldConfiguration extends ConfigurationPart {
  
      // Martijn end - bone meal regrows bark
  

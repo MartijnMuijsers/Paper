@@ -5,10 +5,10 @@ Subject: [PATCH] Bone meal regrows bark
 
 
 diff --git a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
-index a8b8df44b38b225102dcc3bdef73c36c881956af..efc90aacf624c906b0888c7696e7503aac35902b 100644
+index 7b3218956d88e57b5544d6a798acdc7fc03d0908..9292935f95bda28c2bba1bab14a49df6fceb85ac 100644
 --- a/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
 +++ b/src/main/java/io/papermc/paper/configuration/WorldConfiguration.java
-@@ -253,6 +253,20 @@ public class WorldConfiguration extends ConfigurationPart {
+@@ -258,6 +258,20 @@ public class WorldConfiguration extends ConfigurationPart {
  
      // Martijn end - network-constrained chunk sending
  
