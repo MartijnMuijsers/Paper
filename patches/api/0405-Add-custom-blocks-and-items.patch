@@ -1569,10 +1569,10 @@ index 2b94965893622e30db58ce7a872073eaf95bba2a..4783ce095d22ec29faf75f0fbf928f17
       * Gets a copy of this players profile
       * @return The players profile object
 diff --git a/src/main/java/org/bukkit/inventory/meta/ItemMeta.java b/src/main/java/org/bukkit/inventory/meta/ItemMeta.java
-index c6b0fd783675cd019048e445d8e959637d90be7a..c445326d341b7e0e3dfe1175e8d153f13e59c2eb 100644
+index c6b0fd783675cd019048e445d8e959637d90be7a..93dc8aaa1146c6a218dd6a9f53b62c4266f1ed8d 100644
 --- a/src/main/java/org/bukkit/inventory/meta/ItemMeta.java
 +++ b/src/main/java/org/bukkit/inventory/meta/ItemMeta.java
-@@ -581,4 +581,13 @@ public interface ItemMeta extends Cloneable, ConfigurationSerializable, Persiste
+@@ -581,4 +581,17 @@ public interface ItemMeta extends Cloneable, ConfigurationSerializable, Persiste
       */
      boolean hasDestroyableKeys();
      // Paper end
@@ -1582,6 +1582,10 @@ index c6b0fd783675cd019048e445d8e959637d90be7a..c445326d341b7e0e3dfe1175e8d153f1
 +    boolean getAddTechnicalPropertiesLore();
 +
 +    void setAddTechnicalPropertiesLore(boolean add);
++
++    boolean getAddUnderlyingItemLoreIfRenamed();
++
++    void setAddUnderlyingItemLoreIfRenamed(boolean add);
 +
 +    // Martijn end - custom blocks and items
 +

@@ -1359,7 +1359,7 @@ index 99f2781b600890b094a3d58ff83820ce93f9525f..1e1134605d2156c68348706c5e1d0963
          this.averageSentPackets = Mth.lerp(0.75F, (float) this.sentPackets, this.averageSentPackets);
          this.averageReceivedPackets = Mth.lerp(0.75F, (float) this.receivedPackets, this.averageReceivedPackets);
 diff --git a/src/main/java/net/minecraft/network/FriendlyByteBuf.java b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
-index 35377576ed182814051c11f902e02e8e921e84e3..a126fe57ff9eb8ec1a36931c2ccf799f2dc89d9f 100644
+index 35377576ed182814051c11f902e02e8e921e84e3..c860121a666e696615aded9d1fec7e07a2c8b5da 100644
 --- a/src/main/java/net/minecraft/network/FriendlyByteBuf.java
 +++ b/src/main/java/net/minecraft/network/FriendlyByteBuf.java
 @@ -60,6 +60,7 @@ import net.minecraft.network.chat.Component;
@@ -1451,7 +1451,7 @@ index 35377576ed182814051c11f902e02e8e921e84e3..a126fe57ff9eb8ec1a36931c2ccf799f
 +            if (tryRename && item.customDisplayName != null) {
 +                @NotNull ItemStack replacedStack = stack.copy();
 +                CompoundTag tag = replacedStack.getOrCreateTag();
-+                ItemReplacementRule.SimpleItemReplacementRule.replaceItemStackDisplayName(replacedStack, tag, null, item.customDisplayNameJSON, item.customDisplayNameInLoreJSON, false);
++                ItemReplacementRule.SimpleItemReplacementRule.replaceItemStackDisplayName(replacedStack, tag, null, item.customDisplayNameJSON, item.customDisplayNameInLoreJSON, false, false);
 +                ItemReplacementRule.storeOriginalItemInfoInItemStackNBT(replacedStack, tag, stack);
 +                stack = replacedStack;
 +            }
@@ -4353,7 +4353,7 @@ index 8b250dab8f3cb788ae1cfad43737afda31b72c0f..1ee3e32353f1df80209d3632eacd982a
          return item == null ? 0 : Registry.ITEM.getId(item);
      }
 diff --git a/src/main/java/net/minecraft/world/item/ItemStack.java b/src/main/java/net/minecraft/world/item/ItemStack.java
-index c397c2b46988d099a27a534ed102b7a847b5f715..93513257574d551c9302305bf02cb2a426cea603 100644
+index c397c2b46988d099a27a534ed102b7a847b5f715..d3f4fc39ca784c4862fed7386b5cfb9b6dcf55f6 100644
 --- a/src/main/java/net/minecraft/world/item/ItemStack.java
 +++ b/src/main/java/net/minecraft/world/item/ItemStack.java
 @@ -674,6 +674,25 @@ public final class ItemStack {
@@ -4382,7 +4382,7 @@ index c397c2b46988d099a27a534ed102b7a847b5f715..93513257574d551c9302305bf02cb2a4
      public InteractionResult interactLivingEntity(net.minecraft.world.entity.player.Player user, LivingEntity entity, InteractionHand hand) {
          return this.getItem().interactLivingEntity(this, user, entity, hand);
      }
-@@ -1328,4 +1347,26 @@ public final class ItemStack {
+@@ -1328,4 +1347,42 @@ public final class ItemStack {
              return this.mask;
          }
      }
@@ -4390,6 +4390,7 @@ index c397c2b46988d099a27a534ed102b7a847b5f715..93513257574d551c9302305bf02cb2a4
 +    // Martijn start - custom blocks and items
 +
 +    public static final String ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY = "AddTechnicalPropertiesLore";
++    public static final String ADD_UNDERLYING_ITEM_LORE_IF_RENAMED_TAG_KEY = "AddUnderlyingItemLoreIfRenamed";
 +
 +    public boolean getAddTechnicalPropertiesLore() {
 +        CompoundTag tag = this.getTag();
@@ -4404,6 +4405,21 @@ index c397c2b46988d099a27a534ed102b7a847b5f715..93513257574d551c9302305bf02cb2a4
 +
 +    public void setAddTechnicalPropertiesLore(boolean add) {
 +        this.getOrCreateTag().putBoolean(ADD_TECHNICAL_PROPERTIES_LORE_TAG_KEY, add);
++    }
++
++    public boolean getAddUnderlyingItemLoreIfRenamed() {
++        CompoundTag tag = this.getTag();
++        if (tag == null) {
++            return true;
++        }
++        if (!tag.contains(ADD_UNDERLYING_ITEM_LORE_IF_RENAMED_TAG_KEY, Tag.TAG_BYTE)) {
++            return true;
++        }
++        return tag.getBoolean(ADD_UNDERLYING_ITEM_LORE_IF_RENAMED_TAG_KEY);
++    }
++
++    public void setAddUnderlyingItemLoreIfRenamed(boolean add) {
++        this.getOrCreateTag().putBoolean(ADD_UNDERLYING_ITEM_LORE_IF_RENAMED_TAG_KEY, add);
 +    }
 +
 +    // Martijn end - custom blocks and items
@@ -15525,10 +15541,10 @@ index 1491d5ff59ee49cd230f67eebf705d81c4e17dfb..85bd1d479eee6afcadff7f905548e43e
  }
 diff --git a/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
 new file mode 100644
-index 0000000000000000000000000000000000000000..8f8ad53c7df9ebb6c40a3d2a55fcd3dbed443a41
+index 0000000000000000000000000000000000000000..cdec11e46ea19ac6d1dc24efff90ba8808ead9a9
 --- /dev/null
 +++ b/src/main/java/nl/martijnmuijsers/paper/item/ItemReplacementRule.java
-@@ -0,0 +1,537 @@
+@@ -0,0 +1,539 @@
 +package nl.martijnmuijsers.paper.item;
 +
 +import com.google.common.collect.Lists;
@@ -15748,7 +15764,7 @@ index 0000000000000000000000000000000000000000..8f8ad53c7df9ebb6c40a3d2a55fcd3db
 +         * @param tag Optional, just for convenience in case we already have it to avoid unnecessarily retrieving it twice
 +         * @param rarity Optional as an override, will otherwise be retrieved from the item if needed
 +         */
-+        public static void replaceItemStackDisplayName(@NotNull ItemStack item, @Nullable CompoundTag tag, @Nullable Rarity rarity, @NotNull String displayNameJSON, @NotNull String displayNameInLoreJSON, boolean addRendersAsEntityLore) {
++        public static void replaceItemStackDisplayName(@NotNull ItemStack item, @Nullable CompoundTag tag, @Nullable Rarity rarity, @NotNull String displayNameJSON, @NotNull String displayNameInLoreJSON, boolean addRendersAsEntityLore, boolean addUnderlyingItemLoreIfRenamed) {
 +            if (tag == null) {
 +                tag = item.getOrCreateTag();
 +            }
@@ -15776,14 +15792,16 @@ index 0000000000000000000000000000000000000000..8f8ad53c7df9ebb6c40a3d2a55fcd3db
 +//                System.out.println("TEMP DEBUG - set display name directly");
 +            } else {
 +                display.putString(CraftMetaItem.NAME.NBT, Component.Serializer.toJson(Component.Serializer.fromJson(display.getString(CraftMetaItem.NAME.NBT)).withStyle(Style.EMPTY.withColor(rarity.color))));
-+                ListTag lore;
-+                if (!display.contains(CraftMetaItem.LORE.NBT)) {
-+                    lore = new ListTag();
-+                    display.put(CraftMetaItem.LORE.NBT, lore);
-+                } else {
-+                    lore = display.getList(CraftMetaItem.LORE.NBT, 8);
++                if (addUnderlyingItemLoreIfRenamed) {
++                        ListTag lore;
++                    if (!display.contains(CraftMetaItem.LORE.NBT)) {
++                        lore = new ListTag();
++                        display.put(CraftMetaItem.LORE.NBT, lore);
++                    } else {
++                        lore = display.getList(CraftMetaItem.LORE.NBT, 8);
++                    }
++                    lore.add(0, StringTag.valueOf(displayNameInLoreJSON));
 +                }
-+                lore.add(0, StringTag.valueOf(displayNameInLoreJSON));
 +            }
 +        }
 +
@@ -15817,7 +15835,7 @@ index 0000000000000000000000000000000000000000..8f8ad53c7df9ebb6c40a3d2a55fcd3db
 +                } else {
 +                    clone.setItem(this.getFallback());
 +                }
-+                replaceItemStackDisplayName(clone, tag, item.getRarity(), this.real.customDisplayNameJSON, this.real.customDisplayNameInLoreJSON, rendersAsEntity && item.getAddTechnicalPropertiesLore());
++                replaceItemStackDisplayName(clone, tag, item.getRarity(), this.real.customDisplayNameJSON, this.real.customDisplayNameInLoreJSON, rendersAsEntity && item.getAddTechnicalPropertiesLore(), item.getAddUnderlyingItemLoreIfRenamed());
 +//                System.out.println("TEMP DEBUG - replaced item display name for " + item.getItem() + " with: " + this.real.customDisplayNameJSON);
 +                storeOriginalItemInfoInItemStackNBT(clone, tag, item);
 +                return clone;
@@ -15826,7 +15844,7 @@ index 0000000000000000000000000000000000000000..8f8ad53c7df9ebb6c40a3d2a55fcd3db
 +                clone.setItem(this.getBlockHostReplacingItemReplacement(item.getItem()));
 +                var description = Component.translatable(item.getDescriptionId());
 +                CompoundTag tag = clone.getOrCreateTag();
-+                replaceItemStackDisplayName(clone, tag, item.getRarity(), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(clone.getRarity().color).withItalic(false))), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR).withItalic(false))), false);
++                replaceItemStackDisplayName(clone, tag, item.getRarity(), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(clone.getRarity().color).withItalic(false))), Component.Serializer.toJson(description.withStyle(Style.EMPTY.withColor(CUSTOM_DISPLAY_NAME_IN_LORE_DEFAULT_COLOR).withItalic(false))), false, item.getAddUnderlyingItemLoreIfRenamed());
 +                storeOriginalItemInfoInItemStackNBT(clone, tag, item);
 +                return clone;
 +            }
@@ -22495,7 +22513,7 @@ index 2017273acb6664ec611b9e4ea89d49b6c2bd576c..af41f129e17c4e3c983b97d5f020ae60
  
      @Override
 diff --git a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
-index 3c4dadd0012c11191c873fe25a7625193563915d..d81bbfc39c32d0fc23cc194cb7cfa6c0b3298508 100644
+index 3c4dadd0012c11191c873fe25a7625193563915d..f9839b7e643ccdb1608f737c4466ed5214496f80 100644
 --- a/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
 +++ b/src/main/java/org/bukkit/craftbukkit/inventory/CraftMetaItem.java
 @@ -47,6 +47,7 @@ import net.minecraft.nbt.StringTag;
@@ -22552,15 +22570,18 @@ index 3c4dadd0012c11191c873fe25a7625193563915d..d81bbfc39c32d0fc23cc194cb7cfa6c0
  
      // We store the raw original JSON representation of all text data. See SPIGOT-5063, SPIGOT-5656, SPIGOT-5304
      private String displayName;
-@@ -295,6 +297,7 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+@@ -295,6 +297,10 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
      private Set<Namespaced> placeableKeys = Sets.newHashSet();
      private Set<Namespaced> destroyableKeys = Sets.newHashSet();
      // Paper end
-+    private Boolean addTechnicalPropertiesLore; // Martijn - custom blocks and items
++    // Martijn start - custom blocks and items
++    private Boolean addTechnicalPropertiesLore;
++    private Boolean addUnderlyingItemLoreIfRenamed;
++    // Martijn end - custom blocks and items
  
      private static final Set<String> HANDLED_TAGS = Sets.newHashSet();
      private static final CraftPersistentDataTypeRegistry DATA_TYPE_REGISTRY = new CraftPersistentDataTypeRegistry();
-@@ -430,6 +433,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+@@ -430,6 +436,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
          }
          // Paper end
  
@@ -22573,7 +22594,7 @@ index 3c4dadd0012c11191c873fe25a7625193563915d..d81bbfc39c32d0fc23cc194cb7cfa6c0
          Set<String> keys = tag.getAllKeys();
          for (String key : keys) {
              if (!CraftMetaItem.getHandledTags().contains(key)) {
-@@ -741,6 +750,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+@@ -741,6 +753,12 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
          }
          // Paper end
  
@@ -22586,7 +22607,7 @@ index 3c4dadd0012c11191c873fe25a7625193563915d..d81bbfc39c32d0fc23cc194cb7cfa6c0
          for (Map.Entry<String, Tag> e : this.unhandledTags.entrySet()) {
              itemTag.put(e.getKey(), e.getValue());
          }
-@@ -1815,4 +1830,19 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
+@@ -1815,4 +1833,29 @@ class CraftMetaItem implements ItemMeta, Damageable, Repairable, BlockDataMeta {
          return true;
      }
      // Paper end
@@ -22601,6 +22622,16 @@ index 3c4dadd0012c11191c873fe25a7625193563915d..d81bbfc39c32d0fc23cc194cb7cfa6c0
 +    @Override
 +    public void setAddTechnicalPropertiesLore(boolean add) {
 +        this.addTechnicalPropertiesLore = add ? null : false;
++    }
++
++    @Override
++    public boolean getAddUnderlyingItemLoreIfRenamed() {
++        return this.addUnderlyingItemLoreIfRenamed == null || this.addUnderlyingItemLoreIfRenamed;
++    }
++
++    @Override
++    public void setAddUnderlyingItemLoreIfRenamed(boolean add) {
++        this.addUnderlyingItemLoreIfRenamed = add ? null : false;
 +    }
 +
 +    // Martijn end - custom blocks and items
