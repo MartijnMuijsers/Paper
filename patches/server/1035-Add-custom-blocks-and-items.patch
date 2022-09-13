@@ -2184,7 +2184,7 @@ index 3e17f6131bf590d7c4a16b79c1c145cb4f565bc9..5aef3b156d56615427a469c4ba3b2f59
 +
  }
 diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEquipmentPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEquipmentPacket.java
-index 5a8f850b447fc3a4bd0eb0c505bbdfc8be7115e8..cda0879d6a2eaae947d0411cc5e9f758d7a1c97d 100644
+index 5a8f850b447fc3a4bd0eb0c505bbdfc8be7115e8..35b1775891397448b3ab9433c7b34c9ce13e061b 100644
 --- a/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEquipmentPacket.java
 +++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundSetEquipmentPacket.java
 @@ -7,11 +7,18 @@ import net.minecraft.network.FriendlyByteBuf;
@@ -2206,7 +2206,20 @@ index 5a8f850b447fc3a4bd0eb0c505bbdfc8be7115e8..cda0879d6a2eaae947d0411cc5e9f758
  
      public ClientboundSetEquipmentPacket(int id, List<Pair<EquipmentSlot, ItemStack>> equipmentList) {
          this.entity = id;
-@@ -61,4 +68,26 @@ public class ClientboundSetEquipmentPacket implements Packet<ClientGamePacketLis
+@@ -44,7 +51,11 @@ public class ClientboundSetEquipmentPacket implements Packet<ClientGamePacketLis
+             boolean bl = j != i - 1;
+             int k = equipmentSlot.ordinal();
+             buf.writeByte(bl ? k | -128 : k);
+-            buf.writeItem(pair.getSecond());
++            // Martijn start - custom blocks and items
++            @org.jetbrains.annotations.Nullable ItemStack itemStack = pair.getSecond();
++            // This fixes a bug when this is called with a null itemStack, which happens because the null was already present in slots after a call to the ClientboundSetEquipmentPacket constructor from Connection.sendBlockEntitySetEquipmentPacket, which is caused by BlockReplacementRule.getBlockEntityItemStack returning null, which should not happen for blocks with block entities, but apparently in this case it accidentally does - should check later
++            buf.writeItem(itemStack == null ? ItemStack.EMPTY : itemStack);
++            // Martijn end - custom blocks and items
+         }
+ 
+     }
+@@ -61,4 +72,26 @@ public class ClientboundSetEquipmentPacket implements Packet<ClientGamePacketLis
      public List<Pair<EquipmentSlot, ItemStack>> getSlots() {
          return this.slots;
      }
@@ -3167,7 +3180,7 @@ index 280d28257ff2c28775f8a236a324d8c63b53093a..5c2733ece95df1d63ac8c4d69faaf530
  
                      this.level.destroyBlockProgress(this.player.getId(), pos, k);
 diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
-index cb6729c9c4f083e083996dc9d420ef72168973a0..2524198eea02bc39b0eb46f815d880d6749815e2 100644
+index c1b8cb14d18fd31da72633edc80e5508b431ed18..89e9488d3fe7e4783b3506100f3c4f6a412ab1f3 100644
 --- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 +++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
 @@ -29,6 +29,7 @@ import java.util.function.BiFunction;
