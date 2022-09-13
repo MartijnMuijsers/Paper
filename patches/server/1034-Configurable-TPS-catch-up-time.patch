@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 13 Sep 2022 19:03:28 +0200
+Subject: [PATCH] Configurable TPS catch-up time
+
+
+diff --git a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+index 3b7a62bc6ad20b07e3741ed5265118fd8265ce4a..5def7222e045a3ba14b0c5dbcea73610e155b753 100644
+--- a/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
++++ b/src/main/java/io/papermc/paper/configuration/GlobalConfiguration.java
+@@ -398,6 +398,21 @@ public class GlobalConfiguration extends ConfigurationPart {
+ 
+     // Martijn end - network-constrained chunk sending
+ 
++    // Martijn start - configurable TPS catch-up time
++
++    public TpsCatchup tpsCatchup;
++
++    public class TpsCatchup extends ConfigurationPart {
++
++        /**
++         * In milliseconds (default 50)
++         */
++        public int millisFromNow = 50;
++
++    }
++
++    // Martijn end - configurable TPS catch-up time
++
+     public Messages messages;
+ 
+     public class Messages extends ConfigurationPart {
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 69c633bd424073771c8cd601738351c480c0e720..698a2928bca6d72d1c890c0544b84b3ea6935231 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -13,6 +13,7 @@ import com.mojang.authlib.GameProfileRepository;
+ import com.mojang.authlib.minecraft.MinecraftSessionService;
+ import com.mojang.datafixers.DataFixer;
+ import com.mojang.logging.LogUtils;
++import io.papermc.paper.configuration.GlobalConfiguration;
+ import it.unimi.dsi.fastutil.longs.LongIterator;
+ import java.awt.image.BufferedImage;
+ import java.io.BufferedWriter;
+@@ -1195,7 +1196,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+                 this.tickServer(this::haveTime);
+                 this.profiler.popPush("nextTickWait");
+                 this.mayHaveDelayedTasks = true;
+-                this.delayedTasksMaxNextTickTime = Math.max(Util.getMillis() + 50L, this.nextTickTime);
++                this.delayedTasksMaxNextTickTime = Math.max(Util.getMillis() + GlobalConfiguration.get().tpsCatchup.millisFromNow, this.nextTickTime); // Martijn - configurable TPS catch-up time
+                 this.waitUntilNextTick();
+                 this.profiler.pop();
+                 this.endMetricsRecordingTick();

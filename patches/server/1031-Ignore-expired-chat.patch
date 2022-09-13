@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Wed, 24 Aug 2022 17:34:34 +0200
+Subject: [PATCH] Ignore expired chat
+
+
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index 74dd0d35c9d624c231e8d04201cecb0507fcbcfe..b27278e2ca82269fb1918dbd8e87f9107892aaef 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -2629,9 +2629,13 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+             }
+         }
+ 
++        // Martijn start - ignore expired chat
++        /*
+         if (playerchatmessage.hasExpiredServer(Instant.now())) {
+             ServerGamePacketListenerImpl.LOGGER.warn("{} sent expired chat: '{}'. Is the client/server system time unsynchronized? c: {} s: {}", this.player.getName().getString(), playerchatmessage.signedContent().plain(), playerchatmessage.timeStamp().getEpochSecond(), Instant.now().getEpochSecond()); // Paper
+         }
++        */
++        // Martijn end - ignore expired chat
+ 
+         return true;
+     }

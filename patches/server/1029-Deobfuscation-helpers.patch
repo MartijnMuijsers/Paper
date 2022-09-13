@@ -1,0 +1,257 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: MartijnMuijsers <martijnmuijsers@live.nl>
+Date: Tue, 21 Jun 2022 12:46:55 +0200
+Subject: [PATCH] Deobfuscation helpers
+
+
+diff --git a/src/main/java/net/minecraft/commands/Commands.java b/src/main/java/net/minecraft/commands/Commands.java
+index 7c96f7fc5997761426a0c62cad0cab5cc668f282..28c8d5491390f06456fa352b009bd9ee869a0467 100644
+--- a/src/main/java/net/minecraft/commands/Commands.java
++++ b/src/main/java/net/minecraft/commands/Commands.java
+@@ -508,6 +508,14 @@ public class Commands {
+         return this.dispatcher;
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    public com.mojang.brigadier.CommandDispatcher<CommandSourceStack> _getDispatcher() {
++        return this.getDispatcher();
++    }
++
++    // Martijn end - OBFHELPER
++
+     @Nullable
+     public static <S> CommandSyntaxException getParseException(ParseResults<S> parse) {
+         return !parse.getReader().canRead() ? null : (parse.getExceptions().size() == 1 ? (CommandSyntaxException) parse.getExceptions().values().iterator().next() : (parse.getContext().getRange().isEmpty() ? CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().createWithContext(parse.getReader()) : CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownArgument().createWithContext(parse.getReader())));
+diff --git a/src/main/java/net/minecraft/nbt/Tag.java b/src/main/java/net/minecraft/nbt/Tag.java
+index 2452fb49ebe5ec791cc7151e3b73b5c572ff2eda..c83e69a4a50dd69c16a7c08923170afb5daeb42a 100644
+--- a/src/main/java/net/minecraft/nbt/Tag.java
++++ b/src/main/java/net/minecraft/nbt/Tag.java
+@@ -39,6 +39,14 @@ public interface Tag {
+         return (new StringTagVisitor()).visit(this);
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    default String _getAsString() {
++        return this.getAsString();
++    }
++
++    // Martijn end - OBFHELPER
++
+     void accept(TagVisitor visitor);
+ 
+     StreamTagVisitor.ValueResult accept(StreamTagVisitor visitor);
+diff --git a/src/main/java/net/minecraft/network/Connection.java b/src/main/java/net/minecraft/network/Connection.java
+index 89e98f5b5a2bb81c3436592a9a1692388dca657d..18c531ddfec998f73d4731550705318a202b2c10 100644
+--- a/src/main/java/net/minecraft/network/Connection.java
++++ b/src/main/java/net/minecraft/network/Connection.java
+@@ -76,6 +76,11 @@ public class Connection extends SimpleChannelInboundHandler<Packet<?>> {
+     private final PacketFlow receiving;
+     private final Queue<Connection.PacketHolder> queue = Queues.newConcurrentLinkedQueue();
+     public Channel channel;
++    // Martijn start - OBFHELPER
++    public Channel _channel() {
++        return this.channel;
++    }
++    // Martijn end - OBFHELPER
+     public SocketAddress address;
+     // Spigot Start
+     public java.util.UUID spoofedUUID;
+diff --git a/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java b/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java
+index 7a225421d54f9b30f0c62036888e09379ee28bd2..fe5d0bdf4c2e7efe3d4974ae106e091a42e157aa 100644
+--- a/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java
++++ b/src/main/java/net/minecraft/network/protocol/game/ClientboundGameEventPacket.java
+@@ -10,6 +10,11 @@ public class ClientboundGameEventPacket implements Packet<ClientGamePacketListen
+     public static final ClientboundGameEventPacket.Type START_RAINING = new ClientboundGameEventPacket.Type(1);
+     public static final ClientboundGameEventPacket.Type STOP_RAINING = new ClientboundGameEventPacket.Type(2);
+     public static final ClientboundGameEventPacket.Type CHANGE_GAME_MODE = new ClientboundGameEventPacket.Type(3);
++    // Martijn start - OBFHELPER
++    public static ClientboundGameEventPacket.Type _CHANGE_GAME_MODE() {
++        return ClientboundGameEventPacket.CHANGE_GAME_MODE;
++    }
++    // Martijn end - OBFHELPER
+     public static final ClientboundGameEventPacket.Type WIN_GAME = new ClientboundGameEventPacket.Type(4);
+     public static final ClientboundGameEventPacket.Type DEMO_EVENT = new ClientboundGameEventPacket.Type(5);
+     public static final ClientboundGameEventPacket.Type ARROW_HIT_PLAYER = new ClientboundGameEventPacket.Type(6);
+diff --git a/src/main/java/net/minecraft/server/dedicated/DedicatedPlayerList.java b/src/main/java/net/minecraft/server/dedicated/DedicatedPlayerList.java
+index dc96b30c70cd79d7b2a0322f32b9399a0f2faa41..e66865af2ee61821eb2c74456518e182ebf86c90 100644
+--- a/src/main/java/net/minecraft/server/dedicated/DedicatedPlayerList.java
++++ b/src/main/java/net/minecraft/server/dedicated/DedicatedPlayerList.java
+@@ -140,6 +140,14 @@ public class DedicatedPlayerList extends PlayerList {
+         return (DedicatedServer)super.getServer();
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    public DedicatedServer _getServer() {
++        return this.getServer();
++    }
++
++    // Martijn end - OBFHELPER
++
+     @Override
+     public boolean canBypassPlayerLimit(GameProfile profile) {
+         return this.getOps().canBypassPlayerLimit(profile);
+diff --git a/src/main/java/net/minecraft/server/level/ChunkMap.java b/src/main/java/net/minecraft/server/level/ChunkMap.java
+index 8aaebdd77e07865ce0421de501b62f24137d2010..658bcd22eecb0b2a014ed0e6d0a8872db009b084 100644
+--- a/src/main/java/net/minecraft/server/level/ChunkMap.java
++++ b/src/main/java/net/minecraft/server/level/ChunkMap.java
+@@ -165,6 +165,13 @@ public class ChunkMap extends ChunkStorage implements ChunkHolder.PlayerProvider
+     // Martijn start- per-player view distance
+     // This value is the intended world send view distance + 1
+     private int vanillaWorldViewDistancePlusOne;
++    // Martijn start - OBFHELPER
++    // This isn't actually obfuscated but we normally would want it to be private,
++    // but this opens the value up for plugins to use more readily when this is really the value that is needed
++    public int _vanillaWorldViewDistancePlusOne() {
++        return this.vanillaWorldViewDistancePlusOne;
++    }
++    // Martijn end - OBFHELPER
+     // Martijn end - per-player view distance
+     public final com.destroystokyo.paper.util.misc.PlayerAreaMap playerMobDistanceMap; // Paper
+     public final ReferenceOpenHashSet<ChunkHolder> needsChangeBroadcasting = new ReferenceOpenHashSet<>();
+diff --git a/src/main/java/net/minecraft/server/level/DistanceManager.java b/src/main/java/net/minecraft/server/level/DistanceManager.java
+index 7922ced4e86d49df02169ac820fc5cbde974a18b..67e0257b98d0075b51171376eb2716afd5367e20 100644
+--- a/src/main/java/net/minecraft/server/level/DistanceManager.java
++++ b/src/main/java/net/minecraft/server/level/DistanceManager.java
+@@ -70,6 +70,11 @@ public abstract class DistanceManager {
+     final Executor mainThreadExecutor;
+     private long ticketTickCounter;
+     private int simulationDistance = 10;
++    // Martijn start - OBFHELPER
++    public int _simulationDistance() {
++        return this.simulationDistance;
++    }
++    // Martijn end - OBFHELPER
+     private final ChunkMap chunkMap; // Paper
+ 
+     protected DistanceManager(Executor workerExecutor, Executor mainThreadExecutor, ChunkMap chunkMap) {
+diff --git a/src/main/java/net/minecraft/server/level/ServerChunkCache.java b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+index 48ad40c66e9c266c9e46d0e3d16ad199276b3e93..bb32b08221263289eb4a93ebe99b7b41ecc5e719 100644
+--- a/src/main/java/net/minecraft/server/level/ServerChunkCache.java
++++ b/src/main/java/net/minecraft/server/level/ServerChunkCache.java
+@@ -54,11 +54,21 @@ public class ServerChunkCache extends ChunkSource {
+     public static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger(); // Paper
+     public static final List<ChunkStatus> CHUNK_STATUSES = ChunkStatus.getStatusList();
+     private final DistanceManager distanceManager;
++    // Martijn start - OBFHELPER
++    public DistanceManager _distanceManager() {
++        return this.distanceManager;
++    }
++    // Martijn end - OBFHELPER
+     final ServerLevel level;
+     public final Thread mainThread;
+     final ThreadedLevelLightEngine lightEngine;
+     public final ServerChunkCache.MainThreadExecutor mainThreadProcessor;
+     public final ChunkMap chunkMap;
++    // Martijn start - OBFHELPER
++    public ChunkMap _chunkMap() {
++        return this.chunkMap;
++    }
++    // Martijn end - OBFHELPER
+     private final DimensionDataStorage dataStorage;
+     private long lastInhabitedUpdate;
+     public boolean spawnEnemies = true;
+@@ -1044,6 +1054,14 @@ public class ServerChunkCache extends ChunkSource {
+         this.distanceManager.updateSimulationDistance(simulationDistance);
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    public void _setSimulationDistance(int simulationDistance) {
++        this.setSimulationDistance(simulationDistance);
++    }
++
++    // Martijn end - OBFHELPER
++
+     @Override
+     public void setSpawnSettings(boolean spawnMonsters, boolean spawnAnimals) {
+         this.spawnEnemies = spawnMonsters;
+diff --git a/src/main/java/net/minecraft/server/level/ServerLevel.java b/src/main/java/net/minecraft/server/level/ServerLevel.java
+index 8ed9f14f1ca71111a8215b28821bd5e398c0d0a6..be798d1f4688f10ebc9ee2a612f7e2adce30e742 100644
+--- a/src/main/java/net/minecraft/server/level/ServerLevel.java
++++ b/src/main/java/net/minecraft/server/level/ServerLevel.java
+@@ -49,6 +49,7 @@ import net.minecraft.core.Registry;
+ import net.minecraft.core.RegistryAccess;
+ import net.minecraft.core.SectionPos;
+ import net.minecraft.core.particles.ParticleOptions;
++import net.minecraft.nbt.CompoundTag;
+ import net.minecraft.network.chat.Component;
+ import net.minecraft.network.chat.MutableComponent;
+ import net.minecraft.network.protocol.Packet;
+@@ -188,6 +189,11 @@ public class ServerLevel extends Level implements WorldGenLevel {
+     private static final int MAX_SCHEDULED_TICKS_PER_TICK = 65536;
+     public final List<ServerPlayer> players;
+     public final ServerChunkCache chunkSource;
++    // Martijn start - OBFHELPER
++    public ServerChunkCache _chunkSource() {
++        return this.chunkSource;
++    }
++    // Martijn end - OBFHELPER
+     private final MinecraftServer server;
+     public final PrimaryLevelData serverLevelData; // CraftBukkit - type
+     final EntityTickList entityTickList;
+diff --git a/src/main/java/net/minecraft/server/level/ServerPlayer.java b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+index 0c7cbc0d6d3b319cae455b3bda5d839d59f86d7b..77c3be9c7a4719f1a45816195aabc0b1ea7074d1 100644
+--- a/src/main/java/net/minecraft/server/level/ServerPlayer.java
++++ b/src/main/java/net/minecraft/server/level/ServerPlayer.java
+@@ -465,6 +465,11 @@ public class ServerPlayer extends Player {
+     private static final int NEUTRAL_MOB_DEATH_NOTIFICATION_RADII_XZ = 32;
+     private static final int NEUTRAL_MOB_DEATH_NOTIFICATION_RADII_Y = 10;
+     public ServerGamePacketListenerImpl connection;
++    // Martijn start - OBFHELPER
++    public ServerGamePacketListenerImpl _connection() {
++        return this.connection;
++    }
++    // Martijn end - OBFHELPER
+     public net.minecraft.network.Connection networkManager; // Paper
+     public final MinecraftServer server;
+     public final ServerPlayerGameMode gameMode;
+diff --git a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+index d0abe532971a98489a2ca1b4a4fd9cb389bd75f0..74dd0d35c9d624c231e8d04201cecb0507fcbcfe 100644
+--- a/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
++++ b/src/main/java/net/minecraft/server/network/ServerGamePacketListenerImpl.java
+@@ -256,6 +256,11 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+     private static final int NO_BLOCK_UPDATES_TO_ACK = -1;
+     private static final int PENDING_MESSAGE_DISCONNECT_THRESHOLD = 4096;
+     public final Connection connection;
++    // Martijn start - OBFHELPER
++    public Connection _connection() {
++        return this.connection;
++    }
++    // Martijn end - OBFHELPER
+     private final MinecraftServer server;
+     public ServerPlayer player;
+     private int tickCount;
+@@ -2181,6 +2186,14 @@ public class ServerGamePacketListenerImpl implements ServerPlayerConnection, Tic
+         }
+     }
+ 
++    // Martijn start - OBFHELPER
++
++    public void _send(Packet<?> packet, @Nullable PacketSendListener listener) {
++        this.send(packet, listener);
++    }
++
++    // Martijn end - OBFHELPER
++
+     @Override
+     public void handleSetCarriedItem(ServerboundSetCarriedItemPacket packet) {
+         PacketUtils.ensureRunningOnSameThread(packet, this, this.player.getLevel());
+diff --git a/src/main/java/net/minecraft/world/item/ItemStack.java b/src/main/java/net/minecraft/world/item/ItemStack.java
+index c18a0bc94d0210396046f4475e49a739088593f3..c397c2b46988d099a27a534ed102b7a847b5f715 100644
+--- a/src/main/java/net/minecraft/world/item/ItemStack.java
++++ b/src/main/java/net/minecraft/world/item/ItemStack.java
+@@ -139,6 +139,11 @@ public final class ItemStack {
+     private Item item;
+     @Nullable
+     public CompoundTag tag;
++    // Martijn start - OBFHELPER
++    public @Nullable CompoundTag _tag() {
++        return this.tag;
++    }
++    // Martijn end - OBFHELPER
+     private boolean emptyCacheFlag;
+     @Nullable
+     private Entity entityRepresentation;
